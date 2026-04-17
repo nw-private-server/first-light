@@ -84,6 +84,9 @@ def main():
         shutil.copy2(GAME_LOG, logs_dir / "game_log_before.log")
 
     python = sys.executable
+    # Force UTF-8 output in child processes to avoid cp1252 encoding errors
+    child_env = os.environ.copy()
+    child_env["PYTHONIOENCODING"] = "utf-8"
 
     # Start DTLS proxy
     print("[*] Starting DTLS proxy...")
@@ -93,6 +96,7 @@ def main():
          "--name", f"{session_name}_dtls"],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
+        env=child_env,
     )
 
     # Give proxy a moment to bind
@@ -106,6 +110,7 @@ def main():
          "--auto"],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
+        env=child_env,
     )
 
     # Stream output from both processes
