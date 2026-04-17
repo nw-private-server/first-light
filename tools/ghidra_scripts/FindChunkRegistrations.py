@@ -38,7 +38,7 @@ data_iter = listing.getDefinedData(True)
 count = 0
 for data in data_iter:
     count += 1
-    if count > 5_000_000:
+    if count > 5000000:
         break
     dt = data.getDataType().getName()
     if "string" not in dt.lower() and "char" not in dt.lower():
