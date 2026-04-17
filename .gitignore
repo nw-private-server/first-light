@@ -20,3 +20,4 @@ Desktop.ini
 # Sensitive
 *.env
 server/certs/server.key
+analysis/ghidra_project/
