@@ -68,7 +68,7 @@ def run_redirect(proxy_host: str, proxy_port: int,
 
     # Build filter
     if server_ip and server_port:
-        # Specific server
+        # Specific server — only capture packets we'll modify
         filt = (
             f"udp and "
             f"((outbound and ip.DstAddr == {server_ip} and udp.DstPort == {server_port}) or "
@@ -76,10 +76,24 @@ def run_redirect(proxy_host: str, proxy_port: int,
         )
         print(f"[*] Redirecting {server_ip}:{server_port} -> 127.0.0.1:{proxy_port}")
     else:
-        # Broad filter for any AWS GA traffic on non-standard ports
-        # We'll check IPs in the packet handler
-        filt = "udp and (outbound or inbound)"
+        # Auto-detect: filter to outbound UDP on high ports to non-local IPs
+        # Exclude common non-game traffic (DNS, mDNS, SSDP, broadcast, multicast)
+        filt = (
+            "outbound and udp and "
+            "udp.DstPort > 10000 and "
+            "ip.DstAddr != 127.0.0.1 and "
+            "ip.DstAddr != 255.255.255.255 and "
+            "ip.DstAddr >= 10.0.0.0 ? false : true"  # skip private ranges
+        )
+        # Simpler: just match AWS GA ranges directly
+        filt = (
+            "outbound and udp and udp.DstPort > 10000 and ("
+            "ip.DstAddr >= 35.64.0.0 and ip.DstAddr <= 35.79.255.255 or "
+            "ip.DstAddr >= 52.223.0.0 and ip.DstAddr <= 52.223.255.255"
+            ")"
+        )
         print(f"[*] Auto-detecting game server traffic -> 127.0.0.1:{proxy_port}")
+        print(f"[*] Watching AWS Global Accelerator ranges: 35.64-79.x.x, 52.223.x.x")
 
     # Track active redirects: original (ip, port) -> True
     active_server = None
@@ -122,46 +136,53 @@ def run_redirect(proxy_host: str, proxy_port: int,
                 dst_port = packet.dst_port
                 src_port = packet.src_port
 
-                # Check if this is game server traffic
-                should_redirect = False
-                if active_server and dst_ip == active_server[0] and dst_port == active_server[1]:
-                    should_redirect = True
-                elif not active_server and is_game_server_ip(dst_ip) and dst_port > 10000:
-                    # Auto-detect: first AWS GA packet on a high port is likely the game
+                # In auto-detect mode, the filter already limits to AWS GA ranges
+                if not active_server:
                     active_server = (dst_ip, dst_port)
-                    print(f"[+] Auto-detected game server: {dst_ip}:{dst_port}")
-                    should_redirect = True
+                    print(f"[+] Detected game server: {dst_ip}:{dst_port}")
+                    # Reopen with a precise bidirectional filter
+                    w.close()
+                    precise_filt = (
+                        f"udp and ("
+                        f"(outbound and ip.DstAddr == {dst_ip} and udp.DstPort == {dst_port}) or "
+                        f"(inbound and ip.SrcAddr == 127.0.0.1 and udp.SrcPort == {proxy_port})"
+                        f")"
+                    )
+                    print(f"[*] Reopening with precise filter for {dst_ip}:{dst_port}")
+                    w = pydivert.WinDivert(precise_filt)
+                    w.open()
+                    # The packet we just read is lost, but the game will retransmit
+                    continue
 
-                if should_redirect:
-                    # Save NAT mapping
-                    nat_table[src_port] = (dst_ip, dst_port)
+                # Redirect outbound to proxy
+                nat_table[src_port] = (dst_ip, dst_port)
+                packet.dst_addr = "127.0.0.1"
+                packet.dst_port = proxy_port
+                redirected_count += 1
 
-                    # Rewrite destination to proxy
-                    packet.dst_addr = "127.0.0.1"
-                    packet.dst_port = proxy_port
-                    redirected_count += 1
-
-                    if redirected_count <= 5 or redirected_count % 100 == 0:
-                        print(f"  -> Redirect #{redirected_count}: {dst_ip}:{dst_port} -> 127.0.0.1:{proxy_port} ({len(packet.payload)} bytes)")
+                if redirected_count <= 5 or redirected_count % 500 == 0:
+                    print(f"  -> Redirect #{redirected_count}: {dst_ip}:{dst_port} -> 127.0.0.1:{proxy_port} ({len(packet.payload)} bytes)")
 
             elif packet.is_inbound:
-                src_ip = packet.src_addr
-                src_port = packet.src_port
                 dst_port = packet.dst_port
 
-                # Check if this is a response from our proxy
-                if src_ip == "127.0.0.1" and src_port == proxy_port:
-                    # Restore original server address
-                    if dst_port in nat_table:
-                        orig_ip, orig_port = nat_table[dst_port]
-                        packet.src_addr = orig_ip
-                        packet.src_port = orig_port
+                # Restore original server address on proxy responses
+                if dst_port in nat_table:
+                    orig_ip, orig_port = nat_table[dst_port]
+                    packet.src_addr = orig_ip
+                    packet.src_port = orig_port
 
-                        if redirected_count <= 5:
-                            print(f"  <- Restore: 127.0.0.1:{proxy_port} -> {orig_ip}:{orig_port}")
+                    if redirected_count <= 5:
+                        print(f"  <- Restore: 127.0.0.1:{proxy_port} -> {orig_ip}:{orig_port}")
 
-            # Re-inject the (possibly modified) packet
-            w.send(packet)
+            # Re-inject the packet
+            try:
+                w.send(packet)
+            except OSError as e:
+                # Some packets can't be re-injected (e.g., loopback issues)
+                if redirected_count <= 5:
+                    print(f"  [!] Send failed: {e}")
+                continue
             packet_count += 1
 
     except KeyboardInterrupt:
