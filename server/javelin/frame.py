@@ -1,21 +1,23 @@
 """
 Javelin per-message framing — mirrors `Javelin_Carrier_ParseMessages`
-(NewWorld.exe @ 0x140f77eb0).
+(read side, NewWorld.exe @ 0x140f77eb0) and `Javelin_Carrier_WriteMessages`
+(write side, @ 0x140f65b20).
 
 Every datagram (after DTLS decrypt) is a stream of 1..N message records.
-Each record is:
+Each record is framed via a compact, bit-packed header:
 
-    flags  : u8  bit-packed  (see MessageFlags)
-    size   : u16 big-endian  (payload size — units TBD, measured in...
-                              probably bytes, possibly bits)
-    channel: u8  (only if MF_DATA_CHANNEL set, else inherit previous)
-    numChunks: u16 (only if MF_CHUNKS, else 1)
-    sequence : u16 (only if !MF_SQUENTIAL_ID, else auto-increment)
-    relSeq   : u16 (only if !MF_SQUENTIAL_REL_ID, else auto if reliable)
+    flags    : u8  bit-packed  (see MessageFlags)
+    size     : u16 big-endian  (payload size in bytes)
+    channel  : u8  present only when MF_DATA_CHANNEL is set
+    numChunks: u16 present only when MF_CHUNKS is set (implicit 1)
+    sequence : u16 present only when MF_SEQUENTIAL_ID is CLEAR
+                  (set ⇒ auto-increment per channel)
+    relSeq   : u16 present only when MF_SEQUENTIAL_REL_ID is CLEAR
+                  (set ⇒ auto-increment per channel when reliable)
     payload  : size bytes
 
-System messages (channel 3) place the msgId BYTE at the END of the
-payload (not the start).
+System messages (channel 3) place the 1-byte msgId at the END of the
+payload, not the start.
 """
 
 from __future__ import annotations
@@ -24,7 +26,7 @@ import enum
 from dataclasses import dataclass, field
 from typing import Iterator, List, Optional
 
-from .bitstream import BitStream, BitStreamError
+from .bitstream import BitStream, BitStreamError, BitStreamWriter
 
 
 class MessageFlags(enum.IntFlag):
@@ -43,7 +45,7 @@ class SystemMessageId(enum.IntEnum):
     SM_CONNECT_ACK = 2
     SM_DISCONNECT = 3
     SM_CLOCK_SYNC = 4
-    SM_CT_FIRST = 5  # sentinel
+    SM_CT_FIRST = 5
     SM_CT_ACKS = 6
     SM_CT_CONN_CONTROL = 7
     SM_CT_BANDWIDTH = 8
@@ -51,18 +53,22 @@ class SystemMessageId(enum.IntEnum):
 
 @dataclass
 class MessageRecord:
-    """One parsed message record. Mirrors the 0x38-byte struct the
-    binary builds inside Javelin_Carrier_ParseMessages."""
+    """One parsed/marshaled message record. Mirrors the 0x38-byte
+    in-memory struct the binary uses inside Carrier::Parse/WriteMessages."""
 
-    flags: int
     channel: int
-    size: int
-    num_chunks: int
-    sequence: int
-    reliable_sequence: int
-    reliable: bool
-    connecting: bool
     payload: bytes
+    sequence: int = 0
+    reliable_sequence: int = 0
+    reliable: bool = False
+    connecting: bool = False
+    num_chunks: int = 1
+    # Filled by the parser; ignored by the writer.
+    flags: int = 0
+
+    @property
+    def size(self) -> int:
+        return len(self.payload)
 
     @property
     def is_system(self) -> bool:
@@ -70,48 +76,28 @@ class MessageRecord:
 
     @property
     def system_msg_id(self) -> Optional[int]:
-        """For channel-3 messages, the msgId byte lives at the END of
-        the payload."""
+        """For channel-3 messages, msgId is the LAST byte of payload."""
         if not self.is_system or not self.payload:
             return None
         return self.payload[-1]
 
 
+# ---------------------------------------------------------------------------
+#  Parser (inverse of Javelin_Carrier_WriteMessages)
+# ---------------------------------------------------------------------------
+
 @dataclass
 class ParseResult:
     messages: List[MessageRecord] = field(default_factory=list)
     error: Optional[str] = None
-    trailing_bits: int = 0  # bits left in stream at EOF
+    trailing_bits: int = 0
 
 
-def parse_datagram(
-    data: bytes,
-    *,
-    start_bit: int = 0,
-    size_unit_bits: bool = False,
-) -> ParseResult:
-    """Parse a decrypted Javelin datagram payload.
-
-    Args:
-        data: The plaintext bytes (post-DTLS).
-        start_bit: Where in the first byte the stream starts. 0 for normal
-                   datagrams. Non-zero if the caller has already consumed
-                   a flag byte and wants to continue from the next bit.
-        size_unit_bits: If True, interpret the `size` field as bits.
-                        Decompilation suggests size is in a unit where
-                        payload advances via `cursor += size * 8` — so
-                        `size` is expressed in bytes. Default False
-                        matches that.
-
-    Returns:
-        ParseResult with parsed messages and any error state.
-    """
-
+def parse_datagram(data: bytes, *, start_bit: int = 0) -> ParseResult:
+    """Parse a decrypted Javelin datagram payload into MessageRecords."""
     stream = BitStream(data, start_bit=start_bit)
     result = ParseResult()
 
-    # Carry-over state between messages (inherit channel; auto-increment
-    # sequence numbers when the flag-skipped optimization is used).
     prev_channel = 0
     per_channel_seq = [0, 0, 0, 0]
     per_channel_rel_seq = [0, 0, 0, 0]
@@ -119,12 +105,11 @@ def parse_datagram(
     while stream.remaining() > 0:
         try:
             flags = stream.read_u8()
-            size = stream.read_u16_be()  # payload size (bytes)
+            size = stream.read_u16_be()
 
             reliable = bool(flags & MessageFlags.MF_RELIABLE)
             connecting = bool(flags & MessageFlags.MF_CONNECTING)
 
-            # Channel
             if flags & MessageFlags.MF_DATA_CHANNEL:
                 channel = stream.read_u8()
             else:
@@ -134,13 +119,11 @@ def parse_datagram(
                 return result
             prev_channel = channel
 
-            # Chunks
             if flags & MessageFlags.MF_CHUNKS:
                 num_chunks = stream.read_u16_be()
             else:
                 num_chunks = 1
 
-            # Sequence number
             if not (flags & MessageFlags.MF_SEQUENTIAL_ID):
                 sequence = stream.read_u16_be()
                 per_channel_seq[channel] = sequence
@@ -148,7 +131,6 @@ def parse_datagram(
                 per_channel_seq[channel] = (per_channel_seq[channel] + 1) & 0xFFFF
                 sequence = per_channel_seq[channel]
 
-            # Reliable sequence
             if not (flags & MessageFlags.MF_SEQUENTIAL_REL_ID):
                 rel_seq = stream.read_u16_be()
                 per_channel_rel_seq[channel] = rel_seq
@@ -158,7 +140,6 @@ def parse_datagram(
             else:
                 rel_seq = per_channel_rel_seq[channel]
 
-            # Payload: size bytes (8 bits each)
             n_payload_bits = size * 8
             if n_payload_bits > stream.remaining():
                 result.error = (
@@ -173,12 +154,11 @@ def parse_datagram(
                 MessageRecord(
                     flags=flags,
                     channel=channel,
-                    size=size,
-                    num_chunks=num_chunks,
                     sequence=sequence,
                     reliable_sequence=rel_seq,
                     reliable=reliable,
                     connecting=connecting,
+                    num_chunks=num_chunks,
                     payload=payload,
                 )
             )
@@ -191,6 +171,113 @@ def parse_datagram(
     return result
 
 
+# ---------------------------------------------------------------------------
+#  Marshaler (mirrors Javelin_Carrier_WriteMessages)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class MarshalState:
+    """Per-datagram state carried across messages in the same datagram.
+
+    Mirrors the cross-message state kept by Carrier::WriteMessages:
+      - prev_channel:  last channel written (to decide if MF_DATA_CHANNEL is needed)
+      - last_seq[c]:   last sequence number written on each channel (for MF_SEQUENTIAL_ID)
+      - last_rel_seq[c]: same for reliable sequence
+      - has_written[c]: whether any message has been written on this channel yet
+                       (first message ever can't be "sequential")
+    """
+    prev_channel: int = -1  # -1 = never written
+    last_seq: List[int] = field(default_factory=lambda: [0, 0, 0, 0])
+    last_rel_seq: List[int] = field(default_factory=lambda: [0, 0, 0, 0])
+    has_written: List[bool] = field(default_factory=lambda: [False] * 4)
+
+
+def marshal_record(
+    writer: BitStreamWriter,
+    rec: MessageRecord,
+    state: MarshalState,
+) -> None:
+    """Serialize one MessageRecord into `writer`, updating `state`.
+
+    The flags byte is computed by comparing with the previous state. This
+    is exactly what Carrier::WriteMessages does.
+    """
+    if rec.channel not in (0, 1, 2, 3):
+        raise ValueError(f"invalid channel {rec.channel} (must be 0..3)")
+
+    c = rec.channel
+
+    # Compute "can we skip the sequence field?"
+    # Writer optimization: if this msg's seq == last_seq + 1 (with u16 wrap),
+    # mark it as sequential and omit the field.
+    is_seq_sequential = (
+        state.has_written[c]
+        and ((state.last_seq[c] + 1) & 0xFFFF) == rec.sequence
+    )
+    is_relseq_sequential = (
+        state.has_written[c]
+        and rec.reliable
+        and ((state.last_rel_seq[c] + 1) & 0xFFFF) == rec.reliable_sequence
+    )
+    # Note: if the message isn't reliable, the writer STILL writes the
+    # reliable seq field unless MF_SEQUENTIAL_REL_ID is set. We can set
+    # the flag to 'skip' for non-reliable messages to save bytes — it
+    # works because the reader only ever uses reliable_sequence when
+    # reliable=true. This matches the binary's logic.
+    if not rec.reliable:
+        is_relseq_sequential = True  # always "inherit" for non-reliable
+
+    channel_changed = (state.prev_channel != c)
+
+    # Build flag byte.
+    flags = 0
+    if rec.reliable:
+        flags |= MessageFlags.MF_RELIABLE
+    if rec.num_chunks > 1:
+        flags |= MessageFlags.MF_CHUNKS
+    if is_seq_sequential:
+        flags |= MessageFlags.MF_SEQUENTIAL_ID
+    if is_relseq_sequential:
+        flags |= MessageFlags.MF_SEQUENTIAL_REL_ID
+    if channel_changed:
+        flags |= MessageFlags.MF_DATA_CHANNEL
+    if rec.connecting:
+        flags |= MessageFlags.MF_CONNECTING
+
+    # Emit fields in the canonical order.
+    writer.write_u8(flags)
+    writer.write_u16_be(rec.size)
+    if channel_changed:
+        writer.write_u8(c)
+    if rec.num_chunks > 1:
+        writer.write_u16_be(rec.num_chunks)
+    if not is_seq_sequential:
+        writer.write_u16_be(rec.sequence & 0xFFFF)
+    if not is_relseq_sequential:
+        writer.write_u16_be(rec.reliable_sequence & 0xFFFF)
+    writer.write_bits(rec.payload, rec.size * 8)
+
+    # Update state.
+    state.prev_channel = c
+    state.last_seq[c] = rec.sequence & 0xFFFF
+    if rec.reliable:
+        state.last_rel_seq[c] = rec.reliable_sequence & 0xFFFF
+    state.has_written[c] = True
+
+
+def marshal_datagram(records: List[MessageRecord]) -> bytes:
+    """Marshal a list of MessageRecords into a single datagram payload."""
+    writer = BitStreamWriter()
+    state = MarshalState()
+    for rec in records:
+        marshal_record(writer, rec, state)
+    return writer.to_bytes()
+
+
+# ---------------------------------------------------------------------------
+#  Helpers
+# ---------------------------------------------------------------------------
+
 def iter_system_messages(result: ParseResult) -> Iterator[tuple[SystemMessageId, MessageRecord]]:
     """Yield (msg_id, record) pairs for system-channel messages."""
     for rec in result.messages:
@@ -201,4 +288,4 @@ def iter_system_messages(result: ParseResult) -> Iterator[tuple[SystemMessageId,
             try:
                 yield SystemMessageId(mid), rec
             except ValueError:
-                pass  # unknown system msg id
+                pass
