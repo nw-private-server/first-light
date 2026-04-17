@@ -1,0 +1,37 @@
+# Javelin networked components (replication chunks + RPC groups)
+# Each component has: Client/Server Facet (state) + Client/Server Messages (RPCs)
+
+## Components with BOTH Client+Server facet (2)
+
+These are the core replicated components -- both roles have state.
+
+- PlayerTutorialsComponent
+- WarboardComponent
+
+## Client-only facets (2)
+
+- GuildsComponent
+- ReusableScoreboardComponent
+
+## Server-only facets (4)
+
+- ActionListComponent
+- HouseDataComponent
+- InventoriesComponent
+- ItemManagementComponent
+
+## All ClientMessages classes (1)
+
+- Javelin::BehaviorTreeComponentClientMessages
+
+## All ServerMessages classes (2)
+
+- Javelin::BehaviorTreeComponentServerMessages
+- Javelin::SiegeWarfareDataComponentServerMessages
+
+## Other *Messages classes (4)
+
+- Javelin::EntitlementRemoteMessages
+- Javelin::IPlayerDebugMessages
+- Javelin::IPlayerRemoteMessages
+- Javelin::S2STokenRefreshMessages

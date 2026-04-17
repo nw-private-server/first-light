@@ -1,0 +1,25 @@
+# *Chunk type names found in NewWorld.exe
+# Total: 17
+
+## *ReplicaChunk (2)
+
+ScriptComponentReplicaChunk
+TransformReplicaChunk
+
+## Other *Chunk (15)
+
+LoadGeomChunk
+NetBindingComponentChunk
+ProcVegetationMaxObjectsInChunk
+ProcessChunk
+SBrushChunk
+SDecalChunk
+SDistanceCloudChunk
+SMergedMeshChunk
+SMergedMeshGroupChunk
+SOcTreeNodeChunk
+SRenderNodeChunk
+SRoadChunk
+SVisAreaChunk
+SWaterVolumeChunk
+TriggerAreaChunk
