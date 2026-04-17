@@ -1,7 +1,7 @@
 # New World Private Server — Progress & Findings
 
 > Living document. Updated as we learn more.
-> Last updated: 2026-04-17 (first Ghidra-MCP session; DTLS stack + Session/Carrier/ReplicaManager mapped)
+> Last updated: 2026-04-17 (complete Javelin message framing layer in Python, parser + marshaler)
 
 ---
 
@@ -79,7 +79,7 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 - [ ] Understand the relationship between the HTTPS gateway traffic and the DTLS game traffic
 
 ### Gate 3: Decode the Packet Format
-**Status: ~40% — DTLS stack + Session/Carrier architecture mapped via Ghidra**
+**Status: ~55% — Javelin message framing layer fully decoded and implemented in Python**
 
 **Critical finding (2026-04-17):** New World does **NOT** use stock O3DE AzNetworking. Static scan of NewWorld.exe found **0 hits / 101 checks** on AzNetworking markers but **5001 hits** on `Javelin::` classes. The binary uses a **bespoke networking library named "Javelin"** — almost certainly forked from Lumberyard's older **GridMate** (pre-O3DE, ~2017 era), because:
 - `"GridMate"` appears as a string 30× in the binary (log tags likely preserved)
@@ -98,16 +98,25 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 
 **What we still need:**
 - [x] ~~Clone O3DE source and study AzNetworking packet header format~~
-- [x] Clone Lumberyard GridMate and produce protocol reference — see `docs/gridmate-reference.md`
-- [x] Ghidra auto-analysis — done (decompiler pass finished)
-- [x] Enable GhidraMCP plugin — done, server live on port 8080
-- [x] Find cipher string `ECDHE-RSA-AES256-GCM-SHA384` xref — **single xref** lands in `Javelin_SecureSocketDriver_Initialize` @ `0x145dce750`. All 7 OpenSSL API wrappers identified; SSL_CTX stored at state `[0x1a]`. See `analysis/ghidra_findings.md`.
-- [x] Map Session → CarrierImpl → Carrier → ReplicaManager hierarchy via Ghidra MCP
-- [ ] Force-define pump functions in Ghidra (`F` key at `0x140f82340`, `0x145ddab20`) — that's `CarrierThread::ThreadPump`
-- [ ] Find `ReadMessageHeader` equivalent (bit-mask fingerprint `flags & 0x42 == 0`, reads u16 size) — tools/ghidra_scripts/JavelinHunt.py automates this
-- [ ] Find static constructors that register `ReplicaChunkDescriptor`s — that enumerates the complete chunk catalog
-- [ ] Find `Cmd_*` switch at the top of replica dispatch (§5.4 of GridMate ref)
-- [ ] Cross-reference findings with our 38,845 captured DTLS records
+- [x] Clone Lumberyard GridMate and produce protocol reference — `docs/gridmate-reference.md`
+- [x] Ghidra auto-analysis
+- [x] GhidraMCP live server
+- [x] SecureSocketDriver::Initialize fully mapped (all 7 OpenSSL wrappers, state struct offsets)
+- [x] Session → CarrierImpl → Carrier → ReplicaManager hierarchy
+- [x] Pump functions defined and decompiled (`Javelin_CarrierThread_ThreadPump` @ `0x140f82340`)
+- [x] **Complete DTLS state machine enumerated** (`Javelin_SecureSocketDriver_StateDispatch` @ `0x145dce4c0` — all 12 states with handler addresses)
+- [x] `Javelin_CarrierThread_ReceiveLoop` @ `0x140f898e0` — ingress path + DTLS decrypt vtable offset (0x30)
+- [x] `Javelin_CarrierThread_SendLoop` @ `0x140f8ab70` — egress path + DTLS encrypt vtable offset (0x28)
+- [x] **`Javelin_Carrier_ParseMessages` @ `0x140f77eb0` — ReadMessageHeader fully decoded**
+- [x] **`Javelin_Carrier_WriteMessages` @ `0x140f65b20` — WriteMessageHeader fully decoded**
+- [x] `Javelin_BitStream_ReadBits` @ `0x140f7c420` — bit-level stream primitive
+- [x] `Javelin_Carrier_HandleAckVector` / `BuildAckVector` — SM_CT_ACKS handler + builder
+- [x] **KEY DISCOVERY: Javelin uses bit-streams, not byte streams** — all fields read/written via `ReadBits(n_bits)`. That's why the `0x42` byte-aligned scan failed.
+- [x] **Working Python parser + marshaler** in `server/javelin/` — 14/14 round-trip tests passing
+- [ ] Decompile DTLS state-handler functions (CS_CONNECT, CS_COOKIE_EXCHANGE, CS_SSL_HANDSHAKE_CONNECT, CS_ESTABLISHED) — tells the stub server how to drive the client through DTLS negotiation
+- [ ] Parse the pre-DTLS `MF_CONNECTING` handshake packets from our captures (first few packets before DTLS is established are plaintext)
+- [ ] Harvest full chunk catalog (auto-define strings first, then re-run FindChunkRegistrations.py)
+- [ ] Find `Cmd_*` switch at the top of replica dispatch (§5.4 of GridMate ref) — gives per-chunk payload decoding
 
 ### Gate 4: Stub a Minimal Server
 **Status: Not started**
@@ -197,12 +206,23 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 | `javelin_chunks.txt` | 10+ components with visible Facet/Messages strings (Guilds, PlayerTutorials, Warboard, Inventories, HouseData, etc.) |
 | `chunk_names.txt` | 17 `*Chunk` type strings (3 networking: `TransformReplicaChunk`, `ScriptComponentReplicaChunk`, `NetBindingComponentChunk`; rest CryEngine terrain) |
 | `ghidra_hunt_list.md` | Consolidated anchor VAs + bit-pattern fingerprints for post-analysis Ghidra work |
+| `ghidra_findings.md` | Live findings from Ghidra-MCP sessions (DTLS stack, Session hierarchy, ReceiveLoop, SendLoop, ParseMessages/WriteMessages decompile notes, DTLS state machine) |
+| `ghidra_findings.txt` | JSON output from JavelinHunt.py |
+| `ghidra_chunks.txt` | Output from FindChunkRegistrations.py (empty — strings not defined as typed data) |
 | `ghidra_project/` | Ghidra project database (gitignored) |
 
 ### Ghidra scripts (`tools/ghidra_scripts/`)
 | File | Purpose |
 |------|---------|
-| `JavelinHunt.py` | Jython script. Resolves all Tier-1 string anchors, collects xrefs, scans `.text` for `AND/TEST 0x42` (ReadMessageHeader fingerprint), dumps findings JSON. Run from Script Manager once auto-analysis finishes. |
+| `JavelinHunt.py` | Tier-1 anchor resolver. Resolves string anchors, collects xrefs, scans `.text` for 0x42 immediate (found: CryEngine false positives; ReadMessageHeader uses bit-stream reads instead). Outputs JSON. |
+| `FindChunkRegistrations.py` | Walks defined strings ending in `*Chunk` and collects their xrefs. Needs `.rdata` auto-string-analysis run first. |
+
+### Working protocol code (`server/javelin/`)
+| File | Purpose |
+|------|---------|
+| `bitstream.py` | `BitStream` (read) + `BitStreamWriter` (write) — mirrors `Javelin_BitStream_ReadBits` @ `0x140f7c420` with aligned/unaligned bit paths. |
+| `frame.py` | `MessageRecord`, `MessageFlags`, `SystemMessageId`, `parse_datagram()`, `marshal_datagram()` — inverses of `Javelin_Carrier_ParseMessages` / `Javelin_Carrier_WriteMessages`. |
+| `test_parser.py` | 14 unit + round-trip tests, all passing. |
 
 ---
 
