@@ -1,7 +1,7 @@
 # New World Private Server — Progress & Findings
 
 > Living document. Updated as we learn more.
-> Last updated: 2026-04-16
+> Last updated: 2026-04-16 (session 2 analysis complete)
 
 ---
 
@@ -43,27 +43,40 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 - [ ] Understand what the channel config JSON contains (fetch it directly before shutdown)
 
 ### Gate 2: Capture the Game Server Protocol
-**Status: ~30% complete**
+**Status: ~60% complete**
 
-**Key correction:** The Perplexity research said WebSocket. It's actually **direct TCP** — the game calls it "REP" (Replication Protocol), which is O3DE/Lumberyard terminology.
+**Key corrections from second capture session (2026-04-16):**
+- NOT WebSocket (as Perplexity said)
+- NOT plain TCP (as first log analysis suggested)
+- It's **DTLS 1.2** (Datagram TLS) — encrypted UDP
 
 **What we know:**
-- Game server connection is plain TCP to an AWS Global Accelerator IP (`35.71.190.194`)
-- Port is **dynamic** — observed `25493` (Dec 2025) and `23971` (Apr 2026)
+- Game server uses **UDP with DTLS 1.2 encryption**, not TCP
+- The game log says "REP socket connection" but the actual transport is UDP+DTLS
+- Server IPs are AWS Global Accelerator: `35.71.190.194`, `52.223.16.88`
+- Port is **dynamic** — observed `25493`, `23971`, `58068` across sessions
 - The server IP + port are provided in the login ticket response, not hardcoded
-- Connection flow after TCP established: socket connect → register → registration response → actor game connection → spawn point → player spawn → in game
-- Server identifies itself with a version string: `[RETAIL].Javelin.1.365.6031.6004151`
+- DTLS handshake includes mutual authentication (server sends Certificate Request)
+- Server certificate: `CN=New World, O=Amazon, OU=Amazon Game Studios, Email=ags-nw@amazon.com`
+- Certificate validity: 2025-08-04 to 2027-01-06
+- Connection flow after DTLS: register → registration response → actor game connection → spawn point → player spawn → in game
+- Server version: `[RETAIL].Javelin.1.365.6031.6004151`
 - Voice chat is separate (Vivox, SIP-based, `nwxp.vivox.com`)
+- Typical game session: ~2800 UDP packets to game server over ~30s of gameplay
 
 **What we captured:**
-- 60MB pcap from first session (mostly HTTPS on port 443 — TLS encrypted)
-- The REP TCP stream was **missed** in first capture due to hardcoded port filter (now fixed)
+- 60MB pcap from first session (HTTPS only, missed REP due to port filter)
+- 7.5MB pcap from second session — **includes full DTLS handshake + encrypted game traffic**
+- Full DTLS server certificate extracted and decoded
+- Complete list of TLS SNI hostnames the client connects to (see connection-flow.md)
 
 **What we still need:**
-- [ ] Capture the REP TCP stream (run updated capture script — filter is now `tcp` not port-specific)
-- [ ] Determine if REP connection is encrypted (TLS) or plaintext
-- [ ] If encrypted, use Frida to hook SSL_read/SSL_write and dump decrypted payloads
-- [ ] Capture multiple sessions doing different activities (login, walk around, open inventory, etc.)
+- [x] ~~Capture the REP stream~~ — done (second capture, DTLS over UDP)
+- [x] ~~Determine if REP is encrypted~~ — yes, DTLS 1.2
+- [ ] Decrypt DTLS traffic — Frida hook on SSL_read/SSL_write, or extract session keys
+- [ ] Determine if client sends a client certificate (Certificate Request seen in handshake)
+- [ ] Capture longer sessions with varied activities (combat, inventory, travel between zones)
+- [ ] Understand the relationship between the HTTPS gateway traffic and the DTLS game traffic
 
 ### Gate 3: Decode the Packet Format
 **Status: Not started**
@@ -102,19 +115,25 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 
 Things that differ from the initial Perplexity research or are otherwise surprising:
 
-1. **Not WebSocket — it's direct TCP.** The game server uses O3DE's REP (Replication Protocol) over plain TCP, not WebSocket framing. This is actually simpler to work with.
+1. **Not WebSocket, not TCP — it's DTLS over UDP.** The Perplexity research said WebSocket. First log analysis suggested TCP. Packet capture proves it's **DTLS 1.2 (encrypted UDP)**. The game log misleadingly says "REP socket connection" but the transport is UDP.
 
-2. **OmniSDK, not simple REST.** Auth isn't a straightforward POST to a login endpoint. It goes through Amazon's OmniSDK 1.6, which handles the Steam ticket → persona ID → AWS credentials pipeline. The REST calls happen, but they're wrapped in OmniSDK.
+2. **Mutual TLS authentication.** The DTLS handshake includes a Certificate Request from the server, meaning the client likely sends a client certificate too. This is a stronger auth model than just server-side TLS.
 
-3. **Dynamic REP port.** The game server port changes every session. It's assigned by the login queue system, not hardcoded. Our stub server can use any port.
+3. **Self-signed Amazon certificate.** The server cert is `CN=New World, OU=Amazon Game Studios`, self-signed (not from a public CA). Valid 2025-08-04 to 2027-01-06. Our stub server will need to present a cert the client trusts — likely need to patch the client's cert validation or use the same cert.
 
-4. **Two auth sessions per login.** The client authenticates twice — once for the gameplay region (e.g., us-west-2) and once for us-east-1. Unclear why yet.
+4. **OmniSDK, not simple REST.** Auth goes through Amazon's OmniSDK 1.6: Steam ticket → persona ID → AWS credentials. Not a straightforward POST.
 
-5. **S3-based remote config.** World-specific configuration is pulled from S3 via the gateway, versioned per world ID and build number. We'll need to serve this from our stub.
+5. **Dynamic REP port.** Game server port changes every session (25493, 23971, 58068). Assigned by login queue. Our stub can use any port.
 
-6. **SSLKEYLOGFILE doesn't work.** The game doesn't use a TLS library that honors this env var. Frida hooks will be needed for HTTPS decryption.
+6. **Two auth sessions per login.** Client authenticates twice — once for the gameplay region (us-west-2) and once for us-east-1. Unclear why.
 
-7. **The game logs everything.** Even without verbose logging enabled, the game writes auth endpoints, tickets, persona IDs, server IPs, state transitions, and more to `Game.log`. This is our best source of protocol documentation.
+7. **S3-based remote config.** World config pulled from S3 via gateway, versioned per world ID and build number.
+
+8. **SSLKEYLOGFILE doesn't work.** Game doesn't honor this env var. Frida hooks needed for TLS/DTLS decryption.
+
+9. **The game logs everything.** Auth endpoints, tickets, persona IDs, server IPs, state transitions — all in plaintext in `Game.log`.
+
+10. **All external services identified from TLS SNI.** Full list of hostnames the client contacts: Amazon auth, CloudFront gateways, S3 config, Vivox voice, EAC anti-cheat, Steam API, Kinesis telemetry, Datadog logging, Epic (EAC), and more.
 
 ---
 
@@ -139,6 +158,7 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 | Date | Directory | Notes |
 |------|-----------|-------|
 | 2026-04-16 | `capture/20260416_221806_first_capture/` | 60MB pcap (HTTPS only, missed REP stream). Full game log captured. |
+| 2026-04-16 | `capture/20260416_222545_second_capture/` | 7.5MB pcap — **has DTLS handshake + game traffic to 52.223.16.88:58068**. Server cert extracted. |
 
 ---
 
