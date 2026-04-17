@@ -58,7 +58,27 @@ def main():
     parser = argparse.ArgumentParser(description="Integrated DTLS proxy capture")
     parser.add_argument("--name", default="proxy_capture", help="Session name")
     parser.add_argument("--port", type=int, default=23971, help="Proxy listen port")
+    parser.add_argument("--server-ip", default=None, help="Game server IP (auto-detect from log if not set)")
+    parser.add_argument("--server-port", type=int, default=None, help="Game server port")
     args = parser.parse_args()
+
+    # Auto-detect server from game log if not provided
+    if not args.server_ip and GAME_LOG.exists():
+        import re
+        pattern = re.compile(r"REP Address: (\d+\.\d+\.\d+\.\d+):(\d+)")
+        with open(GAME_LOG, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                m = pattern.search(line)
+                if m:
+                    args.server_ip = m.group(1)
+                    args.server_port = int(m.group(2))
+        if args.server_ip:
+            print(f"[+] Detected server from game log: {args.server_ip}:{args.server_port}")
+            print(f"    (If the server IP changes, pass --server-ip and --server-port manually)")
+        else:
+            print("[!] No REP Address found in game log. Run the game once first,"
+                  " or pass --server-ip and --server-port manually.")
+            sys.exit(1)
 
     check_prereqs()
 
@@ -71,7 +91,8 @@ def main():
     print("  New World DTLS Proxy Capture")
     print("=" * 64)
     print(f"  Session:  {session_name}")
-    print(f"  Port:     {args.port}")
+    print(f"  Server:   {args.server_ip}:{args.server_port}")
+    print(f"  Proxy:    127.0.0.1:{args.port}")
     print(f"  Output:   {session_dir}")
     print("=" * 64)
     print()
@@ -102,12 +123,13 @@ def main():
     # Give proxy a moment to bind
     time.sleep(1)
 
-    # Start UDP redirector
-    print("[*] Starting UDP redirector...")
+    # Start UDP redirector with known server IP
+    print(f"[*] Starting UDP redirector for {args.server_ip}:{args.server_port}...")
     redirect_proc = subprocess.Popen(
         [python, str(TOOLS_DIR / "udp_redirect.py"),
          "--proxy-port", str(args.port),
-         "--auto"],
+         "--server-ip", args.server_ip,
+         "--server-port", str(args.server_port)],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=child_env,
