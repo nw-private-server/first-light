@@ -74,12 +74,12 @@ def run_redirect(proxy_host: str, proxy_port: int,
             f"((outbound and ip.DstAddr == {server_ip} and udp.DstPort == {server_port}) or "
             f"(inbound and ip.SrcAddr == 127.0.0.1 and udp.SrcPort == {proxy_port}))"
         )
-        print(f"[*] Redirecting {server_ip}:{server_port} → 127.0.0.1:{proxy_port}")
+        print(f"[*] Redirecting {server_ip}:{server_port} -> 127.0.0.1:{proxy_port}")
     else:
         # Broad filter for any AWS GA traffic on non-standard ports
         # We'll check IPs in the packet handler
         filt = "udp and (outbound or inbound)"
-        print(f"[*] Auto-detecting game server traffic → 127.0.0.1:{proxy_port}")
+        print(f"[*] Auto-detecting game server traffic -> 127.0.0.1:{proxy_port}")
 
     # Track active redirects: original (ip, port) -> True
     active_server = None
@@ -142,7 +142,7 @@ def run_redirect(proxy_host: str, proxy_port: int,
                     redirected_count += 1
 
                     if redirected_count <= 5 or redirected_count % 100 == 0:
-                        print(f"  -> Redirect #{redirected_count}: {dst_ip}:{dst_port} → 127.0.0.1:{proxy_port} ({len(packet.payload)} bytes)")
+                        print(f"  -> Redirect #{redirected_count}: {dst_ip}:{dst_port} -> 127.0.0.1:{proxy_port} ({len(packet.payload)} bytes)")
 
             elif packet.is_inbound:
                 src_ip = packet.src_addr
@@ -158,7 +158,7 @@ def run_redirect(proxy_host: str, proxy_port: int,
                         packet.src_port = orig_port
 
                         if redirected_count <= 5:
-                            print(f"  <- Restore: 127.0.0.1:{proxy_port} → {orig_ip}:{orig_port}")
+                            print(f"  <- Restore: 127.0.0.1:{proxy_port} -> {orig_ip}:{orig_port}")
 
             # Re-inject the (possibly modified) packet
             w.send(packet)
@@ -199,7 +199,7 @@ def main():
             server_ip, server_port = detected
             print(f"  Detected from game log: {server_ip}:{server_port}")
         else:
-            print(f"  No server detected in game log — will auto-detect from traffic")
+            print(f"  No server detected in game log -- will auto-detect from traffic")
 
     print(f"  Proxy: {args.proxy_host}:{args.proxy_port}")
     if server_ip:
