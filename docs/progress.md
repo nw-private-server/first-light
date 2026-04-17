@@ -1,7 +1,7 @@
 # New World Private Server — Progress & Findings
 
 > Living document. Updated as we learn more.
-> Last updated: 2026-04-16 (session 2 analysis complete)
+> Last updated: 2026-04-16 (WinDivert tap capture working)
 
 ---
 
@@ -159,6 +159,7 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 |------|-----------|-------|
 | 2026-04-16 | `capture/20260416_221806_first_capture/` | 60MB pcap (HTTPS only, missed REP stream). Full game log captured. |
 | 2026-04-16 | `capture/20260416_222545_second_capture/` | 7.5MB pcap — **has DTLS handshake + game traffic to 52.223.16.88:58068**. Server cert extracted. |
+| 2026-04-16 | `capture/20260416_231434_tap_test/` | **38,845 packets (7.1MB)** via WinDivert tap. Full DTLS session with gameplay. 90.6% ApplicationData, 8.6% Handshake. |
 
 ---
 
