@@ -232,6 +232,154 @@ SecureSocketDriver is GridMate's with states unchanged.
 
 ---
 
+## 3D. CarrierThread worker loop (fully mapped)
+
+```
+Javelin_CarrierThread_ThreadPump (0x140f82340)
+├─ Driver::Update               [vtable *param_1[0x25a9] + 8]
+├─ ProcessInternalMessageQueue  (inline in pump)
+│    types: 0=NewConn, 1=Heartbeat, 2=RemoveConn, 3=DriverEvent
+├─ CheckConnectionTimeouts       (0x140f777f0)  - per-tick watchdog
+├─ Driver::Update(check)         [*param_1[2] + 0x90]
+├─ Per-connection: Driver::Send  [*param_1[2] + 0x98]
+├─ Per-connection: Driver::Recv  [*param_1[2] + 0xa8]
+├─ Driver::Flush                 [*param_1[6] + 0x40]
+├─ ReceiveLoop                   (0x140f898e0)  ← see 3E
+├─ Carrier::UpdateBase           [*param_1[0] + 8]
+├─ SendLoop                      (0x140f8ab70)  ← see 3F
+└─ Sleep(targetInterval - elapsed) or SwitchToThread()
+```
+
+Connection struct is **5064 bytes (0x13c8)**. Key offsets: `+0x1300` lastActivityTime, `+0x1308` minRtt, `+0x1310` heartbeat-needed flag, `+0x1311` timeout-reported flag, `+0x1318` timeout-send-queued flag, `+0x131b` disconnect flag, `+0x131b-d` connection state bits, `+0x13bc` heartbeat counter, `+0x13c4` reliability/flag byte.
+
+## 3E. ReceiveLoop (`Javelin_CarrierThread_ReceiveLoop` @ `0x140f898e0`)
+
+The actual datagram ingress:
+
+```c
+while (driver_has_incoming_packet) {
+    raw_bytes = Driver::Receive()          // [*param_1[0] + 0x58]
+    flags    = raw_bytes[0]
+
+    if (flags & 0x80 && (flags & 0x7e) == 0) {
+        // Connection-request handshake path
+        // - Validate cookie / allow-new-connection
+        // - If accepted AND DTLS bit set (flags & 1):
+        //     plaintext = DTLS_DecryptDataGram(ciphertext)  [*param_1[5] + 0x30]
+        // - Javelin_Carrier_CreateConnection(...)
+        // - Carrier::ParseMessages(param_1, conn, hdr, bitstream)
+    } else {
+        // Not a connection request, and not from known conn -> ignore
+        // or queue a "ConnectionRejected" (type 0xb) notification
+    }
+}
+```
+
+**DTLS decrypt entry point confirmed**: `*param_1[5] + 0x30` — this is the
+SecureSocketDriver's `DecryptDataGram` method. `param_1[5]` is the driver
+pointer; vtable offset `0x30` is the decrypt routine.
+
+## 3F. SendLoop (`Javelin_CarrierThread_SendLoop` @ `0x140f8ab70`)
+
+Mirror of receive. Per-connection build-and-send. Calls:
+- `Driver::IsConnectionSendable` [*param_1[2] + 0x50]
+- `Driver::HasSendBudget`        [*param_1[2] + 0x58]
+- Build send-buffer via `FUN_140f8ba70` (marshal pending messages)
+- **DTLS encrypt**: `*param_1[5] + 0x28` — SecureSocketDriver's `EncryptDataGram`
+- `Driver::SendDataGram`         [*param_1[2] + 0x48]
+
+## 3G. ReadMessageHeader & message parsing (`Javelin_Carrier_ParseMessages` @ `0x140f77eb0`)
+
+**CRITICAL: Javelin uses BIT STREAMS, not byte-aligned reads.** The GridMate
+reference's `ReadMessageHeader` has been restructured to use
+`Javelin_BitStream_ReadBits` for every field read. This is why our `0x42`
+scan found nothing — the header validation is implicit, not a single mask.
+
+### Parse loop (per message record in a datagram)
+
+```c
+while (!bitstream_error) {
+    msg_rec = alloc(0x38)                    // 56-byte MessageRecord
+
+    flags = ReadBits(8)                      // flags byte
+    size  = ReadBits(16) [BE byteswap]       // payload size (in bytes? bits?)
+
+    msg_rec.reliable    = flags & 0x01
+    if (flags & 0x20)   channel    = ReadBits(8)  else inherit_prev
+    if (channel > 3)    corruption -> break
+    if (flags & 0x04)   numChunks  = ReadBits(16) [BE] else 1
+    if (!(flags & 0x08)) seq       = ReadBits(16) [BE] else per_channel_counter++
+    if (!(flags & 0x10)) relSeq    = ReadBits(16) [BE] else (if reliable) relCounter++
+    msg_rec.connecting = (flags >> 7) & 1
+
+    if (channel == 3) {
+        // System message: msgId at END of payload
+        msgId = payload[size - 1]
+        if (msgId == 6)  HandleAckVector(...)       // SM_CT_ACKS
+        else if (msgId == 7) HandleConnControl(...) // SM_CT_CONN_CONTROL
+        // other msgIds consumed/ignored
+    } else {
+        // User channel (0..2): insert msg_rec into per-channel priority queue
+        // (sequenced insert, duplicate detection)
+        // Linked list heads at conn + 0x40 + channel * 8
+        // Per-channel inbound counters at conn + 0x88 + channel * 0x40
+    }
+}
+```
+
+### Flag bits (matches GridMate reference 2.2 exactly)
+
+| Bit | Mask | Name | Meaning |
+|----:|-----:|------|---------|
+| 0 | 0x01 | MF_RELIABLE | Reliable-ordered delivery |
+| 1 | 0x02 | (reserved, unused) | |
+| 2 | 0x04 | MF_CHUNKS | numChunks > 1 (multi-chunk message) |
+| 3 | 0x08 | MF_SQUENTIAL_ID | Sequence number = prev+1 (omitted from wire) |
+| 4 | 0x10 | MF_SQUENTIAL_REL_ID | Reliable seq = prev+1 (omitted) |
+| 5 | 0x20 | MF_DATA_CHANNEL | Channel byte is present; else inherit |
+| 6 | 0x40 | (reserved, unused) | |
+| 7 | 0x80 | MF_CONNECTING | Handshake/connection-request packet |
+
+### MessageRecord struct (0x38 / 56 bytes)
+
+| Offset | Size | Field | Notes |
+|-------:|-----:|-------|-------|
+| `+0x14` | u32 | `m_reliable` | from flag bit 0 |
+| `+0x18` | u8 | `m_channel` | 0..3 |
+| `+0x1a` | u16 | `m_numChunks` | `1` or from wire |
+| `+0x1c` | u16 | `m_sequenceNumber` | per-channel |
+| `+0x1e` | u16 | `m_reliableSequence` | only meaningful if reliable |
+| `+0x28` | u16 | `m_payloadSize` | from wire |
+| `+0x2a` | u8 | `m_connecting` | bit 7 |
+
+### BitStream (`Javelin_BitStream_ReadBits` @ `0x140f7c420`)
+
+Struct layout (5 × u64 = 40 bytes):
+
+| Offset | Size | Field |
+|-------:|-----:|-------|
+| `+0x00` | u64 | `m_basePtr` |
+| `+0x08` | u64 | `m_startBitOffset` |
+| `+0x10` | u64 | `m_cursorBits` |
+| `+0x18` | u64 | `m_endBits` |
+| `+0x20` | u8 | `m_errorFlag` |
+
+`ReadBits(stream, out, nBits)` either fast-path memcpy (byte-aligned
+case) or shift-and-mask byte-by-byte for mid-byte reads.
+
+### System message IDs seen in the dispatch
+
+| ID | Name (GridMate) | Notes |
+|---:|-----------------|-------|
+| 6  | `SM_CT_ACKS`   | handled by `Javelin_Carrier_HandleAckVector` @ `0x140f7bdd0` |
+| 7  | `SM_CT_CONN_CONTROL` | reads u32 value, calls a virtual on a component |
+
+Message types 1..5, 8 not explicitly seen in this function — likely in
+Carrier init path or handled elsewhere. Pattern suggests full GridMate
+enumeration is preserved.
+
+---
+
 ## 4. Chunk descriptor pattern (discovered)
 
 ### Two confirmed chunks
