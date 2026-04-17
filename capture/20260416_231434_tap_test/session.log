@@ -1,0 +1,9 @@
+[23:14:34.756] Session started: 2026-04-16T23:14:34.756612
+[23:14:34.756] [*] Intercepting UDP to 52.223.16.88:58068
+[23:14:34.756] [*] Filter: outbound and udp and ip.DstAddr == 52.223.16.88 and udp.DstPort == 58068
+[23:14:34.759] [+] WinDivert active
+[23:14:34.760] [*] Waiting for game packets... Launch New World and hit Play.
+[23:14:34.760] [*] Press Ctrl+C to stop
+[23:15:23.547] [+] Game source: 192.168.0.74:27000
+[23:15:49.181] [*] Stopping...
+[23:15:49.182] [+] Intercepted 38844 packets
