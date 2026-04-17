@@ -19,3 +19,4 @@ Desktop.ini
 
 # Sensitive
 *.env
+server/certs/server.key
