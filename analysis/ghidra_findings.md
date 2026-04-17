@@ -186,6 +186,52 @@ Main vtable: `0x147fbf3a8`. Sub-object vtables: `0x147fbf1e8`, `0x147fbf280`.
 
 ---
 
+## 3B. SecureSocketDriver state machine (complete enumeration)
+
+`Javelin_SecureSocketDriver_StateDispatch` @ `0x145dce4c0` registers
+all 12 DTLS connection states with their handler functions. This is
+the complete lifecycle:
+
+| ID | State                             | Handler       | Can enter from | Next (typical) |
+|---:|-----------------------------------|---------------|---------------:|---------------:|
+| 0  | `CS_TOP`                          | sentinel      | — | 1 |
+| 1  | `CS_ACTIVE`                       | `FUN_145dd22d0` | 0 | (dynamic) |
+| 2  | `CS_ACCEPT`                       | `FUN_145dd2180` | 1 | 3 |
+| 3  | `CS_WAIT_FOR_STATEFUL_HANDSHAKE`  | `FUN_145dd3280` | 2 | 0xff |
+| 4  | `CS_SSL_HANDSHAKE_ACCEPT`         | (decompiler-confused) | 2 | 0xff |
+| 5  | `CS_CONNECT`                      | `FUN_145dd2440` | 1 | 6 |
+| 6  | `CS_COOKIE_EXCHANGE`              | `FUN_145dd25c0` | 5 | 0xff |
+| 7  | `CS_SSL_HANDSHAKE_CONNECT`        | `FUN_145dd3220` | 5 | 0xff |
+| 8  | `CS_HANDSHAKE_RETRY`              | `FUN_145dd2e00` | 5 | 0xff |
+| 9  | `CS_ESTABLISHED`                  | `LAB_145dd2630` | 1 | 0xff |
+| 10 | `CS_DISCONNECTED`                 | `LAB_145dd2620` | 0 | 0xff |
+| 11 | `CS_SSL_ERROR`                    | `LAB_145dd31a0` | 0 | 0xff |
+
+**Client-side connect flow** (what we see in our captures):
+
+```
+CS_ACTIVE (1)
+  → CS_CONNECT (5)
+  → CS_COOKIE_EXCHANGE (6)          [DTLS HelloVerifyRequest exchange]
+  → CS_SSL_HANDSHAKE_CONNECT (7)    [full DTLS handshake]
+  → CS_ESTABLISHED (9)              [session keys negotiated]
+  → (on error) CS_SSL_ERROR (11) or CS_HANDSHAKE_RETRY (8)
+  → (on disconnect) CS_DISCONNECTED (10)
+```
+
+This maps exactly to the captured DTLS handshake sequence in
+`capture/20260416_222545_second_capture/` — confirming Javelin's
+SecureSocketDriver is GridMate's with states unchanged.
+
+## 3C. Other anchors mapped this session
+
+| VA           | Renamed                         | Notes |
+|--------------|---------------------------------|-------|
+| `0x140f69c00`| `Javelin_CarrierThread_Spawn`  | Where `"GridMate-Carrier Packet Send Thread"` is used as thread name at CreateThread site |
+| `0x140f76d60`| `Javelin_ConnectionStats_Dump` | Prints `conn.dataSend =`, `conn.packetLost =`, etc. |
+
+---
+
 ## 4. Chunk descriptor pattern (discovered)
 
 ### Two confirmed chunks
