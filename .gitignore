@@ -1,0 +1,21 @@
+# Capture data (large binary files, keep locally)
+capture/*/pcaps/
+capture/*/keys/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Sensitive
+*.env
