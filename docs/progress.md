@@ -156,11 +156,16 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 ## Infrastructure & Tools
 
 ### Installed
-- Python 3.13 — for capture scripts and future stub server
-- tshark (Wireshark 4.6.4) — packet capture and analysis
-- mitmproxy 12.2.2 — HTTPS interception proxy
-- frida-tools 14.8.1 — runtime hooking for TLS decryption
+- Python 3.13 — capture scripts and stub server
 - Node.js — available if needed
+- tshark / Wireshark 4.6.4 — packet capture and analysis
+- mitmproxy 12.2.2 — HTTPS interception proxy
+- frida-tools 14.8.1 — runtime hooking (blocked by EAC; kept for auth-flow work)
+- pydivert / WinDivert — kernel-level UDP packet tap (working)
+- python3-dtls 1.3.0 — DTLS server for future stub
+- **Eclipse Temurin JDK 21** (at `C:\Program Files\Eclipse Adoptium\jdk-21.0.10.7-hotspot\`) — required by Ghidra
+- **Ghidra 11.3** (at `C:\Tools\ghidra\ghidra_11.3_PUBLIC\`) — static analysis; launch via `tools/launch_ghidra.bat`
+- **GhidraMCP 1.4** — plugin lets Claude Code query Ghidra over MCP; registered in `.mcp.json`. Bridge script at `C:\Tools\ghidra_scripts\GhidraMCP-release-1-4\bridge_mcp_ghidra.py`
 
 ### Archived
 | What | Where | Size |
@@ -170,12 +175,32 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 | Save data & settings | `G:\NewWorldArchive\AppData_Roaming\` | 121 MB |
 | Live install | `H:\SteamLibrary\steamapps\common\New World\` | 72 GB |
 
+### Source references (sparse clones)
+| Repo | Where | Purpose |
+|------|-------|---------|
+| O3DE (AzNetworking + Multiplayer gem + RTTI) | `C:\Users\charl\Programs\o3de\` | Conceptual comparison doc only (not a wire-format match) |
+| Lumberyard (GridMate) | `C:\Users\charl\Programs\lumberyard\` | **Primary protocol reference** — Javelin is a GridMate fork |
+
 ### Capture Sessions
 | Date | Directory | Notes |
 |------|-----------|-------|
 | 2026-04-16 | `capture/20260416_221806_first_capture/` | 60MB pcap (HTTPS only, missed REP stream). Full game log captured. |
 | 2026-04-16 | `capture/20260416_222545_second_capture/` | 7.5MB pcap — **has DTLS handshake + game traffic to 52.223.16.88:58068**. Server cert extracted. |
 | 2026-04-16 | `capture/20260416_231434_tap_test/` | **38,845 packets (7.1MB)** via WinDivert tap. Full DTLS session with gameplay. 90.6% ApplicationData, 8.6% Handshake. |
+
+### Analysis artifacts (`analysis/`)
+| File | Contents |
+|------|----------|
+| `javelin_classes.txt` | All 730 `Javelin::*` class names in the binary |
+| `javelin_chunks.txt` | 10+ components with visible Facet/Messages strings (Guilds, PlayerTutorials, Warboard, Inventories, HouseData, etc.) |
+| `chunk_names.txt` | 17 `*Chunk` type strings (3 networking: `TransformReplicaChunk`, `ScriptComponentReplicaChunk`, `NetBindingComponentChunk`; rest CryEngine terrain) |
+| `ghidra_hunt_list.md` | Consolidated anchor VAs + bit-pattern fingerprints for post-analysis Ghidra work |
+| `ghidra_project/` | Ghidra project database (gitignored) |
+
+### Ghidra scripts (`tools/ghidra_scripts/`)
+| File | Purpose |
+|------|---------|
+| `JavelinHunt.py` | Jython script. Resolves all Tier-1 string anchors, collects xrefs, scans `.text` for `AND/TEST 0x42` (ReadMessageHeader fingerprint), dumps findings JSON. Run from Script Manager once auto-analysis finishes. |
 
 ---
 
@@ -204,9 +229,16 @@ Disconnected
 
 ## Next Steps (Priority Order)
 
-1. **Wait for Ghidra auto-analysis** to complete (in progress).
-2. **Cross-reference Javelin with GridMate.** Use `docs/gridmate-reference.md` §9.1 hunt list — find cipher string xref, `ReadMessageHeader` bit-mask pattern, `Cmd_*` switch, chunk-name strings. Map each to its Javelin equivalent.
-3. **Harvest chunk names** from `.rdata` — each gives us one replicated-component wire name to decode from captures.
+1. **Wait for Ghidra auto-analysis** to complete (1-4 hours, in progress).
+2. **Enable GhidraMCP plugin** (`File > Configure > Miscellaneous`), restart Ghidra — MCP server auto-starts on `http://127.0.0.1:8080/`.
+3. **Run `JavelinHunt.py`** from Script Manager. It produces `analysis/ghidra_findings.txt` with all anchor xrefs and the `ReadMessageHeader` candidates.
+4. **Walk the vtable from the cipher-string xref** to map `SecureSocketDriver` equivalent → every DTLS connection-state function.
+5. **Harvest chunk names** by xref'ing `TransformReplicaChunk` at VA `0x1484ee539` to its `RegisterChunkType` call site, then enumerate sibling callers — each registers one chunk.
+6. **Map Carrier receive path** from `GridMate-Carrier Packet Send Thread` string xref → thread function → message dispatch loop.
+
+### Once we have a chunk/opcode catalog
+7. **Write a GridMate protocol parser** (Python) using `docs/gridmate-reference.md` as spec. Test against our 38,845 captured packets' handshake portion (plaintext DTLS). ApplicationData packets remain encrypted until we extract session keys.
+8. **Stub server design.** Start with DTLS handshake + Carrier `SM_CONNECT_REQUEST`/`SM_CONNECT_ACK`. Build up to NewProxy/Update for minimum viable world render.
 4. **Build a Frida script** to hook TLS and capture decrypted auth HTTP bodies (still pending).
 5. **Fetch the channel config JSON** directly (`https://d2c74t4zimux3r.cloudfront.net/STEAM_APP_ID.1063730.json`) — public, documents all regional endpoints.
 6. **Decrypt the DTLS captures** (Frida hook on `SSL_read`/`SSL_write` in NewWorld.exe) and validate GridMate wire format assumptions against plaintext.
