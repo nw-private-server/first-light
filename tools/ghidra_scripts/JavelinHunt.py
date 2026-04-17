@@ -150,18 +150,25 @@ if text is not None:
     count = 0
     for ins in instrs:
         count += 1
-        if count > 10000000:
-            log("  [!] Stopped scanning after 10M instructions (set cap lower if slow)")
+        if count > 100000000:
+            log("  [!] Stopped scanning after 100M instructions")
             break
+        mnem = ins.getMnemonicString().lower()
+        # Broadened: look for any immediate 0x42 used in a bit/comparison op.
+        # Seen patterns: AND/TEST/CMP with 0x42, BT/BTS/BTR, or a MOV al, 0x42
+        # followed by TEST/AND. Also 0x42 inside an SIB displacement does NOT
+        # count (that's address arithmetic, not a bitmask). Fall back: match
+        # on the INSTRUCTION TEXT containing "0x42" *as an operand*.
+        tstr = ins.toString().lower()
+        if " 0x42" not in tstr and ",0x42" not in tstr:
+            continue
         num_ops = ins.getNumOperands()
         for i in range(num_ops):
             obj_list = ins.getOpObjects(i)
             for obj in obj_list:
                 if isinstance(obj, Scalar):
                     if obj.getUnsignedValue() == 0x42:
-                        mnem = ins.getMnemonicString().lower()
-                        # AND, TEST are the interesting ones
-                        if mnem in ("and", "test"):
+                        if mnem in ("and", "test", "cmp", "bt", "or"):
                             fm = prog.getFunctionManager()
                             fn = fm.getFunctionContaining(ins.getAddress())
                             hits_0x42.append({
@@ -209,7 +216,15 @@ for data in data_iter:
         continue
     if val is None:
         continue
-    s = str(val)
+    # Handle both str and unicode in Jython 2.7. Convert to bytes to avoid
+    # the UnicodeEncodeError when a string has non-ASCII characters.
+    try:
+        if isinstance(val, unicode):  # noqa: F821 (Jython-only)
+            s = val.encode("utf-8", errors="replace")
+        else:
+            s = str(val)
+    except:  # noqa: E722
+        continue
     if "Javelin::" in s and len(s) < 200:
         if s not in seen:
             seen.add(s)

@@ -49,7 +49,13 @@ for data in data_iter:
         continue
     if val is None:
         continue
-    s = str(val)
+    try:
+        if isinstance(val, unicode):  # noqa: F821 (Jython-only)
+            s = val.encode("utf-8", errors="replace")
+        else:
+            s = str(val)
+    except:  # noqa: E722
+        continue
     if (8 <= len(s) <= 100 and s.endswith("Chunk")
             and s[0].isupper() and all(c.isalnum() or c == '_' for c in s)):
         chunk_strings[data.getAddress()] = s
