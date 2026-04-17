@@ -150,7 +150,7 @@ if text is not None:
     count = 0
     for ins in instrs:
         count += 1
-        if count > 10_000_000:
+        if count > 10000000:
             log("  [!] Stopped scanning after 10M instructions (set cap lower if slow)")
             break
         num_ops = ins.getNumOperands()
@@ -198,7 +198,7 @@ javelin_total = 0
 
 for data in data_iter:
     count += 1
-    if count > 2_000_000:
+    if count > 2000000:
         break
     dt = data.getDataType().getName()
     if "string" not in dt.lower():
