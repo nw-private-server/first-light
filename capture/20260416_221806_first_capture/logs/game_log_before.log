@@ -1,0 +1,1011 @@
+<2025-12-27 05:08:04.395>: [Info]: BackupNameAttachment=" Build(5869687) 26 Dec 25 (20 08 04)"  -- used by backup system
+
+<2025-12-27 05:08:04.395>: [Info]: Log Started at local time Fri Dec 26 20:08:04 2025
+<2025-12-27 05:08:04.395>: [Info]: Built on Sat Oct 25 00:45:11 2025
+
+<2025-12-27 05:08:04.395>: [Info]: Running 64 bit Windows version
+<2025-12-27 05:08:04.395>: [Info]: Executable: NewWorld.exe [AZ_RETAIL_CONFIG]
+<2025-12-27 05:08:04.395>: [Info]: FileVersion: 1.350.514.5869687
+<2025-12-27 05:08:04.395>: [Info]: ProductVersion: 1.350.514.5869687
+<2025-12-27 05:08:04.395>: [Info]: Using Microsoft (tm) C++ Standard Library implementation
+
+<2025-12-27 05:08:04.396>: [Info] (AZCore): [System] Loading system configuration from system_windows_pc.cfg...
+<2025-12-27 05:08:04.396>: [Info] (AZCore): [System] GameDir: Assets
+
+<2025-12-27 05:08:05.751>: [Info]: 
+<2025-12-27 05:08:05.752>: [Info]: Total number of logical processors: 16
+<2025-12-27 05:08:05.752>: [Info]: Number of available logical processors: 16
+<2025-12-27 05:08:05.752>: [Info]: Total number of system cores: 8
+<2025-12-27 05:08:05.752>: [Info]: Number of cores available to process: 8
+<2025-12-27 05:08:05.752>: [Info]:  
+<2025-12-27 05:08:05.752>: [Info]: Processor 0:
+<2025-12-27 05:08:05.752>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:05.752>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:05.752>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:05.752>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:05.752>: [Info]:   MMX: not present
+<2025-12-27 05:08:05.752>: [Info]:   SSE: present
+<2025-12-27 05:08:05.752>: [Info]:   SSE2: present
+<2025-12-27 05:08:05.752>: [Info]:   SSE3: present
+<2025-12-27 05:08:05.752>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:05.752>: [Info]:  
+<2025-12-27 05:08:05.752>: [Info]: Processor 1:
+<2025-12-27 05:08:05.752>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:05.752>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:05.752>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:05.752>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:05.752>: [Info]:   MMX: not present
+<2025-12-27 05:08:05.752>: [Info]:   SSE: present
+<2025-12-27 05:08:05.752>: [Info]:   SSE2: present
+<2025-12-27 05:08:05.752>: [Info]:   SSE3: present
+<2025-12-27 05:08:05.752>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:05.752>: [Info]:  
+<2025-12-27 05:08:05.752>: [Info]: Processor 2:
+<2025-12-27 05:08:05.752>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:05.752>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:05.752>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:05.752>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:05.752>: [Info]:   MMX: not present
+<2025-12-27 05:08:05.752>: [Info]:   SSE: present
+<2025-12-27 05:08:05.752>: [Info]:   SSE2: present
+<2025-12-27 05:08:05.752>: [Info]:   SSE3: present
+<2025-12-27 05:08:05.752>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:05.752>: [Info]:  
+<2025-12-27 05:08:05.752>: [Info]: Processor 3:
+<2025-12-27 05:08:05.752>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:05.752>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:05.752>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:05.752>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:05.752>: [Info]:   MMX: not present
+<2025-12-27 05:08:05.752>: [Info]:   SSE: present
+<2025-12-27 05:08:05.752>: [Info]:   SSE2: present
+<2025-12-27 05:08:05.752>: [Info]:   SSE3: present
+<2025-12-27 05:08:05.752>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:05.752>: [Info]:  
+<2025-12-27 05:08:05.752>: [Info]: Processor 4:
+<2025-12-27 05:08:05.752>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:05.752>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:05.752>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:05.752>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:05.752>: [Info]:   MMX: not present
+<2025-12-27 05:08:05.752>: [Info]:   SSE: present
+<2025-12-27 05:08:05.752>: [Info]:   SSE2: present
+<2025-12-27 05:08:05.752>: [Info]:   SSE3: present
+<2025-12-27 05:08:05.752>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:05.752>: [Info]:  
+<2025-12-27 05:08:05.752>: [Info]: Processor 5:
+<2025-12-27 05:08:05.752>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:05.752>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:05.752>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:05.752>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:05.752>: [Info]:   MMX: not present
+<2025-12-27 05:08:05.752>: [Info]:   SSE: present
+<2025-12-27 05:08:05.752>: [Info]:   SSE2: present
+<2025-12-27 05:08:05.752>: [Info]:   SSE3: present
+<2025-12-27 05:08:05.752>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:05.752>: [Info]:  
+<2025-12-27 05:08:05.752>: [Info]: Processor 6:
+<2025-12-27 05:08:05.752>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:05.752>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:05.752>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:05.752>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:05.752>: [Info]:   MMX: not present
+<2025-12-27 05:08:05.752>: [Info]:   SSE: present
+<2025-12-27 05:08:05.752>: [Info]:   SSE2: present
+<2025-12-27 05:08:05.752>: [Info]:   SSE3: present
+<2025-12-27 05:08:05.752>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:05.752>: [Info]:  
+<2025-12-27 05:08:05.752>: [Info]: Processor 7:
+<2025-12-27 05:08:05.752>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:05.752>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:05.752>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:05.752>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:05.752>: [Info]:   MMX: not present
+<2025-12-27 05:08:05.752>: [Info]:   SSE: present
+<2025-12-27 05:08:05.752>: [Info]:   SSE2: present
+<2025-12-27 05:08:05.752>: [Info]:   SSE3: present
+<2025-12-27 05:08:05.752>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:05.752>: [Info]:  
+<2025-12-27 05:08:05.752>: [Info]: Windows 11 64 bit (build 10.0.26200)
+<2025-12-27 05:08:05.752>: [Info]: System language: English
+<2025-12-27 05:08:05.752>: [Info]: Windows Directory: "C:\WINDOWS"
+<2025-12-27 05:08:05.752>: [Info]: Local time is 20:08:05 12/26/25, system running for 457 minutes
+<2025-12-27 05:08:05.752>: [Info]: 63118MB physical memory installed, 39347MB available, 134217727MB virtual memory installed, 37 percent of memory in use
+<2025-12-27 05:08:05.752>: [Info]: PageFile usage: 388MB, Working Set: 464MB, Peak PageFile usage: 536MB,
+<2025-12-27 05:08:05.752>: [Info]: Current display mode is f0087032, (Unknown graphics card)
+<2025-12-27 05:08:05.752>: [Info]: IBM enhanced (101/102-key) keyboard and 6+ button mouse installed
+<2025-12-27 05:08:05.752>: [Info]: --------------------------------------------------------------------------------
+<2025-12-27 05:08:05.759>: [Info] (AZCore): [System] Stream Engine Initialization
+<2025-12-27 05:08:05.760>: [Info]: GameName: New World
+<2025-12-27 05:08:05.760>: [Info]: BuildTime: Sat Oct 25 00:45:11 2025
+
+<2025-12-27 05:08:05.760>: [Info] (AZCore): [System] Physics initialization
+<2025-12-27 05:08:05.809>: [Info] (AZCore): [System] Renderer initialization
+<2025-12-27 05:08:05.868>: [Info]: Logging video adapters:
+<2025-12-27 05:08:06.375>: [Info]: - NVIDIA GeForce RTX 4090 (vendor = 0x10de, device = 0x2684)
+<2025-12-27 05:08:06.375>: [Info]:   - Adapter index: 0
+<2025-12-27 05:08:06.375>: [Info]:   - Dedicated video memory: 24138 MB
+<2025-12-27 05:08:06.375>: [Info]:   - Feature level: DX12.2 (SM 6.5)
+<2025-12-27 05:08:06.375>: [Info]:   - Displays connected: yes
+<2025-12-27 05:08:06.375>: [Info]:   - Suitable rendering device: yes
+<2025-12-27 05:08:06.677>: [Info]: - AMD Radeon(TM) Graphics (vendor = 0x1002, device = 0x13c0)
+<2025-12-27 05:08:06.677>: [Info]:   - Adapter index: 1
+<2025-12-27 05:08:06.677>: [Info]:   - Dedicated video memory: 2003 MB
+<2025-12-27 05:08:06.677>: [Info]:   - Feature level: DX12.2 (SM 6.5)
+<2025-12-27 05:08:06.677>: [Info]:   - Displays connected: no
+<2025-12-27 05:08:06.677>: [Info]:   - Suitable rendering device: no
+<2025-12-27 05:08:06.994>: [Info]: - NVIDIA GeForce RTX 4090 (vendor = 0x10de, device = 0x2684)
+<2025-12-27 05:08:06.994>: [Info]:   - Adapter index: 2
+<2025-12-27 05:08:06.994>: [Info]:   - Dedicated video memory: 24138 MB
+<2025-12-27 05:08:06.994>: [Info]:   - Feature level: DX12.2 (SM 6.5)
+<2025-12-27 05:08:06.994>: [Info]:   - Displays connected: no
+<2025-12-27 05:08:06.994>: [Info]:   - Suitable rendering device: no
+<2025-12-27 05:08:07.058>: [Info]: - Microsoft Basic Render Driver (vendor = 0x1414, device = 0x008c)
+<2025-12-27 05:08:07.058>: [Info]:   - Adapter index: 3
+<2025-12-27 05:08:07.058>: [Info]:   - Dedicated video memory: 0 MB
+<2025-12-27 05:08:07.058>: [Info]:   - Feature level: DX12.1 (SM 6.0)
+<2025-12-27 05:08:07.058>: [Info]:   - Displays connected: no
+<2025-12-27 05:08:07.058>: [Info]:   - Suitable rendering device: no
+<2025-12-27 05:08:07.060>: [Info]: Logging video adapters:
+<2025-12-27 05:08:07.352>: [Info]: - NVIDIA GeForce RTX 4090 (vendor = 0x10de, device = 0x2684)
+<2025-12-27 05:08:07.352>: [Info]:   - Adapter index: 0
+<2025-12-27 05:08:07.352>: [Info]:   - Dedicated video memory: 24138 MB
+<2025-12-27 05:08:07.352>: [Info]:   - Feature level: DX12.2 (SM 6.5)
+<2025-12-27 05:08:07.352>: [Info]:   - Displays connected: yes
+<2025-12-27 05:08:07.352>: [Info]:   - Suitable rendering device: yes
+<2025-12-27 05:08:07.586>: [Info]: - AMD Radeon(TM) Graphics (vendor = 0x1002, device = 0x13c0)
+<2025-12-27 05:08:07.586>: [Info]:   - Adapter index: 1
+<2025-12-27 05:08:07.586>: [Info]:   - Dedicated video memory: 2003 MB
+<2025-12-27 05:08:07.586>: [Info]:   - Feature level: DX12.2 (SM 6.5)
+<2025-12-27 05:08:07.586>: [Info]:   - Displays connected: no
+<2025-12-27 05:08:07.586>: [Info]:   - Suitable rendering device: no
+<2025-12-27 05:08:07.881>: [Info]: - NVIDIA GeForce RTX 4090 (vendor = 0x10de, device = 0x2684)
+<2025-12-27 05:08:07.881>: [Info]:   - Adapter index: 2
+<2025-12-27 05:08:07.881>: [Info]:   - Dedicated video memory: 24138 MB
+<2025-12-27 05:08:07.881>: [Info]:   - Feature level: DX12.2 (SM 6.5)
+<2025-12-27 05:08:07.881>: [Info]:   - Displays connected: no
+<2025-12-27 05:08:07.881>: [Info]:   - Suitable rendering device: no
+<2025-12-27 05:08:07.944>: [Info]: - Microsoft Basic Render Driver (vendor = 0x1414, device = 0x008c)
+<2025-12-27 05:08:07.944>: [Info]:   - Adapter index: 3
+<2025-12-27 05:08:07.944>: [Info]:   - Dedicated video memory: 0 MB
+<2025-12-27 05:08:07.944>: [Info]:   - Feature level: DX12.1 (SM 6.0)
+<2025-12-27 05:08:07.944>: [Info]:   - Displays connected: no
+<2025-12-27 05:08:07.944>: [Info]:   - Suitable rendering device: no
+<2025-12-27 05:08:07.944>: [Info] (AZCore): [System] Initializing Render Module RenderD3D12
+<2025-12-27 05:08:11.964>: [Info]: PSOCacheFile : Initializing PSO cache
+<2025-12-27 05:08:11.964>: [Info]: PSOCacheFile : Device fingerprint is 0xe8145bf068666e58
+<2025-12-27 05:08:11.965>: [Info]: [Shaders] Loading shaders from shadersbin_d3d12.pak
+<2025-12-27 05:08:11.965>: [Info]: PSOCacheFile : Shader fingerprint is 0x6cee626fa4e61bc8
+<2025-12-27 05:08:11.965>: [Warning]: PSOCacheFile : Unable to open PSO cache file: creating an empty file
+<2025-12-27 05:08:12.106>: [Info]: [Shaders] Loading shaders from shadersbin_D3D12.pak
+<2025-12-27 05:08:12.202>: [Info] (AZCore): [Audio] AudioSystem initialized in High Ram mode. Available RAM [63117]MB, LowRam cutoff is [9216]MB
+<2025-12-27 05:08:12.233>: [Info] (AZCore): [Audio] Audio - Variation Bank System Enabled. Variation Max: 3
+<2025-12-27 05:08:13.415>: [Info] (AZCore): [System] Font initialization
+<2025-12-27 05:08:13.415>: [Info]: Using FreeType 2.5.0
+<2025-12-27 05:08:13.687>: [Info] (AZCore): [System] Time initialization
+<2025-12-27 05:08:13.687>: [Info] (AZCore): [System] Input initialization
+<2025-12-27 05:08:13.687>: [Info] (AZCore): [System] UI system initialization
+<2025-12-27 05:08:13.726>: [Info] (AZCore): [System] Initializing Animation System
+<2025-12-27 05:08:13.727>: [Info] (AZCore): [System] Initializing 3D Engine
+<2025-12-27 05:08:13.728>: [Info]: 
+<2025-12-27 05:08:13.736>: [Info]: Total number of logical processors: 16
+<2025-12-27 05:08:13.736>: [Info]: Number of available logical processors: 16
+<2025-12-27 05:08:13.736>: [Info]: Total number of system cores: 8
+<2025-12-27 05:08:13.736>: [Info]: Number of cores available to process: 8
+<2025-12-27 05:08:13.736>: [Info]:  
+<2025-12-27 05:08:13.736>: [Info]: Processor 0:
+<2025-12-27 05:08:13.736>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:13.736>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:13.736>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:13.736>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:13.736>: [Info]:   MMX: not present
+<2025-12-27 05:08:13.736>: [Info]:   SSE: present
+<2025-12-27 05:08:13.736>: [Info]:   SSE2: present
+<2025-12-27 05:08:13.736>: [Info]:   SSE3: present
+<2025-12-27 05:08:13.736>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:13.736>: [Info]:  
+<2025-12-27 05:08:13.736>: [Info]: Processor 1:
+<2025-12-27 05:08:13.736>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:13.736>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:13.736>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:13.736>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:13.736>: [Info]:   MMX: not present
+<2025-12-27 05:08:13.736>: [Info]:   SSE: present
+<2025-12-27 05:08:13.736>: [Info]:   SSE2: present
+<2025-12-27 05:08:13.736>: [Info]:   SSE3: present
+<2025-12-27 05:08:13.736>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:13.736>: [Info]:  
+<2025-12-27 05:08:13.736>: [Info]: Processor 2:
+<2025-12-27 05:08:13.736>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:13.736>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:13.736>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:13.736>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:13.736>: [Info]:   MMX: not present
+<2025-12-27 05:08:13.736>: [Info]:   SSE: present
+<2025-12-27 05:08:13.736>: [Info]:   SSE2: present
+<2025-12-27 05:08:13.736>: [Info]:   SSE3: present
+<2025-12-27 05:08:13.736>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:13.736>: [Info]:  
+<2025-12-27 05:08:13.736>: [Info]: Processor 3:
+<2025-12-27 05:08:13.736>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:13.736>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:13.736>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:13.736>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:13.736>: [Info]:   MMX: not present
+<2025-12-27 05:08:13.736>: [Info]:   SSE: present
+<2025-12-27 05:08:13.736>: [Info]:   SSE2: present
+<2025-12-27 05:08:13.736>: [Info]:   SSE3: present
+<2025-12-27 05:08:13.736>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:13.736>: [Info]:  
+<2025-12-27 05:08:13.736>: [Info]: Processor 4:
+<2025-12-27 05:08:13.736>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:13.736>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:13.736>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:13.736>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:13.736>: [Info]:   MMX: not present
+<2025-12-27 05:08:13.736>: [Info]:   SSE: present
+<2025-12-27 05:08:13.736>: [Info]:   SSE2: present
+<2025-12-27 05:08:13.736>: [Info]:   SSE3: present
+<2025-12-27 05:08:13.736>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:13.736>: [Info]:  
+<2025-12-27 05:08:13.736>: [Info]: Processor 5:
+<2025-12-27 05:08:13.736>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:13.736>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:13.736>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:13.736>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:13.736>: [Info]:   MMX: not present
+<2025-12-27 05:08:13.736>: [Info]:   SSE: present
+<2025-12-27 05:08:13.736>: [Info]:   SSE2: present
+<2025-12-27 05:08:13.736>: [Info]:   SSE3: present
+<2025-12-27 05:08:13.736>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:13.736>: [Info]:  
+<2025-12-27 05:08:13.736>: [Info]: Processor 6:
+<2025-12-27 05:08:13.736>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:13.736>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:13.736>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:13.736>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:13.736>: [Info]:   MMX: not present
+<2025-12-27 05:08:13.736>: [Info]:   SSE: present
+<2025-12-27 05:08:13.736>: [Info]:   SSE2: present
+<2025-12-27 05:08:13.736>: [Info]:   SSE3: present
+<2025-12-27 05:08:13.736>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:13.736>: [Info]:  
+<2025-12-27 05:08:13.736>: [Info]: Processor 7:
+<2025-12-27 05:08:13.736>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:13.736>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:13.736>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:13.736>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:13.736>: [Info]:   MMX: not present
+<2025-12-27 05:08:13.736>: [Info]:   SSE: present
+<2025-12-27 05:08:13.736>: [Info]:   SSE2: present
+<2025-12-27 05:08:13.736>: [Info]:   SSE3: present
+<2025-12-27 05:08:13.736>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:13.736>: [Info]:  
+<2025-12-27 05:08:13.737>: [Info]: Sky light: Optical lookup tables loaded off disc.
+<2025-12-27 05:08:13.737>: [Info] (AZCore): [System] Script System Initialization
+<2025-12-27 05:08:13.737>: [Info] (AZCore): [System] Entity system initialization
+<2025-12-27 05:08:13.740>: [Info] (AZCore): [System] Initializing additional systems
+<2025-12-27 05:08:13.740>: [Info] (AZCore): [System] Dynamic Response System initialization
+<2025-12-27 05:08:13.740>: [Info] (AZCore): [System] No Dynamic Response System was loaded from a module, the system will use the NULL DynamicResponseSystem.
+<2025-12-27 05:08:14.240>: [Info] (AZCore): [System] == Version Info ===============================================================
+
+<2025-12-27 05:08:14.240>: [Info] (AZCore): [System] [RETAIL].Javelin.1.365.6030.5950962
+
+<2025-12-27 05:08:14.240>: [Info] (AZCore): [System] ===============================================================================
+
+<2025-12-27 05:08:14.283>: [Info]: Client config override file not found: @assets@/ClientOverride.json
+<2025-12-27 05:08:14.285>: [Info] (AZCore): [Game] Steam Initialized!
+<2025-12-27 05:08:14.756>: [Info]: Channel service uri: https://d2c74t4zimux3r.cloudfront.net/STEAM_APP_ID.1063730.json
+<2025-12-27 05:08:14.758>: [Info] (AZCore): [Game] Using remote config: true
+<2025-12-27 05:08:14.758>: [Info] (AZCore): [StackConfig] Configuring remote config with bucket ags-javelin-remote-config
+<2025-12-27 05:08:14.907>: [Info]: [WARNING] EnumStringConversion: The enum value is already registered - duplicate ignored. {"duplicateEnumValue":31,"duplicateEnumString":"throwableobject","enumTypeName":"enum Javelin::SBItemClass::ItemClasses","enumTypeId":"A3755086-8B0A-4D14-B073-FC3E1433C3F6","enumValue":31,"stringConstant":"throwable_object"}
+<2025-12-27 05:08:15.288>: [Info]: Channel name: Retail
+<2025-12-27 05:08:15.288>: [Info]: Found cluster data for cluster id: fra-prod
+<2025-12-27 05:08:15.288>: [Info]: Localized Name: @mm_eu_central
+<2025-12-27 05:08:15.288>: [Info]: Auth Stack: https://2mfrik7h83.execute-api.us-east-1.amazonaws.com/Prod
+<2025-12-27 05:08:15.288>: [Info]: Auth Stack Region: us-east-1
+<2025-12-27 05:08:15.288>: [Info]: Gateway Host: u433g9r00c.execute-api.eu-central-1.amazonaws.com
+<2025-12-27 05:08:15.288>: [Info]: Gateway Stack: d1w0bfy6smo4d1.cloudfront.net
+<2025-12-27 05:08:15.288>: [Info]: Gateway Stack Region: eu-central-1
+<2025-12-27 05:08:15.288>: [Info]: Http Gateway Stack: https://d1w0bfy6smo4d1.cloudfront.net/prod
+<2025-12-27 05:08:15.288>: [Info]: Http Gateway Stack Region: eu-central-1
+<2025-12-27 05:08:15.288>: [Info]: Found cluster data for cluster id: gru-prod
+<2025-12-27 05:08:15.288>: [Info]: Localized Name: @mm_sa_east
+<2025-12-27 05:08:15.288>: [Info]: Auth Stack: https://kqqt5twsi7.execute-api.us-east-1.amazonaws.com/Prod
+<2025-12-27 05:08:15.288>: [Info]: Auth Stack Region: us-east-1
+<2025-12-27 05:08:15.288>: [Info]: Gateway Host: j4n6whncmi.execute-api.sa-east-1.amazonaws.com
+<2025-12-27 05:08:15.288>: [Info]: Gateway Stack: d1cjlmzk0xrm0z.cloudfront.net
+<2025-12-27 05:08:15.288>: [Info]: Gateway Stack Region: sa-east-1
+<2025-12-27 05:08:15.288>: [Info]: Http Gateway Stack: https://d1cjlmzk0xrm0z.cloudfront.net/prod
+<2025-12-27 05:08:15.288>: [Info]: Http Gateway Stack Region: sa-east-1
+<2025-12-27 05:08:15.288>: [Info]: Found cluster data for cluster id: iad-prod
+<2025-12-27 05:08:15.288>: [Info]: Localized Name: @mm_us_east
+<2025-12-27 05:08:15.288>: [Info]: Auth Stack: https://eudbjx6mig.execute-api.us-east-1.amazonaws.com/Prod
+<2025-12-27 05:08:15.288>: [Info]: Auth Stack Region: us-east-1
+<2025-12-27 05:08:15.288>: [Info]: Gateway Host: 0prplal5u1.execute-api.us-east-1.amazonaws.com
+<2025-12-27 05:08:15.288>: [Info]: Gateway Stack: d2oeuvxi3kfsrw.cloudfront.net
+<2025-12-27 05:08:15.288>: [Info]: Gateway Stack Region: us-east-1
+<2025-12-27 05:08:15.288>: [Info]: Http Gateway Stack: https://d2oeuvxi3kfsrw.cloudfront.net/prod
+<2025-12-27 05:08:15.288>: [Info]: Http Gateway Stack Region: us-east-1
+<2025-12-27 05:08:15.288>: [Info]: Found cluster data for cluster id: pdx-prod
+<2025-12-27 05:08:15.288>: [Info]: Localized Name: @mm_us_west
+<2025-12-27 05:08:15.288>: [Info]: Auth Stack: https://q8hqllbg6k.execute-api.us-east-1.amazonaws.com/Prod
+<2025-12-27 05:08:15.288>: [Info]: Auth Stack Region: us-east-1
+<2025-12-27 05:08:15.288>: [Info]: Gateway Host: v7irlu1nrl.execute-api.us-west-2.amazonaws.com
+<2025-12-27 05:08:15.288>: [Info]: Gateway Stack: d3bj4csovi1fe8.cloudfront.net
+<2025-12-27 05:08:15.288>: [Info]: Gateway Stack Region: us-west-2
+<2025-12-27 05:08:15.288>: [Info]: Http Gateway Stack: https://d3bj4csovi1fe8.cloudfront.net/prod
+<2025-12-27 05:08:15.288>: [Info]: Http Gateway Stack Region: us-west-2
+<2025-12-27 05:08:15.288>: [Info]: Found platform metadata for key: ENTITLEMENTS.STEAM_APP_ID.1063730
+<2025-12-27 05:08:15.288>: [Info]: Found platform metadata for key: OMNI.STEAM_APP_ID.1063730
+<2025-12-27 05:08:15.288>: [Info]: Found cluster data for cluster id: syd-prod
+<2025-12-27 05:08:15.288>: [Info]: Localized Name: @mm_ap_southeast
+<2025-12-27 05:08:15.288>: [Info]: Auth Stack: https://hhf8nn71vb.execute-api.us-east-1.amazonaws.com/Prod
+<2025-12-27 05:08:15.288>: [Info]: Auth Stack Region: us-east-1
+<2025-12-27 05:08:15.288>: [Info]: Gateway Host: ep1m9qoir8.execute-api.ap-southeast-2.amazonaws.com
+<2025-12-27 05:08:15.288>: [Info]: Gateway Stack: de4mfzk9wkelz.cloudfront.net
+<2025-12-27 05:08:15.288>: [Info]: Gateway Stack Region: ap-southeast-2
+<2025-12-27 05:08:15.288>: [Info]: Http Gateway Stack: https://de4mfzk9wkelz.cloudfront.net/prod
+<2025-12-27 05:08:15.288>: [Info]: Http Gateway Stack Region: ap-southeast-2
+<2025-12-27 05:08:15.288>: [Info]: Channel Service data provider: init success
+<2025-12-27 05:08:17.978>: [Info]: Failure in initializing Fuel::Iap::IapClient: 14
+<2025-12-27 05:08:18.320>: [Info]: Initializing default materials...
+<2025-12-27 05:08:18.320>: [Info]: Initializing default footstep material...
+<2025-12-27 05:08:18.795>: [Info] (AZCore): [streamingGDEManager] Initialize()
+<2025-12-27 05:08:18.795>: [Info] (AZCore): [AsyncMapUnload] No previous level to unload, so not starting async.  Just loading this map now: ("NW_Frontend_NightHaven")
+<2025-12-27 05:08:18.795>: [Info]: ============================ Loading level NW_Frontend_NightHaven ============================
+<2025-12-27 05:08:18.924>: [Info] (AZCore): [RenderThread] MakeMainContextActive
+<2025-12-27 05:08:19.093>: [Info]: [WARNING] TimestampWin32: QueryPerformanceCounter Value: 274859563480 {}
+<2025-12-27 05:08:20.577>: [Info]: InitializeSerializedOptions: Failed to find Options file ''. Initializing to Defaults
+<2025-12-27 05:08:22.250>: [Info]: CGame::InitCoatlicueTerrain
+<2025-12-27 05:08:22.316>: [Info]: [WARNING] TimestampWin32: QueryPerformanceCounter Value: 274891795603 {}
+<2025-12-27 05:08:22.489>: [Info]: [WARNING] TimestampWin32: QueryPerformanceCounter Value: 274893523109 {}
+<2025-12-27 05:08:22.489>: [Info]: [ERROR] 0xCCC7000
+<2025-12-27 05:08:22.498>: [Info]: [WARNING] TimestampWin32: QueryPerformanceCounter Value: 274893612509 {"sliceName":"slices/sky/skydome_tropicalstorm_post_a.dynamicslice","sliceAssetId":"B6CF9257-EB39-54E2-B94C-530B36447AD1:2","sliceAssetHint":"slices/sky/skydome_tropicalstorm_post_a.dynamicslice"}
+<2025-12-27 05:08:22.666>: [Info]: [WARNING] TimestampWin32: QueryPerformanceCounter Value: 274895300797 {}
+<2025-12-27 05:08:22.666>: [Info]: [ERROR] 0xCCC7000
+<2025-12-27 05:08:22.681>: [Info]: [ERROR] 0xCCC7000
+<2025-12-27 05:08:24.131>: [Info] (AZCore): [Game] LogEnvironmentString: ClusterId: pdx-prod
+<2025-12-27 05:08:24.135>: [Info] (AZCore): [Game] LogEnvironmentString: ProductId: STEAM_APP_ID.1063730
+<2025-12-27 05:08:24.135>: [Info] (AZCore): [AuthManager] Initializing Steam Auth Manager.
+<2025-12-27 05:08:24.135>: [Info] (AZCore): [SteamAuth] Omni metadata is present for this channel, using OMNI Authentication.
+<2025-12-27 05:08:24.135>: [Info] (AZCore): [OmniAuthBackend] Initializing OmniSDK 1.6
+<2025-12-27 05:08:24.137>: [Info] (AZCore): [Game] 0x441F4C03(user) attempting sign-in.
+<2025-12-27 05:08:24.137>: [Info] (AZCore): [Game] LogEnvironmentString: Auth Mode: user
+<2025-12-27 05:08:24.137>: [Info] (AZCore): [SteamAuth] Attempting to log in to Steam
+<2025-12-27 05:08:24.137>: [Info] (AZCore): [SteamAuth] Getting steam auth session ticket.
+<2025-12-27 05:08:25.260>: [Info] (AZCore): [SteamAuth] OnAuthSessionTicket: Authenticating using steam auth session ticket handle: 2
+<2025-12-27 05:08:25.260>: [Info] (AZCore): [SteamAuth] Current ticket handle: 2, ticket: steam|140000005ba204133dd3af779c28830601001001b0fe4e69180000000100000005000000effcd0c3f3436a69c367a20101000000d600000056000000040000009c28830601001001323b1000bc05ed184a00a8c000000000f9f24a6979a266690100de5d06000600b05112000000b15112000000b25112000000707d12000000b8f4250000003e3c300000000000c1c97d2228519b93fc62842a296a45a10cdb69038cbf20aa22b2f1e5a60bac11d75dcef160eeafa29f2f2e51b7b73ec90253763e034b590ff543366416efb3ae30acecb799063c1b6883da583bf9812131efa8177715187
+<2025-12-27 05:08:25.905>: [Info] (AZCore): [OmniAuthBackend] Get persona id result: OK
+<2025-12-27 05:08:25.905>: [Info] (AZCore): [OmniAuthBackend] Get ags account type result: Full
+<2025-12-27 05:08:25.905>: [Info] (AZCore): [OmniAuthBackend] Omni CreateSession complete with result: 0, id: amzn1.developerPersonaId.4ee4810f-da59-c553-4027-91e961054dce
+<2025-12-27 05:08:25.919>: [Info] (AZCore): [SteamAuth] Calling Http API: https://d3bj4csovi1fe8.cloudfront.net/prod/credentials/omni
+<2025-12-27 05:08:26.883>: [Info] (AZCore): [AuthStackCredentialsProvider] Successfully refreshed gateway AWS credentials, next attempt will start after 2025-12-27T06:03:25Z
+<2025-12-27 05:08:26.883>: [Info] (AZCore): [AuthStackCredentialsProvider] Successfully refreshed persona AWS credentials, next attempt will start after 2025-12-27T06:03:25Z
+<2025-12-27 05:08:26.900>: [Info] (AZCore): [Game] CGame::OnCampfireLoginComplete, login successful. ownership=permanent
+<2025-12-27 05:08:26.914>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.public.ProductId" S3 key (old: ""), reset to new value: "applications/public/configuration-sets/ProductId/STEAM_APP_ID.1063730/versionless"
+<2025-12-27 05:08:26.915>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.public.ProductId" remote config. S3 key: "applications/public/configuration-sets/ProductId/STEAM_APP_ID.1063730/versionless"
+<2025-12-27 05:08:27.392>: [Info] (AZCore): [StackConfig] Retrieved layer's "remoteCfg.public.ProductId" remote config, with S3 key: "applications/public/configuration-sets/ProductId/STEAM_APP_ID.1063730/versionless" successfully, size: 190
+
+<2025-12-27 05:08:27.411>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.public.ProductIdv" S3 key (old: ""), reset to new value: "applications/public/configuration-sets/ProductId/STEAM_APP_ID.1063730/6030;5950962"
+<2025-12-27 05:08:27.412>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.public.ProductIdv" remote config. S3 key: "applications/public/configuration-sets/ProductId/STEAM_APP_ID.1063730/6030;5950962"
+<2025-12-27 05:08:27.543>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.public.RegionId" S3 key (old: ""), reset to new value: "applications/public/configuration-sets/RegionId/pdx-prod/versionless"
+<2025-12-27 05:08:27.544>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.public.RegionId" remote config. S3 key: "applications/public/configuration-sets/RegionId/pdx-prod/versionless"
+<2025-12-27 05:08:27.659>: [Info] (AZCore): [StackConfig] Retrieved layer's "remoteCfg.public.RegionId" remote config, with S3 key: "applications/public/configuration-sets/RegionId/pdx-prod/versionless" successfully, size: 494
+
+<2025-12-27 05:08:27.686>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.public.RegionIdv" S3 key (old: ""), reset to new value: "applications/public/configuration-sets/RegionId/pdx-prod/6030;5950962"
+<2025-12-27 05:08:27.687>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.public.RegionIdv" remote config. S3 key: "applications/public/configuration-sets/RegionId/pdx-prod/6030;5950962"
+<2025-12-27 05:08:27.805>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.public.CognitoId" S3 key (old: ""), reset to new value: "applications/public/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/versionless"
+<2025-12-27 05:08:27.807>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.public.CognitoId" remote config. S3 key: "applications/public/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/versionless"
+<2025-12-27 05:08:27.928>: [Info] (AZCore): [StackConfig] Retrieved layer's "remoteCfg.public.CognitoId" remote config, with S3 key: "applications/public/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/versionless" successfully, size: 261
+
+<2025-12-27 05:08:27.969>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.public.CognitoIdv" S3 key (old: ""), reset to new value: "applications/public/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/6030;5950962"
+<2025-12-27 05:08:27.971>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.public.CognitoIdv" remote config. S3 key: "applications/public/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/6030;5950962"
+<2025-12-27 05:08:28.105>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.publicGameplay.ProductId" S3 key (old: ""), reset to new value: "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID.1063730/versionless"
+<2025-12-27 05:08:28.107>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.publicGameplay.ProductId" remote config. S3 key: "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID.1063730/versionless"
+<2025-12-27 05:08:28.221>: [Info] (AZCore): [StackConfig] Retrieved layer's "remoteCfg.publicGameplay.ProductId" remote config, with S3 key: "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID.1063730/versionless" successfully, size: 1079
+
+<2025-12-27 05:08:28.247>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.publicGameplay.ProductIdv" S3 key (old: ""), reset to new value: "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID.1063730/6030;5950962"
+<2025-12-27 05:08:28.248>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.publicGameplay.ProductIdv" remote config. S3 key: "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID.1063730/6030;5950962"
+<2025-12-27 05:08:28.378>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.publicGameplay.RegionId" S3 key (old: ""), reset to new value: "applications/publicGameplay/configuration-sets/RegionId/pdx-prod/versionless"
+<2025-12-27 05:08:28.379>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.publicGameplay.RegionId" remote config. S3 key: "applications/publicGameplay/configuration-sets/RegionId/pdx-prod/versionless"
+<2025-12-27 05:08:28.497>: [Info] (AZCore): [StackConfig] Retrieved layer's "remoteCfg.publicGameplay.RegionId" remote config, with S3 key: "applications/publicGameplay/configuration-sets/RegionId/pdx-prod/versionless" successfully, size: 855
+
+<2025-12-27 05:08:28.571>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.publicGameplay.RegionIdv" S3 key (old: ""), reset to new value: "applications/publicGameplay/configuration-sets/RegionId/pdx-prod/6030;5950962"
+<2025-12-27 05:08:28.573>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.publicGameplay.RegionIdv" remote config. S3 key: "applications/publicGameplay/configuration-sets/RegionId/pdx-prod/6030;5950962"
+<2025-12-27 05:08:28.714>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.publicGameplay.CognitoId" S3 key (old: ""), reset to new value: "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/versionless"
+<2025-12-27 05:08:28.716>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.publicGameplay.CognitoId" remote config. S3 key: "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/versionless"
+<2025-12-27 05:08:28.846>: [Info] (AZCore): [StackConfig] Retrieved layer's "remoteCfg.publicGameplay.CognitoId" remote config, with S3 key: "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/versionless" successfully, size: 2959
+
+<2025-12-27 05:08:28.876>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.publicGameplay.CognitoIdv" S3 key (old: ""), reset to new value: "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/6030;5950962"
+<2025-12-27 05:08:28.877>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.publicGameplay.CognitoIdv" remote config. S3 key: "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/6030;5950962"
+<2025-12-27 05:08:29.019>: [Info] (AZCore): [Game] LogEnvironmentString: Gateway Signing Host: v7irlu1nrl.execute-api.us-west-2.amazonaws.com
+<2025-12-27 05:08:29.019>: [Info] (AZCore): [Game] LogEnvironmentString: Gateway Address: d3bj4csovi1fe8.cloudfront.net
+<2025-12-27 05:08:29.019>: [Info] (AZCore): [Game] LogEnvironmentString: HTTP Gateway Address: https://d3bj4csovi1fe8.cloudfront.net/prod
+<2025-12-27 05:08:29.019>: [Info] (AZCore): [Game] LogEnvironmentString: Gateway Mode: gateway
+<2025-12-27 05:08:29.019>: [Info] (AZCore): [GameConnection] ConfigureLogin MODE_GATEWAY: endpoint=d3bj4csovi1fe8.cloudfront.net, httpEntpoint=https://d3bj4csovi1fe8.cloudfront.net/prod, region=us-west-2
+<2025-12-27 05:08:29.024>: [Info] (AZCore): [CampfireAnalyticsManager] initializing analytics client with parameters
+<2025-12-27 05:08:29.035>: [Info]: InitializeSerializedOptions: Loaded Options file 'C:/Users/charl/AppData/Roaming/AGS/New World/savedata/usersettings_37ccbd7ffd92a332.javsave'.
+<2025-12-27 05:08:29.143>: [Info] (AZCore): [Game] LogEnvironmentString: ClusterId: iad-prod
+<2025-12-27 05:08:29.643>: [Info] (AZCore): [SteamAuth] Omni metadata is present for this channel, using OMNI Authentication.
+<2025-12-27 05:08:29.643>: [Info] (AZCore): [OmniAuthBackend] Initializing OmniSDK 1.6
+<2025-12-27 05:08:29.675>: [Info] (AZCore): [Game] 0x441F4C03(user) attempting sign-in.
+<2025-12-27 05:08:29.675>: [Info] (AZCore): [SteamAuth] Attempting to log in to Steam
+<2025-12-27 05:08:29.675>: [Info] (AZCore): [SteamAuth] Getting steam auth session ticket.
+<2025-12-27 05:08:29.766>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_4ebac77dfc3a3de7.javsave
+<2025-12-27 05:08:29.768>: [Info]: SerializeOptions: Success
+<2025-12-27 05:08:29.768>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_4ebac77dfc3a3de7.javsave
+<2025-12-27 05:08:29.785>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_4ebac77dfc3a3de7.javsave
+<2025-12-27 05:08:29.788>: [Info]: SerializeOptions: Success
+<2025-12-27 05:08:29.788>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_4ebac77dfc3a3de7.javsave
+<2025-12-27 05:08:29.852>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_4ebac77dfc3a3de7.javsave
+<2025-12-27 05:08:29.854>: [Info]: SerializeOptions: Success
+<2025-12-27 05:08:29.854>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_4ebac77dfc3a3de7.javsave
+<2025-12-27 05:08:29.871>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_4ebac77dfc3a3de7.javsave
+<2025-12-27 05:08:29.873>: [Info]: SerializeOptions: Success
+<2025-12-27 05:08:29.873>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_4ebac77dfc3a3de7.javsave
+<2025-12-27 05:08:29.885>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_4ebac77dfc3a3de7.javsave
+<2025-12-27 05:08:29.887>: [Info]: SerializeOptions: Success
+<2025-12-27 05:08:29.887>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_4ebac77dfc3a3de7.javsave
+<2025-12-27 05:08:29.921>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_4ebac77dfc3a3de7.javsave
+<2025-12-27 05:08:29.923>: [Info]: SerializeOptions: Success
+<2025-12-27 05:08:29.923>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_4ebac77dfc3a3de7.javsave
+<2025-12-27 05:08:29.930>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_4ebac77dfc3a3de7.javsave
+<2025-12-27 05:08:29.932>: [Info]: SerializeOptions: Success
+<2025-12-27 05:08:29.932>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_4ebac77dfc3a3de7.javsave
+<2025-12-27 05:08:29.943>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_4ebac77dfc3a3de7.javsave
+<2025-12-27 05:08:29.945>: [Info]: SerializeOptions: Success
+<2025-12-27 05:08:29.945>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_4ebac77dfc3a3de7.javsave
+<2025-12-27 05:08:30.014>: [Info]: 
+<2025-12-27 05:08:30.015>: [Info]: Total number of logical processors: 16
+<2025-12-27 05:08:30.015>: [Info]: Number of available logical processors: 16
+<2025-12-27 05:08:30.015>: [Info]: Total number of system cores: 8
+<2025-12-27 05:08:30.015>: [Info]: Number of cores available to process: 8
+<2025-12-27 05:08:30.015>: [Info]:  
+<2025-12-27 05:08:30.015>: [Info]: Processor 0:
+<2025-12-27 05:08:30.015>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:30.015>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:30.015>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:30.015>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:30.015>: [Info]:   MMX: not present
+<2025-12-27 05:08:30.015>: [Info]:   SSE: present
+<2025-12-27 05:08:30.015>: [Info]:   SSE2: present
+<2025-12-27 05:08:30.015>: [Info]:   SSE3: present
+<2025-12-27 05:08:30.015>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:30.015>: [Info]:  
+<2025-12-27 05:08:30.015>: [Info]: Processor 1:
+<2025-12-27 05:08:30.015>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:30.015>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:30.015>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:30.015>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:30.015>: [Info]:   MMX: not present
+<2025-12-27 05:08:30.015>: [Info]:   SSE: present
+<2025-12-27 05:08:30.015>: [Info]:   SSE2: present
+<2025-12-27 05:08:30.015>: [Info]:   SSE3: present
+<2025-12-27 05:08:30.015>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:30.015>: [Info]:  
+<2025-12-27 05:08:30.015>: [Info]: Processor 2:
+<2025-12-27 05:08:30.015>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:30.015>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:30.015>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:30.015>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:30.015>: [Info]:   MMX: not present
+<2025-12-27 05:08:30.015>: [Info]:   SSE: present
+<2025-12-27 05:08:30.015>: [Info]:   SSE2: present
+<2025-12-27 05:08:30.015>: [Info]:   SSE3: present
+<2025-12-27 05:08:30.015>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:30.015>: [Info]:  
+<2025-12-27 05:08:30.015>: [Info]: Processor 3:
+<2025-12-27 05:08:30.015>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:30.015>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:30.015>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:30.015>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:30.015>: [Info]:   MMX: not present
+<2025-12-27 05:08:30.015>: [Info]:   SSE: present
+<2025-12-27 05:08:30.015>: [Info]:   SSE2: present
+<2025-12-27 05:08:30.015>: [Info]:   SSE3: present
+<2025-12-27 05:08:30.015>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:30.015>: [Info]:  
+<2025-12-27 05:08:30.015>: [Info]: Processor 4:
+<2025-12-27 05:08:30.015>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:30.015>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:30.015>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:30.015>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:30.015>: [Info]:   MMX: not present
+<2025-12-27 05:08:30.015>: [Info]:   SSE: present
+<2025-12-27 05:08:30.015>: [Info]:   SSE2: present
+<2025-12-27 05:08:30.015>: [Info]:   SSE3: present
+<2025-12-27 05:08:30.015>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:30.015>: [Info]:  
+<2025-12-27 05:08:30.015>: [Info]: Processor 5:
+<2025-12-27 05:08:30.015>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:30.015>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:30.015>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:30.015>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:30.015>: [Info]:   MMX: not present
+<2025-12-27 05:08:30.015>: [Info]:   SSE: present
+<2025-12-27 05:08:30.015>: [Info]:   SSE2: present
+<2025-12-27 05:08:30.015>: [Info]:   SSE3: present
+<2025-12-27 05:08:30.015>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:30.015>: [Info]:  
+<2025-12-27 05:08:30.015>: [Info]: Processor 6:
+<2025-12-27 05:08:30.015>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:30.015>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:30.015>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:30.015>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:30.015>: [Info]:   MMX: not present
+<2025-12-27 05:08:30.015>: [Info]:   SSE: present
+<2025-12-27 05:08:30.015>: [Info]:   SSE2: present
+<2025-12-27 05:08:30.015>: [Info]:   SSE3: present
+<2025-12-27 05:08:30.015>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:30.015>: [Info]:  
+<2025-12-27 05:08:30.015>: [Info]: Processor 7:
+<2025-12-27 05:08:30.015>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:30.015>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:30.015>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:30.015>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:30.015>: [Info]:   MMX: not present
+<2025-12-27 05:08:30.015>: [Info]:   SSE: present
+<2025-12-27 05:08:30.015>: [Info]:   SSE2: present
+<2025-12-27 05:08:30.015>: [Info]:   SSE3: present
+<2025-12-27 05:08:30.015>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:30.015>: [Info]:  
+<2025-12-27 05:08:31.386>: [Info] (AZCore): [SteamAuth] OnAuthSessionTicket: Authenticating using steam auth session ticket handle: 3
+<2025-12-27 05:08:31.386>: [Info] (AZCore): [SteamAuth] Current ticket handle: 3, ticket: steam|140000005ba204133dd3af779c28830601001001b0fe4e69180000000100000005000000341fc77139575661657da20102000000d600000056000000040000009c28830601001001323b1000bc05ed184a00a8c000000000f9f24a6979a266690100de5d06000600b05112000000b15112000000b25112000000707d12000000b8f4250000003e3c300000000000c1c97d2228519b93fc62842a296a45a10cdb69038cbf20aa22b2f1e5a60bac11d75dcef160eeafa29f2f2e51b7b73ec90253763e034b590ff543366416efb3ae30acecb799063c1b6883da583bf9812131efa8177715187
+<2025-12-27 05:08:31.836>: [Info] (AZCore): [OmniAuthBackend] Get persona id result: OK
+<2025-12-27 05:08:31.836>: [Info] (AZCore): [OmniAuthBackend] Get ags account type result: Full
+<2025-12-27 05:08:31.836>: [Info] (AZCore): [OmniAuthBackend] Omni CreateSession complete with result: 0, id: amzn1.developerPersonaId.4ee4810f-da59-c553-4027-91e961054dce
+<2025-12-27 05:08:32.268>: [Info] (AZCore): [SteamAuth] Calling Http API: https://d2oeuvxi3kfsrw.cloudfront.net/prod/credentials/omni
+<2025-12-27 05:08:32.906>: [Info] (AZCore): [AuthStackCredentialsProvider] Successfully refreshed gateway AWS credentials, next attempt will start after 2025-12-27T06:03:32Z
+<2025-12-27 05:08:32.906>: [Info] (AZCore): [AuthStackCredentialsProvider] Successfully refreshed persona AWS credentials, next attempt will start after 2025-12-27T06:03:32Z
+<2025-12-27 05:08:32.918>: [Info] (AZCore): [Game] CGame::OnCampfireLoginComplete, login successful. ownership=permanent
+<2025-12-27 05:08:32.933>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.public.ProductId" S3 key (old: "applications/public/configuration-sets/ProductId/STEAM_APP_ID.1063730/versionless"), reset to new value: "applications/public/configuration-sets/ProductId/STEAM_APP_ID.1063730/versionless"
+<2025-12-27 05:08:32.933>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.public.ProductId" remote config. S3 key: "applications/public/configuration-sets/ProductId/STEAM_APP_ID.1063730/versionless"
+<2025-12-27 05:08:33.056>: [Info] (AZCore): [StackConfig] Retrieved layer's "remoteCfg.public.ProductId" remote config, with S3 key: "applications/public/configuration-sets/ProductId/STEAM_APP_ID.1063730/versionless" successfully, size: 190
+
+<2025-12-27 05:08:33.061>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/news_stories.json
+<2025-12-27 05:08:33.061>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/newsstories/STEAM_APP_ID.1063730/metadata.json
+<2025-12-27 05:08:33.448>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/https://client.content-service.amazongames.com/images/j95d1p8hsuun/4vpdqds4vihl2mdcxl1dew/3e69856f1ccde95ea55fec154ada317b/nw_maintenance__modal_ct-000022652.dds
+<2025-12-27 05:08:33.449>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://client.content-service.amazongames.com/images/j95d1p8hsuun/4VpdqDs4Vihl2MdcxL1DEW/3e69856f1ccde95ea55fec154ada317b/nw_maintenance__modal_ct-000022652.dds
+<2025-12-27 05:08:33.689>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/marketing_tiles.json
+<2025-12-27 05:08:33.689>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/marketingtiles/STEAM_APP_ID.1063730/metadata.json
+<2025-12-27 05:08:33.731>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/https://client.content-service.amazongames.com/images/j95d1p8hsuun/nyt1ufo3mzazqbigk5bov/545b5d71ef228db0b20f979d14f68b91/nw_maintenance_tile_final_652x360_ct-000022652.dds
+<2025-12-27 05:08:33.731>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://client.content-service.amazongames.com/images/j95d1p8hsuun/NYt1ufO3MzAZQBiGk5bov/545b5d71ef228db0b20f979d14f68b91/nw_maintenance_tile_final_652x360_ct-000022652.dds
+<2025-12-27 05:08:33.904>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.public.ProductIdv" S3 key (old: "applications/public/configuration-sets/ProductId/STEAM_APP_ID.1063730/6030;5950962"), reset to new value: "applications/public/configuration-sets/ProductId/STEAM_APP_ID.1063730/6030;5950962"
+<2025-12-27 05:08:33.904>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.public.ProductIdv" remote config. S3 key: "applications/public/configuration-sets/ProductId/STEAM_APP_ID.1063730/6030;5950962"
+<2025-12-27 05:08:33.954>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/https://client.content-service.amazongames.com/images/j95d1p8hsuun/lz3b0x365ev1yk3amgeiw/48378a30400e1bd8efbe5b09306b36ae/newstile2.dds
+<2025-12-27 05:08:33.954>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://client.content-service.amazongames.com/images/j95d1p8hsuun/LZ3B0x365eV1Yk3AMGeiW/48378a30400e1bd8efbe5b09306b36ae/newstile2.dds
+<2025-12-27 05:08:34.028>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.public.RegionId" S3 key (old: "applications/public/configuration-sets/RegionId/pdx-prod/versionless"), reset to new value: "applications/public/configuration-sets/RegionId/iad-prod/versionless"
+<2025-12-27 05:08:34.028>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.public.RegionId" remote config. S3 key: "applications/public/configuration-sets/RegionId/iad-prod/versionless"
+<2025-12-27 05:08:34.149>: [Info] (AZCore): [StackConfig] Retrieved layer's "remoteCfg.public.RegionId" remote config, with S3 key: "applications/public/configuration-sets/RegionId/iad-prod/versionless" successfully, size: 530
+
+<2025-12-27 05:08:34.901>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/news_stories.json
+<2025-12-27 05:08:34.901>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/newsstories/STEAM_APP_ID.1063730/metadata.json
+<2025-12-27 05:08:34.911>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.public.RegionIdv" S3 key (old: "applications/public/configuration-sets/RegionId/pdx-prod/6030;5950962"), reset to new value: "applications/public/configuration-sets/RegionId/iad-prod/6030;5950962"
+<2025-12-27 05:08:34.911>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.public.RegionIdv" remote config. S3 key: "applications/public/configuration-sets/RegionId/iad-prod/6030;5950962"
+<2025-12-27 05:08:34.915>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/worlds.override.json
+<2025-12-27 05:08:34.915>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/motd/worlds_STEAM_APP_ID.1063730.json
+<2025-12-27 05:08:35.034>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.public.CognitoId" S3 key (old: "applications/public/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/versionless"), reset to new value: "applications/public/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/versionless"
+<2025-12-27 05:08:35.034>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.public.CognitoId" remote config. S3 key: "applications/public/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/versionless"
+<2025-12-27 05:08:35.129>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/news_stories.json
+<2025-12-27 05:08:35.129>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/newsstories/STEAM_APP_ID.1063730/metadata.json
+<2025-12-27 05:08:35.152>: [Info] (AZCore): [StackConfig] Retrieved layer's "remoteCfg.public.CognitoId" remote config, with S3 key: "applications/public/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/versionless" successfully, size: 261
+
+<2025-12-27 05:08:35.184>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/news_stories.json
+<2025-12-27 05:08:35.184>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/newsstories/STEAM_APP_ID.1063730/metadata.json
+<2025-12-27 05:08:35.189>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.public.CognitoIdv" S3 key (old: "applications/public/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/6030;5950962"), reset to new value: "applications/public/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/6030;5950962"
+<2025-12-27 05:08:35.190>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.public.CognitoIdv" remote config. S3 key: "applications/public/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/6030;5950962"
+<2025-12-27 05:08:35.317>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.publicGameplay.ProductId" S3 key (old: "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID.1063730/versionless"), reset to new value: "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID.1063730/versionless"
+<2025-12-27 05:08:35.317>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.publicGameplay.ProductId" remote config. S3 key: "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID.1063730/versionless"
+<2025-12-27 05:08:35.447>: [Info] (AZCore): [StackConfig] Retrieved layer's "remoteCfg.publicGameplay.ProductId" remote config, with S3 key: "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID.1063730/versionless" successfully, size: 1079
+
+<2025-12-27 05:08:35.457>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/news_stories.json
+<2025-12-27 05:08:35.457>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/newsstories/STEAM_APP_ID.1063730/metadata.json
+<2025-12-27 05:08:35.466>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.publicGameplay.ProductIdv" S3 key (old: "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID.1063730/6030;5950962"), reset to new value: "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID.1063730/6030;5950962"
+<2025-12-27 05:08:35.466>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.publicGameplay.ProductIdv" remote config. S3 key: "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID.1063730/6030;5950962"
+<2025-12-27 05:08:35.591>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.publicGameplay.RegionId" S3 key (old: "applications/publicGameplay/configuration-sets/RegionId/pdx-prod/versionless"), reset to new value: "applications/publicGameplay/configuration-sets/RegionId/iad-prod/versionless"
+<2025-12-27 05:08:35.591>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.publicGameplay.RegionId" remote config. S3 key: "applications/publicGameplay/configuration-sets/RegionId/iad-prod/versionless"
+<2025-12-27 05:08:35.707>: [Info] (AZCore): [StackConfig] Retrieved layer's "remoteCfg.publicGameplay.RegionId" remote config, with S3 key: "applications/publicGameplay/configuration-sets/RegionId/iad-prod/versionless" successfully, size: 854
+
+<2025-12-27 05:08:35.714>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/news_stories.json
+<2025-12-27 05:08:35.714>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/newsstories/STEAM_APP_ID.1063730/metadata.json
+<2025-12-27 05:08:35.724>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.publicGameplay.RegionIdv" S3 key (old: "applications/publicGameplay/configuration-sets/RegionId/pdx-prod/6030;5950962"), reset to new value: "applications/publicGameplay/configuration-sets/RegionId/iad-prod/6030;5950962"
+<2025-12-27 05:08:35.724>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.publicGameplay.RegionIdv" remote config. S3 key: "applications/publicGameplay/configuration-sets/RegionId/iad-prod/6030;5950962"
+<2025-12-27 05:08:35.887>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.publicGameplay.CognitoId" S3 key (old: "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/versionless"), reset to new value: "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/versionless"
+<2025-12-27 05:08:35.887>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.publicGameplay.CognitoId" remote config. S3 key: "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/versionless"
+<2025-12-27 05:08:36.007>: [Info] (AZCore): [StackConfig] Retrieved layer's "remoteCfg.publicGameplay.CognitoId" remote config, with S3 key: "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/versionless" successfully, size: 2441
+
+<2025-12-27 05:08:36.015>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/news_stories.json
+<2025-12-27 05:08:36.015>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/newsstories/STEAM_APP_ID.1063730/metadata.json
+<2025-12-27 05:08:36.023>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.publicGameplay.CognitoIdv" S3 key (old: "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/6030;5950962"), reset to new value: "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/6030;5950962"
+<2025-12-27 05:08:36.023>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.publicGameplay.CognitoIdv" remote config. S3 key: "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/6030;5950962"
+<2025-12-27 05:08:36.154>: [Info] (AZCore): [Game] LogEnvironmentString: Gateway Signing Host: 0prplal5u1.execute-api.us-east-1.amazonaws.com
+<2025-12-27 05:08:36.154>: [Info] (AZCore): [Game] LogEnvironmentString: Gateway Address: d2oeuvxi3kfsrw.cloudfront.net
+<2025-12-27 05:08:36.154>: [Info] (AZCore): [Game] LogEnvironmentString: HTTP Gateway Address: https://d2oeuvxi3kfsrw.cloudfront.net/prod
+<2025-12-27 05:08:36.154>: [Info] (AZCore): [GameConnection] ConfigureLogin MODE_GATEWAY: endpoint=d2oeuvxi3kfsrw.cloudfront.net, httpEntpoint=https://d2oeuvxi3kfsrw.cloudfront.net/prod, region=us-east-1
+<2025-12-27 05:08:36.157>: [Info]: [ERROR] XDllSingleton: Singleton already instantiated! {"singletonName":"class CampfireAnalyticsManager"}
+<2025-12-27 05:08:36.157>: [Info] (AZCore): [Game] LogEnvironmentString: Persona ID: amzn1.developerPersonaId.4ee4810f-da59-c553-4027-91e961054dce
+<2025-12-27 05:08:36.158>: [Info]: InitializeSerializedOptions: Loaded Options file 'C:/Users/charl/AppData/Roaming/AGS/New World/savedata/usersettings_37ccbd7ffd92a332.javsave'.
+<2025-12-27 05:08:36.502>: [Info]: 
+<2025-12-27 05:08:36.503>: [Info]: Total number of logical processors: 16
+<2025-12-27 05:08:36.503>: [Info]: Number of available logical processors: 16
+<2025-12-27 05:08:36.503>: [Info]: Total number of system cores: 8
+<2025-12-27 05:08:36.503>: [Info]: Number of cores available to process: 8
+<2025-12-27 05:08:36.503>: [Info]:  
+<2025-12-27 05:08:36.503>: [Info]: Processor 0:
+<2025-12-27 05:08:36.503>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:36.503>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:36.503>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:36.503>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:36.503>: [Info]:   MMX: not present
+<2025-12-27 05:08:36.503>: [Info]:   SSE: present
+<2025-12-27 05:08:36.503>: [Info]:   SSE2: present
+<2025-12-27 05:08:36.503>: [Info]:   SSE3: present
+<2025-12-27 05:08:36.503>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:36.503>: [Info]:  
+<2025-12-27 05:08:36.503>: [Info]: Processor 1:
+<2025-12-27 05:08:36.503>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:36.503>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:36.503>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:36.503>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:36.503>: [Info]:   MMX: not present
+<2025-12-27 05:08:36.503>: [Info]:   SSE: present
+<2025-12-27 05:08:36.503>: [Info]:   SSE2: present
+<2025-12-27 05:08:36.503>: [Info]:   SSE3: present
+<2025-12-27 05:08:36.503>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:36.503>: [Info]:  
+<2025-12-27 05:08:36.503>: [Info]: Processor 2:
+<2025-12-27 05:08:36.503>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:36.503>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:36.503>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:36.503>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:36.503>: [Info]:   MMX: not present
+<2025-12-27 05:08:36.503>: [Info]:   SSE: present
+<2025-12-27 05:08:36.503>: [Info]:   SSE2: present
+<2025-12-27 05:08:36.503>: [Info]:   SSE3: present
+<2025-12-27 05:08:36.503>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:36.503>: [Info]:  
+<2025-12-27 05:08:36.503>: [Info]: Processor 3:
+<2025-12-27 05:08:36.503>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:36.503>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:36.503>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:36.503>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:36.503>: [Info]:   MMX: not present
+<2025-12-27 05:08:36.503>: [Info]:   SSE: present
+<2025-12-27 05:08:36.503>: [Info]:   SSE2: present
+<2025-12-27 05:08:36.503>: [Info]:   SSE3: present
+<2025-12-27 05:08:36.503>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:36.503>: [Info]:  
+<2025-12-27 05:08:36.503>: [Info]: Processor 4:
+<2025-12-27 05:08:36.503>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:36.503>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:36.503>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:36.503>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:36.503>: [Info]:   MMX: not present
+<2025-12-27 05:08:36.503>: [Info]:   SSE: present
+<2025-12-27 05:08:36.503>: [Info]:   SSE2: present
+<2025-12-27 05:08:36.503>: [Info]:   SSE3: present
+<2025-12-27 05:08:36.503>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:36.503>: [Info]:  
+<2025-12-27 05:08:36.503>: [Info]: Processor 5:
+<2025-12-27 05:08:36.503>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:36.503>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:36.503>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:36.503>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:36.503>: [Info]:   MMX: not present
+<2025-12-27 05:08:36.503>: [Info]:   SSE: present
+<2025-12-27 05:08:36.503>: [Info]:   SSE2: present
+<2025-12-27 05:08:36.503>: [Info]:   SSE3: present
+<2025-12-27 05:08:36.503>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:36.503>: [Info]:  
+<2025-12-27 05:08:36.503>: [Info]: Processor 6:
+<2025-12-27 05:08:36.503>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:36.503>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:36.503>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:36.503>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:36.503>: [Info]:   MMX: not present
+<2025-12-27 05:08:36.503>: [Info]:   SSE: present
+<2025-12-27 05:08:36.503>: [Info]:   SSE2: present
+<2025-12-27 05:08:36.503>: [Info]:   SSE3: present
+<2025-12-27 05:08:36.503>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:36.503>: [Info]:  
+<2025-12-27 05:08:36.503>: [Info]: Processor 7:
+<2025-12-27 05:08:36.503>: [Info]:   CPU: AMD AMD Ryzen 7 9800X3D 8-Core Processor           
+<2025-12-27 05:08:36.503>: [Info]:   Family: 15, Model: 4, Stepping: 0
+<2025-12-27 05:08:36.503>: [Info]:   FPU: On-Chip
+<2025-12-27 05:08:36.503>: [Info]:   3DNow!: not present
+<2025-12-27 05:08:36.503>: [Info]:   MMX: not present
+<2025-12-27 05:08:36.503>: [Info]:   SSE: present
+<2025-12-27 05:08:36.503>: [Info]:   SSE2: present
+<2025-12-27 05:08:36.503>: [Info]:   SSE3: present
+<2025-12-27 05:08:36.503>: [Info]:   Serial number not present or disabled
+<2025-12-27 05:08:36.503>: [Info]:  
+<2025-12-27 05:08:37.447>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/worlds.override.json
+<2025-12-27 05:08:37.447>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/motd/worlds_STEAM_APP_ID.1063730.json
+<2025-12-27 05:08:37.510>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/news_stories.json
+<2025-12-27 05:08:37.510>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/newsstories/STEAM_APP_ID.1063730/metadata.json
+<2025-12-27 05:08:48.202>: [Info] (AZCore): [OmniAuthBackend] AGS account link session ended
+<2025-12-27 05:08:48.205>: [Info] (AZCore): [Game] CGame::ActorContainerConnect
+<2025-12-27 05:08:48.205>: [Info] (AZCore): [GameConnection] GameConnectionWrapper::Disconnect
+<2025-12-27 05:08:48.205>: [Info] (AZCore): [GameConnection] GameConnectionWrapper::Connect: playerName = NoxJ
+<2025-12-27 05:08:48.205>: [Info] (AZCore): [GameConnection] Update state Disconnected to new state QueryGameUpdateCheck
+<2025-12-27 05:08:48.215>: [Info] (AZCore): [GameConnection] QueryGameUpdateCheck: no game update check needed.
+<2025-12-27 05:08:48.215>: [Info] (AZCore): [GameConnection] Update state QueryGameUpdateCheck to new state QueueGameLogin
+<2025-12-27 05:08:48.226>: [Info] (AZCore): [GameConnection] Update state QueueGameLogin to new state WaitingForQueuedLogin
+<2025-12-27 05:08:48.226>: [Info] (AZCore): [GameConnection] Queuing login for world () and character (500d3986-4b74-48d4-8ee3-8dafb5d9d780)
+<2025-12-27 05:08:55.919>: [Info] (AZCore): [GameConnection] Received a login ticket: eacab29f-f0eb-43b4-84ed-91c4861aefc0_a1683238-3332-4128-8e78-f79ebb4abff0, location: , New Ticket
+<2025-12-27 05:08:58.820>: [Info] (AZCore): [GameConnection] Received a login ticket: eacab29f-f0eb-43b4-84ed-91c4861aefc0_a1683238-3332-4128-8e78-f79ebb4abff0, location: , Refreshed Ticket
+<2025-12-27 05:08:58.820>: [Info] (AZCore): [Game] LogEnvironmentString: World ID: eacab29f-f0eb-43b4-84ed-91c4861aefc0
+<2025-12-27 05:08:58.820>: [Info] (AZCore): [Game] LogEnvironmentString: World Name: live-2-02-1
+<2025-12-27 05:08:58.820>: [Info] (AZCore): [Game] LogEnvironmentString: Character ID: 500d3986-4b74-48d4-8ee3-8dafb5d9d780
+<2025-12-27 05:08:58.820>: [Info] (AZCore): [Game] LogEnvironmentString: REP Address: 35.71.190.194:25493
+<2025-12-27 05:08:58.824>: [Info] (AZCore): [GameConnection] Update state WaitingForQueuedLogin to new state QueryForRemoteConfigClass
+<2025-12-27 05:08:58.834>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/news_stories.json
+<2025-12-27 05:08:58.834>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/newsstories/STEAM_APP_ID.1063730/metadata.json
+<2025-12-27 05:08:58.839>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.public.WorldId" S3 key (old: ""), reset to new value: "applications/public/configuration-sets/WorldId/eacab29f-f0eb-43b4-84ed-91c4861aefc0/versionless"
+<2025-12-27 05:08:58.839>: [Info] (AZCore): [GameConnection] Update state QueryForRemoteConfigClass to new state WaitingForRemoteConfigClass
+<2025-12-27 05:08:58.840>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.public.WorldId" remote config. S3 key: "applications/public/configuration-sets/WorldId/eacab29f-f0eb-43b4-84ed-91c4861aefc0/versionless"
+<2025-12-27 05:08:58.858>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/worlds.override.json
+<2025-12-27 05:08:58.858>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/motd/worlds_STEAM_APP_ID.1063730.json
+<2025-12-27 05:08:58.920>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/news_stories.json
+<2025-12-27 05:08:58.920>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/newsstories/STEAM_APP_ID.1063730/metadata.json
+<2025-12-27 05:08:59.315>: [Info] (AZCore): [StackConfig] Retrieved layer's "remoteCfg.public.WorldId" remote config, with S3 key: "applications/public/configuration-sets/WorldId/eacab29f-f0eb-43b4-84ed-91c4861aefc0/versionless" successfully, size: 2
+
+<2025-12-27 05:08:59.328>: [Info] (AZCore): [GameConnection] Update state WaitingForRemoteConfigClass to new state QueryForRemoteConfigClass
+<2025-12-27 05:08:59.341>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/news_stories.json
+<2025-12-27 05:08:59.342>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/newsstories/STEAM_APP_ID.1063730/metadata.json
+<2025-12-27 05:08:59.346>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.public.WorldIdv" S3 key (old: ""), reset to new value: "applications/public/configuration-sets/WorldId/eacab29f-f0eb-43b4-84ed-91c4861aefc0/6030;5950962"
+<2025-12-27 05:08:59.347>: [Info] (AZCore): [GameConnection] Update state QueryForRemoteConfigClass to new state WaitingForRemoteConfigClass
+<2025-12-27 05:08:59.347>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.public.WorldIdv" remote config. S3 key: "applications/public/configuration-sets/WorldId/eacab29f-f0eb-43b4-84ed-91c4861aefc0/6030;5950962"
+<2025-12-27 05:08:59.461>: [Info] (AZCore): [GameConnection] Update state WaitingForRemoteConfigClass to new state QueryForRemoteConfigClass
+<2025-12-27 05:08:59.479>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.publicGameplay.WorldId" S3 key (old: ""), reset to new value: "applications/publicGameplay/configuration-sets/WorldId/eacab29f-f0eb-43b4-84ed-91c4861aefc0/versionless"
+<2025-12-27 05:08:59.479>: [Info] (AZCore): [GameConnection] Update state QueryForRemoteConfigClass to new state WaitingForRemoteConfigClass
+<2025-12-27 05:08:59.480>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.publicGameplay.WorldId" remote config. S3 key: "applications/publicGameplay/configuration-sets/WorldId/eacab29f-f0eb-43b4-84ed-91c4861aefc0/versionless"
+<2025-12-27 05:08:59.595>: [Info] (AZCore): [StackConfig] Retrieved layer's "remoteCfg.publicGameplay.WorldId" remote config, with S3 key: "applications/publicGameplay/configuration-sets/WorldId/eacab29f-f0eb-43b4-84ed-91c4861aefc0/versionless" successfully, size: 108
+
+<2025-12-27 05:08:59.595>: [Info] (AZCore): [GameConnection] Update state WaitingForRemoteConfigClass to new state QueryForRemoteConfigClass
+<2025-12-27 05:08:59.608>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/news_stories.json
+<2025-12-27 05:08:59.608>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/newsstories/STEAM_APP_ID.1063730/metadata.json
+<2025-12-27 05:08:59.612>: [Info] (AZCore): [StackConfig] LayerS3(): layer's "remoteCfg.publicGameplay.WorldIdv" S3 key (old: ""), reset to new value: "applications/publicGameplay/configuration-sets/WorldId/eacab29f-f0eb-43b4-84ed-91c4861aefc0/6030;5950962"
+<2025-12-27 05:08:59.613>: [Info] (AZCore): [GameConnection] Update state QueryForRemoteConfigClass to new state WaitingForRemoteConfigClass
+<2025-12-27 05:08:59.613>: [Info] (AZCore): [StackConfig] Querying "remoteCfg.publicGameplay.WorldIdv" remote config. S3 key: "applications/publicGameplay/configuration-sets/WorldId/eacab29f-f0eb-43b4-84ed-91c4861aefc0/6030;5950962"
+<2025-12-27 05:08:59.728>: [Info] (AZCore): [GameConnection] Update state WaitingForRemoteConfigClass to new state QueryForRemoteConfigClass
+<2025-12-27 05:08:59.745>: [Info] (AZCore): [GameConnection] Update state QueryForRemoteConfigClass to new state ObtainREPRequirements
+<2025-12-27 05:08:59.761>: [Info] (AZCore): [GameConnection] Update state ObtainREPRequirements to new state StartREPConnection
+<2025-12-27 05:08:59.778>: [Info] (AZCore): [GameConnection] GameConnectionWrapper: start REP connection RepAddress = 35.71.190.194:25493, worldId = eacab29f-f0eb-43b4-84ed-91c4861aefc0
+<2025-12-27 05:08:59.789>: [Info] (AZCore): [GetLocalBindAddress] Binding to local interface: Ethernet 7 / 192.168.0.74
+<2025-12-27 05:08:59.790>: [Info] (AZCore): [GameConnection] Update state StartREPConnection to new state WaitingForREPConnection
+<2025-12-27 05:09:00.332>: [Info] (AZCore): [GameConnection] GameConnectionWrapper: REP socket connection established, now waiting to register
+<2025-12-27 05:09:00.483>: [Info] (AZCore): [GameConnection] GameConnectionWrapper: received registration response from REP
+<2025-12-27 05:09:00.483>: [Info] (AZCore): [Game] LogEnvironmentString: Server version: [RETAIL].Javelin.1.365.6030.5950962
+<2025-12-27 05:09:00.495>: [Info] (AZCore): [GameConnection] GameConnectionWrapper: start actor game connection
+<2025-12-27 05:09:00.495>: [Info] (AZCore): [GameMessagePort] Reset
+<2025-12-27 05:09:00.495>: [Info] (AZCore): [GameConnection] Update state WaitingForREPConnection to new state WaitingForActorGameConnection
+<2025-12-27 05:09:00.661>: [Info] (AZCore): [GameConnection] GameConnectionWrapper: actor game connection succeeds
+<2025-12-27 05:09:00.661>: [Info] (AZCore): [GameConnection] Initialize current retry count : 0
+<2025-12-27 05:09:00.661>: [Info] (AZCore): [GameConnection] Update state WaitingForActorGameConnection to new state WaitingForSpawnPoint
+<2025-12-27 05:09:00.678>: [Info] (AZCore): [GameConnection] GameConnectionWrapper: spawn point found
+<2025-12-27 05:09:00.678>: [Info] (AZCore): [GameConnection] Update state WaitingForSpawnPoint to new state WaitingForPlayerSpawn
+<2025-12-27 05:09:00.811>: [Info] (AZCore): [GameMessagePort] LevelInfoChanged
+<2025-12-27 05:09:00.811>: [Info] (AZCore): [GameMessagePort] LevelInfoChanged m_clientContextInstanceId 0 changing to levelInfo.m_clientContextInstanceId 1
+<2025-12-27 05:09:00.875>: [Info]: [WARNING] GameConnection: GameConnectionWrapper::OnRemoteNetworkConnectionWarning countReceived: 1 {}
+<2025-12-27 05:09:00.988>: [Info]: [WARNING] GameConnection: GameConnectionWrapper::OnRemoteNetworkConnectionWarning countReceived: 2 {}
+<2025-12-27 05:09:00.994>: [Info] (AZCore): [GameMessagePort] Calling clientContext->Initialize
+<2025-12-27 05:09:00.994>: [Info] (AZCore): [ClientContext] Initialize()
+<2025-12-27 05:09:00.994>: [Info] (AZCore): [ClientContext] Cleanup()
+<2025-12-27 05:09:01.001>: [Info] (AZCore): [streamingGDEManager] Initialize()
+<2025-12-27 05:09:01.003>: [Info] (AZCore): [AsyncMapUnload] Loading of map "NewWorld_VitaeEterna" deferred in order to async unload previous level "NW_Frontend_NightHaven": starting async unload...
+<2025-12-27 05:09:01.009>: [Info] (AZCore): [AsyncMapUnload] Lumberyard Connection State: "WaitingForPlayerSpawn"
+<2025-12-27 05:09:01.009>: [Info] (AZCore): [AsyncMapUnload] waiting... numJobs 0, AssetBus::context.m_queue.size(): 380, waitingRefs (from bus): 0
+<2025-12-27 05:09:01.009>: [Info] (AZCore): [GameMessagePort] HandleUnexpectedMessage skipping ReceiveStateBundle for bundle message due to clientContext == nullptr
+<2025-12-27 05:09:01.013>: [Info] (AZCore): [AsyncMapUnload] DONE waiting... numJobs 0, AssetBus::context.m_queue.size(): 0, waitingRefs (from bus): 0
+<2025-12-27 05:09:01.013>: [Info] (AZCore): [AsyncMapUnload] ...allowing map change
+<2025-12-27 05:09:01.013>: [Info]: ============================ Loading level NewWorld_VitaeEterna ============================
+<2025-12-27 05:09:01.282>: [Info] (AZCore): [RenderThread] MakeMainContextActive
+<2025-12-27 05:09:01.353>: [Info]: CGame::InitCoatlicueTerrain
+<2025-12-27 05:09:01.356>: [Info] (AZCore): [GameMessagePort] ProcessPendingReliableMsgQueue processing 8 messages from m_pendingUnexpectedMsgs
+<2025-12-27 05:09:01.356>: [Info]: [ERROR] RMIDispatch: The facet target ID couldn't be found when trying to dispatch the RMI message. {"targetLocalId":17453137958171709985,"messageType":"EventNotificationComponentClientFacet_SyncNotifications"}
+<2025-12-27 05:09:01.356>: [Info]: [ERROR] RMIDispatch: The facet target ID couldn't be found when trying to dispatch the RMI message. {"targetLocalId":2832075650239171902,"messageType":"GridTrackingComponentClientFacet_UpdatePhasing"}
+<2025-12-27 05:09:01.356>: [Info]: [ERROR] RMIDispatch: The facet target ID couldn't be found when trying to dispatch the RMI message. {"targetLocalId":12817785448420314232,"messageType":"GlobalStorageComponentClientFacet_ReceiveStorageSearchItems"}
+<2025-12-27 05:09:01.356>: [Info]: [ERROR] RMIDispatch: The facet target ID couldn't be found when trying to dispatch the RMI message. {"targetLocalId":12817785448420314232,"messageType":"GlobalStorageComponentClientFacet_ReceiveStorageSearchItems"}
+<2025-12-27 05:09:01.356>: [Info]: [ERROR] RMIDispatch: The facet target ID couldn't be found when trying to dispatch the RMI message. {"targetLocalId":12817785448420314232,"messageType":"GlobalStorageComponentClientFacet_ReceiveStorageSearchItems"}
+<2025-12-27 05:09:01.356>: [Info]: [ERROR] RMIDispatch: The facet target ID couldn't be found when trying to dispatch the RMI message. {"targetLocalId":8929799243340269636,"messageType":"GameModeParticipantComponentClientFacet_OnLeftQueueForGameModeMsg"}
+<2025-12-27 05:09:01.356>: [Info]: [ERROR] RMIDispatch: The facet target ID couldn't be found when trying to dispatch the RMI message. {"targetLocalId":6496716540827370557,"messageType":"LeaderboardComponentClientFacet_OnLeaderboardRotationComplete"}
+<2025-12-27 05:09:01.715>: [Info] (AZCore): [GDERenderManager] Init()
+<2025-12-27 05:09:01.736>: [Info] (AZCore): [Game] LogEnvironmentString: Player Name: NoxJ
+<2025-12-27 05:09:01.736>: [Info] (AZCore): [Game] LogEnvironmentString: Player Actor: 6489497BC0D106EE0A6B235BB439259A
+<2025-12-27 05:09:01.760>: [Info] (AZCore): [GameConnection] GameConnectionWrapper: player spawn succeeds, in game
+<2025-12-27 05:09:01.760>: [Info] (AZCore): [GameConnection] Update state WaitingForPlayerSpawn to new state InGame
+<2025-12-27 05:09:01.760>: [Info] (AZCore): [Game] JavelinGame::OnConnectionSucceed
+<2025-12-27 05:09:01.762>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:01.764>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:01.764>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.162>: [Info]: [Vivox] VoiceChatSystemComponent: connected to server
+<2025-12-27 05:09:02.168>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.170>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:02.171>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.172>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.176>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:02.176>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.178>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.181>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:02.181>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.183>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.186>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:02.186>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.188>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.191>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:02.191>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.192>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.195>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:02.195>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.198>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.201>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:02.201>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.203>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.206>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:02.206>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.208>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.211>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:02.211>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.214>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.216>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:02.216>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.219>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.222>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:02.222>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.224>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.227>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:02.227>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.229>: [Info]: [WARNING] Slice: Couldn't get Transform component on the slice! {"sliceName":"slices/remoteplayer.dynamicslice","sliceAssetId":"A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64","sliceAssetHint":"slices/remoteplayer.dynamicslice"}
+<2025-12-27 05:09:02.230>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.232>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:02.232>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.346>: [Info]: [Vivox] VoiceChatClientState: Attempting login as '.amazon9050-ne83.500d3986-4b74-48d4-8ee3-8dafb5d9d780+B.'...
+<2025-12-27 05:09:02.761>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:02.763>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:02.763>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:03.237>: [Info]: [Vivox] VoiceChatSystemComponent: logged in to server
+<2025-12-27 05:09:03.379>: [Info]: [Vivox] VoiceChatClientState: joining new channel 'sip:confctl-d-amazon9050-ne83.017008_04bAtmyL0QwPHhvi9HajKMUQ_AMPF0IVLlMr4RyR9cfc@nwxp.vivox.com'
+<2025-12-27 05:09:03.513>: [Info]: [Vivox] VoiceChatClientState: Attempting to join 3d channel 'sip:confctl-d-amazon9050-ne83.017008_04bAtmyL0QwPHhvi9HajKMUQ_AMPF0IVLlMr4RyR9cfc@nwxp.vivox.com (017008_0)'...
+<2025-12-27 05:09:04.472>: [Info]: [Vivox] VoiceChatSystemComponent: channel 'sip:confctl-d-amazon9050-ne83.017008_04bAtmyL0QwPHhvi9HajKMUQ_AMPF0IVLlMr4RyR9cfc@nwxp.vivox.com' joined
+<2025-12-27 05:09:04.479>: [Info]: [Vivox] VoiceChatSystemComponent: transmitting only to sip:confctl-d-amazon9050-ne83.017008_04bAtmyL0QwPHhvi9HajKMUQ_AMPF0IVLlMr4RyR9cfc@nwxp.vivox.com
+<2025-12-27 05:09:04.479>: [Info]: [Vivox] VoiceChatClientState: transmitting to sip:confctl-d-amazon9050-ne83.017008_04bAtmyL0QwPHhvi9HajKMUQ_AMPF0IVLlMr4RyR9cfc@nwxp.vivox.com
+<2025-12-27 05:09:04.479>: [Info]: [Vivox] VoiceChatSystemComponent: setting specific channel transmission complete
+<2025-12-27 05:09:04.495>: [Info]: [Vivox] VoiceChatClientState: joining new channel 'sip:confctl-d-amazon9050-ne83.016008_04bAtmyL0QwPHhvi9HajKMUQ_AMPF0IVLlMr4RyR9cfc@nwxp.vivox.com'
+<2025-12-27 05:09:04.630>: [Info]: [Vivox] VoiceChatClientState: Attempting to join 3d channel 'sip:confctl-d-amazon9050-ne83.016008_04bAtmyL0QwPHhvi9HajKMUQ_AMPF0IVLlMr4RyR9cfc@nwxp.vivox.com (016008_0)'...
+<2025-12-27 05:09:04.727>: [Info]: [Vivox] VoiceChatSystemComponent: setting specific channel transmission complete
+<2025-12-27 05:09:05.748>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:05.751>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:05.751>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:05.755>: [Info]: [WARNING] Physics: Sphere shape has non-uniform scale [0.450,0.450,0.425]~. Origin is Invisible Collision & Selection (Sphere) {}
+<2025-12-27 05:09:05.781>: [Info]: [WARNING] Physics: Sphere shape has non-uniform scale [0.450,0.450,0.425]~. Origin is Invisible Collision & Selection (Sphere) {}
+<2025-12-27 05:09:05.783>: [Info]: [WARNING] Physics: Sphere shape has non-uniform scale [0.630,0.630,0.585]~. Origin is Invisible Collision & Selection (Sphere) {}
+<2025-12-27 05:09:05.856>: [Info]: [WARNING] Physics: Sphere shape has non-uniform scale [0.450,0.450,0.425]~. Origin is Invisible Collision & Selection (Sphere) {}
+<2025-12-27 05:09:05.857>: [Info]: [WARNING] Physics: Sphere shape has non-uniform scale [0.630,0.630,0.585]~. Origin is Invisible Collision & Selection (Sphere) {}
+<2025-12-27 05:09:05.867>: [Info] (AZCore): [GameMessagePort] LevelInfoChanged
+<2025-12-27 05:09:06.724>: [Info]: [Vivox] VoiceChatSystemComponent: channel 'sip:confctl-d-amazon9050-ne83.016008_04bAtmyL0QwPHhvi9HajKMUQ_AMPF0IVLlMr4RyR9cfc@nwxp.vivox.com' joined
+<2025-12-27 05:09:06.735>: [Info]: [Vivox] VoiceChatSystemComponent: removing transmission to 016008_0
+<2025-12-27 05:09:06.735>: [Info]: [Vivox] VoiceChatClientState: transmitting to no channels
+<2025-12-27 05:09:06.735>: [Info]: [Vivox] VoiceChatSystemComponent: transmitting only to sip:confctl-d-amazon9050-ne83.017008_04bAtmyL0QwPHhvi9HajKMUQ_AMPF0IVLlMr4RyR9cfc@nwxp.vivox.com
+<2025-12-27 05:09:06.735>: [Info]: [Vivox] VoiceChatClientState: transmitting to sip:confctl-d-amazon9050-ne83.017008_04bAtmyL0QwPHhvi9HajKMUQ_AMPF0IVLlMr4RyR9cfc@nwxp.vivox.com
+<2025-12-27 05:09:06.735>: [Info]: [Vivox] VoiceChatSystemComponent: setting specific channel transmission complete
+<2025-12-27 05:09:07.620>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"14267515477279095063"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"10988166650073691647"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"1644141233074719991"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"17303976607555860775"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"17017732669576492335"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"15978742710163171807"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"14077524286505127047"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"5808440188793931711"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"17551119570433736359"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"14267515477279095063"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"9423057934916594691","childGde":"9773197914130752087"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"10988166650073691647"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"1644141233074719991"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"17303976607555860775"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"17017732669576492335"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"15978742710163171807"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"14077524286505127047"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"5808440188793931711"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"17551119570433736359"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"3019135923689474655","childGde":"14267515477279095063"}
+<2025-12-27 05:09:08.738>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"9423057934916594691","childGde":"9773197914130752087"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"530870590440286191"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"5879705468016018983"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"12030333749715869943"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"17096076202889240479"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"2400748044693642287"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"12292194389921566343"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"16503860173117521287"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"8903323777431377351"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"5159436182616166071"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"9147843647608368879"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"4712661692790564623"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"1331794757735623143"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"13128596530714358567"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"4083935105273055271"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"12647929495352099775"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"10716637826789700551"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"17431550817447011615"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"13800288174019823799"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"18070773725684654695"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"17759128003743563199"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"8404552727217483895"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"3865455961779717119"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"7019961963030082151"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"13767298381258150903"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"13543108012676213143"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"17134146148579249535"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"5299740773979513959"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"727216268252726135"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"1003668441594481527"}
+<2025-12-27 05:09:08.742>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"15875955782144698831","childGde":"10040304818120708071"}
+<2025-12-27 05:09:08.821>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"876602842866795151","childGde":"14902593770625755463"}
+<2025-12-27 05:09:08.821>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"876602842866795151","childGde":"13981236681925277759"}
+<2025-12-27 05:09:08.821>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"876602842866795151","childGde":"9179474179349232991"}
+<2025-12-27 05:09:08.821>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"876602842866795151","childGde":"8287787913466909343"}
+<2025-12-27 05:09:08.821>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"876602842866795151","childGde":"7378139314057056239"}
+<2025-12-27 05:09:08.821>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"876602842866795151","childGde":"8028804088723777095"}
+<2025-12-27 05:09:08.821>: [Info]: [WARNING] Context: UpdateChildActorIdsForGDE exceeded max depth: 8 {"parentGde":"876602842866795151","childGde":"6836529507561895463"}
+<2025-12-27 05:09:10.814>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/worlds.override.json
+<2025-12-27 05:09:10.814>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/motd/worlds_STEAM_APP_ID.1063730.json
+<2025-12-27 05:09:10.966>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/worlds.override.json
+<2025-12-27 05:09:10.966>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/motd/worlds_STEAM_APP_ID.1063730.json
+<2025-12-27 05:09:13.412>: [Info]: [WARNING] Context: A deferred action was queued for entity ID, but the entity was destroyed before the action was processed. {"targetEntityId":"1811716949190578057"}
+<2025-12-27 05:09:17.740>: [Info]: [WARNING] Context: A deferred action was queued for entity ID, but the entity was destroyed before the action was processed. {"targetEntityId":"4341387826077936687"}
+<2025-12-27 05:09:20.214>: [Info]: [WARNING] Context: A deferred action was queued for entity ID, but the entity was destroyed before the action was processed. {"targetEntityId":"11982917764094953419"}
+<2025-12-27 05:09:29.479>: [Info]: [WARNING] Context: A deferred action was queued for entity ID, but the entity was destroyed before the action was processed. {"targetEntityId":"2327454332272137163"}
+<2025-12-27 05:09:37.006>: [Info]: [ERROR] RMIDispatch: The facet target ID couldn't be found when trying to dispatch the RMI message. {"targetLocalId":15151387443249499736,"messageType":"TimeComponentClientFacet_SyncTimeChange"}
+<2025-12-27 05:09:37.006>: [Info]: [ERROR] RMIDispatch: The facet target ID couldn't be found when trying to dispatch the RMI message. {"targetLocalId":15151387443249499736,"messageType":"TimeComponentClientFacet_SyncDayPhase"}
+<2025-12-27 05:09:52.525>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:52.526>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:52.526>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:53.145>: [Info]: [WARNING] Context: A deferred action was queued for entity ID, but the entity was destroyed before the action was processed. {"targetEntityId":"16853232252886541919"}
+<2025-12-27 05:09:53.522>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:53.524>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:53.524>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:58.881>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:09:58.883>: [Info]: SerializeOptions: Success
+<2025-12-27 05:09:58.883>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:10:00.671>: [Info] (AZCore): [CMS] Loading CMS File: H:/SteamLibrary/steamapps/common/New World/Assets/news_stories.json
+<2025-12-27 05:10:00.671>: [Info] (AZCore): [CMS] Loading CMS HTTP Request URL: https://d1hkbwzm1bktgo.cloudfront.net/newsstories/STEAM_APP_ID.1063730/metadata.json
+<2025-12-27 05:10:02.675>: [Info] (AZCore): [Debug] Calling IAuthManager::GetInstance()->EndSession()
+<2025-12-27 05:10:02.681>: [Info] (AZCore): [SteamAuth] Omni EndSession called successfully
+<2025-12-27 05:10:02.682>: [Info] (AZCore): [Debug] In callback function for IAuthManager::GetInstance()->EndSession()
+<2025-12-27 05:10:02.682>: [Info] (AZCore): [Game] CGame::ActorContainerDisconnect
+<2025-12-27 05:10:02.682>: [Info] (AZCore): [GameConnection] GameConnectionWrapper::Disconnect
+<2025-12-27 05:10:02.682>: [Info] (AZCore): [Game] CGame::OnDisconnection: Disconnected from REP
+<2025-12-27 05:10:02.690>: [Info] (AZCore): [GameConnection] GameConnectionWrapper: disconnected from REP
+<2025-12-27 05:10:03.806>: [Info] (AZCore): [GameConnection] Update state InGame to new state Disconnected
+<2025-12-27 05:10:03.806>: [Info] (AZCore): [Debug] Calling gEnv->pConsole->ExecuteString("quit")
+<2025-12-27 05:10:03.806>: [Info]: CSystem::Quit invoked from thread 37252 (main is 37252)
+<2025-12-27 05:10:03.806>: [Info]: SerializeOptions: Saving to @savedata@/temp_usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:10:03.808>: [Info]: SerializeOptions: Success
+<2025-12-27 05:10:03.808>: [Info]: SerializeOptions: Moving to @savedata@/usersettings_37ccbd7ffd92a332.javsave
+<2025-12-27 05:10:03.809>: [Info] (AZCore): [Game] CGame::ActorContainerDisconnect

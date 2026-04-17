@@ -53,6 +53,11 @@ def set_sslkeylog(session_dir: Path) -> str:
 def start_tshark(session_dir: Path) -> subprocess.Popen | None:
     """Start tshark capture if available."""
     tshark = shutil.which("tshark")
+    # Wireshark default install path on Windows
+    if not tshark:
+        default = r"C:\Program Files\Wireshark\tshark.exe"
+        if os.path.isfile(default):
+            tshark = default
     if not tshark:
         print("[-] tshark not found. Install Wireshark for packet capture.")
         print("    Download: https://www.wireshark.org/download.html")
@@ -60,13 +65,36 @@ def start_tshark(session_dir: Path) -> subprocess.Popen | None:
         return None
 
     pcap_path = str(session_dir / "pcaps" / "capture.pcapng")
-    # Capture traffic to known New World endpoints
-    # Port 25493 = game server REP, 443 = HTTPS (auth/gateway)
-    capture_filter = "tcp port 25493 or tcp port 443"
+    # Capture all TCP traffic - REP port is dynamic (seen 25493, 23971)
+    # so we can't filter by port. Filter to known server IP ranges instead.
+    # AWS IP ranges used by New World: 35.71.x.x, 18.x.x.x, 52.x.x.x, etc.
+    # Safest: capture everything and filter in post-analysis.
+    capture_filter = "tcp"
+
+    # On Windows, "-i any" doesn't work. Find active non-loopback interfaces.
+    # Use multiple -i flags to capture on all real interfaces.
+    interface_args = []
+    try:
+        result = subprocess.run([tshark, "-D"], capture_output=True, text=True, timeout=10)
+        for line in result.stdout.splitlines():
+            # Skip loopback and ETW
+            if "Loopback" in line or "etwdump" in line:
+                continue
+            # Extract interface number
+            parts = line.split(".", 1)
+            if parts[0].strip().isdigit():
+                iface_num = parts[0].strip()
+                interface_args.extend(["-i", iface_num])
+    except Exception:
+        # Fallback: just try interface 1
+        interface_args = ["-i", "1"]
+
+    if not interface_args:
+        interface_args = ["-i", "1"]
 
     cmd = [
         tshark,
-        "-i", "any",       # all interfaces
+        *interface_args,
         "-f", capture_filter,
         "-w", pcap_path,
         "-q",               # quiet mode
