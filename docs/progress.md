@@ -1,7 +1,7 @@
 # New World Private Server — Progress & Findings
 
 > Living document. Updated as we learn more.
-> Last updated: 2026-04-16 (WinDivert tap capture working)
+> Last updated: 2026-04-17 (static scan reveals bespoke "Javelin" networking)
 
 ---
 
@@ -79,19 +79,38 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 - [ ] Understand the relationship between the HTTPS gateway traffic and the DTLS game traffic
 
 ### Gate 3: Decode the Packet Format
-**Status: Not started**
+**Status: ~15% — major pivot from static scan**
 
-**What we know so far (from O3DE open source):**
-- O3DE's AzNetworking uses a serialization format with AZ_RTTI-reflected types (each packet has a UUID)
-- `NetworkInputSerializer` / `NetworkOutputSerializer` for byte stream serialization
-- New World extended the base O3DE packet types with custom game packets
-- Ghidra + the archived NewWorld.exe (72GB client archived to `<archive-root>\`) will be the primary RE tool
+**Critical finding (2026-04-17):** New World does **NOT** use stock O3DE AzNetworking. Static scan of NewWorld.exe against the full list of AzNetworking class names, RTTI UUIDs, CVars, and log messages from O3DE source returned **0 hits out of 101 checks**. Instead, the binary uses a **bespoke networking library named "Javelin"** in the `Javelin::` namespace. This aligns with the server version string we captured earlier: `[RETAIL].Javelin.1.365.6031.6004151`.
+
+**What the static scan revealed:**
+- `Javelin::` appears 5001 times; namespace contains 730 unique class names (see `analysis/javelin_classes.txt`)
+- `GridMate` references present (30×) — Lumberyard's older networking lib; Javelin is likely forked from or inspired by it, predating O3DE's AzNetworking
+- `AzFramework` (152×) and `AzCore` (13×) confirm some Amazon engine core is still present
+- No AzNetworking class names, CVars, log strings, or RTTI UUIDs — everything networking was replaced by Javelin
+- OpenSSL (24×) and SSL_CTX (24×) confirm standard DTLS via statically-linked OpenSSL
+
+**Javelin architecture (inferred from class names):**
+- `*ComponentClientFacet` / `*ComponentServerFacet` — replicated state holders per component
+- `*ComponentClientMessages` / `*ComponentServerMessages` — RPC message groups per component
+- `HandleReplicatedState` — function that processes incoming replication updates
+- `ReplicationDataManager` — central replication system
+- `I*RemoteMessages` / `I*ClientMessages` — RPC interface groups (IPlayerRemoteMessages, etc.)
+- Component-oriented architecture, similar to GridMate's Replica pattern but with bespoke naming
+
+**What this means for our stub server:**
+- The O3DE AzNetworking reference (`docs/aznetworking-reference.md`) is still useful as a *conceptual map* but won't map 1:1
+- We're doing bottom-up reverse engineering from the binary — no known protocol spec to cross-reference
+- Wire format (packet header layout, opcode scheme, serialization primitives) all TBD from Ghidra
 
 **What we still need:**
-- [ ] Clone O3DE source and study AzNetworking packet header format
-- [ ] Load NewWorld.exe into Ghidra, find IPacket subclasses and serialization methods
-- [ ] Build opcode catalog: opcode → struct definition → game action
-- [ ] Cross-reference captured REP traffic against discovered packet structures
+- [x] ~~Clone O3DE source and study AzNetworking packet header format~~ (done, but less relevant than expected)
+- [ ] Ghidra auto-analysis (in progress — 1-4 hours)
+- [ ] Enable GhidraMCP plugin after analysis completes
+- [ ] Find `Javelin::` packet/serializer/replication classes in Ghidra
+- [ ] Reverse-engineer the Javelin UDP packet header layout
+- [ ] Cross-reference with our 38,845 captured DTLS records
+- [ ] Build opcode catalog from discovered packet structures
 
 ### Gate 4: Stub a Minimal Server
 **Status: Not started**
@@ -114,6 +133,8 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 ## Key Discoveries
 
 Things that differ from the initial Perplexity research or are otherwise surprising:
+
+0. **"Javelin", not AzNetworking.** The retail binary contains zero AzNetworking/Multiplayer-gem markers (0/101 on static scan). New World has its own networking library called **Javelin** (730 unique `Javelin::*` classes), likely forked from Lumberyard's GridMate before O3DE open-sourced AzNetworking. All packet, replication, and RPC code is bespoke and must be reversed from the binary.
 
 1. **Not WebSocket, not TCP — it's DTLS over UDP.** The Perplexity research said WebSocket. First log analysis suggested TCP. Packet capture proves it's **DTLS 1.2 (encrypted UDP)**. The game log misleadingly says "REP socket connection" but the transport is UDP.
 
