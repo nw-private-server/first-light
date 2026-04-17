@@ -186,6 +186,112 @@ Main vtable: `0x147fbf3a8`. Sub-object vtables: `0x147fbf1e8`, `0x147fbf280`.
 
 ---
 
+## 3H. DTLS state handlers — fully decompiled
+
+Handler event codes (all state handlers take `(driver, state_ctx, *event)`):
+  - `-2` = state exit (cleanup)
+  - `-1` = state entry (setup)
+  - `1`  = periodic tick
+  - `2,3` = state-specific external events
+
+Transitions are performed by `Javelin_StateMachine_Transition(ctx, new_state_id)` @ `0x141480b10`.
+
+### SSL state struct key offsets (observed in handlers)
+
+| Offset | Meaning |
+|-------:|---------|
+| `+0x10` | state entry timestamp (ns) |
+| `+0x18` | connect timeout (seconds) |
+| `+0x48` | (cleared on SSL_free — raw read buffer pointer?) |
+| `+0x50` | packet queue base (for draining post-handshake packets) |
+| `+0x78` | (cleared on SSL_free — peer address copy?) |
+| `+0x2058` | SSL* pointer |
+| `+0x2060` | peer address |
+| `+0x2068` | pending-work queue |
+| `+0x2074` | last SSL error code |
+| `+0x2080` | absolute deadline for next send (ns) |
+| `+0x2088` | current retransmit interval (ms, doubles each send) |
+| `+0x2090` | absolute handshake deadline (ns) |
+| `+0x20dc` | retransmit counter |
+
+### OpenSSL wrappers identified in state handlers
+
+| VA | Renamed | Purpose |
+|----|---------|---------|
+| `0x1478f1c80` | `openssl_SSL_set_connect_state` | Put SSL into connect mode |
+| `0x1478f1a00` | `openssl_SSL_set_accept_state` | Put SSL into accept mode |
+| `0x1478f0210` | `openssl_SSL_connect` | Drive client handshake |
+| `0x1478effb0` | `openssl_SSL_accept` | Drive server handshake |
+| `0x1478f0e10` | `openssl_SSL_get_error` | Translate handshake error |
+| `0x1478f0710` | `openssl_SSL_free` | Destroy SSL object |
+| `0x145dc99b0` | `Javelin_SecureSocketDriver_CreateSSL` | Allocate new SSL from context |
+| `0x145dda0d0` | `Javelin_SecureSocketDriver_SendRawPacket` | Bypass-SSL raw UDP send |
+| `0x141480b10` | `Javelin_StateMachine_Transition` | Set next state id |
+
+### Each state handler in one line
+
+| State | ID | Handler | Behavior |
+|-------|---:|---------|----------|
+| CS_TOP | 0 | sentinel | never dispatched |
+| CS_ACTIVE | 1 | @`0x145dd22d0` | **Entry**: capture timestamp + call CreateSSL. **Tick**: if handshake timeout exceeded → transition to CS_DISCONNECTED (10) |
+| CS_ACCEPT | 2 | @`0x145dd2180` | **Entry**: `SSL_set_accept_state`. **Tick**: `SSL_accept`, then drain post-handshake queued packets. Success → CS_ESTABLISHED (9); error → CS_SSL_ERROR (11) |
+| CS_WAIT_FOR_STATEFUL_HANDSHAKE | 3 | @`0x145dd3280` | **Entry**: retransmit interval = 1000ms. **Tick**: if past deadline, manually build + send HelloVerifyRequest (25 bytes, DTLS 1.0 legacy wire format), double backoff. **Event 2** (cookie received) → CS_SSL_HANDSHAKE_ACCEPT (4) |
+| CS_SSL_HANDSHAKE_ACCEPT | 4 | (mis-identified earlier) | Not yet decompiled cleanly — Ghidra's signature inference got confused. TODO revisit. |
+| CS_CONNECT | 5 | @`0x145dd2440` | **Entry**: `SSL_set_connect_state`. **Tick**: `SSL_connect`, handle result. Success → CS_ESTABLISHED (9); error → CS_SSL_ERROR (11); timeout → CS_HANDSHAKE_RETRY (8) |
+| CS_COOKIE_EXCHANGE | 6 | @`0x145dd25c0` | **Entry**: set handshake deadline = now + `[+0x18]*1000`. **Event 3** → CS_SSL_HANDSHAKE_CONNECT (7) |
+| CS_SSL_HANDSHAKE_CONNECT | 7 | @`0x145dd3220` | **Entry**: `SSL_free` old SSL, `CreateSSL`, `SSL_set_connect_state`. Drives same loop as CS_CONNECT. |
+| CS_HANDSHAKE_RETRY | 8 | @`0x145dd2e00` | **Entry**: rebuild SSL + set connect state. **Tick**: → CS_COOKIE_EXCHANGE (6) |
+| CS_ESTABLISHED | 9 | label only | encrypted traffic phase |
+| CS_DISCONNECTED | 10 | label only | terminal |
+| CS_SSL_ERROR | 11 | label only | terminal |
+
+### Client-side connect path (what our captures show)
+
+```
+(external: client instantiates SecureSocketDriver)
+  ↓
+CS_ACTIVE  [entry]
+  ↓
+CS_CONNECT  [entry: SSL_set_connect_state]
+  ├── tick → SSL_connect() returns WANT_READ
+  │   (client sends ClientHello, waits for HelloVerifyRequest)
+  ├── tick → SSL_connect() returns WANT_WRITE
+  │   (client sends ClientHello2 with cookie)
+  ├── tick → SSL_connect() returns 1
+  │   (handshake complete, session keys derived)
+  ↓
+CS_ESTABLISHED
+
+(on timeout between any ticks: → CS_HANDSHAKE_RETRY → CS_COOKIE_EXCHANGE → CS_SSL_HANDSHAKE_CONNECT → back to CS_CONNECT)
+(on SSL error: → CS_SSL_ERROR → CS_DISCONNECTED)
+```
+
+### Server-side accept path (what our stub server must implement)
+
+```
+(external: server's SocketDriver sees new peer with packets waiting)
+  ↓
+CS_ACTIVE
+  ↓
+CS_WAIT_FOR_STATEFUL_HANDSHAKE
+  ├── tick after 1s → manually send HelloVerifyRequest (~25 bytes)
+  ├── (exponential backoff on retransmit)
+  ├── event 2 (cookie-bearing ClientHello2 received)
+  ↓
+CS_SSL_HANDSHAKE_ACCEPT  (implementation TBD)
+  ↓
+CS_ACCEPT  [entry: SSL_set_accept_state]
+  ├── tick → SSL_accept() returns WANT_READ/WRITE
+  ├── tick → SSL_accept() returns 1
+  │   (handshake complete)
+  ↓
+CS_ESTABLISHED
+```
+
+**Critical insight for stub server**: the SERVER manually constructs HelloVerifyRequest and injects it via `SendRawPacket` without using OpenSSL. This is fine for our stub — we can either replicate this or use `DTLSv1_listen` which does the same thing natively.
+
+---
+
 ## 3B. SecureSocketDriver state machine (complete enumeration)
 
 `Javelin_SecureSocketDriver_StateDispatch` @ `0x145dce4c0` registers
