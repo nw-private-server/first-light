@@ -186,7 +186,54 @@ Main vtable: `0x147fbf3a8`. Sub-object vtables: `0x147fbf1e8`, `0x147fbf280`.
 
 ---
 
-## 4. Still to map (next-session queue)
+## 4. Chunk descriptor pattern (discovered)
+
+### Two confirmed chunks
+
+| Init function | VA | Chunk name | String VA |
+|---------------|----|------------|-----------|
+| `Javelin_TransformReplicaChunk_descriptor_init` | `0x1462abe00` | `TransformReplicaChunk` | `0x1484ee530` |
+| `Javelin_TriggerAreaChunk_descriptor_init`      | `0x140a23590` | `TriggerAreaChunk`       | (nearby)   |
+
+### Canonical pattern (byte-identical across chunk types, template-instantiated)
+
+```c
+void Chunk_descriptor_init(this, desc_ptr_ptr) {
+    if (desc.registered_flag == 0) {
+        desc.name = "ChunkNameString";
+        class_id = Javelin_ReplicaChunkClassId_FromName(&result, desc.name);
+        Javelin_ReplicaChunkDescriptor_Register(
+            this + 0x180, &local_58, &class_id, ...);
+
+        // ...install 3 function vtables at desc + 0xa8, 0xf8, 0x120
+        // (likely: serialize, unmarshal, spawn)
+        // Each vtable is 3 function pointers (0x10 bytes apart)
+
+        desc.class_id = class_id;
+    }
+}
+```
+
+### Helper functions identified
+
+| VA | Renamed | Role |
+|----|---------|------|
+| `0x140ad2870` | `Javelin_ReplicaChunkDescriptor_Register` | Creates a registry entry |
+| `0x1412f4730` | `Javelin_ReplicaChunkClassId_FromName` | CRC-hashes the chunk name to a class ID |
+
+### The compiler duplicated helper functions per chunk
+
+Each chunk init calls its OWN instance of some helpers (e.g., Transform calls
+`FUN_146277a90` where Trigger calls `FUN_140925ea0` for the "install
+descriptor" step). This is template monomorphization. Consequence: we can't
+find ALL chunks via xrefs to a single register function. Instead, run
+`tools/ghidra_scripts/FindChunkRegistrations.py` — walks `.rdata` for all
+`*Chunk` strings, finds their xrefs, and outputs the full init-function
+catalog to `analysis/ghidra_chunks.txt`.
+
+---
+
+## 5. Still to map (next-session queue)
 
 ### High priority
 - **Pump function at `0x140f82340` / `0x145ddab20`** — not auto-classified as
