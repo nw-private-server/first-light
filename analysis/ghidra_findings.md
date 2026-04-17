@@ -118,7 +118,75 @@ FUN_14149c930(&local_98, puVar10, ...);
 
 ---
 
-## 3. Still to map (next-session queue)
+## 3. Session → Carrier → ReplicaManager hierarchy (discovered)
+
+### `Javelin_Session_Init_and_Event` @ `0x140f72d30`
+
+Top-level state-machine function. Dispatches on `*param_3`:
+
+| Event | Meaning |
+|-------|---------|
+| `-1`  | Initial setup — allocates SessionInfo, CarrierImpl, ReplicaManager |
+| `5`   | Peer connection event (uses `[0x42]` as peer state) |
+
+Allocations done at event `-1`:
+
+```c
+// SessionInfo (0x120 = 288 bytes)
+obj = alloc(0x120); Javelin_SessionInfo_ctor(obj, param_1[0x1b], param_1+0x18);
+param_1[0x11] = obj;  param_1[0x29] = obj;
+
+// CarrierImpl (0x218 = 536 bytes, wrapper around 77KB Carrier)
+obj = alloc(0x218); Javelin_CarrierImpl_ctor(obj, param_1+0xf, param_1[0x45]);
+param_1[0x27] = obj;
+
+// ReplicaManager (0x9a8 = 2472 bytes)
+obj = alloc(0x9a8); Javelin_ReplicaManager_ctor(obj);
+param_1[0x28] = obj;
+```
+
+String literals in this function: `"GridSession"`, `"SessionStateInfo"` —
+canonical GridMate names.
+
+### `Javelin_CarrierImpl_ctor` @ `0x140f4bfe0`
+
+The 536-byte wrapper. Key action: allocates **77KB (`0x12d50`)** for the
+real `Carrier` (the worker that owns the thread, channels, buffers) and
+stores it at `this[0x26]`.
+- Its own vtable: `0x147fbe718`
+- Wraps a nested 16-byte object at `0x147fbe3c8` (traffic-control?) if no
+  user-provided one.
+
+### `Javelin_Carrier_ctor` @ `0x140f4c5a0` (renamed; was FUN_140f4c5a0)
+
+The 77KB "work horse":
+- 3 identical channel blocks at `[0x68]/[0x7c]/[0x90]` (channels 0/1/2;
+  channel 3 is system)
+- ~16KB send buffer at `[0x5a5..0x25a7]`
+- Spawns `"GridMate-Carrier"` thread via AZStd::thread wrapper; thread
+  body address `0x140f82340` (not yet defined as function in Ghidra)
+- Nested sub-object vtable at `[0x5a0] = 0x147fbe6e8`
+- Main class vtable at `[0x0] = 0x147fbe410`
+
+### `Javelin_Carrier_ctor_GMAlloc` @ `0x145dbae90`
+
+Near-identical duplicate of the above but uses `"GridMateAllocatorMP"`
+instead of `"OSAllocator"`, with thread body `0x145ddab20`. Classic
+GridMate template-instantiation pattern.
+
+### `Javelin_ReplicaManager_ctor` @ `0x140f51620`
+
+2472-byte setup routine. Creates multiple nested allocator-tracked
+containers for datasets, chunks, etc. **Does not register chunks
+inline** — chunk registration happens via global/static constructors
+that run at module load (each `ReplicaChunkDescriptor::Register` is a
+static initializer). Finding those is next-session work.
+
+Main vtable: `0x147fbf3a8`. Sub-object vtables: `0x147fbf1e8`, `0x147fbf280`.
+
+---
+
+## 4. Still to map (next-session queue)
 
 ### High priority
 - **Pump function at `0x140f82340` / `0x145ddab20`** — not auto-classified as

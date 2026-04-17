@@ -1,7 +1,7 @@
 # New World Private Server — Progress & Findings
 
 > Living document. Updated as we learn more.
-> Last updated: 2026-04-17 (GridMate reference added; AzNetworking ref demoted)
+> Last updated: 2026-04-17 (first Ghidra-MCP session; DTLS stack + Session/Carrier/ReplicaManager mapped)
 
 ---
 
@@ -79,7 +79,7 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 - [ ] Understand the relationship between the HTTPS gateway traffic and the DTLS game traffic
 
 ### Gate 3: Decode the Packet Format
-**Status: ~25% — protocol reference built from Lumberyard GridMate**
+**Status: ~40% — DTLS stack + Session/Carrier architecture mapped via Ghidra**
 
 **Critical finding (2026-04-17):** New World does **NOT** use stock O3DE AzNetworking. Static scan of NewWorld.exe found **0 hits / 101 checks** on AzNetworking markers but **5001 hits** on `Javelin::` classes. The binary uses a **bespoke networking library named "Javelin"** — almost certainly forked from Lumberyard's older **GridMate** (pre-O3DE, ~2017 era), because:
 - `"GridMate"` appears as a string 30× in the binary (log tags likely preserved)
@@ -97,15 +97,17 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 - OpenSSL (24×) + SSL_CTX (24×) confirm DTLS via statically-linked OpenSSL — matches GridMate's `SecureSocketDriver` using `DTLSv1_2_method()` + cipher `ECDHE-RSA-AES256-GCM-SHA384`
 
 **What we still need:**
-- [x] ~~Clone O3DE source and study AzNetworking packet header format~~ (done, but orthogonal)
-- [x] Clone Lumberyard GridMate and produce protocol reference — done, see `docs/gridmate-reference.md`
-- [ ] Ghidra auto-analysis (in progress — 1-4 hours)
-- [ ] Enable GhidraMCP plugin after analysis completes
-- [ ] Find cipher string `ECDHE-RSA-AES256-GCM-SHA384` xref → roots the whole network stack (§9.1 of GridMate ref)
-- [ ] Find `ReadMessageHeader` equivalent (bit-mask fingerprint `flags & 0x42 == 0`, reads u16 size)
+- [x] ~~Clone O3DE source and study AzNetworking packet header format~~
+- [x] Clone Lumberyard GridMate and produce protocol reference — see `docs/gridmate-reference.md`
+- [x] Ghidra auto-analysis — done (decompiler pass finished)
+- [x] Enable GhidraMCP plugin — done, server live on port 8080
+- [x] Find cipher string `ECDHE-RSA-AES256-GCM-SHA384` xref — **single xref** lands in `Javelin_SecureSocketDriver_Initialize` @ `0x145dce750`. All 7 OpenSSL API wrappers identified; SSL_CTX stored at state `[0x1a]`. See `analysis/ghidra_findings.md`.
+- [x] Map Session → CarrierImpl → Carrier → ReplicaManager hierarchy via Ghidra MCP
+- [ ] Force-define pump functions in Ghidra (`F` key at `0x140f82340`, `0x145ddab20`) — that's `CarrierThread::ThreadPump`
+- [ ] Find `ReadMessageHeader` equivalent (bit-mask fingerprint `flags & 0x42 == 0`, reads u16 size) — tools/ghidra_scripts/JavelinHunt.py automates this
+- [ ] Find static constructors that register `ReplicaChunkDescriptor`s — that enumerates the complete chunk catalog
 - [ ] Find `Cmd_*` switch at the top of replica dispatch (§5.4 of GridMate ref)
-- [ ] Harvest Javelin chunk-name strings from `.rdata` — each maps to one replicated component
-- [ ] Cross-reference with our 38,845 captured DTLS records
+- [ ] Cross-reference findings with our 38,845 captured DTLS records
 
 ### Gate 4: Stub a Minimal Server
 **Status: Not started**
