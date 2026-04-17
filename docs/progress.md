@@ -1,7 +1,7 @@
 # New World Private Server — Progress & Findings
 
 > Living document. Updated as we learn more.
-> Last updated: 2026-04-17 (static scan reveals bespoke "Javelin" networking)
+> Last updated: 2026-04-17 (GridMate reference added; AzNetworking ref demoted)
 
 ---
 
@@ -79,38 +79,33 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 - [ ] Understand the relationship between the HTTPS gateway traffic and the DTLS game traffic
 
 ### Gate 3: Decode the Packet Format
-**Status: ~15% — major pivot from static scan**
+**Status: ~25% — protocol reference built from Lumberyard GridMate**
 
-**Critical finding (2026-04-17):** New World does **NOT** use stock O3DE AzNetworking. Static scan of NewWorld.exe against the full list of AzNetworking class names, RTTI UUIDs, CVars, and log messages from O3DE source returned **0 hits out of 101 checks**. Instead, the binary uses a **bespoke networking library named "Javelin"** in the `Javelin::` namespace. This aligns with the server version string we captured earlier: `[RETAIL].Javelin.1.365.6031.6004151`.
+**Critical finding (2026-04-17):** New World does **NOT** use stock O3DE AzNetworking. Static scan of NewWorld.exe found **0 hits / 101 checks** on AzNetworking markers but **5001 hits** on `Javelin::` classes. The binary uses a **bespoke networking library named "Javelin"** — almost certainly forked from Lumberyard's older **GridMate** (pre-O3DE, ~2017 era), because:
+- `"GridMate"` appears as a string 30× in the binary (log tags likely preserved)
+- `"Lumberyard"` appears 7×
+- The Javelin class patterns (`*ComponentClientFacet` / `*ComponentServerFacet`, `*ComponentClientMessages` / `*ComponentServerMessages`) match GridMate's `ReplicaChunk` model with a NW-specific split into data-facet + message-facet
+- Server version string: `[RETAIL].Javelin.1.365.6031.6004151`
+
+**Primary protocol reference: `docs/gridmate-reference.md`** — a 500+ line deep-read of Lumberyard GridMate source (Carrier header, channel/message framing, reliability/ack vector, DTLS integration, replica system, RPC wire format, handshake layers, type GUIDs, and a predicted GridMate→Javelin class mapping). This is our Ghidra hunt map.
+
+**Secondary reference (demoted): `docs/aznetworking-reference.md`** — originally produced as our protocol map, but the static scan proved Javelin is NOT AzNetworking-derived. Retained only as a *conceptual comparison* document showing how Amazon later re-imagined the same problem for O3DE. Do not use it for wire-format predictions.
 
 **What the static scan revealed:**
 - `Javelin::` appears 5001 times; namespace contains 730 unique class names (see `analysis/javelin_classes.txt`)
-- `GridMate` references present (30×) — Lumberyard's older networking lib; Javelin is likely forked from or inspired by it, predating O3DE's AzNetworking
-- `AzFramework` (152×) and `AzCore` (13×) confirm some Amazon engine core is still present
-- No AzNetworking class names, CVars, log strings, or RTTI UUIDs — everything networking was replaced by Javelin
-- OpenSSL (24×) and SSL_CTX (24×) confirm standard DTLS via statically-linked OpenSSL
-
-**Javelin architecture (inferred from class names):**
-- `*ComponentClientFacet` / `*ComponentServerFacet` — replicated state holders per component
-- `*ComponentClientMessages` / `*ComponentServerMessages` — RPC message groups per component
-- `HandleReplicatedState` — function that processes incoming replication updates
-- `ReplicationDataManager` — central replication system
-- `I*RemoteMessages` / `I*ClientMessages` — RPC interface groups (IPlayerRemoteMessages, etc.)
-- Component-oriented architecture, similar to GridMate's Replica pattern but with bespoke naming
-
-**What this means for our stub server:**
-- The O3DE AzNetworking reference (`docs/aznetworking-reference.md`) is still useful as a *conceptual map* but won't map 1:1
-- We're doing bottom-up reverse engineering from the binary — no known protocol spec to cross-reference
-- Wire format (packet header layout, opcode scheme, serialization primitives) all TBD from Ghidra
+- `AzFramework` (152×) and `AzCore` (13×) confirm Amazon engine core still present
+- OpenSSL (24×) + SSL_CTX (24×) confirm DTLS via statically-linked OpenSSL — matches GridMate's `SecureSocketDriver` using `DTLSv1_2_method()` + cipher `ECDHE-RSA-AES256-GCM-SHA384`
 
 **What we still need:**
-- [x] ~~Clone O3DE source and study AzNetworking packet header format~~ (done, but less relevant than expected)
+- [x] ~~Clone O3DE source and study AzNetworking packet header format~~ (done, but orthogonal)
+- [x] Clone Lumberyard GridMate and produce protocol reference — done, see `docs/gridmate-reference.md`
 - [ ] Ghidra auto-analysis (in progress — 1-4 hours)
 - [ ] Enable GhidraMCP plugin after analysis completes
-- [ ] Find `Javelin::` packet/serializer/replication classes in Ghidra
-- [ ] Reverse-engineer the Javelin UDP packet header layout
+- [ ] Find cipher string `ECDHE-RSA-AES256-GCM-SHA384` xref → roots the whole network stack (§9.1 of GridMate ref)
+- [ ] Find `ReadMessageHeader` equivalent (bit-mask fingerprint `flags & 0x42 == 0`, reads u16 size)
+- [ ] Find `Cmd_*` switch at the top of replica dispatch (§5.4 of GridMate ref)
+- [ ] Harvest Javelin chunk-name strings from `.rdata` — each maps to one replicated component
 - [ ] Cross-reference with our 38,845 captured DTLS records
-- [ ] Build opcode catalog from discovered packet structures
 
 ### Gate 4: Stub a Minimal Server
 **Status: Not started**
@@ -134,7 +129,7 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 
 Things that differ from the initial Perplexity research or are otherwise surprising:
 
-0. **"Javelin", not AzNetworking.** The retail binary contains zero AzNetworking/Multiplayer-gem markers (0/101 on static scan). New World has its own networking library called **Javelin** (730 unique `Javelin::*` classes), likely forked from Lumberyard's GridMate before O3DE open-sourced AzNetworking. All packet, replication, and RPC code is bespoke and must be reversed from the binary.
+0. **"Javelin" is a GridMate fork, not AzNetworking.** The retail binary contains zero AzNetworking/Multiplayer-gem markers (0/101 on static scan) but 5001 `Javelin::` class hits and 30 `"GridMate"` string hits. Javelin is almost certainly Amazon's rebranded/forked Lumberyard GridMate — a pre-O3DE networking library from ~2017. See `docs/gridmate-reference.md` for the full protocol map we expect to match in the binary. Key differences vs AzNetworking: tiny 2-byte datagram header, per-message flags byte, out-of-band ack vector, DTLS runs sequentially before Carrier handshake (not interleaved), and bit-packed bools on the wire.
 
 1. **Not WebSocket, not TCP — it's DTLS over UDP.** The Perplexity research said WebSocket. First log analysis suggested TCP. Packet capture proves it's **DTLS 1.2 (encrypted UDP)**. The game log misleadingly says "REP socket connection" but the transport is UDP.
 
@@ -209,8 +204,9 @@ Disconnected
 
 ## Next Steps (Priority Order)
 
-1. **Run a second capture** with the fixed filter to get the REP TCP stream
-2. **Fetch the channel config JSON** directly (`https://d2c74t4zimux3r.cloudfront.net/STEAM_APP_ID.1063730.json`) — this is public and documents all endpoints
-3. **Build a Frida script** to hook TLS and capture decrypted auth HTTP bodies
-4. **Clone O3DE source** and study AzNetworking packet format
-5. **Start Ghidra analysis** of NewWorld.exe for packet structures
+1. **Wait for Ghidra auto-analysis** to complete (in progress).
+2. **Cross-reference Javelin with GridMate.** Use `docs/gridmate-reference.md` §9.1 hunt list — find cipher string xref, `ReadMessageHeader` bit-mask pattern, `Cmd_*` switch, chunk-name strings. Map each to its Javelin equivalent.
+3. **Harvest chunk names** from `.rdata` — each gives us one replicated-component wire name to decode from captures.
+4. **Build a Frida script** to hook TLS and capture decrypted auth HTTP bodies (still pending).
+5. **Fetch the channel config JSON** directly (`https://d2c74t4zimux3r.cloudfront.net/STEAM_APP_ID.1063730.json`) — public, documents all regional endpoints.
+6. **Decrypt the DTLS captures** (Frida hook on `SSL_read`/`SSL_write` in NewWorld.exe) and validate GridMate wire format assumptions against plaintext.
