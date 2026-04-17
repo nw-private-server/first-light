@@ -76,24 +76,25 @@ def run_redirect(proxy_host: str, proxy_port: int,
         )
         print(f"[*] Redirecting {server_ip}:{server_port} -> 127.0.0.1:{proxy_port}")
     else:
-        # Auto-detect: filter to outbound UDP on high ports to non-local IPs
-        # Exclude common non-game traffic (DNS, mDNS, SSDP, broadcast, multicast)
+        # Wait for the game log to tell us the server IP:port
+        print(f"[*] Waiting for game to connect -- monitoring game log for REP Address...")
+        while not server_ip:
+            detected = detect_server_from_log()
+            if detected:
+                server_ip, server_port = detected
+                print(f"[+] Detected from game log: {server_ip}:{server_port}")
+            else:
+                time.sleep(1)
+                sys.stdout.write(".")
+                sys.stdout.flush()
+        # Now build a precise filter
         filt = (
-            "outbound and udp and "
-            "udp.DstPort > 10000 and "
-            "ip.DstAddr != 127.0.0.1 and "
-            "ip.DstAddr != 255.255.255.255 and "
-            "ip.DstAddr >= 10.0.0.0 ? false : true"  # skip private ranges
+            f"udp and ("
+            f"(outbound and ip.DstAddr == {server_ip} and udp.DstPort == {server_port}) or "
+            f"(inbound and ip.SrcAddr == 127.0.0.1 and udp.SrcPort == {proxy_port})"
+            f")"
         )
-        # Simpler: just match AWS GA ranges directly
-        filt = (
-            "outbound and udp and udp.DstPort > 10000 and ("
-            "ip.DstAddr >= 35.64.0.0 and ip.DstAddr <= 35.79.255.255 or "
-            "ip.DstAddr >= 52.223.0.0 and ip.DstAddr <= 52.223.255.255"
-            ")"
-        )
-        print(f"[*] Auto-detecting game server traffic -> 127.0.0.1:{proxy_port}")
-        print(f"[*] Watching AWS Global Accelerator ranges: 35.64-79.x.x, 52.223.x.x")
+        print(f"[*] Redirecting {server_ip}:{server_port} -> 127.0.0.1:{proxy_port}")
 
     # Track active redirects: original (ip, port) -> True
     active_server = None
