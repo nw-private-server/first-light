@@ -1,0 +1,184 @@
+{
+  "channelName": "Retail",
+  "fra-prod": {
+    "displayName": "EU Central",
+    "localizedName": "@mm_eu_central",
+    "poolId": "us-east-1:0de93f7c-814e-4d48-a8fd-b6efc2f9ed93",
+    "publicApis": [
+      {
+        "awsRegion": "us-east-1",
+        "version": "1.0",
+        "apiEndpoint": "2mfrik7h83.execute-api.us-east-1.amazonaws.com",
+        "clientTag": "authStack",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "eu-central-1",
+        "version": "1.0",
+        "apiEndpoint": "u433g9r00c.execute-api.eu-central-1.amazonaws.com",
+        "clientTag": "loginGateway",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "eu-central-1",
+        "version": "1.0",
+        "apiEndpoint": "8otrnl8e8d.execute-api.eu-central-1.amazonaws.com",
+        "clientTag": "JavelinGatewayServiceV2",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "eu-central-1",
+        "version": "1.0",
+        "apiEndpoint": "d1w0bfy6smo4d1.cloudfront.net",
+        "clientTag": "JavelinGatewayService-CF"
+      }
+    ]
+  },
+  "gru-prod": {
+    "displayName": "SA East",
+    "localizedName": "@mm_sa_east",
+    "poolId": "us-east-1:e0f84314-5d2e-4ea8-9ae7-aab377d12da9",
+    "publicApis": [
+      {
+        "awsRegion": "us-east-1",
+        "version": "1.0",
+        "apiEndpoint": "kqqt5twsi7.execute-api.us-east-1.amazonaws.com",
+        "clientTag": "authStack",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "sa-east-1",
+        "version": "1.0",
+        "apiEndpoint": "j4n6whncmi.execute-api.sa-east-1.amazonaws.com",
+        "clientTag": "loginGateway",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "sa-east-1",
+        "version": "1.0",
+        "apiEndpoint": "ei4rb8pwvd.execute-api.sa-east-1.amazonaws.com",
+        "clientTag": "JavelinGatewayServiceV2",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "sa-east-1",
+        "version": "1.0",
+        "apiEndpoint": "d1cjlmzk0xrm0z.cloudfront.net",
+        "clientTag": "JavelinGatewayService-CF"
+      }
+    ]
+  },
+  "iad-prod": {
+    "displayName": "US East",
+    "localizedName": "@mm_us_east",
+    "poolId": "us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09",
+    "publicApis": [
+      {
+        "awsRegion": "us-east-1",
+        "version": "1.0",
+        "apiEndpoint": "0prplal5u1.execute-api.us-east-1.amazonaws.com",
+        "clientTag": "loginGateway",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "us-east-1",
+        "version": "1.0",
+        "apiEndpoint": "eudbjx6mig.execute-api.us-east-1.amazonaws.com",
+        "clientTag": "authStack",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "us-east-1",
+        "version": "1.0",
+        "apiEndpoint": "3khxmonavl.execute-api.us-east-1.amazonaws.com",
+        "clientTag": "JavelinGatewayServiceV2",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "us-east-1",
+        "version": "1.0",
+        "apiEndpoint": "d2oeuvxi3kfsrw.cloudfront.net",
+        "clientTag": "JavelinGatewayService-CF"
+      }
+    ]
+  },
+  "pdx-prod": {
+    "displayName": "US West",
+    "localizedName": "@mm_us_west",
+    "poolId": "us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f",
+    "publicApis": [
+      {
+        "awsRegion": "us-east-1",
+        "version": "1.0",
+        "apiEndpoint": "q8hqllbg6k.execute-api.us-east-1.amazonaws.com",
+        "clientTag": "authStack",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "us-west-2",
+        "version": "1.0",
+        "apiEndpoint": "v7irlu1nrl.execute-api.us-west-2.amazonaws.com",
+        "clientTag": "loginGateway",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "us-west-2",
+        "version": "1.0",
+        "apiEndpoint": "mwsyzhfoe5.execute-api.us-west-2.amazonaws.com",
+        "clientTag": "JavelinGatewayServiceV2",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "us-west-2",
+        "version": "1.0",
+        "apiEndpoint": "d3bj4csovi1fe8.cloudfront.net",
+        "clientTag": "JavelinGatewayService-CF"
+      }
+    ]
+  },
+  "syd-prod": {
+    "displayName": "AP Southeast",
+    "localizedName": "@mm_ap_southeast",
+    "poolId": "us-east-1:b218b3f3-2d38-469f-92b7-a8414369d22b",
+    "publicApis": [
+      {
+        "awsRegion": "us-east-1",
+        "version": "1.0",
+        "apiEndpoint": "hhf8nn71vb.execute-api.us-east-1.amazonaws.com",
+        "clientTag": "authStack",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "ap-southeast-2",
+        "version": "1.0",
+        "apiEndpoint": "ep1m9qoir8.execute-api.ap-southeast-2.amazonaws.com",
+        "clientTag": "loginGateway",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "ap-southeast-2",
+        "version": "1.0",
+        "apiEndpoint": "9jlv7mxmw1.execute-api.ap-southeast-2.amazonaws.com",
+        "clientTag": "JavelinGatewayServiceV2",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "ap-southeast-2",
+        "version": "1.0",
+        "apiEndpoint": "de4mfzk9wkelz.cloudfront.net",
+        "clientTag": "JavelinGatewayService-CF"
+      }
+    ]
+  },
+  "platformMetadata": {
+    "ENTITLEMENTS.STEAM_APP_ID.1063730": {
+      "app": "STEAM_APP_ID.1063730"
+    },
+    "OMNI.STEAM_APP_ID.1063730": {
+      "omniTokenUrl": "https://tokenservice.amazongames.com",
+      "nwTokenUrl": "https://prod.newworld.com/",
+      "omniStage": "prod",
+      "omniGameAlias": "new-world"
+    }
+  }
+}
