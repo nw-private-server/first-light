@@ -357,44 +357,34 @@ def handle_omni_token(ctx: Ctx, handler: "AuthHandler"):
     except Exception as e:
         log(f"    * couldn't parse fallbackToken: {e}")
 
-    # Use the cached Amazon token if we could extract one, else mint our own
-    # (which will fail OmniSDK signature verification but lets us see logs).
+    # Echo fallbackToken back — Amazon-signed, passes OmniSDK's hardcoded
+    # public key verification. Fall back to a self-signed JWT if not present.
     token = fallback_token or sign_jwt(persona_id)
-    session_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc)
 
+    # Response schema discovered from binary (Ghidra @ 0x1495d7ea0..
+    # 0x1495d7ef8 + 0x1495d93d8..0x1495d94f0 + /JenkinsBuilds/OmniSDK source):
+    #   {
+    #     "fallbackToken":   "<jwt for next refresh>",
+    #     "platformAccount": { "identityId": "<persona>", "identityType": "steam" },
+    #     "suspension":      null,
+    #     "limitedUseToken": "<jwt>",
+    #     "isNewAccount":    false,
+    #     "conflictingAccount": null
+    #   }
     body = json.dumps({
-        # Persona identification (multiple casings — OmniSDK's bindings unknown)
-        "personaId": persona_id,
-        "persona_id": persona_id,
-        "id": persona_id,
-        "sub": persona_id,
-
-        "agsAccountType": "Full",
-        "ags_account_type": "Full",
-        "accountType": "Full",
-
-        "sessionId": session_id,
-        "session_id": session_id,
-        "ownership": "permanent",
-
-        # Signed JWT — this is the critical bit
-        "token": token,
-        "access_token": token,
-        "id_token": token,
-        "jwt": token,
-
-        "expiresIn": 3600,
-        "expires_in": 3600,
-        "tokenType": "Bearer",
-        "token_type": "Bearer",
-
-        "result": 0,
-        "resultCode": 0,
-        "status": "OK",
-
-        "issuedAt": now.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-        "expiration": (now + timedelta(seconds=3600)).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        "fallbackToken": token,
+        "limitedUseToken": token,
+        "platformAccount": {
+            "identityId": persona_id,
+            "identityType": "steam",
+        },
+        "agsAccount": {
+            "identityId": persona_id,
+            "accountType": "Full",
+        },
+        "suspension": None,
+        "isNewAccount": False,
+        "conflictingAccount": None,
     }).encode()
     handler._respond(200, body, content_type="application/json")
 
