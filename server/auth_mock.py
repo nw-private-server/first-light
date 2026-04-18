@@ -49,16 +49,22 @@ Requires Administrator on Windows for port 443 and for trusting the CA.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import socketserver
 import ssl
 import sys
 import threading
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse
+
+import jwt as pyjwt
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 CAPTURE_DIR = PROJECT_DIR / "capture"
@@ -70,6 +76,81 @@ CHANNEL_CONFIG = CAPTURE_DIR / "channel_config.json"
 # try to open a DTLS connection here after passing auth.
 DEFAULT_REP_HOST = "127.0.0.1"
 DEFAULT_REP_PORT = 23971
+
+# JWT signing
+JWT_SIGNING_KEY_PATH = CERTS_DIR / "jwt_signing.key"
+JWT_SIGNING_PUB_PATH = CERTS_DIR / "jwt_signing.pub"
+JWT_KID = "nwprivate-auth-1"     # our key id
+JWT_ISSUER = "https://tokenservice.amazongames.com"
+
+
+def _load_signing_key() -> rsa.RSAPrivateKey:
+    if not JWT_SIGNING_KEY_PATH.exists():
+        raise FileNotFoundError(
+            f"JWT signing key missing at {JWT_SIGNING_KEY_PATH}. "
+            f"Run: cd server/certs && openssl genrsa -out jwt_signing.key 2048"
+        )
+    return serialization.load_pem_private_key(
+        JWT_SIGNING_KEY_PATH.read_bytes(), password=None
+    )
+
+
+def _load_signing_pub() -> rsa.RSAPublicKey:
+    if JWT_SIGNING_PUB_PATH.exists():
+        return serialization.load_pem_public_key(JWT_SIGNING_PUB_PATH.read_bytes())
+    # Derive from private key if .pub wasn't generated.
+    priv = _load_signing_key()
+    return priv.public_key()
+
+
+def _int_to_b64url(n: int) -> str:
+    byte_len = (n.bit_length() + 7) // 8
+    return base64.urlsafe_b64encode(n.to_bytes(byte_len, "big")).decode().rstrip("=")
+
+
+def build_jwks() -> dict:
+    """Return the JWKS payload advertising our RSA signing key."""
+    pub = _load_signing_pub()
+    numbers = pub.public_numbers()
+    return {
+        "keys": [
+            {
+                "kty": "RSA",
+                "use": "sig",
+                "alg": "RS256",
+                "kid": JWT_KID,
+                "n": _int_to_b64url(numbers.n),
+                "e": _int_to_b64url(numbers.e),
+            }
+        ]
+    }
+
+
+def sign_jwt(persona_id: str, extra: dict | None = None, ttl_seconds: int = 3600) -> str:
+    """Mint a signed JWT that OmniSDK will accept as a session/access token."""
+    now = int(time.time())
+    payload = {
+        "sub": persona_id,
+        "iss": JWT_ISSUER,
+        "aud": "new-world",
+        "iat": now,
+        "exp": now + ttl_seconds,
+        "nbf": now - 30,
+        "az_platform_name": "steam",
+        "az_ags_identity_type": "Full",
+        "ags_account_type": "Full",
+    }
+    if extra:
+        payload.update(extra)
+    jku = f"{JWT_ISSUER}/games/new-world/.well-known/openid-configuration/jwks.json"
+    key = _load_signing_key()
+    token = pyjwt.encode(
+        payload,
+        key,
+        algorithm="RS256",
+        headers={"kid": JWT_KID, "jku": jku, "typ": "JWT"},
+    )
+    return token
 
 
 # ---------------------------------------------------------------------------
@@ -244,54 +325,73 @@ def handle_omni_token(ctx: Ctx, handler: "AuthHandler"):
     """Fake OmniSDK token service response.
 
     Path observed: POST https://tokenservice.amazongames.com/games/new-world/tokens
-    The client sends its Steam session ticket + an Amazon-signed fallbackToken.
-    OmniSDK expects back a full session creation payload: a persona id,
-    an ags account type, a session token, and a bearer token. If any
-    required field is missing OmniSDK reports 'CreateSession failed'.
+    OmniSDK expects back a **signed JWT** as the token value, signed by
+    a key it can look up via the `jku` header. Since we've DNS-redirected
+    tokenservice.amazongames.com to us, we can serve our own jwks.json
+    at the OpenID config path and sign tokens with a key we control.
 
-    Field names are best-effort guesses — the game log logs the RESULT
-    ('Get persona id result: OK', 'Get ags account type result: Full',
-    'Omni CreateSession complete with result: 0, id: amzn1.developerPersonaId.*')
-    but not the raw JSON keys. Iterate based on client response.
+    The game log told us this was wrong: `Omni CreateSession complete
+    with result: 203` — 203 is JWT-validation failure territory. Fix is
+    to return a real RS256-signed JWT.
     """
     persona_id = "amzn1.developerPersonaId." + str(uuid.uuid4())
     session_id = str(uuid.uuid4())
+    token = sign_jwt(persona_id)
     now = datetime.now(timezone.utc)
-    # OmniSDK appears to like both snake_case and camelCase — return both
-    # shapes for each field. The client deserializer will pick whichever it
-    # has bindings for and ignore the rest.
+
     body = json.dumps({
-        # Persona identification
+        # Persona identification (multiple casings — OmniSDK's bindings unknown)
         "personaId": persona_id,
         "persona_id": persona_id,
         "id": persona_id,
+        "sub": persona_id,
 
-        # AGS account type (log shows 'Full')
         "agsAccountType": "Full",
         "ags_account_type": "Full",
         "accountType": "Full",
 
-        # Session / ownership
         "sessionId": session_id,
         "session_id": session_id,
         "ownership": "permanent",
 
-        # Bearer token for subsequent calls to credentials endpoint
-        "token": uuid.uuid4().hex,
-        "access_token": uuid.uuid4().hex,
+        # Signed JWT — this is the critical bit
+        "token": token,
+        "access_token": token,
+        "id_token": token,
+        "jwt": token,
+
         "expiresIn": 3600,
         "expires_in": 3600,
         "tokenType": "Bearer",
         "token_type": "Bearer",
 
-        # Result code — 0 = OK per the game log
         "result": 0,
         "resultCode": 0,
         "status": "OK",
 
-        # Timestamps (some AWS SDK consumers insist on expiration strings)
         "issuedAt": now.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
         "expiration": (now + timedelta(seconds=3600)).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+    }).encode()
+    handler._respond(200, body, content_type="application/json")
+
+
+def handle_jwks(ctx: Ctx, handler: "AuthHandler"):
+    """Expose our public signing key so OmniSDK can verify our JWTs."""
+    body = json.dumps(build_jwks()).encode()
+    handler._respond(200, body, content_type="application/json")
+
+
+def handle_openid_config(ctx: Ctx, handler: "AuthHandler"):
+    """Minimal OpenID Connect discovery doc pointing at our JWKS."""
+    host = handler._extract_host()
+    base = f"https://{host}/games/new-world"
+    body = json.dumps({
+        "issuer": JWT_ISSUER,
+        "jwks_uri": f"{base}/.well-known/openid-configuration/jwks.json",
+        "id_token_signing_alg_values_supported": ["RS256"],
+        "token_endpoint": f"{base}/tokens",
+        "response_types_supported": ["token"],
+        "subject_types_supported": ["public"],
     }).encode()
     handler._respond(200, body, content_type="application/json")
 
@@ -324,7 +424,11 @@ ROUTES = [
     ("d1hkbwzm1bktgo.cloudfront.net", "GET", _path_prefix("/newsstories/"), handle_news_metadata),
     ("d1hkbwzm1bktgo.cloudfront.net", "GET", _path_prefix("/marketingtiles/"), handle_marketing_metadata),
 
-    # OmniSDK token service
+    # OmniSDK token service — JWKS + OpenID config MUST match before the
+    # catch-all token handler, since these are also under tokenservice.amazongames.com.
+    ("tokenservice.amazongames.com", "GET", _path_endswith("/jwks.json"), handle_jwks),
+    ("tokenservice.amazongames.com", "GET", _path_endswith("/openid-configuration"), handle_openid_config),
+    ("tokenservice.amazongames.com", "GET", _path_endswith("/.well-known/openid-configuration"), handle_openid_config),
     ("tokenservice.amazongames.com", "*", lambda p: True, handle_omni_token),
 ]
 
