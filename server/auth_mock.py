@@ -241,11 +241,57 @@ def handle_marketing_metadata(ctx: Ctx, handler: "AuthHandler"):
 
 
 def handle_omni_token(ctx: Ctx, handler: "AuthHandler"):
-    """Fake OmniSDK token service response."""
+    """Fake OmniSDK token service response.
+
+    Path observed: POST https://tokenservice.amazongames.com/games/new-world/tokens
+    The client sends its Steam session ticket + an Amazon-signed fallbackToken.
+    OmniSDK expects back a full session creation payload: a persona id,
+    an ags account type, a session token, and a bearer token. If any
+    required field is missing OmniSDK reports 'CreateSession failed'.
+
+    Field names are best-effort guesses — the game log logs the RESULT
+    ('Get persona id result: OK', 'Get ags account type result: Full',
+    'Omni CreateSession complete with result: 0, id: amzn1.developerPersonaId.*')
+    but not the raw JSON keys. Iterate based on client response.
+    """
+    persona_id = "amzn1.developerPersonaId." + str(uuid.uuid4())
+    session_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    # OmniSDK appears to like both snake_case and camelCase — return both
+    # shapes for each field. The client deserializer will pick whichever it
+    # has bindings for and ignore the rest.
     body = json.dumps({
+        # Persona identification
+        "personaId": persona_id,
+        "persona_id": persona_id,
+        "id": persona_id,
+
+        # AGS account type (log shows 'Full')
+        "agsAccountType": "Full",
+        "ags_account_type": "Full",
+        "accountType": "Full",
+
+        # Session / ownership
+        "sessionId": session_id,
+        "session_id": session_id,
+        "ownership": "permanent",
+
+        # Bearer token for subsequent calls to credentials endpoint
         "token": uuid.uuid4().hex,
+        "access_token": uuid.uuid4().hex,
+        "expiresIn": 3600,
         "expires_in": 3600,
+        "tokenType": "Bearer",
         "token_type": "Bearer",
+
+        # Result code — 0 = OK per the game log
+        "result": 0,
+        "resultCode": 0,
+        "status": "OK",
+
+        # Timestamps (some AWS SDK consumers insist on expiration strings)
+        "issuedAt": now.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        "expiration": (now + timedelta(seconds=3600)).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
     }).encode()
     handler._respond(200, body, content_type="application/json")
 
