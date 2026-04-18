@@ -532,10 +532,32 @@ def handle_entitlements_list(ctx: Ctx, handler: "AuthHandler"):
     handler._respond(200, body, content_type="application/x-amz-json-1.1")
 
 
+def handle_javelin_rpc(ctx: Ctx, handler: "AuthHandler"):
+    """Preemptive logger for /Javelin.RPC.<Service>/<Method> gRPC-style paths.
+
+    We've traced CreateCharacter (and siblings GetLoginInfo, ValidateCharacter,
+    GetCharacterList) to `ControlPortClient<StubbedGatewayService>`, which
+    sends to paths like `/Javelin.RPC.StubbedGatewayService/<Method>`. The
+    transport is HTTP/gRPC through the same gateway we're already mocking,
+    but the wire format (real HTTP/2 + protobuf frames? or HTTP/1.1 with a
+    protobuf body?) is not yet confirmed. Respond with empty {} on HTTP/1.1
+    so we at least capture the request — if the client actually needs real
+    gRPC framing this call will fail at the protocol layer before we see it."""
+    body = handler._last_request_body or b""
+    ct = handler.headers.get("Content-Type", "")
+    log(f"    ! JAVELIN-RPC path={handler.path} content-type={ct} body={len(body)}B")
+    if body:
+        hex_head = body[:128].hex()
+        log(f"    ! JAVELIN-RPC body-hex[0:128]: {hex_head}")
+    handler._respond(200, b"{}", content_type="application/json")
+
+
 def handle_unknown(ctx: Ctx, handler: "AuthHandler"):
     """Catch-all: return an empty JSON object so the client doesn't crash.
     The goal here is to KEEP the client progressing so we can see what it
-    asks for next."""
+    asks for next. High-value hosts (tokenservice, entitlementservice,
+    gateway CloudFront) are noisy in the log via `! no route matched` so
+    schema drift on those paths stands out."""
     handler._respond(200, b"{}", content_type="application/json")
 
 
@@ -555,6 +577,13 @@ ROUTES = [
     # Game.GetLoginInfoLists (character select payload)
     ("*", "GET", _path_prefix("/prod/game/getlogininfo"), handle_get_login_info),
     ("*", "POST", _path_prefix("/prod/game/getlogininfo"), handle_get_login_info),
+
+    # gRPC-style ControlPort RPCs (CreateCharacter, ValidateCharacter,
+    # GetCharacterList, GetLoginInfo, ...). Preemptive logger — wire
+    # format not confirmed yet; returning {} so we at least capture the
+    # request body for analysis.
+    ("*", "POST", _path_prefix("/Javelin.RPC."), handle_javelin_rpc),
+    ("*", "GET", _path_prefix("/Javelin.RPC."), handle_javelin_rpc),
 
     # Entitlement service (game ownership + sync flows)
     ("client.entitlementservice.amazongames.com", "POST",
