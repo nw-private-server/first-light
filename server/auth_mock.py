@@ -325,18 +325,42 @@ def handle_omni_token(ctx: Ctx, handler: "AuthHandler"):
     """Fake OmniSDK token service response.
 
     Path observed: POST https://tokenservice.amazongames.com/games/new-world/tokens
-    OmniSDK expects back a **signed JWT** as the token value, signed by
-    a key it can look up via the `jku` header. Since we've DNS-redirected
-    tokenservice.amazongames.com to us, we can serve our own jwks.json
-    at the OpenID config path and sign tokens with a key we control.
 
-    The game log told us this was wrong: `Omni CreateSession complete
-    with result: 203` — 203 is JWT-validation failure territory. Fix is
-    to return a real RS256-signed JWT.
+    Strategy: OmniSDK's `kid` field is encoded public-key material, not a
+    lookup URL — so it verifies JWT signatures against a hardcoded Amazon
+    public key. We can't sign a new JWT that passes. BUT the client ships
+    its own cached Amazon-signed JWT as `fallbackToken` in the request;
+    we can echo that back as the response token. OmniSDK will then verify
+    its own cached token against its own key — which succeeds.
+
+    The persona_id MUST come from the fallbackToken's `sub` claim,
+    otherwise credentials/omni won't match.
     """
+    # Parse the request body to extract fallbackToken + sub.
+    request_body = handler._last_request_body or b""
     persona_id = "amzn1.developerPersonaId." + str(uuid.uuid4())
+    fallback_token = None
+    try:
+        parsed_req = json.loads(request_body)
+        fallback_token = parsed_req.get("fallbackToken")
+        if fallback_token:
+            # JWTs are three base64url segments. Payload is middle segment.
+            parts = fallback_token.split(".")
+            if len(parts) >= 2:
+                pad = "=" * (-len(parts[1]) % 4)
+                payload_bytes = base64.urlsafe_b64decode(parts[1] + pad)
+                payload = json.loads(payload_bytes)
+                sub = payload.get("sub")
+                if sub:
+                    persona_id = sub
+                    log(f"    * extracted persona from fallbackToken.sub: {persona_id}")
+    except Exception as e:
+        log(f"    * couldn't parse fallbackToken: {e}")
+
+    # Use the cached Amazon token if we could extract one, else mint our own
+    # (which will fail OmniSDK signature verification but lets us see logs).
+    token = fallback_token or sign_jwt(persona_id)
     session_id = str(uuid.uuid4())
-    token = sign_jwt(persona_id)
     now = datetime.now(timezone.utc)
 
     body = json.dumps({
@@ -494,6 +518,7 @@ class AuthHandler(BaseHTTPRequestHandler):
     def _dispatch(self) -> None:
         host = self._extract_host()
         body = self._extract_body()
+        self._last_request_body = body  # expose for handlers that need it
         self._log_request(body)
 
         for (host_pat, method_pat, path_fn, handler) in ROUTES:
