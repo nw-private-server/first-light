@@ -51,6 +51,14 @@ From `FUN_1479b6d00`:
 
 `limitedUseToken` is read optionally in this path, not the core required gate.
 
+### Presence-vs-null trap (2026-04-17)
+`FUN_1479d6860(json, key)` is `cJSON_IsObject(json) && cJSON_GetObjectItemCaseSensitive(json, key) != NULL`. It returns TRUE for `{"key": null}` because the null item still exists. Consequences for the success path:
+
+- `"suspension": null` → branch entered → `FUN_1479c1a40(null_item, out)` fails → `resultCode = 0xCB`.
+- `"conflictingAccount": null` → only checked when code is `0x134`, but on that path same trap applies.
+
+**Rule:** omit these keys entirely on the success path instead of emitting `null`.
+
 ### Required nested fields (confirmed via live Ghidra 2026-04-17)
 - `platformAccount` required-keys vector (`PTR_s_identityType_1495d94c8..1495d94e8`):
   - `identityType`, `identityId`, `personaId`, `ageGroup`
