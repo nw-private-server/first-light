@@ -21,3 +21,5 @@ Desktop.ini
 *.env
 server/certs/server.key
 analysis/ghidra_project/
+server/certs/newworld_ca.key
+server/certs/auth.key
