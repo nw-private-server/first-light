@@ -1,7 +1,7 @@
 # New World Private Server — Progress & Findings
 
 > Living document. Updated as we learn more.
-> Last updated: 2026-04-17 (auth mock live, OmniSDK CreateSession passes, stuck on /credentials/omni response schema — silent CTD post-credentials)
+> Last updated: 2026-04-18 (credentials/omni schema cracked, game renders character-select screen with fake world — blocked on entitlement schema)
 
 ---
 
@@ -14,7 +14,7 @@ Build a private server emulator that can accept the New World client, pass auth,
 ## Roadmap
 
 ### Gate 1: Intercept the Auth Flow
-**Status: ~85% complete** — auth mock serves the full flow through OmniSDK `CreateSession` (result: 0). Next blocker is the `/credentials/omni` response schema: game CTDs silently after consuming it.
+**Status: ~95% complete** — auth mock serves the full flow. Game reaches the Select Character screen, renders a fake world, allows region switching. Last remaining blocker: the "Create Character" button is gated by an entitlement field we haven't mapped, and our `{}` entitlement stub causes a CTD on region switches.
 
 We have the full auth sequence documented from two separate game sessions (Dec 2025, Apr 2026). No traffic interception needed — the game logs it all in plaintext.
 
@@ -39,7 +39,8 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 **What we still need:**
 - [x] ~~Capture the actual HTTP request/response bodies for `/prod/credentials/omni`~~ — hosts-file redirect + local HTTPS mock (`server/auth_mock.py`) intercepts all calls. SSLKEYLOGFILE / Frida not needed for this layer.
 - [x] ~~Understand the OmniSDK `CreateSession` call~~ — POST `tokenservice.amazongames.com/games/new-world/tokens` returns `accessToken/fallbackToken/limitedUseToken/platformAccount/account`. Game confirms `CreateSession complete with result: 0`.
-- [ ] **Figure out the real `/prod/credentials/omni` response schema.** Our guess — `{gatewayCredentials, personaCredentials, personaId, accountType, ownership}` — is wrong: a Ghidra Defined-Strings search finds **zero hits on `gatewayCredentials` and `personaCredentials`**. Only `accessKeyId` exists (7 hits; first at `147f59008`). Game dies silently ~1s after consuming our response (black-screen transition then CTD, no dump written, no further network calls) — classic null-deref on a missing wrapper field. **Next session: xref `accessKeyId` at `147f59008` to find the parser, decompile, read the actual field list.**
+- [x] ~~Figure out the real `/prod/credentials/omni` response schema.~~ **Solved 2026-04-18.** Parser `FUN_145a955e0` (SteamAuth HTTP response handler) reads four **flat** top-level fields: `accessKeyId`, `secretAccessKey`, `sessionToken`, `expiration`. No wrapper. Our earlier `gatewayCredentials`/`personaCredentials` guess was invented. Fix shipped in `server/auth_mock.py::handle_credentials_omni`.
+- [x] ~~Figure out `GetLoginInfoLists` response schema~~ (served at `/prod/game/getlogininfo/jwt/omni`). **Solved 2026-04-18** via a giant RPC schema table dump from `FUN_144f40780` plus a new PE-reader helper (`tools/resolve_strings.py`). Wrapper types: `RegionMetadata`, `WorldMetrics`, `WorldMetadata`, `FilterParam`, `WorldFilter`, `RecommendedWorld`, `WorldsInfo`, `CharacterMetadata`. WorldsInfo (the top-level response) has just `worlds` + `recommendedWorlds` — NOT the inherited entity fields (`personaId`, `region`, `channel`, `creationDate`, `modifiedDate`) which belong to CharacterMetadata's base class. See `tools/resolve_strings.py` output and `server/auth_mock.py::handle_get_login_info`.
 - [ ] Determine if the returned AWS credentials use standard SigV4 or a custom signing scheme
 - [ ] Understand what the channel config JSON contains (fetch it directly before shutdown)
 
@@ -143,7 +144,13 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 
 -1. **OmniSDK auth is SOLVED (2026-04-17).** `tokenservice.amazongames.com/games/new-world/tokens` returns `accessToken/fallbackToken/limitedUseToken/expiresIn/platformAccount/account`. Dropping null `suspension`/`conflictingAccount` keys was the last fix (game was tripping `0xCB` on nulls). Game logs `Omni CreateSession complete with result: 0` and advances to the credentials stage.
 
--2. **`/credentials/omni` wrapper schema is wrong in our mock (2026-04-17).** Game CTDs silently after we return `{gatewayCredentials, personaCredentials, …}` — both of those field names have **zero hits** in the binary's defined strings. `accessKeyId` itself has 7 hits, so the STS fields are right, but the parent wrapper keys are invented. Next session: xref `accessKeyId` (first at `147f59008`) → parser function → enumerate real field names.
+-2. **`/credentials/omni` schema is SOLVED (2026-04-18).** Parser `FUN_145a955e0` reads four flat top-level fields: `accessKeyId`, `secretAccessKey`, `sessionToken`, `expiration`. No wrapper. Yesterday's `gatewayCredentials`/`personaCredentials` guess was invented. With this fix the game progresses past the post-auth hang.
+
+-3. **`GetLoginInfoLists` / `WorldsInfo` schema is SOLVED (2026-04-18).** Full RPC schema extracted from `FUN_144f40780` (the giant schema registration table in NewWorld.exe). Wrapper types: `RegionMetadata`, `WorldMetrics`, `WorldMetadata`, `FilterParam`, `WorldFilter`, `RecommendedWorld`, `WorldsInfo`, `CharacterMetadata`. Outer response (`WorldsInfo`) has just `worlds` + `recommendedWorlds`. `WorldMetadata` fields: `worldId, type, status, publicStatusCode, publicName, version, maxAccountCharacters, worldSet, worldMetrics{worldAgeDays,queueSize,queueWaitTimeSec,worldPopulationStatus}, transferToRegion, isFull, isRecommended`. Enum fields (`type`, `status`, `publicStatusCode`, `worldPopulationStatus`) are wire-format int32. `CharacterMetadata` inherits a base class with `name, personaId, worldId, region, channel, creationDate, modifiedDate` plus its own 21 fields — **these are NOT WorldsInfo top-level fields**; a bad guess putting them at response root caused a delayed CTD on the character-select render.
+
+-4. **PE string resolver — `tools/resolve_strings.py`.** Given a list of virtual addresses (from Ghidra disassembly), maps each to a PE file offset using the section table and dumps the null-terminated string. Bypasses the ghidraMCP 5s timeout on `list_strings` for dozens of addresses at once. This is how we enumerated all 40+ GetLoginInfoLists field names in one pass. Reusable for any future schema extraction.
+
+-5. **Game reaches Select Character screen (2026-04-18).** With a minimal 1-world payload (int enums = 0, no inherited base fields), the client renders the screen and even allows region switching. But: "Character Limit per Region = 0", no Create Character button. Those are gated by the entitlement response shape — our `{}` stub is stable on initial load but causes a CTD on region switch after the post-switch `POST /entitlements/sync`. Real entitlement schema needs extracting before we can hand back a non-`{}` response without crashing.
 
 0. **"Javelin" is a GridMate fork, not AzNetworking.** The retail binary contains zero AzNetworking/Multiplayer-gem markers (0/101 on static scan) but 5001 `Javelin::` class hits and 30 `"GridMate"` string hits. Javelin is almost certainly Amazon's rebranded/forked Lumberyard GridMate — a pre-O3DE networking library from ~2017. See `docs/gridmate-reference.md` for the full protocol map we expect to match in the binary. Key differences vs AzNetworking: tiny 2-byte datagram header, per-message flags byte, out-of-band ack vector, DTLS runs sequentially before Carrier handshake (not interleaved), and bit-packed bools on the wire.
 
@@ -238,6 +245,7 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 | File | Purpose |
 |------|---------|
 | `watch_connections.py` | Runs tshark with a tight filter (`SYN without ACK` + `DNS queries`) and prints/logs outbound TCP connection attempts + DNS lookups live. Used to confirm the game makes zero new network calls between `/credentials/omni` response and CTD — proving the crash is local (JSON parse) not network. Run in Admin PowerShell. |
+| `resolve_strings.py` | Reads NewWorld.exe directly, parses the PE section table, and prints the null-terminated string at each of a list of virtual addresses. Built when ghidraMCP timed out on string-table scans — feed it VAs copied out of a large-function disassembly slice and it returns the field names verbatim. Used to extract the entire `GetLoginInfoLists` / WorldsInfo schema in one shot. |
 
 ---
 
@@ -266,16 +274,16 @@ Disconnected
 
 ## Next Steps (Priority Order)
 
-### Immediate (next session) — unblock the auth mock
+### Immediate (next session) — unblock character creation
 
-1. **Find the real `/credentials/omni` response schema.**
-   - In Ghidra Defined Strings, navigate to `accessKeyId` @ `147f59008`.
-   - Right-click → References → Show References to Address. Paste function addresses.
-   - Decompile the function that reads `accessKeyId` from a JSON document (not the ones that *write* it into HTTP Authorization headers — look for calls near `GetString`/`FindMember`/`HasMember`/rapidjson-style accessors).
-   - Enumerate all sibling field names it reads (e.g., `secretAccessKey`, `sessionToken`, `expiration`, plus whatever wraps them and whatever else lives alongside).
-   - Update `make_fake_credentials()` and `handle_credentials_omni()` in `server/auth_mock.py` to match.
-2. **Retry game launch** with fixed schema. Watch the auth-mock log — game should continue past `/credentials/omni` into the gateway HTTP API or login-queue phase. If it CTDs again, repeat the xref drill on whatever *next* field turns up in the mock log.
-3. **Build out gateway routes** (`/prod/users/login_queue/*`, entitlements, remote config) as they become the next blocker.
+1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
+   - Defined-strings search: `entitlements`, `entitlementId`, `productId`, `grantTime`, `syncType`, `syncResult`, `ownership`.
+   - xref the camelCase `[READ]` hit that lives in a rapidjson-style reader (pattern: SSE load of field-name literal → call to `FindMember`/`HasMember`-style helper, same shape as the `/credentials/omni` parser `FUN_145a955e0`).
+   - Decompile that reader. Enumerate top-level fields + per-entitlement-entry fields. Also find the `POST /sync` response reader — the body sent is `{"syncTypes":["FirstTimeLogin","PrimeGamingSync","CodeRedemptionSync","TwitchDropsSync","SteamRetailSync"]}`.
+   - Update `handle_entitlements_list` + `handle_entitlements_sync` in `server/auth_mock.py`.
+2. **Retry region switch** with the real schema. Expected: no CTD, per-region character cap actually non-zero, Create Character button stays visible.
+3. **Follow the Create Character click.** Watch the auth-mock log for the new endpoint the game calls (probably `POST /prod/game/createcharacter` or similar). Extract the request/response schema the same way.
+4. **Build the login-queue route** (`/prod/users/login_queue/*`) as the next blocker after character creation returns successfully.
 
 ### Protocol/DTLS work (parallel, as time allows)
 
