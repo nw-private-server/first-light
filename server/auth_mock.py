@@ -295,18 +295,69 @@ def handle_channel_service(ctx: Ctx, handler: "AuthHandler"):
 
 
 def handle_credentials_omni(ctx: Ctx, handler: "AuthHandler"):
-    body = json.dumps({
-        "gatewayCredentials": make_fake_credentials("gw"),
-        "personaCredentials": make_fake_credentials("pp"),
-        "personaId": "amzn1.developerPersonaId." + str(uuid.uuid4()),
-        "accountType": "Full",
-        "ownership": "permanent",
-    }).encode()
+    """Schema confirmed from FUN_145a955e0 (SteamAuth response handler).
+    The parser reads four FLAT top-level fields off the document — no
+    gatewayCredentials/personaCredentials wrapper. Offsets in the resulting
+    credentials object: accessKeyId @ 0x10, secretAccessKey @ 0x30,
+    sessionToken @ 0x50, expiration parsed into a chrono::time_point @ 0x70."""
+    body = json.dumps(make_fake_credentials("omni")).encode()
     handler._respond(200, body, content_type="application/json")
 
 
 def handle_login_queue(ctx: Ctx, handler: "AuthHandler"):
     body = json.dumps(make_fake_login_ticket()).encode()
+    handler._respond(200, body, content_type="application/json")
+
+
+def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
+    """GET /prod/game/getlogininfo/jwt/omni?channelId=...&includeNames=true
+
+    Schema resolved from FUN_144f40780 RPC schema table (NewWorld.exe
+    0x144f54a21-0x144f554cd). Response type is WorldsInfo containing
+    `worlds` (list[WorldMetadata]) and `recommendedWorlds`
+    (list[RecommendedWorld]). WorldMetadata inherits common fields
+    (personaId, name, region, channel, creationDate, modifiedDate) from
+    a base entity type and adds world-specific fields + nested
+    WorldMetrics. No top-level `characters` field: character data comes
+    later via a separate call after a world is selected.
+
+    Seeding one placeholder world so the UI shows 'Create Character'."""
+    # WorldMetadata = only world-specific fields. The base-class fields
+    # (personaId, name, region, channel, creationDate, modifiedDate) belong
+    # to CharacterMetadata's parent entity; shoving them onto worlds caused
+    # a CTD during character-select rendering. Enum-looking fields (type,
+    # status, publicStatusCode, worldPopulationStatus) are almost certainly
+    # integer codes — the RPC schema registered them with different helpers
+    # than the string fields.
+    world = {
+        "worldId": "eacab29f-f0eb-43b4-84ed-91c4861aefc0",
+        "type": 0,
+        "status": 0,
+        "publicStatusCode": 0,
+        "publicName": "Valhalla",
+        "version": "1.0.0",
+        "maxAccountCharacters": 10,
+        "worldSet": "live",
+        "worldMetrics": {
+            "worldAgeDays": 0,
+            "queueSize": 0,
+            "queueWaitTimeSec": 0,
+            "worldPopulationStatus": 0,
+        },
+        "transferToRegion": "",
+        "isFull": False,
+        "isRecommended": True,
+    }
+
+    # WorldsInfo only has worlds + recommendedWorlds. The fields that
+    # looked like top-level (personaId, region, channel, creationDate,
+    # modifiedDate) are actually CharacterMetadata's inherited base class
+    # fields — putting them at response root was causing a delayed CTD
+    # after the initial character-select render.
+    body = json.dumps({
+        "worlds": [world],
+        "recommendedWorlds": [],
+    }).encode()
     handler._respond(200, body, content_type="application/json")
 
 
@@ -436,6 +487,23 @@ def handle_openid_config(ctx: Ctx, handler: "AuthHandler"):
     handler._respond(200, body, content_type="application/json")
 
 
+def handle_entitlements_sync(ctx: Ctx, handler: "AuthHandler"):
+    """POST /players/{personaId}/games/new-world/platforms/steam/entitlements/sync
+
+    Empty {} — the entitlement parser schema is unknown, and our guessed
+    shape caused a delayed CTD during character-select rendering. Stable
+    {} matched the earlier known-good sessions."""
+    handler._respond(200, b"{}", content_type="application/x-amz-json-1.1")
+
+
+def handle_entitlements_list(ctx: Ctx, handler: "AuthHandler"):
+    """GET /players/{personaId}/games/new-world/platforms/steam/entitlements
+
+    Empty {} — same reason. We need Ghidra to extract the real entitlement
+    schema before returning non-empty here."""
+    handler._respond(200, b"{}", content_type="application/x-amz-json-1.1")
+
+
 def handle_unknown(ctx: Ctx, handler: "AuthHandler"):
     """Catch-all: return an empty JSON object so the client doesn't crash.
     The goal here is to KEEP the client progressing so we can see what it
@@ -455,6 +523,16 @@ ROUTES = [
     # Login queue (observed endpoint is under /prod/users/login_queue/* on the gateway)
     ("*", "POST", _path_prefix("/prod/users/login_queue"), handle_login_queue),
     ("*", "GET", _path_prefix("/prod/users/login_queue"), handle_login_queue),
+
+    # Game.GetLoginInfoLists (character select payload)
+    ("*", "GET", _path_prefix("/prod/game/getlogininfo"), handle_get_login_info),
+    ("*", "POST", _path_prefix("/prod/game/getlogininfo"), handle_get_login_info),
+
+    # Entitlement service (game ownership + sync flows)
+    ("client.entitlementservice.amazongames.com", "POST",
+     lambda p: p.endswith("/entitlements/sync"), handle_entitlements_sync),
+    ("client.entitlementservice.amazongames.com", "GET",
+     lambda p: p.endswith("/entitlements"), handle_entitlements_list),
 
     # Remote config (S3)
     ("ags-javelin-remote-config.s3.amazonaws.com", "GET", _path_prefix("/applications/"), handle_remote_config),
