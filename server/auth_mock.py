@@ -490,18 +490,46 @@ def handle_openid_config(ctx: Ctx, handler: "AuthHandler"):
 def handle_entitlements_sync(ctx: Ctx, handler: "AuthHandler"):
     """POST /players/{personaId}/games/new-world/platforms/steam/entitlements/sync
 
-    Empty {} — the entitlement parser schema is unknown, and our guessed
-    shape caused a delayed CTD during character-select rendering. Stable
-    {} matched the earlier known-good sessions."""
+    Empty {} — best baseline so far. FUN_1474c2ad0 (hasMoreResults +
+    syncHistoryLineItems) was tried here but made the crash earlier, so
+    that parser is for a different endpoint. Need URL-first trace of the
+    POST /sync response handler — same approach that nailed /entitlements
+    via FUN_1474caa10 → FUN_1474c2420."""
     handler._respond(200, b"{}", content_type="application/x-amz-json-1.1")
 
 
 def handle_entitlements_list(ctx: Ctx, handler: "AuthHandler"):
     """GET /players/{personaId}/games/new-world/platforms/steam/entitlements
 
-    Empty {} — same reason. We need Ghidra to extract the real entitlement
-    schema before returning non-empty here."""
-    handler._respond(200, b"{}", content_type="application/x-amz-json-1.1")
+    Schema confirmed via URL-first Ghidra trace (2026-04-18):
+      FUN_1474caa10 builds the URL.
+      FUN_1474c2420 is the top-level response parser.
+      FUN_1474bde20 -> FUN_1474c4630 handle each lineItems entry.
+
+    Response is a generic paginated list: {hasMoreResults, lineItems[]}.
+    NOT {entitlements: [...], status: "..."} — that wrapper was invented
+    and explains every non-{} CTD we've hit on this endpoint.
+
+    Per-entry fields (all strings except `amount` which is numeric):
+      acquisitionPersonaId, acquisitionType, amount, createdDate,
+      productId, transactionId, type."""
+    persona_id = "amzn1.developerPersonaId.4ee4810f-da59-c553-4027-91e961054dce"
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    body = json.dumps({
+        "hasMoreResults": False,
+        "lineItems": [
+            {
+                "acquisitionPersonaId": persona_id,
+                "acquisitionType": "Grant",
+                "amount": 1,
+                "createdDate": now,
+                "productId": "STEAM_APP_ID.1063730",
+                "transactionId": "nwprivate-base-game",
+                "type": "BaseGame",
+            },
+        ],
+    }).encode()
+    handler._respond(200, body, content_type="application/x-amz-json-1.1")
 
 
 def handle_unknown(ctx: Ctx, handler: "AuthHandler"):
