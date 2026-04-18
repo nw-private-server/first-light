@@ -1,7 +1,7 @@
 # New World Private Server — Progress & Findings
 
 > Living document. Updated as we learn more.
-> Last updated: 2026-04-17 (complete Javelin message framing layer in Python, parser + marshaler)
+> Last updated: 2026-04-17 (auth mock live, OmniSDK CreateSession passes, stuck on /credentials/omni response schema — silent CTD post-credentials)
 
 ---
 
@@ -14,7 +14,7 @@ Build a private server emulator that can accept the New World client, pass auth,
 ## Roadmap
 
 ### Gate 1: Intercept the Auth Flow
-**Status: ~70% complete**
+**Status: ~85% complete** — auth mock serves the full flow through OmniSDK `CreateSession` (result: 0). Next blocker is the `/credentials/omni` response schema: game CTDs silently after consuming it.
 
 We have the full auth sequence documented from two separate game sessions (Dec 2025, Apr 2026). No traffic interception needed — the game logs it all in plaintext.
 
@@ -37,8 +37,9 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 | ap-southeast-2 | `hhf8nn71vb.execute-api.us-east-1.amazonaws.com/Prod` | `de4mfzk9wkelz.cloudfront.net/prod` |
 
 **What we still need:**
-- [ ] Capture the actual HTTP request/response bodies for `/prod/credentials/omni` (need Frida or mitmproxy — SSLKEYLOGFILE doesn't work)
-- [ ] Understand the OmniSDK `CreateSession` call — what does it send, what does it return?
+- [x] ~~Capture the actual HTTP request/response bodies for `/prod/credentials/omni`~~ — hosts-file redirect + local HTTPS mock (`server/auth_mock.py`) intercepts all calls. SSLKEYLOGFILE / Frida not needed for this layer.
+- [x] ~~Understand the OmniSDK `CreateSession` call~~ — POST `tokenservice.amazongames.com/games/new-world/tokens` returns `accessToken/fallbackToken/limitedUseToken/platformAccount/account`. Game confirms `CreateSession complete with result: 0`.
+- [ ] **Figure out the real `/prod/credentials/omni` response schema.** Our guess — `{gatewayCredentials, personaCredentials, personaId, accountType, ownership}` — is wrong: a Ghidra Defined-Strings search finds **zero hits on `gatewayCredentials` and `personaCredentials`**. Only `accessKeyId` exists (7 hits; first at `147f59008`). Game dies silently ~1s after consuming our response (black-screen transition then CTD, no dump written, no further network calls) — classic null-deref on a missing wrapper field. **Next session: xref `accessKeyId` at `147f59008` to find the parser, decompile, read the actual field list.**
 - [ ] Determine if the returned AWS credentials use standard SigV4 or a custom signing scheme
 - [ ] Understand what the channel config JSON contains (fetch it directly before shutdown)
 
@@ -119,14 +120,14 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 - [ ] Find `Cmd_*` switch at the top of replica dispatch (§5.4 of GridMate ref) — gives per-chunk payload decoding
 
 ### Gate 4: Stub a Minimal Server
-**Status: Not started**
+**Status: Auth mock partially operational — blocked on `/credentials/omni` response schema.**
 
 **What we'll need to build:**
-- Mock auth server (intercept via hosts file redirect)
-  - Serve the channel config JSON
-  - Accept OmniSDK CreateSession (or bypass it)
-  - Return fake AWS credentials the client will accept
-  - Serve remote config S3 responses (world config, gameplay config)
+- Mock auth server (intercept via hosts file redirect) — **`server/auth_mock.py` exists; multi-host HTTPS listener with routing table**
+  - [x] Serve the channel config JSON (`d2c74t4zimux3r.cloudfront.net/STEAM_APP_ID.1063730.json`) — game parses all 5 regional stacks successfully
+  - [x] Accept OmniSDK `CreateSession` (`tokenservice.amazongames.com/games/new-world/tokens`) — game logs `result: 0`
+  - [~] Return fake AWS credentials the client will accept — game fetches `/prod/credentials/omni`, consumes 200 response, then **silent CTD**. Wrapper field names wrong (see Gate 1).
+  - [ ] Serve remote config S3 responses (world config, gameplay config)
 - Mock REP game server
   - Accept TCP connection on a port
   - Handle registration handshake
@@ -139,6 +140,10 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 ## Key Discoveries
 
 Things that differ from the initial Perplexity research or are otherwise surprising:
+
+-1. **OmniSDK auth is SOLVED (2026-04-17).** `tokenservice.amazongames.com/games/new-world/tokens` returns `accessToken/fallbackToken/limitedUseToken/expiresIn/platformAccount/account`. Dropping null `suspension`/`conflictingAccount` keys was the last fix (game was tripping `0xCB` on nulls). Game logs `Omni CreateSession complete with result: 0` and advances to the credentials stage.
+
+-2. **`/credentials/omni` wrapper schema is wrong in our mock (2026-04-17).** Game CTDs silently after we return `{gatewayCredentials, personaCredentials, …}` — both of those field names have **zero hits** in the binary's defined strings. `accessKeyId` itself has 7 hits, so the STS fields are right, but the parent wrapper keys are invented. Next session: xref `accessKeyId` (first at `147f59008`) → parser function → enumerate real field names.
 
 0. **"Javelin" is a GridMate fork, not AzNetworking.** The retail binary contains zero AzNetworking/Multiplayer-gem markers (0/101 on static scan) but 5001 `Javelin::` class hits and 30 `"GridMate"` string hits. Javelin is almost certainly Amazon's rebranded/forked Lumberyard GridMate — a pre-O3DE networking library from ~2017. See `docs/gridmate-reference.md` for the full protocol map we expect to match in the binary. Key differences vs AzNetworking: tiny 2-byte datagram header, per-message flags byte, out-of-band ack vector, DTLS runs sequentially before Carrier handshake (not interleaved), and bit-packed bools on the wire.
 
@@ -224,6 +229,16 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 | `frame.py` | `MessageRecord`, `MessageFlags`, `SystemMessageId`, `parse_datagram()`, `marshal_datagram()` — inverses of `Javelin_Carrier_ParseMessages` / `Javelin_Carrier_WriteMessages`. |
 | `test_parser.py` | 14 unit + round-trip tests, all passing. |
 
+### Server mocks (`server/`)
+| File | Purpose |
+|------|---------|
+| `auth_mock.py` | Multi-host HTTPS listener with routing table for channel service, tokenservice (OmniSDK), credentials/omni, login queue, S3 remote config, entitlements/catalog services. Reads `SNI` + `Host` header + path to dispatch. Logs every request to `capture/auth_mock_logs/YYYYMMDD.log`. Cert is in `server/certs/` (shared with hosts-file-redirected domains via self-signed CA). |
+
+### Capture/diagnostic tools (`tools/`)
+| File | Purpose |
+|------|---------|
+| `watch_connections.py` | Runs tshark with a tight filter (`SYN without ACK` + `DNS queries`) and prints/logs outbound TCP connection attempts + DNS lookups live. Used to confirm the game makes zero new network calls between `/credentials/omni` response and CTD — proving the crash is local (JSON parse) not network. Run in Admin PowerShell. |
+
 ---
 
 ## Connection State Machine
@@ -251,16 +266,21 @@ Disconnected
 
 ## Next Steps (Priority Order)
 
-1. **Wait for Ghidra auto-analysis** to complete (1-4 hours, in progress).
-2. **Enable GhidraMCP plugin** (`File > Configure > Miscellaneous`), restart Ghidra — MCP server auto-starts on `http://127.0.0.1:8080/`.
-3. **Run `JavelinHunt.py`** from Script Manager. It produces `analysis/ghidra_findings.txt` with all anchor xrefs and the `ReadMessageHeader` candidates.
-4. **Walk the vtable from the cipher-string xref** to map `SecureSocketDriver` equivalent → every DTLS connection-state function.
-5. **Harvest chunk names** by xref'ing `TransformReplicaChunk` at VA `0x1484ee539` to its `RegisterChunkType` call site, then enumerate sibling callers — each registers one chunk.
-6. **Map Carrier receive path** from `GridMate-Carrier Packet Send Thread` string xref → thread function → message dispatch loop.
+### Immediate (next session) — unblock the auth mock
 
-### Once we have a chunk/opcode catalog
-7. **Write a GridMate protocol parser** (Python) using `docs/gridmate-reference.md` as spec. Test against our 38,845 captured packets' handshake portion (plaintext DTLS). ApplicationData packets remain encrypted until we extract session keys.
-8. **Stub server design.** Start with DTLS handshake + Carrier `SM_CONNECT_REQUEST`/`SM_CONNECT_ACK`. Build up to NewProxy/Update for minimum viable world render.
-4. **Build a Frida script** to hook TLS and capture decrypted auth HTTP bodies (still pending).
-5. **Fetch the channel config JSON** directly (`https://d2c74t4zimux3r.cloudfront.net/STEAM_APP_ID.1063730.json`) — public, documents all regional endpoints.
-6. **Decrypt the DTLS captures** (Frida hook on `SSL_read`/`SSL_write` in NewWorld.exe) and validate GridMate wire format assumptions against plaintext.
+1. **Find the real `/credentials/omni` response schema.**
+   - In Ghidra Defined Strings, navigate to `accessKeyId` @ `147f59008`.
+   - Right-click → References → Show References to Address. Paste function addresses.
+   - Decompile the function that reads `accessKeyId` from a JSON document (not the ones that *write* it into HTTP Authorization headers — look for calls near `GetString`/`FindMember`/`HasMember`/rapidjson-style accessors).
+   - Enumerate all sibling field names it reads (e.g., `secretAccessKey`, `sessionToken`, `expiration`, plus whatever wraps them and whatever else lives alongside).
+   - Update `make_fake_credentials()` and `handle_credentials_omni()` in `server/auth_mock.py` to match.
+2. **Retry game launch** with fixed schema. Watch the auth-mock log — game should continue past `/credentials/omni` into the gateway HTTP API or login-queue phase. If it CTDs again, repeat the xref drill on whatever *next* field turns up in the mock log.
+3. **Build out gateway routes** (`/prod/users/login_queue/*`, entitlements, remote config) as they become the next blocker.
+
+### Protocol/DTLS work (parallel, as time allows)
+
+4. **Decompile DTLS state-handler functions** (CS_CONNECT, CS_COOKIE_EXCHANGE, CS_SSL_HANDSHAKE_CONNECT, CS_ESTABLISHED) — needed to drive client through handshake.
+5. **Parse pre-DTLS `MF_CONNECTING` packets** from `capture/20260416_231434_tap_test/` — the first handshake packets are plaintext.
+6. **Decrypt DTLS traffic** (Frida hook on `SSL_read`/`SSL_write`) to validate GridMate wire format against real application data.
+7. **Harvest full chunk catalog** (auto-define strings first, then re-run FindChunkRegistrations.py).
+8. **Find `Cmd_*` switch** at the top of replica dispatch — gives per-chunk payload decoding.

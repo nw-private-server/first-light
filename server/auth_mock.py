@@ -219,15 +219,24 @@ def build_channel_config(rep_host: str, rep_port: int) -> dict:
 
 
 def make_fake_credentials(kind: str) -> dict:
-    """Mint an STS-shaped set of temporary credentials."""
+    """Mint an STS-shaped set of temporary credentials.
+
+    Real AWS STS: accessKeyId is exactly 20 chars (ASIA + 16 [A-Z0-9]);
+    secretAccessKey is 40 chars of base64 alphabet; expiration has no
+    fractional seconds. The AWS C++ SDK validates shape before signing."""
+    import base64, secrets
+    del kind  # kept for callsite clarity; no longer affects key format
     now = datetime.now(timezone.utc)
     expiry = now + timedelta(hours=1)
+    b32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+    key_tail = "".join(secrets.choice(b32) for _ in range(16))
+    secret = base64.b64encode(secrets.token_bytes(30)).decode()  # 40 chars
+    token = base64.b64encode(secrets.token_bytes(288)).decode()  # ~384 chars
     return {
-        "accessKeyId": f"ASIA{kind.upper()[:4]}FAKEKEY{uuid.uuid4().hex[:12].upper()}",
-        "secretAccessKey": uuid.uuid4().hex + uuid.uuid4().hex[:8],
-        "sessionToken": (uuid.uuid4().hex + uuid.uuid4().hex
-                         + uuid.uuid4().hex)[:384],
-        "expiration": expiry.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        "accessKeyId": f"ASIA{key_tail}",
+        "secretAccessKey": secret,
+        "sessionToken": token,
+        "expiration": expiry.strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
 
 
