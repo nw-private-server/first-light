@@ -349,10 +349,11 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
         "isRecommended": True,
     }
 
-    # personaId-alone experiment: didn't unlock slots (stable 0/0).
-    # So the "0/4 + Create" state we saw briefly wasn't from personaId
-    # alone — it was either a different outer field or a group effect.
-    # Keep response minimal for now; slot-cap source still unresolved.
+    # Tested: personaId alone -> stable 0/0. region alone -> CTD.
+    # Neither `personaId` nor `region` belongs at WorldsInfo top level.
+    # Both are CharacterMetadata base-class fields. The slot cap source
+    # is not in this response — most likely lives in a remote-config
+    # doc (publicGameplay/*) that we're stubbing as `{}`.
     body = json.dumps({
         "worlds": [world],
         "recommendedWorlds": [],
@@ -361,7 +362,20 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
 
 
 def handle_remote_config(ctx: Ctx, handler: "AuthHandler"):
-    """S3 ags-javelin-remote-config: returns minimal config blobs."""
+    """S3 ags-javelin-remote-config: returns minimal config blobs.
+
+    Path shape:
+      /applications/<scope>/configuration-sets/<dimension>/<id>/<version>
+    Known scopes: public, publicGameplay.
+    Known dimensions: ProductId, RegionId, CognitoId.
+    Per-region character slot cap almost certainly lives in one of these
+    docs — probably publicGameplay/RegionId or publicGameplay/CognitoId.
+    Log the breakdown so we know exactly which doc to populate when the
+    real config key is found."""
+    parts = handler.path.lstrip("/").split("/")
+    if len(parts) >= 5 and parts[0] == "applications" and parts[2] == "configuration-sets":
+        scope, dimension, ident = parts[1], parts[3], parts[4]
+        log(f"    * remote-config scope={scope} dimension={dimension} id={ident}")
     handler._respond(200, b"{}", content_type="application/json")
 
 
