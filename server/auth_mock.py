@@ -377,6 +377,12 @@ def handle_omni_token(ctx: Ctx, handler: "AuthHandler"):
     # public key verification. Fall back to a self-signed JWT if not present.
     token = fallback_token or sign_jwt(persona_id)
 
+    # IMPORTANT: do NOT include "suspension" or "conflictingAccount" as null.
+    # FUN_1479d6860 uses cJSON_GetObjectItemCaseSensitive, which returns truthy
+    # for any present key — including null values. A present-but-null
+    # "suspension" then flows into FUN_1479c1a40, which rejects non-objects
+    # and sets resultCode = 0xCB (203). Same hazard for "conflictingAccount"
+    # on the merge-conflict path. Just omit these keys on the success path.
     body = json.dumps({
         "accessToken": token,
         "fallbackToken": token,
@@ -396,8 +402,6 @@ def handle_omni_token(ctx: Ctx, handler: "AuthHandler"):
             "type": "full",
             "ageGroup": "adult",
         },
-        "suspension": None,
-        "conflictingAccount": None,
     }).encode()
     handler._respond(200, body, content_type="application/json")
 
