@@ -326,19 +326,35 @@ def handle_omni_token(ctx: Ctx, handler: "AuthHandler"):
 
     Path observed: POST https://tokenservice.amazongames.com/games/new-world/tokens
 
-    Strategy: OmniSDK's `kid` field is encoded public-key material, not a
-    lookup URL — so it verifies JWT signatures against a hardcoded Amazon
-    public key. We can't sign a new JWT that passes. BUT the client ships
-    its own cached Amazon-signed JWT as `fallbackToken` in the request;
-    we can echo that back as the response token. OmniSDK will then verify
-    its own cached token against its own key — which succeeds.
+    Schema confirmed from FUN_1479b6d00 (ags_fed_acc_token.cpp) + child
+    validators FUN_1479c0fd0 (PlatformPersonaAccount) and FUN_1479c0620
+    (AgsPersonaAccount). On the success path the parser requires:
 
-    The persona_id MUST come from the fallbackToken's `sub` claim,
-    otherwise credentials/omni won't match.
+      Top-level (all mandatory — missing any yields 0xCB / 203):
+        accessToken   : string (JWT)
+        fallbackToken : string (JWT)
+        platformAccount : object
+        account       : object  (absent -> 0x133, still surfaced as error)
+        expiresIn     : number (seconds; multiplied x1000 internally)
+
+      platformAccount required keys (FUN_1479c0fd0):
+        identityType, identityId, personaId, ageGroup
+
+      account required keys (FUN_1479c0620):
+        identityId, personaId, type, ageGroup
+        (type is lowercased + compared to "shadow"; use "full" otherwise)
+
+      Optional: limitedUseToken, isNewAccount, suspension,
+                conflictingAccount, region, penalties, platform.
+
+    We still echo the request fallbackToken as our token since OmniSDK
+    verifies it against Amazon's hardcoded public key — minting our own
+    won't pass that check.
     """
     # Parse the request body to extract fallbackToken + sub.
     request_body = handler._last_request_body or b""
     persona_id = "amzn1.developerPersonaId." + str(uuid.uuid4())
+    platform_identity_id = str(uuid.uuid4())
     fallback_token = None
     try:
         parsed_req = json.loads(request_body)
@@ -361,29 +377,26 @@ def handle_omni_token(ctx: Ctx, handler: "AuthHandler"):
     # public key verification. Fall back to a self-signed JWT if not present.
     token = fallback_token or sign_jwt(persona_id)
 
-    # Response schema discovered from binary (Ghidra @ 0x1495d7ea0..
-    # 0x1495d7ef8 + 0x1495d93d8..0x1495d94f0 + /JenkinsBuilds/OmniSDK source):
-    #   {
-    #     "fallbackToken":   "<jwt for next refresh>",
-    #     "platformAccount": { "identityId": "<persona>", "identityType": "steam" },
-    #     "suspension":      null,
-    #     "limitedUseToken": "<jwt>",
-    #     "isNewAccount":    false,
-    #     "conflictingAccount": null
-    #   }
     body = json.dumps({
+        "accessToken": token,
         "fallbackToken": token,
         "limitedUseToken": token,
+        "expiresIn": 3600,
+        "isNewAccount": False,
         "platformAccount": {
-            "identityId": persona_id,
             "identityType": "steam",
+            "identityId": platform_identity_id,
+            "personaId": persona_id,
+            "ageGroup": "adult",
+            "platform": "steam",
         },
-        "agsAccount": {
+        "account": {
             "identityId": persona_id,
-            "accountType": "Full",
+            "personaId": persona_id,
+            "type": "full",
+            "ageGroup": "adult",
         },
         "suspension": None,
-        "isNewAccount": False,
         "conflictingAccount": None,
     }).encode()
     handler._respond(200, body, content_type="application/json")
