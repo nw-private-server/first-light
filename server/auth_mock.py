@@ -349,11 +349,10 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
         "isRecommended": True,
     }
 
-    # WorldsInfo only has worlds + recommendedWorlds. The fields that
-    # looked like top-level (personaId, region, channel, creationDate,
-    # modifiedDate) are actually CharacterMetadata's inherited base class
-    # fields — putting them at response root was causing a delayed CTD
-    # after the initial character-select render.
+    # personaId-alone experiment: didn't unlock slots (stable 0/0).
+    # So the "0/4 + Create" state we saw briefly wasn't from personaId
+    # alone — it was either a different outer field or a group effect.
+    # Keep response minimal for now; slot-cap source still unresolved.
     body = json.dumps({
         "worlds": [world],
         "recommendedWorlds": [],
@@ -490,11 +489,12 @@ def handle_openid_config(ctx: Ctx, handler: "AuthHandler"):
 def handle_entitlements_sync(ctx: Ctx, handler: "AuthHandler"):
     """POST /players/{personaId}/games/new-world/platforms/steam/entitlements/sync
 
-    Empty {} — best baseline so far. FUN_1474c2ad0 (hasMoreResults +
-    syncHistoryLineItems) was tried here but made the crash earlier, so
-    that parser is for a different endpoint. Need URL-first trace of the
-    POST /sync response handler — same approach that nailed /entitlements
-    via FUN_1474caa10 → FUN_1474c2420."""
+    URL-first trace confirmed this endpoint has NO JSON response parser.
+    URL builder FUN_1474d5100 handles success/failure inline against HTTP
+    status — zero JSON fields are read from the response body. The request
+    writer FUN_1474d4d60 emits {syncTypes[...] + optional entitledPersonaId/
+    event/platformSyncParameters}, but the response body is ignored on
+    success. {} is the intended stub shape."""
     handler._respond(200, b"{}", content_type="application/x-amz-json-1.1")
 
 
