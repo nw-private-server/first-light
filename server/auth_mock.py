@@ -382,53 +382,77 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
     # with status="ACTIVE" per region so the gate passes.
     persona_id = "amzn1.developerPersonaId.4ee4810f-da59-c553-4027-91e961054dce"
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    # Minimum phantom character using ONLY fields verified from binary
-    # string extraction (resolve_strings.py output around CharacterMetadata)
-    # plus `status` (Codex-confirmed from the serializer FUN_1461002b0).
-    # Omit suspect complex fields (currency/position/crestData/portraitData/
-    # transferReason) -- those likely aren't simple strings/ints and tripped
-    # the last attempt. If stable, add them back one at a time.
-    # Narrower add: just `characterId` (missing from our known-stable
-    # set) + `publishedSocialSource` (a plain empty string). Skip the
-    # date fields Codex named (transferDate/regionTransferDate/
-    # mustTransferDate) -- those names diverge from my binary extraction
-    # and one of them probably isn't a string/date.
+    # Codex FUN_1474e1f60 decompile (2026-04-18): Characters[] entry parser
+    # uses PascalCase field names. Field at +0x348 is WorldId, NOT a status
+    # string (earlier "status=ACTIVE" inference was wrong). All fields are
+    # HasMember-guarded (no required-field drop). The actual status gate
+    # must come from the Worlds[] (capital) entries -- schema TBD.
     phantom_char = {
-        "characterId": f"c{world_id[1:]}",
-        "name": f"{world_name} Probe",
-        "personaId": persona_id,
-        "worldId": world_id,
-        "region": region,
-        "channel": "STEAM_APP_ID.1063730",
-        "creationDate": now,
-        "modifiedDate": now,
-        "nameModifiedDate": now,
-        "needsTransferDate": now,
-        "nameLatentDate": now,
-        "status": "ACTIVE",
-        "Status": "ACTIVE",  # cover both cases in case parser is strict
-        "currentLevel": 1,
-        "publishedSource": "",
-        "publishedSocialSource": "",
-        "publishedElapsedSeconds": 0,
-        "ftueCompleted": True,
-        "mustRename": False,
-        "mustRenameReason": "",
-        "needsTransfer": False,
-        "hasTransfered": False,
-        "isNameLatent": False,
-        "isFreshStart": False,
-        "prevWorldId": "",
-        "guildId": "",
+        "CharacterId": f"c{world_id[1:]}",
+        "Name": f"{world_name} Probe",
+        "PersonaId": persona_id,
+        "WorldId": world_id,
+        "CreatedDate": now,
+        "ModifiedDate": now,
+        "NameModifiedDate": now,
+        "NameLatentDate": now,
+        "NeedsTransferDate": now,
+        "TransferDate": now,
+        "RegionTransferDate": now,
+        "OwnerState": "",
+        "PublishedData": "",
+        "PublishedSource": "",
+        "PublishedSocialSource": "",
+        "PublishedElapsedSeconds": 0,
+        "PublishedSocialElapsedSeconds": 0,
+        "TransferCrossRegionCooldownEndTime": 0,
+        "TransferFreeCooldownEndTime": 0,
+        "TransferData": "",
+        "TransferReason": "",
+        "SocialData": "ACTIVE",  # Codex's LEA R14+0x298 aligns with SocialData (not WorldId at +0x348)
+        "LocationGroupId": "",
+        "LocationId": "",
+        "MustRenameReason": "",
+        "FtueCompleted": True,
+        "IsFreshStart": False,
+        "IsNameLatent": False,
+        "IsTrialOwner": False,
+        "MustRename": False,
+        "NeedsTransfer": False,
+        "Transferrable": False,
     }
-    # Capital `Worlds` with our WorldMetadata entry CTDs (different schema).
-    # Back to lowercase `worlds` only. Include `characters` in lowercase
-    # since the RPC schema registrar in FUN_144f40780 used lowercase for
-    # other top-level names too.
+    # Codex FUN_1474e8e90 decompile + feedback (2026-04-18): Worlds[]
+    # PascalCase schema. PublicStatusCode=1 (0 crashes on lowercase path
+    # too). WorldMetrics required (nested PascalCase object). Keep
+    # Characters[] empty -- Codex suggests the filter may only need
+    # Worlds[] with the right shape.
+    world_capital = {
+        "WorldId": world_id,
+        "WorldName": world_name,
+        "PublicName": world_name,
+        "WorldStatus": "ACTIVE",
+        "WorldType": "eWorldType_OpenWorld",
+        "WorldSet": "live",
+        "WorldVersion": "1.0.0",
+        "PublicStatusCode": 1,
+        "MaxAccountCharacters": 10,
+        "MaxConnectionCount": 1000,
+        "ConnectionCount": 0,
+        "IsFull": False,
+        "IsRecommended": True,
+        "TransferToRegion": "",
+        "WorldMetrics": {
+            "WorldAgeDays": 1,
+            "QueueSize": 0,
+            "QueueWaitTimeSec": 0,
+            "WorldPopulationStatus": 1,
+        },
+    }
     body = json.dumps({
         "worlds": [world],
         "recommendedWorlds": [],
-        "characters": [phantom_char],
+        "Worlds": [world_capital],
+        "Characters": [],
     }).encode()
     handler._respond(200, body, content_type="application/json")
 
