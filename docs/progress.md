@@ -1,7 +1,7 @@
 # New World Private Server — Progress & Findings
 
 > Living document. Updated as we learn more.
-> Last updated: 2026-04-18 (credentials/omni schema cracked, game renders character-select screen with fake world — blocked on entitlement schema)
+> Last updated: 2026-04-18 (full HTTP character-creation flow works end-to-end; user created a character through the UI. Next blocker: REP/DTLS connect to the fake game server, i.e. gate 2)
 
 ---
 
@@ -14,7 +14,7 @@ Build a private server emulator that can accept the New World client, pass auth,
 ## Roadmap
 
 ### Gate 1: Intercept the Auth Flow
-**Status: ~95% complete** — auth mock serves the full flow. Game reaches the Select Character screen, renders a fake world, allows region switching. Last remaining blocker: the "Create Character" button is gated by an entitlement field we haven't mapped, and our `{}` entitlement stub causes a CTD on region switches.
+**Status: COMPLETE (2026-04-18).** Auth mock carries the game from Steam login through OmniSDK session, credentials, entitlements, character-select render, Create Character UI flow (archetype / appearance / name), and finally the character-submit POSTs. The game fails at the next step — attempting a REP/DTLS connection to the fake game server — which is gate 2. All HTTP/JSON endpoints required for character creation are mocked and schema-correct.
 
 We have the full auth sequence documented from two separate game sessions (Dec 2025, Apr 2026). No traffic interception needed — the game logs it all in plaintext.
 
@@ -151,6 +151,18 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 -4. **PE string resolver — `tools/resolve_strings.py`.** Given a list of virtual addresses (from Ghidra disassembly), maps each to a PE file offset using the section table and dumps the null-terminated string. Bypasses the ghidraMCP 5s timeout on `list_strings` for dozens of addresses at once. This is how we enumerated all 40+ GetLoginInfoLists field names in one pass. Reusable for any future schema extraction.
 
 -5. **Game reaches Select Character screen (2026-04-18).** With a minimal 1-world payload (int enums = 0, no inherited base fields), the client renders the screen and even allows region switching. But: "Character Limit per Region = 0", no Create Character button. Those are gated by the entitlement response shape — our `{}` stub is stable on initial load but causes a CTD on region switch after the post-switch `POST /entitlements/sync`. Real entitlement schema needs extracting before we can hand back a non-`{}` response without crashing.
+
+-7. **Complete HTTP character-creation flow (2026-04-18).** End-to-end path the user traversed through the UI:
+    - Character-select loads (0/4 slots, 4 Create widgets)
+    - Click Create Character → Standard world type picker
+    - Intro cinematic (skippable)
+    - Appearance + archetype + name input
+    - Name check (any name accepted; we don't validate)
+    - Region confirmation dialog → OK
+    - Game POSTs `/prod/game/worlds/{worldId}/characters/validator/jwt/omni` with `{"ValidateCharacterBody":{"Name":"..."}}` (40B)
+    - Game POSTs `/prod/game/worlds/{worldId}/characters/jwt/omni` with `{"CreateCharacterRequest":{"CharacterCreationParams":"<base64 zlib protobuf>"}}` (1.7KB)
+    - Game then tries to REP-connect to the address we handed back in the login ticket (127.0.0.1:23971) — fails, "Connection Failed: Login malfunction" dialog. That's gate 2.
+    - Key unlock for this whole flow was wrapping the getlogininfo response body in `{"LoginInfoList": {"Worlds": [...], "Characters": [...]}}`. The parser literally checks for that top-level envelope; without it the embedded parse block is zeroed and the downstream candidate vector never populates, leaving "No active worlds in your region."
 
 -6. **Entitlement service schemas resolved via URL-first trace (2026-04-18).** Key pivot: instead of grepping for field-name strings, find the URL-builder function for the endpoint and follow the callback descriptor it passes to the shared HTTP helper.
     - `GET /players/{}/games/new-world/platforms/steam/entitlements`: URL builder is `FUN_1474caa10`, response parser is `FUN_1474c2420`. Shape is the generic paginated list wrapper `{hasMoreResults, lineItems[]}` — NOT `{entitlements, status}` as I guessed three times. Per-entry via `FUN_1474bde20` → `FUN_1474c4630`: `{acquisitionPersonaId, acquisitionType, amount (number), createdDate, productId, transactionId, type}`.
