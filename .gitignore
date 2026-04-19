@@ -1,6 +1,9 @@
 # Capture data (large binary files, keep locally)
 capture/*/pcaps/
 capture/*/keys/
+capture/*/
+capture/*.log
+capture/auth_mock_logs/
 
 # Python
 __pycache__/
