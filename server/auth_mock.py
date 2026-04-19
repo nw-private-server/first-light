@@ -434,7 +434,7 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
         "WorldType": "eWorldType_OpenWorld",
         "WorldSet": "live",
         "WorldVersion": "1.0.0",
-        "PublicStatusCode": 1,
+        "PublicStatusCode": 8,  # bit 3 - smallest mask-valid non-zero value (0 crashes, 1 fails mask)
         "MaxAccountCharacters": 10,
         "MaxConnectionCount": 1000,
         "ConnectionCount": 0,
