@@ -431,10 +431,10 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
         "WorldName": world_name,
         "PublicName": world_name,
         "WorldStatus": "ACTIVE",
-        "WorldType": "eWorldType_OpenWorld",
+        "WorldType": "OpenWorld",  # -> 1 via FUN_1417c40a0; FTUE (0) also valid but triggers a tutorial-connect CTD.
         "WorldSet": "live",
         "WorldVersion": "1.0.0",
-        "PublicStatusCode": 8,  # bit 3 - smallest mask-valid non-zero value (0 crashes, 1 fails mask)
+        "PublicStatusCode": 0,  # Codex-verified: mask (x & 0xffffe8b7) accepts 0 trivially
         "MaxAccountCharacters": 10,
         "MaxConnectionCount": 1000,
         "ConnectionCount": 0,
