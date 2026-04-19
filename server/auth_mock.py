@@ -240,15 +240,16 @@ def make_fake_credentials(kind: str) -> dict:
     }
 
 
-def make_fake_login_ticket(world_id: str | None = None) -> dict:
+def make_fake_login_ticket(world_id: str, world_name: str = "Valhalla") -> dict:
     """Build a login-queue response that contains a ticket of the right shape.
-    Observed in game logs: '<worldId>_<ticketId>' where both are UUIDs."""
-    world_id = world_id or "eacab29f-f0eb-43b4-84ed-91c4861aefc0"  # live-2-02-1
+    Observed in game logs: '<worldId>_<ticketId>' where both are UUIDs.
+    worldId must match the WorldId used in getlogininfo so the client's
+    post-queue bind doesn't see an unknown world."""
     ticket_id = str(uuid.uuid4())
     return {
         "ticket": f"{world_id}_{ticket_id}",
         "worldId": world_id,
-        "worldName": "live-private-01",
+        "worldName": world_name,
         "repAddress": f"{DEFAULT_REP_HOST}:{DEFAULT_REP_PORT}",
         "location": "",
         "status": "Granted",
@@ -282,11 +283,47 @@ def _path_endswith(suffix: str):
 
 
 class Ctx:
-    """Per-request context carrying server options into handlers."""
+    """Per-server session context. Tracks persona/world/character state
+    across requests so create -> re-query flows stay consistent.
+
+    The auth mock handled each request in isolation before this was added;
+    codex review 2026-04-18 flagged the inconsistency as a source of
+    "works on first flow, flakes on later flows" behavior. A character
+    created via handle_create_character now persists in ctx.characters
+    and handle_get_login_info surfaces it. Persona_id is captured from
+    whichever fallbackToken.sub the OmniSDK POST carries and reused by
+    every downstream handler."""
+
+    DEFAULT_PERSONA = "amzn1.developerPersonaId.4ee4810f-da59-c553-4027-91e961054dce"
+    DEFAULT_WORLD_ID = "b1a00000-0000-0000-0000-000000000002"
+    DEFAULT_WORLD_NAME = "Valhalla"
 
     def __init__(self, rep_host: str, rep_port: int):
         self.rep_host = rep_host
         self.rep_port = rep_port
+        self._lock = threading.Lock()
+        self.persona_id: str = Ctx.DEFAULT_PERSONA
+        self.world_id: str = Ctx.DEFAULT_WORLD_ID
+        self.world_name: str = Ctx.DEFAULT_WORLD_NAME
+        # List of characters the game believes the persona owns. Shape
+        # matches what handle_get_login_info puts in Characters[]; entries
+        # are appended by handle_create_character.
+        self.characters: list[dict] = []
+
+    def set_persona(self, persona_id: str) -> None:
+        with self._lock:
+            if persona_id and persona_id != self.persona_id:
+                log(f"    * ctx persona_id: {self.persona_id} -> {persona_id}")
+                self.persona_id = persona_id
+
+    def add_character(self, entry: dict) -> None:
+        with self._lock:
+            self.characters.append(entry)
+            log(f"    * ctx characters: {len(self.characters)} total")
+
+    def snapshot_characters(self) -> list[dict]:
+        with self._lock:
+            return list(self.characters)
 
 
 def handle_channel_service(ctx: Ctx, handler: "AuthHandler"):
@@ -305,45 +342,29 @@ def handle_credentials_omni(ctx: Ctx, handler: "AuthHandler"):
 
 
 def handle_login_queue(ctx: Ctx, handler: "AuthHandler"):
-    body = json.dumps(make_fake_login_ticket()).encode()
+    body = json.dumps(make_fake_login_ticket(ctx.world_id, ctx.world_name)).encode()
     handler._respond(200, body, content_type="application/json")
 
 
 def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
     """GET /prod/game/getlogininfo/jwt/omni?channelId=...&includeNames=true
 
-    Schema resolved from FUN_144f40780 RPC schema table (NewWorld.exe
-    0x144f54a21-0x144f554cd). Response type is WorldsInfo containing
-    `worlds` (list[WorldMetadata]) and `recommendedWorlds`
-    (list[RecommendedWorld]). WorldMetadata inherits common fields
-    (personaId, name, region, channel, creationDate, modifiedDate) from
-    a base entity type and adds world-specific fields + nested
-    WorldMetrics. No top-level `characters` field: character data comes
-    later via a separate call after a world is selected.
+    Two schemas in one response body, both verified from the binary:
 
-    Seeding one placeholder world so the UI shows 'Create Character'."""
-    # WorldMetadata = only world-specific fields. The base-class fields
-    # (personaId, name, region, channel, creationDate, modifiedDate) belong
-    # to CharacterMetadata's parent entity; shoving them onto worlds caused
-    # a CTD during character-select rendering. Enum-looking fields (type,
-    # status, publicStatusCode, worldPopulationStatus) are almost certainly
-    # integer codes — the RPC schema registered them with different helpers
-    # than the string fields.
-    # Single stable worldId across all gateways. The per-region-unique
-    # worldId scheme from yesterday was meant to avoid a region-switch CTD,
-    # but it may ALSO be causing character-select CTDs when the game
-    # client has a locally-cached character bound to a different region's
-    # worldId. Test hypothesis: use a single shared worldId everywhere.
-    GATEWAY_REGIONS = {
-        "d3bj4csovi1fe8.cloudfront.net": "pdx-prod",
-        "d2oeuvxi3kfsrw.cloudfront.net": "iad-prod",
-        "d1w0bfy6smo4d1.cloudfront.net": "fra-prod",
-        "d1cjlmzk0xrm0z.cloudfront.net": "gru-prod",
-        "de4mfzk9wkelz.cloudfront.net":  "syd-prod",
-    }
-    region = GATEWAY_REGIONS.get(handler._extract_host(), "iad-prod")
-    world_id = "b1a00000-0000-0000-0000-000000000002"
-    world_name = "Valhalla"
+    - lowercase `worlds`/`recommendedWorlds` feed the UI dropdown via the
+      RPC schema table in FUN_144f40780 (WorldMetadata -- int enums).
+    - capital `LoginInfoList.Worlds` + `LoginInfoList.Characters` feed
+      the create-character gate via FUN_1474e42e0 (PascalCase fields,
+      string enums). WorldStatus="ACTIVE" + WorldType="OpenWorld" +
+      PublicStatusCode=0 is the Codex-verified combo that makes a world
+      pass FUN_1464460d0 and FUN_146423730.
+
+    Uses ctx.persona_id / ctx.world_id / ctx.characters so the response
+    stays consistent with anything the create/validate handlers persisted."""
+    world_id = ctx.world_id
+    world_name = ctx.world_name
+
+    # Lowercase WorldMetadata for the dropdown consumer.
     world = {
         "worldId": world_id,
         "type": 1,
@@ -364,71 +385,19 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
         "isRecommended": True,
     }
 
-    # Slot cap now driven by UIFeatures.landingScreenForceMaxCharacters=4
-    # via remote-config. With worlds: [] the 4 Create widgets render but
-    # no world is available ("No active worlds in your region"). Put the
-    # world back with enum=1 values instead of 0 (hypothesis: 0 means
-    # Invalid/Closed).
-    # Codex 2026-04-18: the Create Character gate (FUN_146423730) iterates
-    # the Characters[] top-level array -- not the Worlds[] list -- looking
-    # for a char entry whose `status` string equals "ACTIVE". Zero chars
-    # => zero "active worlds" => button disabled. Add one phantom char
-    # with status="ACTIVE" per region so the gate passes.
-    persona_id = "amzn1.developerPersonaId.4ee4810f-da59-c553-4027-91e961054dce"
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    # Codex FUN_1474e1f60 decompile (2026-04-18): Characters[] entry parser
-    # uses PascalCase field names. Field at +0x348 is WorldId, NOT a status
-    # string (earlier "status=ACTIVE" inference was wrong). All fields are
-    # HasMember-guarded (no required-field drop). The actual status gate
-    # must come from the Worlds[] (capital) entries -- schema TBD.
-    phantom_char = {
-        "CharacterId": f"c{world_id[1:]}",
-        "Name": f"{world_name} Probe",
-        "PersonaId": persona_id,
-        "WorldId": world_id,
-        "CreatedDate": now,
-        "ModifiedDate": now,
-        "NameModifiedDate": now,
-        "NameLatentDate": now,
-        "NeedsTransferDate": now,
-        "TransferDate": now,
-        "RegionTransferDate": now,
-        "OwnerState": "",
-        "PublishedData": "",
-        "PublishedSource": "",
-        "PublishedSocialSource": "",
-        "PublishedElapsedSeconds": 0,
-        "PublishedSocialElapsedSeconds": 0,
-        "TransferCrossRegionCooldownEndTime": 0,
-        "TransferFreeCooldownEndTime": 0,
-        "TransferData": "",
-        "TransferReason": "",
-        "SocialData": "ACTIVE",  # Codex's LEA R14+0x298 aligns with SocialData (not WorldId at +0x348)
-        "LocationGroupId": "",
-        "LocationId": "",
-        "MustRenameReason": "",
-        "FtueCompleted": True,
-        "IsFreshStart": False,
-        "IsNameLatent": False,
-        "IsTrialOwner": False,
-        "MustRename": False,
-        "NeedsTransfer": False,
-        "Transferrable": False,
-    }
-    # Codex FUN_1474e8e90 decompile + feedback (2026-04-18): Worlds[]
-    # PascalCase schema. PublicStatusCode=1 (0 crashes on lowercase path
-    # too). WorldMetrics required (nested PascalCase object). Keep
-    # Characters[] empty -- Codex suggests the filter may only need
-    # Worlds[] with the right shape.
+    # PascalCase world for the create-character gate. Per Codex trace
+    # (FUN_146427100): candidate+0x58 <- WorldStatus, +0x50 <- WorldType
+    # (via FUN_1417c40a0 where only literal "OpenWorld" maps to 1),
+    # +0x80 <- PublicStatusCode (must pass (x & 0xffffe8b7) == 0).
     world_capital = {
         "WorldId": world_id,
         "WorldName": world_name,
         "PublicName": world_name,
         "WorldStatus": "ACTIVE",
-        "WorldType": "OpenWorld",  # -> 1 via FUN_1417c40a0; FTUE (0) also valid but triggers a tutorial-connect CTD.
+        "WorldType": "OpenWorld",
         "WorldSet": "live",
         "WorldVersion": "1.0.0",
-        "PublicStatusCode": 0,  # Codex-verified: mask (x & 0xffffe8b7) accepts 0 trivially
+        "PublicStatusCode": 0,
         "MaxAccountCharacters": 10,
         "MaxConnectionCount": 1000,
         "ConnectionCount": 0,
@@ -442,17 +411,19 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
             "WorldPopulationStatus": 1,
         },
     }
-    # Codex FUN_1474e01e0 decompile: parser ONLY reads top-level "LoginInfoList"
-    # key and then recurses into that sub-document with FUN_1474e42e0 (which
-    # reads Characters/Worlds/etc). Without the envelope, the embedded parse
-    # block is zeroed, which trips the apply-side status check downstream
-    # and blocks the candidate vector from reaching GameConnection+0x14e8.
+
+    # Codex FUN_1474e01e0 decompile: parser ONLY reads top-level
+    # "LoginInfoList" key and then recurses into that sub-document with
+    # FUN_1474e42e0 (which reads Characters/Worlds/etc). Without the
+    # envelope, the embedded parse block is zeroed, which trips the
+    # apply-side status check downstream and blocks the candidate vector
+    # from reaching GameConnection+0x14e8.
     body = json.dumps({
-        "worlds": [world],  # lowercase worlds: separate consumer for UI dropdown
+        "worlds": [world],
         "recommendedWorlds": [],
         "LoginInfoList": {
             "Worlds": [world_capital],
-            "Characters": [],
+            "Characters": ctx.snapshot_characters(),
         },
     }).encode()
     handler._respond(200, body, content_type="application/json")
@@ -483,12 +454,42 @@ def handle_create_character(ctx: Ctx, handler: "AuthHandler"):
     address in the login ticket (127.0.0.1:23971 in our mock) for
     gameplay. That's gate 2 (DTLS/Javelin) work.
 
-    Return a character_id -- matches Javelin.RPC.CreateCharacterResult
-    schema Codex traced earlier."""
-    import uuid as _uuid
+    Persist the character in ctx so a subsequent getlogininfo surfaces
+    it in LoginInfoList.Characters[]. Without persistence the client
+    thinks it created a character but the next login_info refresh says
+    "no characters" -- the inconsistency fouls up the next flow."""
+    character_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Best-effort name extraction from the request body -- the body has
+    # the character name embedded (after a ValidateCharacter round-trip).
+    # If we can't parse it cleanly, fall back to a synthetic name.
+    name = f"Dev_{character_id[:8]}"
+    try:
+        parsed = json.loads(handler._last_request_body or b"{}")
+        # CharacterCreationParams is base64 zlib protobuf; we don't
+        # decode it yet. Task #28 covers that. For now the name isn't
+        # critical -- the client has it locally.
+        del parsed
+    except Exception:
+        pass
+    ctx.add_character({
+        "CharacterId": character_id,
+        "Name": name,
+        "PersonaId": ctx.persona_id,
+        "WorldId": ctx.world_id,
+        "CreatedDate": now,
+        "ModifiedDate": now,
+        "FtueCompleted": True,
+        "IsFreshStart": True,
+        "IsNameLatent": False,
+        "IsTrialOwner": False,
+        "MustRename": False,
+        "NeedsTransfer": False,
+        "Transferrable": False,
+    })
     body = json.dumps({
         "CreateCharacterResult": {
-            "CharacterId": str(_uuid.uuid4()),
+            "CharacterId": character_id,
         },
     }).encode()
     handler._respond(200, body, content_type="application/json")
@@ -576,7 +577,7 @@ def handle_omni_token(ctx: Ctx, handler: "AuthHandler"):
     """
     # Parse the request body to extract fallbackToken + sub.
     request_body = handler._last_request_body or b""
-    persona_id = "amzn1.developerPersonaId." + str(uuid.uuid4())
+    persona_id = ctx.persona_id
     platform_identity_id = str(uuid.uuid4())
     fallback_token = None
     try:
@@ -595,6 +596,11 @@ def handle_omni_token(ctx: Ctx, handler: "AuthHandler"):
                     log(f"    * extracted persona from fallbackToken.sub: {persona_id}")
     except Exception as e:
         log(f"    * couldn't parse fallbackToken: {e}")
+    # Commit the persona_id we're using into the session so every other
+    # handler (credentials, entitlements, getlogininfo, create-character)
+    # reuses the same value. Codex review flagged mismatched persona_id
+    # across handlers as a high-severity flakiness vector.
+    ctx.set_persona(persona_id)
 
     # Echo fallbackToken back — Amazon-signed, passes OmniSDK's hardcoded
     # public key verification. Fall back to a self-signed JWT if not present.
@@ -677,13 +683,12 @@ def handle_entitlements_list(ctx: Ctx, handler: "AuthHandler"):
     Per-entry fields (all strings except `amount` which is numeric):
       acquisitionPersonaId, acquisitionType, amount, createdDate,
       productId, transactionId, type."""
-    persona_id = "amzn1.developerPersonaId.4ee4810f-da59-c553-4027-91e961054dce"
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     body = json.dumps({
         "hasMoreResults": False,
         "lineItems": [
             {
-                "acquisitionPersonaId": persona_id,
+                "acquisitionPersonaId": ctx.persona_id,
                 "acquisitionType": "Grant",
                 "amount": 1,
                 "createdDate": now,
