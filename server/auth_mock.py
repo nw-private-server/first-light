@@ -329,31 +329,40 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
     # status, publicStatusCode, worldPopulationStatus) are almost certainly
     # integer codes — the RPC schema registered them with different helpers
     # than the string fields.
+    # Enum exploration (empirical + binary):
+    # - type: WorldType enum. 0=FTUE, 1=OpenWorld, 2=Unknown. Want 1.
+    # - status: WorldStatus enum confirmed via eStatus_* strings.
+    #     0=Offline (CTD), 1=LocalWorld (stable but "not active"),
+    #     2=RemoteWorld (CTD, likely tries DTLS-connect). Stuck at 1.
+    # - publicStatusCode + worldPopulationStatus: no named enum values in
+    #   the binary (plain int fields). Isolate test: bump publicStatusCode
+    #   to 2 to see if that unlocks the Create Character click without
+    #   triggering a DTLS connect like RemoteWorld does.
     world = {
         "worldId": "eacab29f-f0eb-43b4-84ed-91c4861aefc0",
-        "type": 0,
-        "status": 0,
-        "publicStatusCode": 0,
+        "type": 1,
+        "status": 1,
+        "publicStatusCode": 2,
         "publicName": "Valhalla",
         "version": "1.0.0",
         "maxAccountCharacters": 10,
         "worldSet": "live",
         "worldMetrics": {
-            "worldAgeDays": 0,
+            "worldAgeDays": 1,
             "queueSize": 0,
             "queueWaitTimeSec": 0,
-            "worldPopulationStatus": 0,
+            "worldPopulationStatus": 1,
         },
         "transferToRegion": "",
         "isFull": False,
         "isRecommended": True,
     }
 
-    # Tested: personaId alone -> stable 0/0. region alone -> CTD.
-    # Neither `personaId` nor `region` belongs at WorldsInfo top level.
-    # Both are CharacterMetadata base-class fields. The slot cap source
-    # is not in this response — most likely lives in a remote-config
-    # doc (publicGameplay/*) that we're stubbing as `{}`.
+    # Slot cap now driven by UIFeatures.landingScreenForceMaxCharacters=4
+    # via remote-config. With worlds: [] the 4 Create widgets render but
+    # no world is available ("No active worlds in your region"). Put the
+    # world back with enum=1 values instead of 0 (hypothesis: 0 means
+    # Invalid/Closed).
     body = json.dumps({
         "worlds": [world],
         "recommendedWorlds": [],
@@ -368,14 +377,23 @@ def handle_remote_config(ctx: Ctx, handler: "AuthHandler"):
       /applications/<scope>/configuration-sets/<dimension>/<id>/<version>
     Known scopes: public, publicGameplay.
     Known dimensions: ProductId, RegionId, CognitoId.
-    Per-region character slot cap almost certainly lives in one of these
-    docs — probably publicGameplay/RegionId or publicGameplay/CognitoId.
-    Log the breakdown so we know exactly which doc to populate when the
-    real config key is found."""
+
+    Per-region character slot cap lives in key
+    `UIFeatures.landingScreenForceMaxCharacters` (Codex trace 2026-04-18:
+    FUN_144a39790 registers the key with default 0; FUN_1441f1400 registers
+    the script-facing getter `Game.GetMaximumCharactersPerRegion`). Codex
+    fingered `remoteCfg.public.RegionId` as the most likely layer — return
+    the override there. Everything else stays `{}`."""
     parts = handler.path.lstrip("/").split("/")
     if len(parts) >= 5 and parts[0] == "applications" and parts[2] == "configuration-sets":
         scope, dimension, ident = parts[1], parts[3], parts[4]
         log(f"    * remote-config scope={scope} dimension={dimension} id={ident}")
+        if scope == "public" and dimension == "RegionId":
+            body = json.dumps({
+                "UIFeatures.landingScreenForceMaxCharacters": 4,
+            }).encode()
+            handler._respond(200, body, content_type="application/json")
+            return
     handler._respond(200, b"{}", content_type="application/json")
 
 
