@@ -448,11 +448,54 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
             "WorldPopulationStatus": 1,
         },
     }
+    # Codex FUN_1474e01e0 decompile: parser ONLY reads top-level "LoginInfoList"
+    # key and then recurses into that sub-document with FUN_1474e42e0 (which
+    # reads Characters/Worlds/etc). Without the envelope, the embedded parse
+    # block is zeroed, which trips the apply-side status check downstream
+    # and blocks the candidate vector from reaching GameConnection+0x14e8.
     body = json.dumps({
-        "worlds": [world],
+        "worlds": [world],  # lowercase worlds: separate consumer for UI dropdown
         "recommendedWorlds": [],
-        "Worlds": [world_capital],
-        "Characters": [],
+        "LoginInfoList": {
+            "Worlds": [world_capital],
+            "Characters": [],
+        },
+    }).encode()
+    handler._respond(200, body, content_type="application/json")
+
+
+def handle_validate_character(ctx: Ctx, handler: "AuthHandler"):
+    """POST /prod/game/worlds/{worldId}/characters/validator/jwt/omni
+
+    Body: {"ValidateCharacterBody":{"Name":"..."}}
+
+    Returns validation result. Real server checks name availability +
+    content policy. We just mark any name available."""
+    body = json.dumps({
+        "ValidateCharacterResult": {
+            "IsAvailable": True,
+            "IsValid": True,
+        },
+    }).encode()
+    handler._respond(200, body, content_type="application/json")
+
+
+def handle_create_character(ctx: Ctx, handler: "AuthHandler"):
+    """POST /prod/game/worlds/{worldId}/characters/jwt/omni
+
+    Body: {"CreateCharacterRequest":{"CharacterCreationParams":"<base64 zlib-compressed protobuf>"}}
+
+    After this, the game tries to connect to the REP server at the
+    address in the login ticket (127.0.0.1:23971 in our mock) for
+    gameplay. That's gate 2 (DTLS/Javelin) work.
+
+    Return a character_id -- matches Javelin.RPC.CreateCharacterResult
+    schema Codex traced earlier."""
+    import uuid as _uuid
+    body = json.dumps({
+        "CreateCharacterResult": {
+            "CharacterId": str(_uuid.uuid4()),
+        },
     }).encode()
     handler._respond(200, body, content_type="application/json")
 
@@ -704,6 +747,17 @@ ROUTES = [
     # Game.GetLoginInfoLists (character select payload)
     ("*", "GET", _path_prefix("/prod/game/getlogininfo"), handle_get_login_info),
     ("*", "POST", _path_prefix("/prod/game/getlogininfo"), handle_get_login_info),
+
+    # ValidateCharacter + CreateCharacter (REST endpoints, not the gRPC
+    # path Codex originally suggested). Paths observed live in auth-mock
+    # logs: /prod/game/worlds/<worldId>/characters/validator/jwt/omni
+    # and /prod/game/worlds/<worldId>/characters/jwt/omni.
+    ("*", "POST",
+     lambda p: "/prod/game/worlds/" in p and "/characters/validator" in p,
+     handle_validate_character),
+    ("*", "POST",
+     lambda p: "/prod/game/worlds/" in p and p.split("?")[0].endswith("/characters/jwt/omni"),
+     handle_create_character),
 
     # gRPC-style ControlPort RPCs (CreateCharacter, ValidateCharacter,
     # GetCharacterList, GetLoginInfo, ...). Preemptive logger — wire
