@@ -329,27 +329,21 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
     # status, publicStatusCode, worldPopulationStatus) are almost certainly
     # integer codes — the RPC schema registered them with different helpers
     # than the string fields.
-    # Codex 2026-04-18 narrowed the Create Character gate to:
-    # - Need at least one world in the selected region with
-    #   type==1 (OpenWorld), status==1 (LocalWorld), publicStatusCode==1.
-    # - status==2 (RemoteWorld) is treated as "visible but not in this
-    #   region" and trips the "No active worlds" tooltip.
-    # We had tested all-enums=1 BEFORE the slot-cap remote-config fix,
-    # which gave "0/0 no Create". We haven't re-tested with slot cap
-    # enabled. Revert status to 1 and hope Codex is right.
-    #
-    # Unique worldId per gateway still needed to avoid region-switch CTD.
-    GATEWAY_WORLDS = {
-        "d3bj4csovi1fe8.cloudfront.net": ("pdx-prod", "b1a00000-0000-0000-0000-000000000001", "Valhalla US West"),
-        "d2oeuvxi3kfsrw.cloudfront.net": ("iad-prod", "b1a00000-0000-0000-0000-000000000002", "Valhalla US East"),
-        "d1w0bfy6smo4d1.cloudfront.net": ("fra-prod", "b1a00000-0000-0000-0000-000000000003", "Valhalla EU"),
-        "d1cjlmzk0xrm0z.cloudfront.net": ("gru-prod", "b1a00000-0000-0000-0000-000000000004", "Valhalla SA"),
-        "de4mfzk9wkelz.cloudfront.net":  ("syd-prod", "b1a00000-0000-0000-0000-000000000005", "Valhalla APSE"),
+    # Single stable worldId across all gateways. The per-region-unique
+    # worldId scheme from yesterday was meant to avoid a region-switch CTD,
+    # but it may ALSO be causing character-select CTDs when the game
+    # client has a locally-cached character bound to a different region's
+    # worldId. Test hypothesis: use a single shared worldId everywhere.
+    GATEWAY_REGIONS = {
+        "d3bj4csovi1fe8.cloudfront.net": "pdx-prod",
+        "d2oeuvxi3kfsrw.cloudfront.net": "iad-prod",
+        "d1w0bfy6smo4d1.cloudfront.net": "fra-prod",
+        "d1cjlmzk0xrm0z.cloudfront.net": "gru-prod",
+        "de4mfzk9wkelz.cloudfront.net":  "syd-prod",
     }
-    region, world_id, world_name = GATEWAY_WORLDS.get(
-        handler._extract_host(),
-        ("iad-prod", "b1a00000-0000-0000-0000-000000000002", "Valhalla US East"),
-    )
+    region = GATEWAY_REGIONS.get(handler._extract_host(), "iad-prod")
+    world_id = "b1a00000-0000-0000-0000-000000000002"
+    world_name = "Valhalla"
     world = {
         "worldId": world_id,
         "type": 1,
