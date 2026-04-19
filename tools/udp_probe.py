@@ -1,4 +1,4 @@
-"""Bare UDP listener for 127.0.0.1:23971 — the REP port handed back in the
+"""Bare UDP listener for 127.0.0.1:23971 -- the REP port handed back in the
 mock login ticket. Logs every datagram (src, length, first 64 bytes hex) to
 console + capture/udp_probe_<ts>.log.
 
@@ -10,7 +10,7 @@ ClientHello (record type 0x16 = Handshake, version 0xfefd = DTLS 1.2).
 Run from an Administrator shell alongside the auth mock (Admin not strictly
 required for loopback UDP, but matches the rest of the workflow):
 
-    python tools\udp_probe.py
+    python tools/udp_probe.py
 
 Ctrl-C when done.
 """

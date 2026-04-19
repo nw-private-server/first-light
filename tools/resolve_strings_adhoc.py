@@ -10,13 +10,17 @@ sys.path.insert(0, str(Path(__file__).parent))
 from resolve_strings import parse_pe_sections, read_cstring, EXE
 
 PREFIXES = [
-    "eWorldType_",
-    "eWorldStatus_",
-    "ePublicStatusCode_",
-    "eWorldPopulationStatus_",
-    "ePopulationStatus_",
-    "eStatus_",
-    "eTransferReason_",  # known, sanity check
+    "eWorldSet_",
+    "eRecommendationType_",
+    "eFilterType_",
+    "eWorldPopStatus_",
+    "ePopulation_",
+    "eWorldMetricsStatus_",
+    "eAccountType_",
+    "eOwnership_",
+    "eCharacterStatus_",
+    "eMustRename",  # partial match -- captures any eMustRenameReason_X
+    "worldSet",  # plain string hits for worldSet values
 ]
 
 

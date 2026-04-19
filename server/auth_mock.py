@@ -329,21 +329,33 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
     # status, publicStatusCode, worldPopulationStatus) are almost certainly
     # integer codes — the RPC schema registered them with different helpers
     # than the string fields.
-    # Enum exploration (empirical + binary):
-    # - type: WorldType enum. 0=FTUE, 1=OpenWorld, 2=Unknown. Want 1.
-    # - status: WorldStatus enum confirmed via eStatus_* strings.
-    #     0=Offline (CTD), 1=LocalWorld (stable but "not active"),
-    #     2=RemoteWorld (CTD, likely tries DTLS-connect). Stuck at 1.
-    # - publicStatusCode + worldPopulationStatus: no named enum values in
-    #   the binary (plain int fields). Isolate test: bump publicStatusCode
-    #   to 2 to see if that unlocks the Create Character click without
-    #   triggering a DTLS connect like RemoteWorld does.
+    # Codex 2026-04-18 narrowed the Create Character gate to:
+    # - Need at least one world in the selected region with
+    #   type==1 (OpenWorld), status==1 (LocalWorld), publicStatusCode==1.
+    # - status==2 (RemoteWorld) is treated as "visible but not in this
+    #   region" and trips the "No active worlds" tooltip.
+    # We had tested all-enums=1 BEFORE the slot-cap remote-config fix,
+    # which gave "0/0 no Create". We haven't re-tested with slot cap
+    # enabled. Revert status to 1 and hope Codex is right.
+    #
+    # Unique worldId per gateway still needed to avoid region-switch CTD.
+    GATEWAY_WORLDS = {
+        "d3bj4csovi1fe8.cloudfront.net": ("pdx-prod", "b1a00000-0000-0000-0000-000000000001", "Valhalla US West"),
+        "d2oeuvxi3kfsrw.cloudfront.net": ("iad-prod", "b1a00000-0000-0000-0000-000000000002", "Valhalla US East"),
+        "d1w0bfy6smo4d1.cloudfront.net": ("fra-prod", "b1a00000-0000-0000-0000-000000000003", "Valhalla EU"),
+        "d1cjlmzk0xrm0z.cloudfront.net": ("gru-prod", "b1a00000-0000-0000-0000-000000000004", "Valhalla SA"),
+        "de4mfzk9wkelz.cloudfront.net":  ("syd-prod", "b1a00000-0000-0000-0000-000000000005", "Valhalla APSE"),
+    }
+    region, world_id, world_name = GATEWAY_WORLDS.get(
+        handler._extract_host(),
+        ("iad-prod", "b1a00000-0000-0000-0000-000000000002", "Valhalla US East"),
+    )
     world = {
-        "worldId": "eacab29f-f0eb-43b4-84ed-91c4861aefc0",
+        "worldId": world_id,
         "type": 1,
         "status": 1,
-        "publicStatusCode": 2,
-        "publicName": "Valhalla",
+        "publicStatusCode": 1,
+        "publicName": world_name,
         "version": "1.0.0",
         "maxAccountCharacters": 10,
         "worldSet": "live",
@@ -398,6 +410,11 @@ def handle_remote_config(ctx: Ctx, handler: "AuthHandler"):
 
 
 def handle_worlds_motd(ctx: Ctx, handler: "AuthHandler"):
+    """MOTD / worlds_<channel>.json. Schema hinted by strings at
+    0x148173780-ish (worldSets/setName/announcement/tileData/...), but
+    populating any entry in worldSets[] caused a CTD because required
+    sub-field types we can't verify without decompiling the parser.
+    Reverting to minimal stable shape."""
     body = json.dumps({"worlds": [], "overrides": {}}).encode()
     handler._respond(200, body, content_type="application/json")
 
@@ -719,7 +736,9 @@ class AuthHandler(BaseHTTPRequestHandler):
                 self._respond(500, b"{}", content_type="application/json")
                 return
 
-        log(f"    ! no route matched, returning {{}} (host={host})")
+        log(f"    !!! NO-ROUTE {self.command} https://{host}{self.path}  body={len(body)}B")
+        if body:
+            log(f"    !!! NO-ROUTE body-hex[0:128]: {body[:128].hex()}")
         handle_unknown(self.ctx, self)
 
     def do_GET(self):
