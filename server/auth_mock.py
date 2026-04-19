@@ -406,6 +406,7 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
         "needsTransferDate": now,
         "nameLatentDate": now,
         "status": "ACTIVE",
+        "Status": "ACTIVE",  # cover both cases in case parser is strict
         "currentLevel": 1,
         "publishedSource": "",
         "publishedSocialSource": "",
@@ -420,14 +421,14 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
         "prevWorldId": "",
         "guildId": "",
     }
-    # Narrow test: keep lowercase `worlds` (known-working world dropdown
-    # path) and ONLY add `Characters` uppercase. Shipping the whole set
-    # of uppercase top-level keys tripped a CTD; isolate which one was
-    # the crash trigger.
+    # Capital `Worlds` with our WorldMetadata entry CTDs (different schema).
+    # Back to lowercase `worlds` only. Include `characters` in lowercase
+    # since the RPC schema registrar in FUN_144f40780 used lowercase for
+    # other top-level names too.
     body = json.dumps({
         "worlds": [world],
         "recommendedWorlds": [],
-        "Characters": [phantom_char],
+        "characters": [phantom_char],
     }).encode()
     handler._respond(200, body, content_type="application/json")
 
