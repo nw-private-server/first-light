@@ -375,9 +375,59 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
     # no world is available ("No active worlds in your region"). Put the
     # world back with enum=1 values instead of 0 (hypothesis: 0 means
     # Invalid/Closed).
+    # Codex 2026-04-18: the Create Character gate (FUN_146423730) iterates
+    # the Characters[] top-level array -- not the Worlds[] list -- looking
+    # for a char entry whose `status` string equals "ACTIVE". Zero chars
+    # => zero "active worlds" => button disabled. Add one phantom char
+    # with status="ACTIVE" per region so the gate passes.
+    persona_id = "amzn1.developerPersonaId.4ee4810f-da59-c553-4027-91e961054dce"
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Minimum phantom character using ONLY fields verified from binary
+    # string extraction (resolve_strings.py output around CharacterMetadata)
+    # plus `status` (Codex-confirmed from the serializer FUN_1461002b0).
+    # Omit suspect complex fields (currency/position/crestData/portraitData/
+    # transferReason) -- those likely aren't simple strings/ints and tripped
+    # the last attempt. If stable, add them back one at a time.
+    # Narrower add: just `characterId` (missing from our known-stable
+    # set) + `publishedSocialSource` (a plain empty string). Skip the
+    # date fields Codex named (transferDate/regionTransferDate/
+    # mustTransferDate) -- those names diverge from my binary extraction
+    # and one of them probably isn't a string/date.
+    phantom_char = {
+        "characterId": f"c{world_id[1:]}",
+        "name": f"{world_name} Probe",
+        "personaId": persona_id,
+        "worldId": world_id,
+        "region": region,
+        "channel": "STEAM_APP_ID.1063730",
+        "creationDate": now,
+        "modifiedDate": now,
+        "nameModifiedDate": now,
+        "needsTransferDate": now,
+        "nameLatentDate": now,
+        "status": "ACTIVE",
+        "currentLevel": 1,
+        "publishedSource": "",
+        "publishedSocialSource": "",
+        "publishedElapsedSeconds": 0,
+        "ftueCompleted": True,
+        "mustRename": False,
+        "mustRenameReason": "",
+        "needsTransfer": False,
+        "hasTransfered": False,
+        "isNameLatent": False,
+        "isFreshStart": False,
+        "prevWorldId": "",
+        "guildId": "",
+    }
+    # Narrow test: keep lowercase `worlds` (known-working world dropdown
+    # path) and ONLY add `Characters` uppercase. Shipping the whole set
+    # of uppercase top-level keys tripped a CTD; isolate which one was
+    # the crash trigger.
     body = json.dumps({
         "worlds": [world],
         "recommendedWorlds": [],
+        "Characters": [phantom_char],
     }).encode()
     handler._respond(200, body, content_type="application/json")
 
@@ -410,11 +460,14 @@ def handle_remote_config(ctx: Ctx, handler: "AuthHandler"):
 
 
 def handle_worlds_motd(ctx: Ctx, handler: "AuthHandler"):
-    """MOTD / worlds_<channel>.json. Schema hinted by strings at
-    0x148173780-ish (worldSets/setName/announcement/tileData/...), but
-    populating any entry in worldSets[] caused a CTD because required
-    sub-field types we can't verify without decompiling the parser.
-    Reverting to minimal stable shape."""
+    """MOTD / worlds_<channel>.json.
+
+    Populating either `worldSets[]` or `worlds[]` with guessed entries
+    causes a CTD -- the real schema for MOTD world entries is unknown.
+    Keep minimal stable shape. The "ACTIVE" string check Codex found
+    on the world-public-status model is sourced from a DIFFERENT feed
+    -- location still unidentified. Next hunt: find what URL/endpoint
+    provides that world-public-status data."""
     body = json.dumps({"worlds": [], "overrides": {}}).encode()
     handler._respond(200, body, content_type="application/json")
 
