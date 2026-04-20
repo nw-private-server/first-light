@@ -10,6 +10,7 @@ payload fields to answer practical reverse-engineering questions like:
 
 Usage:
   python tools/extract_dtls_handshake.py capture/20260416_231434_tap_test/packets.jsonl
+  python tools/extract_dtls_handshake.py capture/20260416_231434_tap_test/packets.jsonl --unique
 """
 
 from __future__ import annotations
@@ -100,6 +101,21 @@ def parse_handshake_message(htype: int, body: bytes) -> dict:
     return {}
 
 
+def event_key(event: dict) -> tuple:
+    details = event.get("details", {})
+    return (
+        event["direction"],
+        event["handshake_type"],
+        event["message_seq"],
+        event["message_len"],
+        event["fragment_offset"],
+        event["fragment_len"],
+        details.get("cookie", ""),
+        details.get("cipher_suite", ""),
+        tuple(details.get("cipher_suites", [])),
+    )
+
+
 def extract(path: Path, limit: int) -> list[dict]:
     events: list[dict] = []
     with path.open("r", encoding="utf-8") as fh:
@@ -137,12 +153,30 @@ def extract(path: Path, limit: int) -> list[dict]:
     return events
 
 
+def collapse_retransmits(events: list[dict]) -> list[dict]:
+    unique: list[dict] = []
+    seen: set[tuple] = set()
+    for event in events:
+        key = event_key(event)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(event)
+    return unique
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("jsonl", type=Path, help="Path to packets.jsonl")
     parser.add_argument("--limit", type=int, default=40, help="Max handshake events to print")
+    parser.add_argument("--unique", action="store_true", help="Collapse retransmits into a unique handshake timeline")
     args = parser.parse_args()
-    print(json.dumps(extract(args.jsonl, args.limit), indent=2, sort_keys=False))
+    events = extract(args.jsonl, args.limit * 50 if args.unique else args.limit)
+    if args.unique:
+        events = collapse_retransmits(events)[:args.limit]
+    else:
+        events = events[:args.limit]
+    print(json.dumps(events, indent=2, sort_keys=False))
     return 0
 
 

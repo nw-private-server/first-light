@@ -93,6 +93,11 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
   - cipher suites: `TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384` + `TLS_EMPTY_RENEGOTIATION_INFO_SCSV`
   - repeated retransmitted `ClientHello` with the same random and no cookie until `HelloVerifyRequest`
 - 2026-04-20 tooling note: the offline DTLS analyzers are now reusable both as standalone scripts and importable helpers for follow-on parsing scripts.
+- 2026-04-20 extractor improvement: `tools/extract_dtls_handshake.py --unique` now collapses retransmits into a clean handshake timeline. On the current tap capture, the unique timeline only reaches:
+  - initial cookie-less `ClientHello`
+  - cookie-bearing `ClientHello`
+  - `HelloVerifyRequest`
+  This capture does **not** include a clean post-cookie `ServerHello` / certificate flight, so it is only useful for the DTLS cookie-exchange baseline.
 
 **What we captured:**
 - 60MB pcap from first session (HTTPS only, missed REP due to port filter)
