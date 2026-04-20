@@ -389,6 +389,19 @@ Things that differ from the initial Perplexity research or are otherwise surpris
   - there is **no already-working non-EAC decryption route in the repo today**
   - the highest-value path is to keep narrowing the offline encrypted REP registration/bootstrap window while identifying a non-EAC source of session secrets or decrypted traffic
 
+## 2026-04-20 Non-EAC Acquisition Plan
+
+- Added `docs/non-eac-capture-plan.md` to turn the route audit into a concrete ordered acquisition plan.
+- Updated the existing tools so they can actually target an archived or non-EAC-friendly client instead of assuming the live Steam install:
+  - `tools/frida_capture.py` now supports `--process-name` in addition to `--exe`
+  - `tools/capture_session.py` now uses `argparse` and supports `--name` and `--game-log`
+- Ranked next attempts:
+  1. Frida hook against archived/non-EAC-friendly binary
+  2. SSLKEYLOGFILE capture against archived/non-EAC-friendly binary
+  3. DTLS MITM only if trust can be solved on that non-EAC target
+- Immediate focus once any route yields decrypted bytes:
+  - use the already-isolated server REP registration window (`seq 1..3`, especially the stable `len 139` record) as the first decryption target
+
 ---
 
 ## Connection State Machine
