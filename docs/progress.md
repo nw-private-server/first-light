@@ -92,6 +92,7 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
   - DTLS version `0xfefd`
   - cipher suites: `TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384` + `TLS_EMPTY_RENEGOTIATION_INFO_SCSV`
   - repeated retransmitted `ClientHello` with the same random and no cookie until `HelloVerifyRequest`
+- 2026-04-20 tooling note: the offline DTLS analyzers are now reusable both as standalone scripts and importable helpers for follow-on parsing scripts.
 
 **What we captured:**
 - 60MB pcap from first session (HTTPS only, missed REP due to port filter)
