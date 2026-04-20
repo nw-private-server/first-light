@@ -146,6 +146,12 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
   - immediately after that, the server emits a dense burst at the same timestamp (`06:27:02.720833`) with lengths `41, 206, 164, 221, 261, 295, 250`
   - client-side epoch-1 traffic mirrors this: small records first, then a larger burst (`1141, 718, 480`) before the logged REP registration response, then steady smaller records
   This is now our best offline candidate window for the encrypted REP registration/actor-connection bootstrap payloads.
+- 2026-04-20 cross-session comparison: the first and second real captures show the **same** early server registration-window lengths:
+  - server seq `1..5` = `48, 42, 139, 63, 179`
+  - then the same dense server burst = `41, 206, 164, 221, 261, 295, 250`
+  - client early burst is also stable modulo tiny variance: `40, ~1140, ~720, ~480, 52, 75, 42...`
+  This strongly suggests these are fixed protocol messages, not incidental transport fragmentation. It makes server seq `3` (`len 139`) the strongest candidate for the encrypted REP registration response payload.
+- 2026-04-20 repository audit: there are no stored `sslkeys.log`, `CLIENT_RANDOM`, or other keylog/decrypted traffic artifacts in the repo. The old Frida/OpenSSL hook attempt (`capture/20260416_224201_dtls_test`) failed immediately because `SSL_read` was not found, so there is no forgotten decrypted capture to salvage.
 
 **What we captured:**
 - 60MB pcap from first session (HTTPS only, missed REP due to port filter)
@@ -363,6 +369,7 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 | `extract_pcapng_dtls_timeline.py` | Extracts record-level DTLS timelines from `pcapng` with content type, epoch, and sequence numbers. Used to mark the exact CCS → encrypted Finished → application-data transition on both client and server. |
 | `correlate_rep_timeline.py` | Correlates `pcapng` DTLS milestones with `game_log_after.log` state transitions (StartREPConnection, REP established, registration response, actor connection, spawn). Used to anchor the first opaque application-data bursts to concrete game-side events. |
 | `extract_registration_window.py` | Pulls the earliest epoch-1 server/client application-data burst around REP registration. Used to identify which encrypted records are the highest-value decryption target first. |
+| `compare_registration_windows.py` | Compares the registration window across both real captures and surfaces which encrypted record sizes are stable session-to-session. |
 
 ---
 
@@ -404,7 +411,7 @@ Disconnected
 
 ### Protocol/DTLS work (parallel, as time allows)
 
-4. **Find or produce a decryptable path** for post-handshake DTLS application data (session keys, SSL hooks on a non-EAC target, or alternative capture route). We now know the exact encrypted record window most likely to contain REP registration and actor-bootstrap messages.
-5. **Use the registration window as the first decryption target** — seq `1..3` server application-data, especially the `len 139` record that aligns with the logged registration response.
+4. **Find or produce a decryptable path** for post-handshake DTLS application data (session keys, SSL hooks on a non-EAC target, or alternative capture route). The repo contains no existing keylog/decrypted artifacts, so this likely requires a fresh non-EAC capture route or another source of session secrets.
+5. **Use the registration window as the first decryption target** — server app-data seq `1..3`, especially the stable `len 139` record that aligns with the logged registration response.
 6. **Harvest full chunk catalog** (auto-define strings first, then re-run FindChunkRegistrations.py).
 7. **Find `Cmd_*` switch** at the top of replica dispatch — gives per-chunk payload decoding.
