@@ -1,7 +1,7 @@
 # New World Private Server — Progress & Findings
 
 > Living document. Updated as we learn more.
-> Last updated: 2026-04-18 (full HTTP character-creation flow works end-to-end; user created a character through the UI. Next blocker: REP/DTLS connect to the fake game server, i.e. gate 2)
+> Last updated: 2026-04-20 (client now reaches REP/DTLS and performs a real DTLS handshake against our probe. Current blocker: certificate trust / DTLS transport security, not HTTP auth or queue/login JSON.)
 
 ---
 
@@ -45,7 +45,7 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 - [ ] Understand what the channel config JSON contains (fetch it directly before shutdown)
 
 ### Gate 2: Capture the Game Server Protocol
-**Status: ~60% complete**
+**Status: ~80% complete**
 
 **Key corrections from second capture session (2026-04-16):**
 - NOT WebSocket (as Perplexity said)
@@ -65,6 +65,21 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 - Server version: `[RETAIL].Javelin.1.365.6031.6004151`
 - Voice chat is separate (Vivox, SIP-based, `nwxp.vivox.com`)
 - Typical game session: ~2800 UDP packets to game server over ~30s of gameplay
+- As of **2026-04-20**, our mock drives the client all the way through:
+  - `/prod/game/getlogininfo/jwt/omni`
+  - character-select render
+  - `validator`
+  - `CreateCharacter`
+  - `/prod/game/login/queue/v2`
+  - queue-ticket acceptance
+  - remote-config fetch for the chosen world
+  - `StartREPConnection`
+  - **actual DTLS ClientHello / HelloVerifyRequest / ServerHello / Certificate / ServerKeyExchange / ServerHelloDone**
+- The current failure is **not** queue polling anymore. The client now fails in `WaitingForREPConnection` with:
+  - `ClientSDK: @mm_csdkerr_transport_security_error (2)`
+  - OpenSSL probe shows the client sends a fatal alert:
+    - `unknown ca`
+  - Therefore the blocker is now **certificate trust / DTLS auth**, not ticket format.
 
 **What we captured:**
 - 60MB pcap from first session (HTTPS only, missed REP due to port filter)
@@ -75,8 +90,10 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 **What we still need:**
 - [x] ~~Capture the REP stream~~ — done (second capture, DTLS over UDP)
 - [x] ~~Determine if REP is encrypted~~ — yes, DTLS 1.2
+- [x] ~~Drive the live client to our local REP/DTLS endpoint~~ — done (2026-04-20)
 - [ ] Decrypt DTLS traffic — Frida hook on SSL_read/SSL_write, or extract session keys
 - [ ] Determine if client sends a client certificate (Certificate Request seen in handshake)
+- [ ] Make the client trust our DTLS endpoint (or patch/bypass trust validation) so the handshake completes past certificate verification
 - [ ] Capture longer sessions with varied activities (combat, inventory, travel between zones)
 - [ ] Understand the relationship between the HTTPS gateway traffic and the DTLS game traffic
 
@@ -166,7 +183,8 @@ Things that differ from the initial Perplexity research or are otherwise surpris
     - 2026-04-19 follow-up: the auth mock is now stateful. `Ctx` persists `persona_id`, `world_id/world_name`, and created `Characters[]` entries so create -> reload flows stop contradicting themselves.
     - 2026-04-19 follow-up: `handle_login_queue()` now returns a ticket for the same world id handed out in `getlogininfo`, instead of an unrelated fallback world.
     - 2026-04-19 follow-up: persisted `Characters[]` entries were expanded toward the real PascalCase parser shape by adding the date / transfer / published / social placeholder fields the client expects.
-    - 2026-04-19 current end state: after finishing customization, the client reaches a `"Connection Failed"` dialog with `"Login malfunction, please try again soon."` This is now the next gate after successful create, not the old character-select blocker.
+    - 2026-04-20 follow-up: seeded-character mode plus the corrected queue/login envelopes now let the client consistently reach `/prod/game/login/queue/v2`, accept a login ticket, fetch world remote-config, and start the REP connection.
+    - 2026-04-20 current end state: after `GameConnectionWrapper: start REP connection RepAddress = 127.0.0.1:23971`, the DTLS probe sees a real client handshake. The client rejects our local server certificate with fatal `unknown ca`, then surfaces `@mm_csdkerr_transport_security_error (2)` and returns to menu. Gate 2 is now a **DTLS certificate-trust** problem, not an auth-mock/queue-schema problem.
     - 2026-04-19 note: moving `C:\Users\charl\AppData\Roaming\AGS\New World\savedata` aside to a timestamped backup removed one pre-`getlogininfo` failure mode where the game died before ever requesting character-select data.
 
 -6. **Entitlement service schemas resolved via URL-first trace (2026-04-18).** Key pivot: instead of grepping for field-name strings, find the URL-builder function for the endpoint and follow the callback descriptor it passes to the shared HTTP helper.
