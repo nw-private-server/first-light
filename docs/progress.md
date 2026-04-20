@@ -80,6 +80,11 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
   - OpenSSL probe shows the client sends a fatal alert:
     - `unknown ca`
   - Therefore the blocker is now **certificate trust / DTLS auth**, not ticket format.
+- 2026-04-20 follow-up RE: `FUN_145dce750` (`Javelin_SecureSocketDriver_Initialize`) has two DTLS trust modes:
+  - if the CA-bundle slot is null, it calls `SSL_CTX_set_verify(..., FUN_1402a1a70)` and `FUN_1402a1a70` simply returns `1` (accept any cert)
+  - if the CA-bundle slot is non-null, it builds a CA list and calls `SSL_CTX_set_verify(..., 0)` (normal OpenSSL validation)
+- 2026-04-20 follow-up RE: the gridmate-udp transport constructor carries an embedded PEM for the real self-signed `CN=New World` cert, strongly suggesting the client has bundled/pinned REP trust material.
+- 2026-04-20 practical next step: runtime-only trust bypass, not more queue/auth JSON work. See `docs/dtls-trust-bypass.md` and `tools/frida_dtls_trust_patch.py`.
 
 **What we captured:**
 - 60MB pcap from first session (HTTPS only, missed REP due to port filter)
