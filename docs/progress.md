@@ -1,7 +1,7 @@
 # New World Private Server — Progress & Findings
 
 > Living document. Updated as we learn more.
-> Last updated: 2026-04-20 (client now reaches REP/DTLS and performs a real DTLS handshake against our probe. Current blocker: certificate trust / DTLS transport security, not HTTP auth or queue/login JSON.)
+> Last updated: 2026-04-20 (live Steam path reaches REP/DTLS but is blocked by certificate trust and EAC. Current highest-value work is offline DTLS/Javelin decoding from captures, not more live patch attempts.)
 
 ---
 
@@ -86,6 +86,12 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 - 2026-04-20 follow-up RE: the gridmate-udp transport constructor carries an embedded PEM for the real self-signed `CN=New World` cert, strongly suggesting the client has bundled/pinned REP trust material.
 - 2026-04-20 practical next step: runtime-only trust bypass, not more queue/auth JSON work. See `docs/dtls-trust-bypass.md` and `tools/frida_dtls_trust_patch.py`.
 - 2026-04-20 follow-up: Frida attach against the live Steam process fails with `VirtualAllocEx returned 0x00000005`, so the next runtime path is an in-process proxy DLL rather than remote injection. Scaffold added under `tools/d3d11_proxy/`.
+- 2026-04-20 follow-up: EAC rejects the proxy DLL too (`Untrusted system file ... Bin64\\d3d11.dll`). Combined with the earlier EXE patch rejection and Frida `ACCESS_DENIED`, the live Steam path is currently hostile to all straightforward local runtime patching.
+- 2026-04-20 offline pivot: `tools/analyze_tap_capture.py` confirms the only non-empty tap session currently in repo (`capture/20260416_231434_tap_test/packets.jsonl`) contains only DTLS records, not plaintext pre-DTLS Javelin datagrams.
+- 2026-04-20 offline pivot: `tools/extract_dtls_handshake.py` extracts handshake-level details from the tap capture. Current confirmed client offer:
+  - DTLS version `0xfefd`
+  - cipher suites: `TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384` + `TLS_EMPTY_RENEGOTIATION_INFO_SCSV`
+  - repeated retransmitted `ClientHello` with the same random and no cookie until `HelloVerifyRequest`
 
 **What we captured:**
 - 60MB pcap from first session (HTTPS only, missed REP due to port filter)
@@ -102,6 +108,7 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
 - [ ] Make the client trust our DTLS endpoint (or patch/bypass trust validation) so the handshake completes past certificate verification
 - [ ] Capture longer sessions with varied activities (combat, inventory, travel between zones)
 - [ ] Understand the relationship between the HTTPS gateway traffic and the DTLS game traffic
+- [x] Confirm the 2026-04-16 tap capture is all DTLS records (no plaintext pre-DTLS Javelin datagrams available there)
 
 ### Gate 3: Decode the Packet Format
 **Status: ~55% — Javelin message framing layer fully decoded and implemented in Python**
@@ -295,6 +302,8 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 |------|---------|
 | `watch_connections.py` | Runs tshark with a tight filter (`SYN without ACK` + `DNS queries`) and prints/logs outbound TCP connection attempts + DNS lookups live. Used to confirm the game makes zero new network calls between `/credentials/omni` response and CTD — proving the crash is local (JSON parse) not network. Run in Admin PowerShell. |
 | `resolve_strings.py` | Reads NewWorld.exe directly, parses the PE section table, and prints the null-terminated string at each of a list of virtual addresses. Built when ghidraMCP timed out on string-table scans — feed it VAs copied out of a large-function disassembly slice and it returns the field names verbatim. Used to extract the entire `GetLoginInfoLists` / WorldsInfo schema in one shot. |
+| `analyze_tap_capture.py` | Summarizes a `packets.jsonl` tap capture: DTLS record counts, handshake message counts, alerts, and whether any non-DTLS datagrams exist. Used to prove the current repo capture set does not contain plaintext pre-DTLS Javelin traffic. |
+| `extract_dtls_handshake.py` | Pulls a human-readable DTLS handshake transcript from `packets.jsonl` (ClientHello / HelloVerifyRequest / ServerHello details, cookies, cipher suites, retransmits). Used for offline DTLS/Javelin reverse-engineering now that live runtime patch paths are blocked by EAC. |
 
 ---
 
@@ -336,8 +345,7 @@ Disconnected
 
 ### Protocol/DTLS work (parallel, as time allows)
 
-4. **Decompile DTLS state-handler functions** (CS_CONNECT, CS_COOKIE_EXCHANGE, CS_SSL_HANDSHAKE_CONNECT, CS_ESTABLISHED) — needed to drive client through handshake.
-5. **Parse pre-DTLS `MF_CONNECTING` packets** from `capture/20260416_231434_tap_test/` — the first handshake packets are plaintext.
-6. **Decrypt DTLS traffic** (Frida hook on `SSL_read`/`SSL_write`) to validate GridMate wire format against real application data.
-7. **Harvest full chunk catalog** (auto-define strings first, then re-run FindChunkRegistrations.py).
-8. **Find `Cmd_*` switch** at the top of replica dispatch — gives per-chunk payload decoding.
+4. **Extend offline DTLS tooling** to reconstruct full handshakes from `packets.jsonl` (cookies, chosen cipher, retransmit patterns, alerts) and use that as the protocol baseline while live-patching remains blocked by EAC.
+5. **Find or produce a decryptable capture path** for post-handshake DTLS application data (session keys, SSL hooks on a non-EAC target, or alternative capture route). The current in-repo tap session contains only opaque DTLS records.
+6. **Harvest full chunk catalog** (auto-define strings first, then re-run FindChunkRegistrations.py).
+7. **Find `Cmd_*` switch** at the top of replica dispatch — gives per-chunk payload decoding.
