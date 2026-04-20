@@ -129,6 +129,16 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
   - then both sides switch to DTLS `application_data`
   - first server application-data record: epoch 1 / seq 1 / len 48
   This gives us an exact offline boundary between TLS handshake completion and opaque Javelin traffic.
+- 2026-04-20 offline correlation: `tools/correlate_rep_timeline.py` now lines up the real DTLS milestones with `game_log_after.log` for the second capture. Current measured offsets:
+  - first client `ClientHello`: `06:27:01.928644`
+  - first server `ServerHello`: `06:27:02.193697`
+  - client CCS: `06:27:02.195908`
+  - first client application-data: `06:27:02.283648`
+  - server CCS: `06:27:02.283475`
+  - first server application-data: `06:27:02.403124`
+  - `GameConnectionWrapper: REP socket connection established`: `06:27:02.404`
+  - `received registration response from REP`: `06:27:02.577`
+  This is the best offline anchor we currently have for "which encrypted application-data burst corresponds to REP registration".
 
 **What we captured:**
 - 60MB pcap from first session (HTTPS only, missed REP due to port filter)
@@ -344,6 +354,7 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 | `analyze_pcapng_dtls.py` | Dependency-free `pcapng` DTLS summarizer. Parses Ethernet/IPv4/UDP Enhanced Packet Blocks and reports DTLS content types, handshake message counts, endpoints, and sample payloads. Used to prove the stored Wireshark captures contain the full DTLS server flight and post-handshake application data. |
 | `extract_pcapng_dtls_handshake.py` | Extracts a DTLS handshake timeline directly from `pcapng` captures, including the real AWS server flight (HelloVerifyRequest, ServerHello, Certificate, fragmented ServerKeyExchange, CertificateRequest, ServerHelloDone, then client Certificate/ClientKeyExchange). |
 | `extract_pcapng_dtls_timeline.py` | Extracts record-level DTLS timelines from `pcapng` with content type, epoch, and sequence numbers. Used to mark the exact CCS → encrypted Finished → application-data transition on both client and server. |
+| `correlate_rep_timeline.py` | Correlates `pcapng` DTLS milestones with `game_log_after.log` state transitions (StartREPConnection, REP established, registration response, actor connection, spawn). Used to anchor the first opaque application-data bursts to concrete game-side events. |
 
 ---
 
@@ -385,7 +396,7 @@ Disconnected
 
 ### Protocol/DTLS work (parallel, as time allows)
 
-4. **Find or produce a decryptable path** for post-handshake DTLS application data (session keys, SSL hooks on a non-EAC target, or alternative capture route). We now know the exact record where encrypted Javelin traffic begins on both sides.
-5. **Use the DTLS timeline to align real application-data bursts** (sizes/ordering/epochs) with `Game.log` state transitions and the Javelin carrier pump.
+4. **Find or produce a decryptable path** for post-handshake DTLS application data (session keys, SSL hooks on a non-EAC target, or alternative capture route). We now know the exact record where encrypted Javelin traffic begins on both sides and where the first server burst lands relative to REP registration.
+5. **Use the DTLS/application-data timing anchor** to focus on the earliest encrypted server burst after CCS, because it most likely contains the REP registration response that advances the state machine.
 6. **Harvest full chunk catalog** (auto-define strings first, then re-run FindChunkRegistrations.py).
 7. **Find `Cmd_*` switch** at the top of replica dispatch — gives per-chunk payload decoding.
