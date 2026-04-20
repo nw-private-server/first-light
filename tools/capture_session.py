@@ -6,9 +6,11 @@ Run BEFORE launching the game. Captures:
 3. TLS keys via SSLKEYLOGFILE (if the game respects it)
 
 Usage:
-    python capture_session.py [session_name]
+    python capture_session.py --name session_name
+    python capture_session.py --name archived_run --game-log X:\\Path\\To\\Game.log
 """
 
+import argparse
 import os
 import sys
 import shutil
@@ -22,7 +24,7 @@ from datetime import datetime
 PROJECT_DIR = Path(r"C:\Users\<username>\Programs\NewWorldPrivate")
 CAPTURE_DIR = PROJECT_DIR / "capture"
 GAME_LOG = Path(r"C:\Users\<username>\AppData\Local\AGS\New World\Game.log")
-GAME_EXE = Path(r"C:\Program Files (x86)\Steam\steamapps\common\New World\NewWorld.exe")
+DEFAULT_GAME_LOG = Path(r"C:\Users\<username>\AppData\Local\AGS\New World\Game.log")
 
 def setup_session(name: str) -> Path:
     """Create a timestamped capture session directory."""
@@ -35,11 +37,11 @@ def setup_session(name: str) -> Path:
     return session_dir
 
 
-def backup_current_log(session_dir: Path):
+def backup_current_log(session_dir: Path, game_log: Path):
     """Copy the current game log as a 'before' snapshot."""
-    if GAME_LOG.exists():
-        shutil.copy2(GAME_LOG, session_dir / "logs" / "game_log_before.log")
-        print(f"[+] Backed up existing game log ({GAME_LOG.stat().st_size} bytes)")
+    if game_log.exists():
+        shutil.copy2(game_log, session_dir / "logs" / "game_log_before.log")
+        print(f"[+] Backed up existing game log ({game_log.stat().st_size} bytes)")
 
 
 def set_sslkeylog(session_dir: Path) -> str:
@@ -110,17 +112,17 @@ def start_tshark(session_dir: Path) -> subprocess.Popen | None:
         return None
 
 
-def tail_game_log(session_dir: Path):
+def tail_game_log(session_dir: Path, game_log: Path):
     """Monitor the game log for new entries and save them."""
     output_path = session_dir / "logs" / "game_log_session.log"
 
-    if not GAME_LOG.exists():
-        print(f"[-] Game log not found at {GAME_LOG}")
+    if not game_log.exists():
+        print(f"[-] Game log not found at {game_log}")
         print("    Launch the game first, then restart this script.")
         return
 
     # Get current file size to only capture new entries
-    initial_size = GAME_LOG.stat().st_size
+    initial_size = game_log.stat().st_size
     print(f"[+] Monitoring game log from offset {initial_size}")
     print(f"    New entries will be saved to: {output_path}")
     print()
@@ -133,9 +135,9 @@ def tail_game_log(session_dir: Path):
         with open(output_path, "w", encoding="utf-8") as out:
             last_size = initial_size
             while True:
-                current_size = GAME_LOG.stat().st_size
+                current_size = game_log.stat().st_size
                 if current_size > last_size:
-                    with open(GAME_LOG, "r", encoding="utf-8", errors="replace") as f:
+                    with open(game_log, "r", encoding="utf-8", errors="replace") as f:
                         f.seek(last_size)
                         new_data = f.read(current_size - last_size)
                         out.write(new_data)
@@ -157,13 +159,18 @@ def tail_game_log(session_dir: Path):
         print("\n[+] Stopped monitoring.")
 
     # Also save final full log
-    if GAME_LOG.exists():
-        shutil.copy2(GAME_LOG, session_dir / "logs" / "game_log_after.log")
+    if game_log.exists():
+        shutil.copy2(game_log, session_dir / "logs" / "game_log_after.log")
         print(f"[+] Saved final game log")
 
 
 def main():
-    session_name = sys.argv[1] if len(sys.argv) > 1 else "session"
+    parser = argparse.ArgumentParser(description="Capture New World logs, pcapng traffic, and potential SSL key logs")
+    parser.add_argument("--name", default="session", help="Session name")
+    parser.add_argument("--game-log", default=str(DEFAULT_GAME_LOG), help="Path to the Game.log file to monitor")
+    args = parser.parse_args()
+    session_name = args.name
+    game_log = Path(args.game_log)
 
     print("=" * 60)
     print("  New World Traffic Capture")
@@ -173,8 +180,9 @@ def main():
     # Setup
     session_dir = setup_session(session_name)
     print(f"[+] Session directory: {session_dir}")
+    print(f"[+] Game log: {game_log}")
 
-    backup_current_log(session_dir)
+    backup_current_log(session_dir, game_log)
     keylog_path = set_sslkeylog(session_dir)
 
     # Start packet capture
@@ -182,7 +190,7 @@ def main():
 
     # Monitor game log
     try:
-        tail_game_log(session_dir)
+        tail_game_log(session_dir, game_log)
     finally:
         # Cleanup
         if tshark_proc:

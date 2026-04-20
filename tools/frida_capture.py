@@ -247,15 +247,16 @@ def spawn_and_attach(writer: SessionWriter) -> tuple:
     return session, script, pid
 
 
-def attach_to_running(writer: SessionWriter, pid: int | None = None) -> tuple:
+def attach_to_running(writer: SessionWriter, pid: int | None = None,
+                      process_name: str = "NewWorld.exe") -> tuple:
     """Attach to an already-running NewWorld.exe.
 
     Returns (session, script, pid).
     """
     if pid is None:
-        pid = find_pid_by_name("NewWorld.exe")
+        pid = find_pid_by_name(process_name)
         if pid is None:
-            writer.log("[!] NewWorld.exe not found running. Launch the game first or use spawn mode.")
+            writer.log(f"[!] {process_name} not found running. Launch the game first or use spawn mode.")
             sys.exit(1)
 
     writer.log(f"[*] Attaching to PID: {pid}")
@@ -296,6 +297,10 @@ def main():
         "--exe", type=str, default=None,
         help="Override game executable path"
     )
+    parser.add_argument(
+        "--process-name", type=str, default="NewWorld.exe",
+        help="Process name to search for in attach mode"
+    )
     args = parser.parse_args()
 
     global GAME_EXE
@@ -322,7 +327,7 @@ def main():
     # Attach or spawn
     try:
         if args.attach:
-            session, script, pid = attach_to_running(writer, args.pid)
+            session, script, pid = attach_to_running(writer, args.pid, args.process_name)
         else:
             session, script, pid = spawn_and_attach(writer)
     except frida.ProcessNotFoundError:
