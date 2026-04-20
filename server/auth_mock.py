@@ -364,25 +364,35 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
     world_id = ctx.world_id
     world_name = ctx.world_name
 
+    world_metrics = {
+        "worldAgeDays": 1,
+        "queueSize": 0,
+        "queueWaitTimeSec": 0,
+        "worldPopulationStatus": 1,
+    }
+    # NOTE: lowercase WorldMetadata and PascalCase LoginInfoList.Worlds are
+    # separate client models with slightly different consumers. Keep every
+    # shared field aligned and only allow the one currently necessary
+    # divergence: lowercase publicStatusCode=1 remains the stable render
+    # value, while PascalCase PublicStatusCode=0 is what the ACTIVE-world
+    # candidate gate currently accepts.
+    world_common = {
+        "publicName": world_name,
+        "version": "1.0.0",
+        "maxAccountCharacters": 10,
+        "worldSet": "live",
+        "transferToRegion": "",
+        "isFull": False,
+        "isRecommended": True,
+    }
     # Lowercase WorldMetadata for the dropdown consumer.
     world = {
         "worldId": world_id,
         "type": 1,
         "status": 1,
         "publicStatusCode": 1,
-        "publicName": world_name,
-        "version": "1.0.0",
-        "maxAccountCharacters": 10,
-        "worldSet": "live",
-        "worldMetrics": {
-            "worldAgeDays": 1,
-            "queueSize": 0,
-            "queueWaitTimeSec": 0,
-            "worldPopulationStatus": 1,
-        },
-        "transferToRegion": "",
-        "isFull": False,
-        "isRecommended": True,
+        "worldMetrics": dict(world_metrics),
+        **world_common,
     }
 
     # PascalCase world for the create-character gate. Per Codex trace
@@ -392,23 +402,23 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
     world_capital = {
         "WorldId": world_id,
         "WorldName": world_name,
-        "PublicName": world_name,
+        "PublicName": world_common["publicName"],
         "WorldStatus": "ACTIVE",
         "WorldType": "OpenWorld",
-        "WorldSet": "live",
-        "WorldVersion": "1.0.0",
+        "WorldSet": world_common["worldSet"],
+        "WorldVersion": world_common["version"],
         "PublicStatusCode": 0,
-        "MaxAccountCharacters": 10,
+        "MaxAccountCharacters": world_common["maxAccountCharacters"],
         "MaxConnectionCount": 1000,
         "ConnectionCount": 0,
-        "IsFull": False,
-        "IsRecommended": True,
-        "TransferToRegion": "",
+        "IsFull": world_common["isFull"],
+        "IsRecommended": world_common["isRecommended"],
+        "TransferToRegion": world_common["transferToRegion"],
         "WorldMetrics": {
-            "WorldAgeDays": 1,
-            "QueueSize": 0,
-            "QueueWaitTimeSec": 0,
-            "WorldPopulationStatus": 1,
+            "WorldAgeDays": world_metrics["worldAgeDays"],
+            "QueueSize": world_metrics["queueSize"],
+            "QueueWaitTimeSec": world_metrics["queueWaitTimeSec"],
+            "WorldPopulationStatus": world_metrics["worldPopulationStatus"],
         },
     }
 
@@ -479,6 +489,25 @@ def handle_create_character(ctx: Ctx, handler: "AuthHandler"):
         "WorldId": ctx.world_id,
         "CreatedDate": now,
         "ModifiedDate": now,
+        "NameModifiedDate": now,
+        "NameLatentDate": now,
+        "NeedsTransferDate": now,
+        "TransferDate": now,
+        "RegionTransferDate": now,
+        "LocationGroupId": "",
+        "LocationId": "",
+        "MustRenameReason": "",
+        "OwnerState": "",
+        "PublishedData": "",
+        "PublishedSource": "",
+        "PublishedSocialSource": "",
+        "PublishedElapsedSeconds": 0,
+        "PublishedSocialElapsedSeconds": 0,
+        "SocialData": "",
+        "TransferCrossRegionCooldownEndTime": 0,
+        "TransferFreeCooldownEndTime": 0,
+        "TransferData": "",
+        "TransferReason": "",
         "FtueCompleted": True,
         "IsFreshStart": True,
         "IsNameLatent": False,
