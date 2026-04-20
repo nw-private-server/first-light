@@ -4,12 +4,17 @@ capture/*/keys/
 capture/*/
 capture/*.log
 capture/auth_mock_logs/
+capture/auth_mock_runs/
 
 # Python
 __pycache__/
 *.pyc
 .venv/
 venv/
+tools/d3d11_proxy/build/
+tools/d3d11_proxy/*.obj
+tools/d3d11_proxy/*.lib
+tools/d3d11_proxy/*.exp
 
 # IDE
 .vscode/
