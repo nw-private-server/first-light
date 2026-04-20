@@ -516,16 +516,20 @@ def handle_create_character(ctx: Ctx, handler: "AuthHandler"):
         "NeedsTransfer": False,
         "Transferrable": False,
     })
-    # NOTE (2026-04-19 Codex trace): the parser reads snake_case
-    # `character_id` (matching the protobuf field name
-    # "Javelin.RPC.CreateCharacterResult.character_id" @ 0x1484c14b8),
-    # NOT PascalCase `CharacterId`. Using the wrong case silently reads
-    # null and stalls the client.
-    body = json.dumps({
-        "CreateCharacterResult": {
-            "character_id": character_id,
-        },
-    }).encode()
+    # Codex trace 2026-04-19 (revised): the REST /characters/jwt/omni
+    # success parser is FUN_1474e1090. It looks for a top-level
+    # "Character" key (NOT "CreateCharacterResult") and hands the
+    # sub-document to FUN_1474e1f60 -- the same PascalCase
+    # CharacterMetadata parser used for LoginInfoList.Characters[].
+    # Return the full character record we just persisted; the client
+    # uses this directly, and the next gate is /game/login/queue/v2.
+    character_record = ctx.characters[-1] if ctx.characters else {
+        "CharacterId": character_id,
+        "Name": name,
+        "PersonaId": ctx.persona_id,
+        "WorldId": ctx.world_id,
+    }
+    body = json.dumps({"Character": character_record}).encode()
     handler._respond(200, body, content_type="application/json")
 
 
@@ -773,7 +777,12 @@ ROUTES = [
     ("*", "POST", _path_endswith("/credentials/omni"), handle_credentials_omni),
     ("*", "GET", _path_endswith("/credentials/omni"), handle_credentials_omni),
 
-    # Login queue (observed endpoint is under /prod/users/login_queue/* on the gateway)
+    # Login queue. The real path under FUN_146417490 is
+    # /prod/game/login/queue/v2[/jwt[/omni]] (Codex trace 2026-04-19).
+    # Kept the older /prod/users/login_queue prefix match for earlier
+    # builds / alternate code paths.
+    ("*", "POST", _path_prefix("/prod/game/login/queue"), handle_login_queue),
+    ("*", "GET", _path_prefix("/prod/game/login/queue"), handle_login_queue),
     ("*", "POST", _path_prefix("/prod/users/login_queue"), handle_login_queue),
     ("*", "GET", _path_prefix("/prod/users/login_queue"), handle_login_queue),
 
