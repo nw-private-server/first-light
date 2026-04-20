@@ -121,6 +121,14 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
   - client `Certificate`
   - client `ClientKeyExchange`
   After that point, encrypted/fragmented records need deeper handling to distinguish Finished/application-data boundaries cleanly.
+- 2026-04-20 offline extractor: `tools/extract_pcapng_dtls_timeline.py` now makes the post-handshake transition explicit. On the second capture:
+  - client `ChangeCipherSpec` at epoch 0 / seq 3
+  - client encrypted handshake record at epoch 1 / seq 0 (the client's Finished)
+  - server `ChangeCipherSpec` at epoch 0 / seq 7
+  - server encrypted handshake record at epoch 1 / seq 0 (the server's Finished)
+  - then both sides switch to DTLS `application_data`
+  - first server application-data record: epoch 1 / seq 1 / len 48
+  This gives us an exact offline boundary between TLS handshake completion and opaque Javelin traffic.
 
 **What we captured:**
 - 60MB pcap from first session (HTTPS only, missed REP due to port filter)
@@ -335,6 +343,7 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 | `extract_dtls_handshake.py` | Pulls a human-readable DTLS handshake transcript from `packets.jsonl` (ClientHello / HelloVerifyRequest / ServerHello details, cookies, cipher suites, retransmits). Used for offline DTLS/Javelin reverse-engineering now that live runtime patch paths are blocked by EAC. |
 | `analyze_pcapng_dtls.py` | Dependency-free `pcapng` DTLS summarizer. Parses Ethernet/IPv4/UDP Enhanced Packet Blocks and reports DTLS content types, handshake message counts, endpoints, and sample payloads. Used to prove the stored Wireshark captures contain the full DTLS server flight and post-handshake application data. |
 | `extract_pcapng_dtls_handshake.py` | Extracts a DTLS handshake timeline directly from `pcapng` captures, including the real AWS server flight (HelloVerifyRequest, ServerHello, Certificate, fragmented ServerKeyExchange, CertificateRequest, ServerHelloDone, then client Certificate/ClientKeyExchange). |
+| `extract_pcapng_dtls_timeline.py` | Extracts record-level DTLS timelines from `pcapng` with content type, epoch, and sequence numbers. Used to mark the exact CCS → encrypted Finished → application-data transition on both client and server. |
 
 ---
 
@@ -376,7 +385,7 @@ Disconnected
 
 ### Protocol/DTLS work (parallel, as time allows)
 
-4. **Extend offline DTLS tooling for `pcapng`**: handle fragmented/encrypted post-handshake records more cleanly so Finished/application-data boundaries are explicit in the extracted timeline.
-5. **Find or produce a decryptable path** for post-handshake DTLS application data (session keys, SSL hooks on a non-EAC target, or alternative capture route). The stored `pcapng` captures now prove the application-data records exist; they are just still encrypted.
+4. **Find or produce a decryptable path** for post-handshake DTLS application data (session keys, SSL hooks on a non-EAC target, or alternative capture route). We now know the exact record where encrypted Javelin traffic begins on both sides.
+5. **Use the DTLS timeline to align real application-data bursts** (sizes/ordering/epochs) with `Game.log` state transitions and the Javelin carrier pump.
 6. **Harvest full chunk catalog** (auto-define strings first, then re-run FindChunkRegistrations.py).
 7. **Find `Cmd_*` switch** at the top of replica dispatch — gives per-chunk payload decoding.

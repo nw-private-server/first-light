@@ -102,19 +102,33 @@ def iter_dtls_records(buf: bytes):
         off += total
 
 
-def summarize_pcapng(path: Path) -> dict:
+def parse_dtls_record_header(buf: bytes, offset: int = 0) -> dict | None:
+    if offset + 13 > len(buf):
+        return None
+    ctype = buf[offset]
+    ver1 = buf[offset + 1]
+    ver2 = buf[offset + 2]
+    if ctype not in CONTENT_TYPES or ver1 != 0xFE or ver2 not in (0xFD, 0xFF):
+        return None
+    epoch = int.from_bytes(buf[offset + 3:offset + 5], "big")
+    seq_num = int.from_bytes(buf[offset + 5:offset + 11], "big")
+    length = int.from_bytes(buf[offset + 11:offset + 13], "big")
+    return {
+        "content_type": ctype,
+        "record_version": f"{ver1:02x}{ver2:02x}",
+        "epoch": epoch,
+        "sequence_number": seq_num,
+        "length": length,
+        "header_len": 13,
+        "total_len": 13 + length,
+    }
+
+
+def iter_pcapng_udp_payloads(path: Path):
     data = path.read_bytes()
     off = 0
     endian = "<"
     linktype = None
-
-    packet_count = 0
-    udp_count = 0
-    dtls_packet_count = 0
-    content_counts = Counter()
-    handshake_counts = Counter()
-    endpoints = Counter()
-    examples = []
 
     while off + 12 <= len(data):
         block_type_le = struct.unpack_from("<I", data, off)[0]
@@ -132,37 +146,54 @@ def summarize_pcapng(path: Path) -> dict:
         else:
             block_len = read_u32(data, off + 4, endian)
 
+        if block_len < 12 or off + block_len > len(data):
+            break
+
         body = data[off + 8:off + block_len - 4]
 
         if block_type_le == 0x00000001 and len(body) >= 8:
             linktype = struct.unpack_from(endian + "H", body, 0)[0]
         elif block_type_le == 0x00000006 and linktype == 1 and len(body) >= 20:
-            packet_count += 1
             cap_len = struct.unpack_from(endian + "I", body, 12)[0]
             pkt = body[20:20 + cap_len]
             parsed = parse_udp_payload(pkt)
             if parsed is not None:
-                udp_count += 1
-                endpoints[(parsed["src_ip"], parsed["src_port"], parsed["dst_ip"], parsed["dst_port"])] += 1
-                payload = parsed["payload"]
-                found_dtls = False
-                for ctype, rec_payload in iter_dtls_records(payload):
-                    found_dtls = True
-                    content_counts[CONTENT_TYPES[ctype]] += 1
-                    if ctype == 22 and rec_payload:
-                        handshake_counts[HANDSHAKE_TYPES.get(rec_payload[0], f"unknown_{rec_payload[0]}")] += 1
-                if found_dtls:
-                    dtls_packet_count += 1
-                    if len(examples) < 20:
-                        examples.append(
-                            {
-                                "src": f"{parsed['src_ip']}:{parsed['src_port']}",
-                                "dst": f"{parsed['dst_ip']}:{parsed['dst_port']}",
-                                "payload_head": payload[:64].hex(),
-                            }
-                        )
+                yield parsed
 
         off += block_len
+
+
+def summarize_pcapng(path: Path) -> dict:
+    packet_count = 0
+    udp_count = 0
+    dtls_packet_count = 0
+    content_counts = Counter()
+    handshake_counts = Counter()
+    endpoints = Counter()
+    examples = []
+
+    linktype = 1
+    for parsed in iter_pcapng_udp_payloads(path):
+        packet_count += 1
+        udp_count += 1
+        endpoints[(parsed["src_ip"], parsed["src_port"], parsed["dst_ip"], parsed["dst_port"])] += 1
+        payload = parsed["payload"]
+        found_dtls = False
+        for ctype, rec_payload in iter_dtls_records(payload):
+            found_dtls = True
+            content_counts[CONTENT_TYPES[ctype]] += 1
+            if ctype == 22 and rec_payload:
+                handshake_counts[HANDSHAKE_TYPES.get(rec_payload[0], f"unknown_{rec_payload[0]}")] += 1
+        if found_dtls:
+            dtls_packet_count += 1
+            if len(examples) < 20:
+                examples.append(
+                    {
+                        "src": f"{parsed['src_ip']}:{parsed['src_port']}",
+                        "dst": f"{parsed['dst_ip']}:{parsed['dst_port']}",
+                        "payload_head": payload[:64].hex(),
+                    }
+                )
 
     top_endpoints = [
         {"src": f"{s[0]}:{s[1]}", "dst": f"{s[2]}:{s[3]}", "count": c}
