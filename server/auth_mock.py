@@ -254,19 +254,123 @@ def make_fake_credentials(kind: str) -> dict:
     }
 
 
-def make_fake_login_ticket(world_id: str, world_name: str = "Valhalla") -> dict:
-    """Build a login-queue response that contains a ticket of the right shape.
-    Observed in game logs: '<worldId>_<ticketId>' where both are UUIDs.
-    worldId must match the WorldId used in getlogininfo so the client's
-    post-queue bind doesn't see an unknown world."""
-    ticket_id = str(uuid.uuid4())
+def make_fake_login_ticket(
+    *,
+    ticket_id: str,
+    persona_id: str,
+    world_id: str,
+    world_name: str,
+    character_id: str,
+    rep_host: str,
+    rep_port: int,
+    location: str = "",
+    steam_app_id: int = 1063730,
+    steam_user_id: str = "",
+    token_version: int = 10,
+    channel_id: str = "",
+) -> dict:
+    """Build a LoginQueueResponse envelope that matches the parsed schema.
+
+    Codex/Ghidra trace 2026-04-19:
+    - top-level key must be "LoginQueueResponse"
+    - inner parser reads PascalCase fields including TicketId, RepAddress,
+      CharacterId, PersonaId, WorldId, TokenVersion
+
+    The old flat {ticket, worldId, repAddress, ...} object is ignored by the
+    real parser and results in "No login ticket received" after queueing."""
+    now = int(time.time())
     return {
-        "ticket": f"{world_id}_{ticket_id}",
+        "LoginQueueResponse": {
+            "AccountAge": 0,
+            "AccountIsLocked": False,
+            "ChannelId": channel_id,
+            "CharacterId": character_id,
+            "ClientCapabilities": "",
+            "GenerateTime": now,
+            "HostHash": "",
+            "IsPermanentAppOwner": True,
+            "IsTrialOwner": False,
+            "IssueTime": now,
+            "Location": location,
+            "LocationGroupId": "",
+            "LocationId": "",
+            "PersonaId": persona_id,
+            "RepAddress": f"{rep_host}:{rep_port}",
+            # Queue-login handoff gate (FUN_14643d110 -> FUN_14114b200) compares
+            # the transformed token's leading string field, which comes from
+            # Signature. An empty string leaves the queue token unchanged and
+            # never triggers the next-stage handoff.
+            "Signature": f"sig:{ticket_id}",
+            "SteamAppId": steam_app_id,
+            "SteamUserId": steam_user_id,
+            "TicketId": ticket_id,
+            "TokenVersion": token_version,
+            "WorldId": world_id,
+            # Legacy convenience fields retained in case any higher-level UI
+            # code still peeks at the raw JSON before the typed parser runs.
+            "WorldName": world_name,
+        }
+    }
+
+
+def make_fake_queue_refresh(
+    *,
+    ticket_id: str,
+    persona_id: str,
+    world_id: str,
+    world_name: str,
+    character_id: str,
+    rep_host: str,
+    rep_port: int,
+    queue_name: str,
+    steam_app_id: int = 1063730,
+    steam_user_id: str = "",
+    token_version: int = 10,
+    channel_id: str = "",
+    ready: bool = True,
+    refresh_interval: int = 15,
+) -> dict:
+    """Build the queue-refresh envelope parsed by FUN_1474e4f20.
+
+    The refresh path is not the same as the initial login-queue ticket parser.
+    It expects queue-status fields at the top level and a nested Token object
+    parsed by FUN_1474e5990.
+    """
+    token = make_fake_login_ticket(
+        ticket_id=ticket_id,
+        persona_id=persona_id,
+        world_id=world_id,
+        world_name=world_name,
+        character_id=character_id,
+        rep_host=rep_host,
+        rep_port=rep_port,
+        location=queue_name,
+        steam_app_id=steam_app_id,
+        steam_user_id=steam_user_id,
+        token_version=token_version,
+        channel_id=channel_id,
+    )["LoginQueueResponse"]
+    queue_payload = {
+        "AllowQueueTransfer": False,
+        "EstimatedTime": 0,
+        "Position": 0 if ready else 1,
+        "QueueName": queue_name,
+        "RecommendedTransferWorldId": "",
+        "RefreshInterval": refresh_interval,
+        "TicketId": ticket_id,
+        "Token": token,
+    }
+    return {
+        "LoginQueueResponse": queue_payload,
+        # Legacy fields kept for any higher-level UI code still consulting
+        # the raw JSON outside the typed queue parser.
+        "ticket": ticket_id,
         "worldId": world_id,
         "worldName": world_name,
-        "repAddress": f"{DEFAULT_REP_HOST}:{DEFAULT_REP_PORT}",
-        "location": "",
-        "status": "Granted",
+        "repAddress": f"{rep_host}:{rep_port}",
+        "location": queue_name,
+        "status": "Granted" if ready else "Queued",
+        "position": 0 if ready else 1,
     }
 
 
@@ -315,57 +419,17 @@ class Ctx:
     POST_GETLOGININFO_TIMEOUT_SEC = 12.0
     POST_CREATE_TIMEOUT_SEC = 12.0
 
-    def __init__(self, rep_host: str, rep_port: int):
+    def __init__(self, rep_host: str, rep_port: int, *, seed_character: bool = True):
         self.rep_host = rep_host
         self.rep_port = rep_port
+        self.seed_character = seed_character
         self._lock = threading.Lock()
         self.persona_id: str = Ctx.DEFAULT_PERSONA
         self.world_id: str = Ctx.DEFAULT_WORLD_ID
         self.world_name: str = Ctx.DEFAULT_WORLD_NAME
-        # List of characters the game believes the persona owns. Seeded
-        # with one default character so the game always takes the
-        # existing-character branch of FUN_14641b020 -- that branch
-        # dispatches through a different controller slot than the
-        # empty-list branch and avoids the null-callback crash in
-        # FUN_14641cc00. Codex noted "injecting one fallback existing
-        # character sometimes allows character-select to render"; seeding
-        # at startup makes it the default, not an after-effect of a
-        # prior create.
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        self.characters: list[dict] = [{
-            "CharacterId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-            "Name": "Probe",
-            "PersonaId": self.persona_id,
-            "WorldId": self.world_id,
-            "CreatedDate": now,
-            "ModifiedDate": now,
-            "NameModifiedDate": now,
-            "NameLatentDate": now,
-            "NeedsTransferDate": now,
-            "TransferDate": now,
-            "RegionTransferDate": now,
-            "OwnerState": "",
-            "PublishedData": "",
-            "PublishedSource": "",
-            "PublishedSocialSource": "",
-            "PublishedElapsedSeconds": 0,
-            "PublishedSocialElapsedSeconds": 0,
-            "TransferCrossRegionCooldownEndTime": 0,
-            "TransferFreeCooldownEndTime": 0,
-            "TransferData": "",
-            "TransferReason": "",
-            "SocialData": "",
-            "LocationGroupId": "",
-            "LocationId": "",
-            "MustRenameReason": "",
-            "FtueCompleted": True,
-            "IsFreshStart": False,
-            "IsNameLatent": False,
-            "IsTrialOwner": False,
-            "MustRename": False,
-            "NeedsTransfer": False,
-            "Transferrable": False,
-        }]
+        self.characters: list[dict] = []
+        if self.seed_character:
+            self.characters.append(self._build_seed_character())
         # Lightweight run-health tracker so the mock can tell us whether
         # a launch ever reached the character-select data fetch. This
         # distinguishes "bad runs" (frontend/client stall before
@@ -378,12 +442,53 @@ class Ctx:
         self.run_active: bool = False
         self.run_terminal_logged: bool = False
         self.run_outcome: str | None = None
+        self.run_character_select_logged: bool = False
+        self.queue_tickets: dict[str, dict] = {}
 
     def set_persona(self, persona_id: str) -> None:
         with self._lock:
             if persona_id and persona_id != self.persona_id:
                 log(f"    * ctx persona_id: {self.persona_id} -> {persona_id}")
                 self.persona_id = persona_id
+                for char in self.characters:
+                    char["PersonaId"] = self.persona_id
+
+    def _build_seed_character(self) -> dict:
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return {
+            "CharacterId": "11111111-1111-1111-1111-111111111111",
+            "Name": "Existing_Dev",
+            "PersonaId": self.persona_id,
+            "WorldId": self.world_id,
+            "CreatedDate": now,
+            "ModifiedDate": now,
+            "NameModifiedDate": now,
+            "NameLatentDate": now,
+            "NeedsTransferDate": now,
+            "TransferDate": now,
+            "RegionTransferDate": now,
+            "LocationGroupId": "",
+            "LocationId": "",
+            "MustRenameReason": "",
+            "OwnerState": "",
+            "PublishedData": "",
+            "PublishedSource": "",
+            "PublishedSocialSource": "",
+            "PublishedElapsedSeconds": 0,
+            "PublishedSocialElapsedSeconds": 0,
+            "SocialData": "",
+            "TransferCrossRegionCooldownEndTime": 0,
+            "TransferFreeCooldownEndTime": 0,
+            "TransferData": "",
+            "TransferReason": "",
+            "FtueCompleted": True,
+            "IsFreshStart": False,
+            "IsNameLatent": False,
+            "IsTrialOwner": False,
+            "MustRename": False,
+            "NeedsTransfer": False,
+            "Transferrable": False,
+        }
 
     def add_character(self, entry: dict) -> None:
         with self._lock:
@@ -393,6 +498,50 @@ class Ctx:
     def snapshot_characters(self) -> list[dict]:
         with self._lock:
             return list(self.characters)
+
+    def issue_queue_ticket(
+        self,
+        *,
+        character_id: str,
+        steam_app_id: int,
+        token_version: int,
+        channel_id: str,
+    ) -> dict:
+        with self._lock:
+            ticket_id = str(uuid.uuid4())
+            ticket = {
+                "TicketId": ticket_id,
+                "CharacterId": character_id,
+                "SteamAppId": steam_app_id,
+                "TokenVersion": token_version,
+                "ChannelId": channel_id,
+                "RefreshCount": 0,
+                # Gate 2 objective is to reach REP/DTLS, not to model a real
+                # waiting queue. The queue UI path is flaky, so issue a
+                # connectable ticket immediately and let refreshes maintain it.
+                "Ready": True,
+                # QueueName is mapped through the client's built-in
+                # @mm_loginservices_location_ lookup table. "pdx-prod" parses
+                # but resolves to an empty display string; the AWS region token
+                # is the more likely valid identifier for US West.
+                "QueueName": "us-west-2",
+                "LocationGroupId": "pdx-prod",
+                "LocationId": self.world_id,
+            }
+            self.queue_tickets[ticket_id] = ticket
+            return dict(ticket)
+
+    def refresh_queue_ticket(self, ticket_id: str) -> dict | None:
+        with self._lock:
+            ticket = self.queue_tickets.get(ticket_id)
+            if ticket is None:
+                return None
+            ticket["RefreshCount"] += 1
+            ticket["Ready"] = True
+            ticket["QueueName"] = "us-west-2"
+            ticket["LocationGroupId"] = "pdx-prod"
+            ticket["LocationId"] = self.world_id
+            return dict(ticket)
 
     def mark_run_event(self, event: str) -> None:
         """Track high-level launch milestones and classify runs.
@@ -411,6 +560,7 @@ class Ctx:
                 self.run_active = True
                 self.run_terminal_logged = False
                 self.run_outcome = None
+                self.run_character_select_logged = False
                 timer_snapshot = self.run_id
                 log(
                     f"*** RUN {self.run_id}: started at /credentials/omni "
@@ -505,6 +655,15 @@ class Ctx:
                 for milestone in ("validate_character", "create_character", "login_queue_v2")
             ):
                 return
+            if self.seed_character:
+                if not self.run_character_select_logged:
+                    elapsed = time.monotonic() - self.run_started_at
+                    self.run_character_select_logged = True
+                    log(
+                        f"*** RUN {self.run_id}: AT_CHARACTER_SELECT "
+                        f"(seeded-character path; no validator/create yet after {elapsed:.1f}s)"
+                    )
+                return
             elapsed = time.monotonic() - self.run_started_at
             self._finalize_run_locked(
                 "GETLOGININFO_THEN_CTD_OR_STALL",
@@ -573,7 +732,118 @@ def handle_credentials_omni(ctx: Ctx, handler: "AuthHandler"):
 def handle_login_queue(ctx: Ctx, handler: "AuthHandler"):
     if handler.path.startswith("/prod/game/login/queue"):
         ctx.mark_run_event("login_queue_v2")
-    body = json.dumps(make_fake_login_ticket(ctx.world_id, ctx.world_name)).encode()
+    request = {}
+    try:
+        request = json.loads(handler._last_request_body or b"{}").get("LoginQueueRequest", {})
+    except Exception as e:
+        log(f"    * failed to parse LoginQueueRequest: {e}")
+
+    query = urlparse(handler.path).query
+    channel_id = ""
+    token_version = 10
+    if query:
+        for kv in query.split("&"):
+            if "=" not in kv:
+                continue
+            key, value = kv.split("=", 1)
+            if key == "channelId":
+                channel_id = value
+            elif key == "tokenVersion":
+                try:
+                    token_version = int(value)
+                except ValueError:
+                    pass
+
+    character_id = request.get("CharacterId") or (
+        ctx.snapshot_characters()[-1]["CharacterId"] if ctx.snapshot_characters() else ""
+    )
+    requested_world_id = request.get("WorldId") or ""
+    if requested_world_id and requested_world_id != ctx.world_id:
+        log(f"    * queue login requested world override: {requested_world_id}")
+    steam_app_id = int(request.get("SteamAppId") or 1063730)
+    # SteamUserId is not currently available from our mock auth path. The
+    # parser accepts an empty string, which is safer than inventing a random
+    # value that drifts across requests.
+    steam_user_id = ""
+
+    parsed = urlparse(handler.path)
+    path_parts = [part for part in parsed.path.split("/") if part]
+    refresh_ticket_id = ""
+    if (
+        len(path_parts) >= 8
+        and path_parts[:5] == ["prod", "game", "login", "queue", "v2"]
+        and path_parts[6] == "jwt"
+    ):
+        refresh_ticket_id = path_parts[5]
+
+    if refresh_ticket_id:
+        ticket_state = ctx.refresh_queue_ticket(refresh_ticket_id)
+        if ticket_state is None:
+            log(f"    * unknown queue ticket refresh: {refresh_ticket_id}")
+            ticket_state = ctx.issue_queue_ticket(
+                character_id=character_id,
+                steam_app_id=steam_app_id,
+                token_version=token_version,
+                channel_id=channel_id,
+            )
+        else:
+            log(
+                "    * queue ticket refresh: "
+                f"id={refresh_ticket_id} count={ticket_state['RefreshCount']} "
+                f"ready={ticket_state['Ready']} "
+                f"location=({ticket_state['LocationGroupId']},{ticket_state['LocationId']})"
+            )
+        response = make_fake_queue_refresh(
+            ticket_id=ticket_state["TicketId"],
+            persona_id=ctx.persona_id,
+            world_id=ctx.world_id,
+            world_name=ctx.world_name,
+            character_id=ticket_state["CharacterId"],
+            rep_host=ctx.rep_host,
+            rep_port=ctx.rep_port,
+            queue_name=ticket_state.get("QueueName") or "us-west-2",
+            steam_app_id=ticket_state["SteamAppId"],
+            steam_user_id=steam_user_id,
+            token_version=ticket_state["TokenVersion"],
+            channel_id=ticket_state["ChannelId"],
+            ready=ticket_state["Ready"],
+            refresh_interval=15,
+        )
+    else:
+        ticket_state = ctx.issue_queue_ticket(
+            character_id=character_id,
+            steam_app_id=steam_app_id,
+            token_version=token_version,
+            channel_id=channel_id,
+        )
+        log(
+            "    * issued queue ticket: "
+            f"id={ticket_state['TicketId']} channel={channel_id or '<empty>'} "
+            f"character={character_id}"
+        )
+        response = make_fake_queue_refresh(
+            ticket_id=ticket_state["TicketId"],
+            persona_id=ctx.persona_id,
+            world_id=ctx.world_id,
+            world_name=ctx.world_name,
+            character_id=ticket_state["CharacterId"],
+            rep_host=ctx.rep_host,
+            rep_port=ctx.rep_port,
+            queue_name=ticket_state.get("QueueName") or "us-west-2",
+            steam_app_id=ticket_state["SteamAppId"],
+            steam_user_id=steam_user_id,
+            token_version=ticket_state["TokenVersion"],
+            channel_id=ticket_state["ChannelId"],
+            ready=ticket_state["Ready"],
+            refresh_interval=15,
+        )
+        # Keep the older convenience fields inside the same envelope too.
+        response["LoginQueueResponse"]["QueueReady"] = ticket_state["Ready"]
+        response["LoginQueueResponse"]["Status"] = "Granted" if ticket_state["Ready"] else "Queued"
+        response["LoginQueueResponse"]["Location"] = ticket_state.get("QueueName") or "us-west-2"
+        response["LoginQueueResponse"]["QueuePosition"] = 0 if ticket_state["Ready"] else 1
+
+    body = json.dumps(response).encode()
     handler._respond(200, body, content_type="application/json")
 
 
@@ -662,57 +932,6 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
     # apply-side status check downstream and blocks the candidate vector
     # from reaching GameConnection+0x14e8.
     #
-    # Experimental crash-bypass:
-    # If the persona has no persisted characters, inject one stable fake
-    # existing-character entry so the client takes the existing-character
-    # branch instead of the empty-character create setup path. Codex traced
-    # that empty path into FUN_146418ef0, which dereferences
-    # GameConnection+0x118 without a null check; this lets us test whether
-    # that is the true character-select CTD cause.
-    if not characters:
-        fake_char_id = "11111111-1111-1111-1111-111111111111"
-        fake_name = "Existing_Dev"
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        characters = [{
-            "CharacterId": fake_char_id,
-            "CreatedDate": now,
-            "FtueCompleted": True,
-            "IsFreshStart": False,
-            "IsNameLatent": False,
-            "IsTrialOwner": False,
-            "LocationGroupId": "",
-            "LocationId": "",
-            "ModifiedDate": now,
-            "MustRename": False,
-            "MustRenameReason": "",
-            "Name": fake_name,
-            "NameLatentDate": now,
-            "NameModifiedDate": now,
-            "NeedsTransfer": False,
-            "NeedsTransferDate": now,
-            "OwnerState": "",
-            "PersonaId": ctx.persona_id,
-            "PublishedData": "",
-            "PublishedElapsedSeconds": 0,
-            "PublishedSocialElapsedSeconds": 0,
-            "PublishedSocialSource": "",
-            "PublishedSource": "",
-            "RegionTransferDate": now,
-            "SocialData": "",
-            "TransferCrossRegionCooldownEndTime": 0,
-            "TransferData": "",
-            "TransferDate": now,
-            "TransferFreeCooldownEndTime": 0,
-            "TransferReason": "",
-            "Transferrable": False,
-            "WorldId": world_id,
-        }]
-        log(
-            "*** RUN "
-            f"{ctx.run_id}: injecting fallback existing character "
-            f"{fake_name} ({fake_char_id}) for CTD bypass test"
-        )
-
     body = json.dumps({
         "worlds": [world],
         "recommendedWorlds": [],
@@ -1263,6 +1482,11 @@ def main() -> None:
                     help="Game-server IP to hand back in login tickets")
     ap.add_argument("--rep-port", type=int, default=DEFAULT_REP_PORT,
                     help="Game-server port to hand back in login tickets")
+    ap.add_argument(
+        "--no-seed-character",
+        action="store_true",
+        help="Disable the default Existing_Dev seeded character and test the empty-character path",
+    )
     args = ap.parse_args()
 
     cert = Path(args.cert)
@@ -1274,9 +1498,19 @@ def main() -> None:
         print("    Run: python tools/generate_auth_certs.py")
         sys.exit(1)
 
-    ctx = Ctx(args.rep_host, args.rep_port)
+    ctx = Ctx(args.rep_host, args.rep_port, seed_character=not args.no_seed_character)
     atexit.register(ctx.emit_shutdown_summary)
     ssl_ctx = build_ssl_context(cert, key)
+
+    if ctx.seed_character:
+        seeded = ctx.snapshot_characters()[0]
+        log(
+            "[*] seeded-character mode enabled: "
+            f"{seeded['Name']} ({seeded['CharacterId']}) "
+            f"persona={seeded['PersonaId']} world={seeded['WorldId']}"
+        )
+    else:
+        log("[*] seeded-character mode disabled: testing empty-character path")
 
     server = ThreadedHTTPSServer((args.host, args.port), AuthHandler, ctx, ssl_ctx)
 
