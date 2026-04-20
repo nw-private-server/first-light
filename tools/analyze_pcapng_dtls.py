@@ -19,6 +19,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import socket
 import struct
@@ -129,6 +130,7 @@ def iter_pcapng_udp_payloads(path: Path):
     off = 0
     endian = "<"
     linktype = None
+    tsresol = 1_000_000
 
     while off + 12 <= len(data):
         block_type_le = struct.unpack_from("<I", data, off)[0]
@@ -153,11 +155,31 @@ def iter_pcapng_udp_payloads(path: Path):
 
         if block_type_le == 0x00000001 and len(body) >= 8:
             linktype = struct.unpack_from(endian + "H", body, 0)[0]
+            opt_off = 8
+            while opt_off + 4 <= len(body):
+                code, length = struct.unpack_from(endian + "HH", body, opt_off)
+                opt_off += 4
+                if code == 0:
+                    break
+                value = body[opt_off:opt_off + length]
+                if code == 9 and len(value) >= 1:
+                    raw = value[0]
+                    if raw & 0x80:
+                        tsresol = 2 ** (raw & 0x7F)
+                    else:
+                        tsresol = 10 ** raw
+                opt_off += length + ((4 - (length % 4)) % 4)
         elif block_type_le == 0x00000006 and linktype == 1 and len(body) >= 20:
+            ts_high = struct.unpack_from(endian + "I", body, 4)[0]
+            ts_low = struct.unpack_from(endian + "I", body, 8)[0]
+            ts_units = (ts_high << 32) | ts_low
+            ts_seconds = ts_units / tsresol
             cap_len = struct.unpack_from(endian + "I", body, 12)[0]
             pkt = body[20:20 + cap_len]
             parsed = parse_udp_payload(pkt)
             if parsed is not None:
+                parsed["timestamp"] = ts_seconds
+                parsed["timestamp_iso_utc"] = dt.datetime.fromtimestamp(ts_seconds, tz=dt.timezone.utc).isoformat()
                 yield parsed
 
         off += block_len
