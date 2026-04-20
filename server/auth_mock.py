@@ -516,9 +516,14 @@ def handle_create_character(ctx: Ctx, handler: "AuthHandler"):
         "NeedsTransfer": False,
         "Transferrable": False,
     })
+    # NOTE (2026-04-19 Codex trace): the parser reads snake_case
+    # `character_id` (matching the protobuf field name
+    # "Javelin.RPC.CreateCharacterResult.character_id" @ 0x1484c14b8),
+    # NOT PascalCase `CharacterId`. Using the wrong case silently reads
+    # null and stalls the client.
     body = json.dumps({
         "CreateCharacterResult": {
-            "CharacterId": character_id,
+            "character_id": character_id,
         },
     }).encode()
     handler._respond(200, body, content_type="application/json")
