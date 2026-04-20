@@ -48,6 +48,7 @@ Requires Administrator on Windows for port 443 and for trusting the CA.
 
 from __future__ import annotations
 
+import atexit
 import argparse
 import base64
 import json
@@ -70,6 +71,7 @@ PROJECT_DIR = Path(__file__).resolve().parent.parent
 CAPTURE_DIR = PROJECT_DIR / "capture"
 CERTS_DIR = PROJECT_DIR / "server" / "certs"
 LOGS_DIR = PROJECT_DIR / "capture" / "auth_mock_logs"
+RUN_LOGS_DIR = PROJECT_DIR / "capture" / "auth_mock_runs"
 CHANNEL_CONFIG = CAPTURE_DIR / "channel_config.json"
 
 # Where we point the client's REP (game server) address. The game will
@@ -164,13 +166,25 @@ def _ts() -> str:
     return datetime.now().strftime("%H:%M:%S.%f")[:-3]
 
 
+def _should_echo_to_terminal(msg: str) -> bool:
+    return (
+        msg.startswith("*** RUN ")
+        or msg.startswith("[*]")
+        or msg.startswith("[!]")
+    )
+
+
 def log(msg: str) -> None:
     with _LOG_LOCK:
         line = f"[{_ts()}] {msg}"
-        print(line)
+        if _should_echo_to_terminal(msg):
+            print(line)
         try:
             LOGS_DIR.mkdir(parents=True, exist_ok=True)
             (LOGS_DIR / f"{datetime.now().strftime('%Y%m%d')}.log").open("a", encoding="utf-8").write(line + "\n")
+            if "*** RUN " in msg:
+                RUN_LOGS_DIR.mkdir(parents=True, exist_ok=True)
+                (RUN_LOGS_DIR / f"{datetime.now().strftime('%Y%m%d')}.log").open("a", encoding="utf-8").write(line + "\n")
         except Exception:
             pass
 
@@ -297,6 +311,9 @@ class Ctx:
     DEFAULT_PERSONA = "amzn1.developerPersonaId.4ee4810f-da59-c553-4027-91e961054dce"
     DEFAULT_WORLD_ID = "b1a00000-0000-0000-0000-000000000002"
     DEFAULT_WORLD_NAME = "Valhalla"
+    GOOD_RUN_TIMEOUT_SEC = 18.0
+    POST_GETLOGININFO_TIMEOUT_SEC = 12.0
+    POST_CREATE_TIMEOUT_SEC = 12.0
 
     def __init__(self, rep_host: str, rep_port: int):
         self.rep_host = rep_host
@@ -305,10 +322,62 @@ class Ctx:
         self.persona_id: str = Ctx.DEFAULT_PERSONA
         self.world_id: str = Ctx.DEFAULT_WORLD_ID
         self.world_name: str = Ctx.DEFAULT_WORLD_NAME
-        # List of characters the game believes the persona owns. Shape
-        # matches what handle_get_login_info puts in Characters[]; entries
-        # are appended by handle_create_character.
-        self.characters: list[dict] = []
+        # List of characters the game believes the persona owns. Seeded
+        # with one default character so the game always takes the
+        # existing-character branch of FUN_14641b020 -- that branch
+        # dispatches through a different controller slot than the
+        # empty-list branch and avoids the null-callback crash in
+        # FUN_14641cc00. Codex noted "injecting one fallback existing
+        # character sometimes allows character-select to render"; seeding
+        # at startup makes it the default, not an after-effect of a
+        # prior create.
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        self.characters: list[dict] = [{
+            "CharacterId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+            "Name": "Probe",
+            "PersonaId": self.persona_id,
+            "WorldId": self.world_id,
+            "CreatedDate": now,
+            "ModifiedDate": now,
+            "NameModifiedDate": now,
+            "NameLatentDate": now,
+            "NeedsTransferDate": now,
+            "TransferDate": now,
+            "RegionTransferDate": now,
+            "OwnerState": "",
+            "PublishedData": "",
+            "PublishedSource": "",
+            "PublishedSocialSource": "",
+            "PublishedElapsedSeconds": 0,
+            "PublishedSocialElapsedSeconds": 0,
+            "TransferCrossRegionCooldownEndTime": 0,
+            "TransferFreeCooldownEndTime": 0,
+            "TransferData": "",
+            "TransferReason": "",
+            "SocialData": "",
+            "LocationGroupId": "",
+            "LocationId": "",
+            "MustRenameReason": "",
+            "FtueCompleted": True,
+            "IsFreshStart": False,
+            "IsNameLatent": False,
+            "IsTrialOwner": False,
+            "MustRename": False,
+            "NeedsTransfer": False,
+            "Transferrable": False,
+        }]
+        # Lightweight run-health tracker so the mock can tell us whether
+        # a launch ever reached the character-select data fetch. This
+        # distinguishes "bad runs" (frontend/client stall before
+        # getlogininfo) from real auth-mock schema failures.
+        self.run_id: int = 0
+        self.run_started_at: float = 0.0
+        self.run_milestones: set[str] = set()
+        self.run_good_logged: bool = False
+        self.run_bad_logged: bool = False
+        self.run_active: bool = False
+        self.run_terminal_logged: bool = False
+        self.run_outcome: str | None = None
 
     def set_persona(self, persona_id: str) -> None:
         with self._lock:
@@ -325,6 +394,165 @@ class Ctx:
         with self._lock:
             return list(self.characters)
 
+    def mark_run_event(self, event: str) -> None:
+        """Track high-level launch milestones and classify runs.
+
+        "Good run" means the client reached /getlogininfo at all.
+        "Bad run" means auth completed but the frontend stalled before
+        requesting /getlogininfo (the flaky pre-character-select issue)."""
+        timer_snapshot = None
+        with self._lock:
+            if event == "credentials_omni":
+                self.run_id += 1
+                self.run_started_at = time.monotonic()
+                self.run_milestones = {event}
+                self.run_good_logged = False
+                self.run_bad_logged = False
+                self.run_active = True
+                self.run_terminal_logged = False
+                self.run_outcome = None
+                timer_snapshot = self.run_id
+                log(
+                    f"*** RUN {self.run_id}: started at /credentials/omni "
+                    f"(waiting for /getlogininfo)"
+                )
+            elif not self.run_active:
+                return
+            else:
+                self.run_milestones.add(event)
+
+            if event == "entitlements_sync":
+                log(f"*** RUN {self.run_id}: gate progress -> entitlements/sync")
+            elif event == "entitlements":
+                log(f"*** RUN {self.run_id}: gate progress -> entitlements")
+            elif event == "getlogininfo" and not self.run_good_logged:
+                self.run_good_logged = True
+                elapsed = time.monotonic() - self.run_started_at
+                log(
+                    f"*** RUN {self.run_id}: GOOD RUN "
+                    f"(reached /getlogininfo after {elapsed:.1f}s)"
+                )
+                t = threading.Thread(
+                    target=self._post_getlogininfo_watchdog,
+                    args=(self.run_id,),
+                    daemon=True,
+                )
+                t.start()
+            elif event == "validate_character":
+                log(f"*** RUN {self.run_id}: gate progress -> validator")
+            elif event == "create_character":
+                log(f"*** RUN {self.run_id}: gate progress -> create character")
+                t = threading.Thread(
+                    target=self._post_create_watchdog,
+                    args=(self.run_id,),
+                    daemon=True,
+                )
+                t.start()
+            elif event == "login_queue_v2":
+                log(f"*** RUN {self.run_id}: gate progress -> login/queue/v2")
+                self._finalize_run_locked(
+                    "REACHED_LOGIN_QUEUE_V2",
+                    "passed character-select/create and reached the REP handoff gate",
+                )
+
+        if timer_snapshot is not None:
+            t = threading.Thread(
+                target=self._bad_run_watchdog,
+                args=(timer_snapshot,),
+                daemon=True,
+            )
+            t.start()
+
+    def _bad_run_watchdog(self, run_id: int) -> None:
+        time.sleep(Ctx.GOOD_RUN_TIMEOUT_SEC)
+        with self._lock:
+            if (
+                not self.run_active
+                or self.run_id != run_id
+                or self.run_good_logged
+                or self.run_bad_logged
+                or self.run_terminal_logged
+            ):
+                return
+            # Only call it a bad run once auth genuinely advanced.
+            enough_progress = (
+                "credentials_omni" in self.run_milestones
+                and "entitlements" in self.run_milestones
+            )
+            if not enough_progress:
+                return
+            self.run_bad_logged = True
+            elapsed = time.monotonic() - self.run_started_at
+            self._finalize_run_locked(
+                "BAD_PRE_GETLOGININFO",
+                f"still no /getlogininfo after {elapsed:.1f}s; "
+                f"frontend/state-machine stall, not REP/DTLS",
+            )
+
+    def _post_getlogininfo_watchdog(self, run_id: int) -> None:
+        time.sleep(Ctx.POST_GETLOGININFO_TIMEOUT_SEC)
+        with self._lock:
+            if (
+                not self.run_active
+                or self.run_id != run_id
+                or self.run_terminal_logged
+            ):
+                return
+            if "getlogininfo" not in self.run_milestones:
+                return
+            if any(
+                milestone in self.run_milestones
+                for milestone in ("validate_character", "create_character", "login_queue_v2")
+            ):
+                return
+            elapsed = time.monotonic() - self.run_started_at
+            self._finalize_run_locked(
+                "GETLOGININFO_THEN_CTD_OR_STALL",
+                f"reached /getlogininfo but never advanced to validator/create "
+                f"after {elapsed:.1f}s",
+            )
+
+    def _post_create_watchdog(self, run_id: int) -> None:
+        time.sleep(Ctx.POST_CREATE_TIMEOUT_SEC)
+        with self._lock:
+            if (
+                not self.run_active
+                or self.run_id != run_id
+                or self.run_terminal_logged
+            ):
+                return
+            if "create_character" not in self.run_milestones:
+                return
+            if "login_queue_v2" in self.run_milestones:
+                return
+            elapsed = time.monotonic() - self.run_started_at
+            self._finalize_run_locked(
+                "CREATE_THEN_NO_LOGIN_QUEUE",
+                f"created a character but never reached /login/queue/v2 "
+                f"after {elapsed:.1f}s",
+            )
+
+    def _finalize_run_locked(self, outcome: str, detail: str) -> None:
+        self.run_terminal_logged = True
+        self.run_active = False
+        self.run_outcome = outcome
+        log(f"*** RUN {self.run_id}: OUTCOME {outcome} ({detail})")
+
+    def emit_shutdown_summary(self) -> None:
+        with self._lock:
+            if self.run_id == 0:
+                return
+            if self.run_terminal_logged:
+                return
+            milestones = ",".join(sorted(self.run_milestones)) if self.run_milestones else "none"
+            elapsed = 0.0
+            if self.run_started_at:
+                elapsed = time.monotonic() - self.run_started_at
+            self._finalize_run_locked(
+                "ABORTED_WITHOUT_TERMINAL_OUTCOME",
+                f"auth_mock stopped after {elapsed:.1f}s; milestones={milestones}",
+            )
+
 
 def handle_channel_service(ctx: Ctx, handler: "AuthHandler"):
     body = json.dumps(build_channel_config(ctx.rep_host, ctx.rep_port)).encode()
@@ -337,11 +565,14 @@ def handle_credentials_omni(ctx: Ctx, handler: "AuthHandler"):
     gatewayCredentials/personaCredentials wrapper. Offsets in the resulting
     credentials object: accessKeyId @ 0x10, secretAccessKey @ 0x30,
     sessionToken @ 0x50, expiration parsed into a chrono::time_point @ 0x70."""
+    ctx.mark_run_event("credentials_omni")
     body = json.dumps(make_fake_credentials("omni")).encode()
     handler._respond(200, body, content_type="application/json")
 
 
 def handle_login_queue(ctx: Ctx, handler: "AuthHandler"):
+    if handler.path.startswith("/prod/game/login/queue"):
+        ctx.mark_run_event("login_queue_v2")
     body = json.dumps(make_fake_login_ticket(ctx.world_id, ctx.world_name)).encode()
     handler._respond(200, body, content_type="application/json")
 
@@ -361,8 +592,10 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
 
     Uses ctx.persona_id / ctx.world_id / ctx.characters so the response
     stays consistent with anything the create/validate handlers persisted."""
+    ctx.mark_run_event("getlogininfo")
     world_id = ctx.world_id
     world_name = ctx.world_name
+    characters = ctx.snapshot_characters()
 
     world_metrics = {
         "worldAgeDays": 1,
@@ -428,12 +661,68 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
     # envelope, the embedded parse block is zeroed, which trips the
     # apply-side status check downstream and blocks the candidate vector
     # from reaching GameConnection+0x14e8.
+    #
+    # Experimental crash-bypass:
+    # If the persona has no persisted characters, inject one stable fake
+    # existing-character entry so the client takes the existing-character
+    # branch instead of the empty-character create setup path. Codex traced
+    # that empty path into FUN_146418ef0, which dereferences
+    # GameConnection+0x118 without a null check; this lets us test whether
+    # that is the true character-select CTD cause.
+    if not characters:
+        fake_char_id = "11111111-1111-1111-1111-111111111111"
+        fake_name = "Existing_Dev"
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        characters = [{
+            "CharacterId": fake_char_id,
+            "CreatedDate": now,
+            "FtueCompleted": True,
+            "IsFreshStart": False,
+            "IsNameLatent": False,
+            "IsTrialOwner": False,
+            "LocationGroupId": "",
+            "LocationId": "",
+            "ModifiedDate": now,
+            "MustRename": False,
+            "MustRenameReason": "",
+            "Name": fake_name,
+            "NameLatentDate": now,
+            "NameModifiedDate": now,
+            "NeedsTransfer": False,
+            "NeedsTransferDate": now,
+            "OwnerState": "",
+            "PersonaId": ctx.persona_id,
+            "PublishedData": "",
+            "PublishedElapsedSeconds": 0,
+            "PublishedSocialElapsedSeconds": 0,
+            "PublishedSocialSource": "",
+            "PublishedSource": "",
+            "RegionTransferDate": now,
+            "SocialData": "",
+            "TransferCrossRegionCooldownEndTime": 0,
+            "TransferData": "",
+            "TransferDate": now,
+            "TransferFreeCooldownEndTime": 0,
+            "TransferReason": "",
+            "Transferrable": False,
+            "WorldId": world_id,
+        }]
+        log(
+            "*** RUN "
+            f"{ctx.run_id}: injecting fallback existing character "
+            f"{fake_name} ({fake_char_id}) for CTD bypass test"
+        )
+
     body = json.dumps({
         "worlds": [world],
         "recommendedWorlds": [],
         "LoginInfoList": {
             "Worlds": [world_capital],
-            "Characters": ctx.snapshot_characters(),
+            "Characters": characters,
+            "MaxChannelCharacters": 10,
+            "CrossRegionTransferCooldownMins": 0,
+            "NameReservations": [],
+            "PendingWorldMerges": [],
         },
     }).encode()
     handler._respond(200, body, content_type="application/json")
@@ -446,6 +735,7 @@ def handle_validate_character(ctx: Ctx, handler: "AuthHandler"):
 
     Returns validation result. Real server checks name availability +
     content policy. We just mark any name available."""
+    ctx.mark_run_event("validate_character")
     body = json.dumps({
         "ValidateCharacterResult": {
             "IsAvailable": True,
@@ -468,6 +758,7 @@ def handle_create_character(ctx: Ctx, handler: "AuthHandler"):
     it in LoginInfoList.Characters[]. Without persistence the client
     thinks it created a character but the next login_info refresh says
     "no characters" -- the inconsistency fouls up the next flow."""
+    ctx.mark_run_event("create_character")
     character_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     # Best-effort name extraction from the request body -- the body has
@@ -703,6 +994,7 @@ def handle_entitlements_sync(ctx: Ctx, handler: "AuthHandler"):
     writer FUN_1474d4d60 emits {syncTypes[...] + optional entitledPersonaId/
     event/platformSyncParameters}, but the response body is ignored on
     success. {} is the intended stub shape."""
+    ctx.mark_run_event("entitlements_sync")
     handler._respond(200, b"{}", content_type="application/x-amz-json-1.1")
 
 
@@ -721,6 +1013,7 @@ def handle_entitlements_list(ctx: Ctx, handler: "AuthHandler"):
     Per-entry fields (all strings except `amount` which is numeric):
       acquisitionPersonaId, acquisitionType, amount, createdDate,
       productId, transactionId, type."""
+    ctx.mark_run_event("entitlements")
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     body = json.dumps({
         "hasMoreResults": False,
@@ -982,6 +1275,7 @@ def main() -> None:
         sys.exit(1)
 
     ctx = Ctx(args.rep_host, args.rep_port)
+    atexit.register(ctx.emit_shutdown_summary)
     ssl_ctx = build_ssl_context(cert, key)
 
     server = ThreadedHTTPSServer((args.host, args.port), AuthHandler, ctx, ssl_ctx)
@@ -991,6 +1285,7 @@ def main() -> None:
     log(f"    Cert:    {cert}")
     log(f"    REP:     {args.rep_host}:{args.rep_port}  (returned in login tickets)")
     log("    Logs:    " + str(LOGS_DIR))
+    log("    Run log: " + str(RUN_LOGS_DIR))
     log("")
 
     try:
@@ -998,6 +1293,7 @@ def main() -> None:
     except KeyboardInterrupt:
         log("[*] stopping.")
     finally:
+        ctx.emit_shutdown_summary()
         server.server_close()
 
 
