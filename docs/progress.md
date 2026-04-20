@@ -370,6 +370,24 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 | `correlate_rep_timeline.py` | Correlates `pcapng` DTLS milestones with `game_log_after.log` state transitions (StartREPConnection, REP established, registration response, actor connection, spawn). Used to anchor the first opaque application-data bursts to concrete game-side events. |
 | `extract_registration_window.py` | Pulls the earliest epoch-1 server/client application-data burst around REP registration. Used to identify which encrypted records are the highest-value decryption target first. |
 | `compare_registration_windows.py` | Compares the registration window across both real captures and surfaces which encrypted record sizes are stable session-to-session. |
+| `assess_capture_routes.py` | Audits the repo's current DTLS/Javelin capture/decryption routes and ranks which ones are actually viable today. Used after EAC blocked the live trust-bypass paths so we can stop guessing and focus on realistic next steps. |
+
+---
+
+## 2026-04-20 Capture Route Audit
+
+- Added `docs/capture-routes.md` and `tools/assess_capture_routes.py` so the current DTLS/Javelin capture options are documented as an explicit decision rather than more ad hoc experiments.
+- Audit conclusion:
+  - **best current route:** offline `pcapng` analysis of the existing real captures
+  - **useful but metadata-only:** WinDivert / UDP probe transport capture
+  - **blocked on the current live path:** SSLKEYLOGFILE, Frida/OpenSSL live hooks, and local DTLS MITM
+- Evidence:
+  - there are no non-empty `sslkeys.log`, `CLIENT_RANDOM`, or other keylog/decrypted artifacts anywhere under `capture/`
+  - stored Frida hook attempt `capture/20260416_224201_dtls_test/hooks.log` failed immediately because `SSL_read` was not found
+  - the live DTLS probe path reached a real handshake but aborted with fatal `unknown ca`
+- Practical implication:
+  - there is **no already-working non-EAC decryption route in the repo today**
+  - the highest-value path is to keep narrowing the offline encrypted REP registration/bootstrap window while identifying a non-EAC source of session secrets or decrypted traffic
 
 ---
 
