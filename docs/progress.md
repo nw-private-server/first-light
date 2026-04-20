@@ -85,6 +85,7 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
   - if the CA-bundle slot is non-null, it builds a CA list and calls `SSL_CTX_set_verify(..., 0)` (normal OpenSSL validation)
 - 2026-04-20 follow-up RE: the gridmate-udp transport constructor carries an embedded PEM for the real self-signed `CN=New World` cert, strongly suggesting the client has bundled/pinned REP trust material.
 - 2026-04-20 practical next step: runtime-only trust bypass, not more queue/auth JSON work. See `docs/dtls-trust-bypass.md` and `tools/frida_dtls_trust_patch.py`.
+- 2026-04-20 follow-up: Frida attach against the live Steam process fails with `VirtualAllocEx returned 0x00000005`, so the next runtime path is an in-process proxy DLL rather than remote injection. Scaffold added under `tools/d3d11_proxy/`.
 
 **What we captured:**
 - 60MB pcap from first session (HTTPS only, missed REP due to port filter)
