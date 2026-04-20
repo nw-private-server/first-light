@@ -18,7 +18,10 @@ import argparse
 import json
 from pathlib import Path
 
-from analyze_tap_capture import CONTENT_TYPES, HANDSHAKE_TYPES, iter_dtls_records
+try:
+    from analyze_tap_capture import CONTENT_TYPES, HANDSHAKE_TYPES, iter_dtls_records
+except ModuleNotFoundError:
+    from tools.analyze_tap_capture import CONTENT_TYPES, HANDSHAKE_TYPES, iter_dtls_records
 
 
 CIPHER_SUITES = {
