@@ -98,6 +98,29 @@ We have the full auth sequence documented from two separate game sessions (Dec 2
   - cookie-bearing `ClientHello`
   - `HelloVerifyRequest`
   This capture does **not** include a clean post-cookie `ServerHello` / certificate flight, so it is only useful for the DTLS cookie-exchange baseline.
+- 2026-04-20 offline breakthrough: `tools/analyze_pcapng_dtls.py` can now inspect the two stored `pcapng` captures without Wireshark/tshark. Both real captures (`20260416_221806_first_capture`, `20260416_222545_second_capture`) contain the **full DTLS server flight**:
+  - `HelloVerifyRequest`
+  - `ServerHello`
+  - `Certificate`
+  - `CertificateRequest`
+  - `ServerKeyExchange`
+  - `ServerHelloDone`
+  - client `Certificate` / `ClientKeyExchange`
+  - `ChangeCipherSpec`
+  - large volumes of DTLS `application_data`
+- 2026-04-20 offline implication: the in-repo `pcapng` files are now the primary artifact for post-handshake DTLS/Javelin work; the tap session is only needed for the packet-per-file UDP baseline.
+- 2026-04-20 offline extractor: `tools/extract_pcapng_dtls_handshake.py` now reconstructs a real AWS-side DTLS handshake timeline from `pcapng`. The second capture cleanly shows:
+  - client cookie-less `ClientHello`
+  - server `HelloVerifyRequest`
+  - client cookie-bearing `ClientHello`
+  - server `ServerHello`
+  - server `Certificate`
+  - fragmented server `ServerKeyExchange`
+  - server `CertificateRequest`
+  - server `ServerHelloDone`
+  - client `Certificate`
+  - client `ClientKeyExchange`
+  After that point, encrypted/fragmented records need deeper handling to distinguish Finished/application-data boundaries cleanly.
 
 **What we captured:**
 - 60MB pcap from first session (HTTPS only, missed REP due to port filter)
@@ -310,6 +333,8 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 | `resolve_strings.py` | Reads NewWorld.exe directly, parses the PE section table, and prints the null-terminated string at each of a list of virtual addresses. Built when ghidraMCP timed out on string-table scans — feed it VAs copied out of a large-function disassembly slice and it returns the field names verbatim. Used to extract the entire `GetLoginInfoLists` / WorldsInfo schema in one shot. |
 | `analyze_tap_capture.py` | Summarizes a `packets.jsonl` tap capture: DTLS record counts, handshake message counts, alerts, and whether any non-DTLS datagrams exist. Used to prove the current repo capture set does not contain plaintext pre-DTLS Javelin traffic. |
 | `extract_dtls_handshake.py` | Pulls a human-readable DTLS handshake transcript from `packets.jsonl` (ClientHello / HelloVerifyRequest / ServerHello details, cookies, cipher suites, retransmits). Used for offline DTLS/Javelin reverse-engineering now that live runtime patch paths are blocked by EAC. |
+| `analyze_pcapng_dtls.py` | Dependency-free `pcapng` DTLS summarizer. Parses Ethernet/IPv4/UDP Enhanced Packet Blocks and reports DTLS content types, handshake message counts, endpoints, and sample payloads. Used to prove the stored Wireshark captures contain the full DTLS server flight and post-handshake application data. |
+| `extract_pcapng_dtls_handshake.py` | Extracts a DTLS handshake timeline directly from `pcapng` captures, including the real AWS server flight (HelloVerifyRequest, ServerHello, Certificate, fragmented ServerKeyExchange, CertificateRequest, ServerHelloDone, then client Certificate/ClientKeyExchange). |
 
 ---
 
@@ -351,7 +376,7 @@ Disconnected
 
 ### Protocol/DTLS work (parallel, as time allows)
 
-4. **Extend offline DTLS tooling** to reconstruct full handshakes from `packets.jsonl` (cookies, chosen cipher, retransmit patterns, alerts) and use that as the protocol baseline while live-patching remains blocked by EAC.
-5. **Find or produce a decryptable capture path** for post-handshake DTLS application data (session keys, SSL hooks on a non-EAC target, or alternative capture route). The current in-repo tap session contains only opaque DTLS records.
+4. **Extend offline DTLS tooling for `pcapng`**: handle fragmented/encrypted post-handshake records more cleanly so Finished/application-data boundaries are explicit in the extracted timeline.
+5. **Find or produce a decryptable path** for post-handshake DTLS application data (session keys, SSL hooks on a non-EAC target, or alternative capture route). The stored `pcapng` captures now prove the application-data records exist; they are just still encrypted.
 6. **Harvest full chunk catalog** (auto-define strings first, then re-run FindChunkRegistrations.py).
 7. **Find `Cmd_*` switch** at the top of replica dispatch — gives per-chunk payload decoding.
