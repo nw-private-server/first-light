@@ -222,6 +222,19 @@ function getMainModule() {
     return mainModule;
 }
 
+function findImportedFunction(name) {
+    try {
+        var imports = Module.enumerateImportsSync(getMainModule().name);
+        for (var i = 0; i < imports.length; i++) {
+            var imp = imports[i];
+            if (imp.type === "function" && imp.name === name && imp.address) {
+                return imp.address;
+            }
+        }
+    } catch (_) {}
+    return null;
+}
+
 /**
  * Try to resolve a function by name across all loaded modules.
  * Returns NativePointer or null.
@@ -439,6 +452,8 @@ function hookAzNetworking() {
 
 function hookWinsock() {
     function getWs2Export(name) {
+        var imp = findImportedFunction(name);
+        if (imp !== null) return imp;
         try {
             return Module.getExportByName("ws2_32.dll", name);
         } catch (_) {
@@ -650,6 +665,8 @@ function hookWinsock() {
 
 function hookWinHttp() {
     function getWinHttpExport(name) {
+        var imp = findImportedFunction(name);
+        if (imp !== null) return imp;
         try {
             return Module.getExportByName("winhttp.dll", name);
         } catch (_) {
@@ -716,6 +733,8 @@ function hookWinHttp() {
 
 function hookWinInet() {
     function getWinInetExport(name) {
+        var imp = findImportedFunction(name);
+        if (imp !== null) return imp;
         try {
             return Module.getExportByName("wininet.dll", name);
         } catch (_) {
@@ -769,6 +788,8 @@ function hookWinInet() {
 
 function hookSteamApi() {
     function getSteamExport(name) {
+        var imp = findImportedFunction(name);
+        if (imp !== null) return imp;
         try {
             return Module.getExportByName("steam_api64.dll", name);
         } catch (_) {

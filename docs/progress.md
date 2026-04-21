@@ -524,6 +524,18 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 - Expected value from the next archived rerun:
   - if this binary reaches real startup/network paths before failing, we should finally see concrete Steam or WSA/WinHTTP activity instead of a wall of `not_found`
 
+## 2026-04-20 Archived Import-Hook Adjustment
+
+- The next archived rerun still produced a wall of `not_found`, including for functions that the import-table audit had already proven are imported by `NewWorld.exe`.
+- That strongly suggests the previous Frida strategy was still looking in the wrong place:
+  - asking the runtime for DLL exports
+  - instead of hooking the already-resolved import thunks in `NewWorld.exe`
+- Follow-up change:
+  - `tools/frida_dtls_hook.js` now first resolves candidate hook targets from the **main module import table** via `Module.enumerateImportsSync(getMainModule().name)`
+  - only falls back to `Module.getExportByName(...)` if no imported function thunk is present
+- Expected value:
+  - the next archived rerun should tell us whether the process actually calls imported Steam / WSA / WinHTTP APIs before it dies, instead of failing at target discovery time
+
 ---
 
 ## Connection State Machine
