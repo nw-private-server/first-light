@@ -444,6 +444,7 @@ class Ctx:
         self.run_outcome: str | None = None
         self.run_character_select_logged: bool = False
         self.queue_tickets: dict[str, dict] = {}
+        self.name_reservations: list[dict] = []
 
     def set_persona(self, persona_id: str) -> None:
         with self._lock:
@@ -493,11 +494,54 @@ class Ctx:
     def add_character(self, entry: dict) -> None:
         with self._lock:
             self.characters.append(entry)
+            name = str(entry.get("Name") or "")
+            if name:
+                self.name_reservations = [
+                    r for r in self.name_reservations
+                    if str(r.get("DisplayName") or "").casefold() != name.casefold()
+                ]
             log(f"    * ctx characters: {len(self.characters)} total")
 
     def snapshot_characters(self) -> list[dict]:
         with self._lock:
             return list(self.characters)
+
+    def remember_name_reservation(self, display_name: str) -> None:
+        clean = (display_name or "").strip()
+        if not clean:
+            return
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        normalized = clean.upper()
+        reservation = {
+            "Channel": "STEAM_APP_ID.1063730",
+            "CreatedDate": now,
+            "DeletedDate": "",
+            "DisplayName": clean,
+            "IsLatent": False,
+            "IsTrialOwner": False,
+            "ModifiedDate": now,
+            "NameLatentDate": "",
+            "Namespace": "NewWorld",
+            "NormalizedName": normalized,
+            "OwnerState": "",
+            "OwningResourceId": "",
+            "PersonaId": self.persona_id,
+            "Region": "US",
+            "Service": "new-world",
+            "State": "Reserved",
+            "WorldId": self.world_id,
+        }
+        with self._lock:
+            self.name_reservations = [
+                r for r in self.name_reservations
+                if str(r.get("DisplayName") or "").casefold() != clean.casefold()
+            ]
+            self.name_reservations.append(reservation)
+            log(f"    * ctx name reservations: {len(self.name_reservations)} total ({clean})")
+
+    def snapshot_name_reservations(self) -> list[dict]:
+        with self._lock:
+            return list(self.name_reservations)
 
     def issue_queue_ticket(
         self,
@@ -866,6 +910,7 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
     world_id = ctx.world_id
     world_name = ctx.world_name
     characters = ctx.snapshot_characters()
+    name_reservations = ctx.snapshot_name_reservations()
 
     world_metrics = {
         "worldAgeDays": 1,
@@ -940,7 +985,7 @@ def handle_get_login_info(ctx: Ctx, handler: "AuthHandler"):
             "Characters": characters,
             "MaxChannelCharacters": 10,
             "CrossRegionTransferCooldownMins": 0,
-            "NameReservations": [],
+            "NameReservations": name_reservations,
             "PendingWorldMerges": [],
         },
     }).encode()
@@ -955,6 +1000,17 @@ def handle_validate_character(ctx: Ctx, handler: "AuthHandler"):
     Returns validation result. Real server checks name availability +
     content policy. We just mark any name available."""
     ctx.mark_run_event("validate_character")
+    try:
+        parsed = json.loads(handler._last_request_body or b"{}")
+        name = (
+            parsed.get("ValidateCharacterBody", {}).get("Name")
+            or parsed.get("ValidateCharacterRequest", {}).get("Name")
+            or ""
+        )
+        if isinstance(name, str) and name.strip():
+            ctx.remember_name_reservation(name)
+    except Exception:
+        pass
     body = json.dumps({
         "ValidateCharacterResult": {
             "IsAvailable": True,

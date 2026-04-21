@@ -726,6 +726,64 @@ Things that differ from the initial Perplexity research or are otherwise surpris
   - start `auth_mock`
   - rerun the archived build so the redirected CloudFront/API traffic has a real local responder
 
+## 2026-04-20 Archived Create-Flow CTD With auth_mock
+
+- Running the archived build with both `auth_mock` and Frida active got much farther:
+  - startup channel config succeeded
+  - validator succeeded
+  - `getlogininfo` refresh succeeded
+  - CMS `motd/worlds_*.json` succeeded
+- The archived run still CTD'd after name entry, but **before** any `CreateCharacter` request was sent.
+- Frida + auth-mock correlation showed:
+  - `POST /prod/game/worlds/.../characters/validator/jwt/omni` -> `200`
+  - immediate `GET /prod/game/getlogininfo/jwt/omni` -> `200`
+  - no subsequent `/characters/jwt/omni` create call before termination
+- There are repeated side-channel `POST /` requests returning `400`, but those are to:
+  - `sts.us-east-1.amazonaws.com`
+  - `kinesis.us-west-2.amazonaws.com`
+  and they occur alongside successful mainline gateway flow, so they are likely noise / telemetry / AWS SDK background traffic rather than the primary create-flow blocker.
+- Highest-value mock hypothesis from this run:
+  - after a successful validator round-trip, the client re-reads `LoginInfoList`
+  - `LoginInfoList.NameReservations` was still always `[]`
+  - that makes `NameReservations` the best candidate for the post-validator crash before customization/create
+
+## 2026-04-20 NameReservations Mock Patch
+
+- Ghidra trace:
+  - top-level parser key: `NameReservations`
+  - entry parser: `FUN_1474e7090`
+  - transformed model builder: `FUN_1464291e0`
+- The parser recognizes a real structured PascalCase object including fields such as:
+  - `Channel`
+  - `CreatedDate`
+  - `DeletedDate`
+  - `DisplayName`
+  - `IsLatent`
+  - `IsTrialOwner`
+  - `ModifiedDate`
+  - `NameLatentDate`
+  - `Namespace`
+  - `NormalizedName`
+  - `OwnerState`
+  - `OwningResourceId`
+  - `PersonaId`
+  - `Region`
+  - `Service`
+  - `State`
+  - `WorldId`
+- `server/auth_mock.py` now:
+  - persists validated names in `Ctx.name_reservations`
+  - records them in `handle_validate_character`
+  - returns them in `LoginInfoList.NameReservations`
+- Current minimal reservation object emitted after validator:
+  - `Channel = "STEAM_APP_ID.1063730"`
+  - `DisplayName = <validated name>`
+  - `NormalizedName = <uppercased name>`
+  - `State = "Reserved"`
+  - `PersonaId = ctx.persona_id`
+  - `WorldId = ctx.world_id`
+  - plus timestamp/string fields populated with safe defaults
+
 ---
 
 ## Connection State Machine
