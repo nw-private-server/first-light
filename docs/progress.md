@@ -570,6 +570,35 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 - Expected result:
   - the next archived rerun should actually exercise the manual import-table resolution instead of failing inside the resolver itself
 
+## 2026-04-20 Archived Manual IAT Result
+
+- The next archived Frida run finally produced the first real hook breakthrough.
+- Session: `capture/20260420_224946_archived_frida/`
+- Hook install results:
+  - `success`
+    - `WSAConnect`
+    - `WSASend`
+    - `WSARecv`
+    - `WSARecvFrom`
+    - `GetAddrInfoW`
+    - `getaddrinfo`
+    - `WinHttpConnect`
+    - `SteamAPI_Init`
+    - `SteamInternal_ContextInit`
+  - still `not_found`
+    - plain `connect/send/recv/sendto/recvfrom`
+    - WinINet (`InternetConnectW`, `HttpOpenRequestW`)
+  - one Frida-specific issue remains:
+    - `winhttp` secondary hook path errored with `unable to intercept function at 00007FF761CAA7F8`
+- Important interpretation:
+  - the manual IAT resolver is now working
+  - the archived binary **does** expose the expected imported Steam / WSA / WinHTTP surface in-process
+  - but there were still **no actual API call logs** before process termination
+  - so the process appears to die before invoking those hooked networking functions or before the current log points on those functions are reached
+- Practical conclusion:
+  - this archived build is no longer blocked on hook discovery
+  - the next value is not more target-discovery work, but capturing *earlier process behavior* (e.g. Steam init return, module load sequence, or startup failure path before network calls)
+
 ---
 
 ## Connection State Machine
