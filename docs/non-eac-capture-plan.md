@@ -56,10 +56,12 @@ Archived-binary note:
 - The project already knows the game's Steam App ID is `1063730`.
 - So the next practical archived attempt should be:
   - ensure Steam is running and logged in
-  - place a `steam_appid.txt` containing `1063730` next to the archived
+  - ensure `steam_appid.txt` containing `1063730` exists next to the archived
     `NewWorld.exe`
   - then retry the Frida spawn path
 - This is still lower-risk than going back to the live EAC client.
+- `tools/frida_capture.py` now recreates `steam_appid.txt` automatically on
+  every spawn attempt so this no longer has to be done by hand.
 
 ### 2. Archived / non-EAC-friendly binary + SSLKEYLOGFILE capture
 

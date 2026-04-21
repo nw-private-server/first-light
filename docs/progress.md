@@ -472,6 +472,16 @@ Things that differ from the initial Perplexity research or are otherwise surpris
   - either we finally see plain network API activity before termination
   - or we prove this archived binary dies before loading the common Windows networking stacks at all
 
+## 2026-04-20 Archived Frida Attempt #5 Prep
+
+- Another archived rerun regressed to the old Steam blocker again.
+- Root cause check:
+  - `G:\NewWorldArchive\GameClient\Bin64\steam_appid.txt` was missing again at run time
+- Follow-up change:
+  - `tools/frida_capture.py` now recreates `steam_appid.txt` with `1063730` automatically before every spawn attempt
+- Practical implication:
+  - future archived spawn tests no longer depend on the file surviving from a previous manual setup step
+
 ---
 
 ## Connection State Machine
