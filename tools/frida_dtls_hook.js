@@ -634,6 +634,15 @@ function hookWinsock() {
         return "TYPE_" + t;
     }
 
+    function decodeIoctl(code) {
+        if (code === 0x9800000c) return "SIO_UDP_CONNRESET";
+        if (code === 0xc8000006) return "SIO_GET_EXTENSION_FUNCTION_POINTER";
+        if (code === 0x98000011) return "SIO_KEEPALIVE_VALS";
+        if (code === 0xc8000019) return "SIO_LOOPBACK_FAST_PATH";
+        if (code === 0x48000016) return "SIO_TCP_INFO";
+        return "0x" + code.toString(16);
+    }
+
     try {
         var wsaSocketW = getWs2Export("WSASocketW");
         if (wsaSocketW && !isHooked("WSASocketW")) {
@@ -746,6 +755,28 @@ function hookWinsock() {
             markHook("WSARecvFrom");
         } else if (!wsaRecvFrom) {
             hookStatus("WSARecvFrom", "not_found");
+        }
+
+        var wsaSendMsg = getWs2Export("WSASendMsg");
+        if (wsaSendMsg && !isHooked("WSASendMsg")) {
+            Interceptor.attach(wsaSendMsg, {
+                onEnter: function (args) {
+                    this.sock = args[0];
+                    try {
+                        var wsamsg = args[1];
+                        this.target = formatSockaddr(wsamsg.readPointer());
+                    } catch (_) {
+                        this.target = null;
+                    }
+                },
+                onLeave: function (retval) {
+                    log("[ws2] WSASendMsg(" + this.sock + ") -> " + (this.target || "unknown") + " ret=" + retval.toInt32());
+                }
+            });
+            hookStatus("WSASendMsg", "success");
+            markHook("WSASendMsg");
+        } else if (!wsaSendMsg) {
+            hookStatus("WSASendMsg", "not_found");
         }
 
         var wsaSendTo = getWs2Export("WSASendTo");
@@ -896,15 +927,40 @@ function hookWinsock() {
                 onEnter: function (args) {
                     this.sock = args[0];
                     this.code = args[1].toUInt32();
+                    this.inBuf = args[2];
+                    this.inLen = args[3].toUInt32();
                 },
                 onLeave: function (retval) {
-                    log("[ws2] WSAIoctl(" + this.sock + ", 0x" + this.code.toString(16) + ") ret=" + retval.toInt32());
+                    var extra = "";
+                    if (this.code === 0xc8000006 && !this.inBuf.isNull() && this.inLen >= 16) {
+                        try {
+                            extra = " guid=" + this.inBuf.readByteArray(16);
+                        } catch (_) {}
+                    }
+                    log("[ws2] WSAIoctl(" + this.sock + ", " + decodeIoctl(this.code) + ")" + extra + " ret=" + retval.toInt32());
                 }
             });
             hookStatus("WSAIoctl", "success");
             markHook("WSAIoctl");
         } else if (!wsaIoctl) {
             hookStatus("WSAIoctl", "not_found");
+        }
+
+        var wsaEventSelect = getWs2Export("WSAEventSelect");
+        if (wsaEventSelect && !isHooked("WSAEventSelect")) {
+            Interceptor.attach(wsaEventSelect, {
+                onEnter: function (args) {
+                    this.sock = args[0];
+                    this.mask = args[2].toUInt32();
+                },
+                onLeave: function (retval) {
+                    log("[ws2] WSAEventSelect(" + this.sock + ", mask=0x" + this.mask.toString(16) + ") ret=" + retval.toInt32());
+                }
+            });
+            hookStatus("WSAEventSelect", "success");
+            markHook("WSAEventSelect");
+        } else if (!wsaEventSelect) {
+            hookStatus("WSAEventSelect", "not_found");
         }
 
         var closesocket = getWs2Export("closesocket");

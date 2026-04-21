@@ -892,6 +892,22 @@ Things that differ from the initial Perplexity research or are otherwise surpris
   - UDP socket creation / `WSAIoctl(0x9800000c)`
   - and the missing first datagram send
 
+## 2026-04-21 Next UDP Instrumentation Pass
+
+- Added more REP-startup socket instrumentation to `tools/frida_dtls_hook.js`:
+  - `WSASendMsg`
+  - `WSAEventSelect`
+  - improved `WSAIoctl` decoding
+- Known ioctl mappings now logged symbolically:
+  - `0x9800000c` -> `SIO_UDP_CONNRESET`
+  - `0xc8000006` -> `SIO_GET_EXTENSION_FUNCTION_POINTER`
+  - `0x98000011` -> `SIO_KEEPALIVE_VALS`
+  - `0xc8000019` -> `SIO_LOOPBACK_FAST_PATH`
+  - `0x48000016` -> `SIO_TCP_INFO`
+- Purpose of this pass:
+  - determine whether the archived client switches to extension/event-driven socket APIs between UDP socket setup and the missing first outbound datagram
+  - distinguish “socket created but never used” from “socket used through a different Winsock path than `sendto` / `WSAConnect`”
+
 ---
 
 ## Connection State Machine
