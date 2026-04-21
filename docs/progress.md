@@ -1028,6 +1028,19 @@ Disconnected
   - the archived client definitely reaches REP UDP socket initialization
   - but the first outbound REP datagram is still gated before any observable Winsock send path we currently hook
 
+## 2026-04-21 IOCP / Socket Infra Instrumentation Pass
+
+- Added another archived Frida pass focused on the gap after REP UDP socket creation and before the missing first outbound datagram.
+- `tools/frida_dtls_hook.js` now also hooks:
+  - `CreateIoCompletionPort`
+  - `GetQueuedCompletionStatus`
+  - `PostQueuedCompletionStatus`
+  - `setsockopt`
+  - `ioctlsocket`
+- Goal of this pass:
+  - determine whether the archived client associates the REP UDP socket with an IO completion port
+  - capture any lower-level socket configuration immediately before the missing first DTLS/UDP send
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
