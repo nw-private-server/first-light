@@ -455,6 +455,23 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 - Next archived rerun should now answer the right question:
   - does the archived binary touch any plain network API at all before it dies?
 
+## 2026-04-20 Archived Frida Attempt #4 Prep
+
+- The next archived run still reached the generic `Unable to connect to New World: Aeternum servers` error, but the Frida log showed every plain network hook as `not_found` immediately at startup:
+  - Winsock (`connect`, `sendto`, `recvfrom`, `send`, `recv`)
+  - WinHTTP (`WinHttpConnect`, `WinHttpOpenRequest`, `WinHttpSendRequest`)
+  - WinINet (`InternetConnectW`, `HttpOpenRequestW`)
+- Most likely cause:
+  - those DLLs are simply not loaded yet when the script checks at process start, so the old one-shot lookup was racing process initialization
+- Follow-up change:
+  - `tools/frida_dtls_hook.js` now:
+    - hooks `LoadLibraryA/W` and `LoadLibraryExA/W`
+    - retries Winsock / WinHTTP / WinINet hook installation for 30 seconds after startup
+    - keeps the early-hook ordering from the prior patch
+- Expected value from the next run:
+  - either we finally see plain network API activity before termination
+  - or we prove this archived binary dies before loading the common Windows networking stacks at all
+
 ---
 
 ## Connection State Machine
