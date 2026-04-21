@@ -704,6 +704,28 @@ Things that differ from the initial Perplexity research or are otherwise surpris
   - the next highest-value hook point is the **WinHTTP async status callback path**
   - the game is likely learning about request failure through `WinHttpSetStatusCallback` rather than the synchronous response/read APIs we were watching
 
+## 2026-04-20 Archived Hosts Redirect Cause
+
+- The archived Frida callback run clarified the startup failure:
+  - the client repeatedly requests:
+    - `https://d2c74t4zimux3r.cloudfront.net/STEAM_APP_ID.1063730.json`
+  - our local machine currently resolves that hostname to `127.0.0.1`
+  - because the global `hosts` file still contains the NewWorldPrivate auth-mock redirects
+- Direct host-side verification:
+  - `Resolve-DnsName d2c74t4zimux3r.cloudfront.net` returned `127.0.0.1`
+  - direct `Invoke-WebRequest` to that URL from the host failed with:
+    - `Unable to connect to the remote server`
+- Practical implication:
+  - the archived build is no longer failing because of Steam-only startup context
+  - it is failing because it is being redirected into the local mock topology
+  - therefore, standalone archived Frida runs **must either**:
+    - run with `auth_mock` active
+    - or temporarily remove/disable the hosts redirect block
+- Highest-value next archived test:
+  - leave Frida instrumentation as-is
+  - start `auth_mock`
+  - rerun the archived build so the redirected CloudFront/API traffic has a real local responder
+
 ---
 
 ## Connection State Machine
