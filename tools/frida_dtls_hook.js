@@ -294,14 +294,15 @@ function enumerateMainImportsManual() {
             var iat = rvaToPtr(firstThunk);
 
             while (true) {
-                var entry = thunk.readU64();
-                if (entry.isZero ? entry.isZero() : entry.compare(0) === 0) {
+                var entryLow = thunk.readU32();
+                var entryHigh = thunk.add(4).readU32();
+                if (entryLow === 0 && entryHigh === 0) {
                     break;
                 }
 
-                var isOrdinal = (entry.shr(63).toUInt32() !== 0);
+                var isOrdinal = ((entryHigh & 0x80000000) !== 0);
                 if (!isOrdinal) {
-                    var namePtr = rvaToPtr(entry.toUInt32()).add(2);
+                    var namePtr = rvaToPtr(entryLow).add(2);
                     var symName = "";
                     try {
                         symName = namePtr.readUtf8String();
