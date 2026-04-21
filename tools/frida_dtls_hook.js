@@ -943,6 +943,176 @@ function hookSteamApi() {
     }
 }
 
+function hookProcessLifecycle() {
+    function getApi(name, modules) {
+        var imp = findImportedFunction(name);
+        if (imp !== null) return imp;
+        for (var i = 0; i < modules.length; i++) {
+            try {
+                var addr = Module.getExportByName(modules[i], name);
+                if (addr) return addr;
+            } catch (_) {}
+        }
+        return null;
+    }
+
+    try {
+        var exitProcess = getApi("ExitProcess", ["kernel32.dll", "KernelBase.dll"]);
+        if (exitProcess && !isHooked("ExitProcess")) {
+            Interceptor.attach(exitProcess, {
+                onEnter: function (args) {
+                    log("[proc] ExitProcess(" + args[0].toInt32() + ")");
+                }
+            });
+            hookStatus("ExitProcess", "success");
+            markHook("ExitProcess");
+        } else if (!exitProcess) {
+            hookStatus("ExitProcess", "not_found");
+        }
+
+        var terminateProcess = getApi("TerminateProcess", ["kernel32.dll", "KernelBase.dll"]);
+        if (terminateProcess && !isHooked("TerminateProcess")) {
+            Interceptor.attach(terminateProcess, {
+                onEnter: function (args) {
+                    log("[proc] TerminateProcess(handle=" + args[0] + ", code=" + args[1].toInt32() + ")");
+                }
+            });
+            hookStatus("TerminateProcess", "success");
+            markHook("TerminateProcess");
+        } else if (!terminateProcess) {
+            hookStatus("TerminateProcess", "not_found");
+        }
+
+        var rtlExit = getApi("RtlExitUserProcess", ["ntdll.dll"]);
+        if (rtlExit && !isHooked("RtlExitUserProcess")) {
+            Interceptor.attach(rtlExit, {
+                onEnter: function (args) {
+                    log("[proc] RtlExitUserProcess(" + args[0].toInt32() + ")");
+                }
+            });
+            hookStatus("RtlExitUserProcess", "success");
+            markHook("RtlExitUserProcess");
+        } else if (!rtlExit) {
+            hookStatus("RtlExitUserProcess", "not_found");
+        }
+
+        var raiseFailFast = getApi("RaiseFailFastException", ["kernel32.dll", "KernelBase.dll"]);
+        if (raiseFailFast && !isHooked("RaiseFailFastException")) {
+            Interceptor.attach(raiseFailFast, {
+                onEnter: function (_) {
+                    log("[proc] RaiseFailFastException");
+                }
+            });
+            hookStatus("RaiseFailFastException", "success");
+            markHook("RaiseFailFastException");
+        } else if (!raiseFailFast) {
+            hookStatus("RaiseFailFastException", "not_found");
+        }
+
+        var abortFn = getApi("abort", ["ucrtbase.dll", "msvcrt.dll"]);
+        if (abortFn && !isHooked("abort")) {
+            Interceptor.attach(abortFn, {
+                onEnter: function (_) {
+                    log("[proc] abort()");
+                }
+            });
+            hookStatus("abort", "success");
+            markHook("abort");
+        } else if (!abortFn) {
+            hookStatus("abort", "not_found");
+        }
+    } catch (e) {
+        hookStatus("process_lifecycle", "error", e.toString());
+    }
+}
+
+function hookUser32Startup() {
+    function getApi(name) {
+        var imp = findImportedFunction(name);
+        if (imp !== null) return imp;
+        try {
+            return Module.getExportByName("user32.dll", name);
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function readMaybeWide(ptr) {
+        if (ptr.isNull()) return "";
+        try {
+            return ptr.readUtf16String();
+        } catch (_) {
+            try {
+                return ptr.readUtf8String();
+            } catch (_) {
+                return "";
+            }
+        }
+    }
+
+    try {
+        var createWindowExW = getApi("CreateWindowExW");
+        if (createWindowExW && !isHooked("CreateWindowExW")) {
+            Interceptor.attach(createWindowExW, {
+                onEnter: function (args) {
+                    var cls = readMaybeWide(args[1]);
+                    var title = readMaybeWide(args[2]);
+                    log("[ui] CreateWindowExW class=" + cls + " title=" + title);
+                }
+            });
+            hookStatus("CreateWindowExW", "success");
+            markHook("CreateWindowExW");
+        } else if (!createWindowExW) {
+            hookStatus("CreateWindowExW", "not_found");
+        }
+
+        var createWindowExA = getApi("CreateWindowExA");
+        if (createWindowExA && !isHooked("CreateWindowExA")) {
+            Interceptor.attach(createWindowExA, {
+                onEnter: function (args) {
+                    var cls = readMaybeWide(args[1]);
+                    var title = readMaybeWide(args[2]);
+                    log("[ui] CreateWindowExA class=" + cls + " title=" + title);
+                }
+            });
+            hookStatus("CreateWindowExA", "success");
+            markHook("CreateWindowExA");
+        } else if (!createWindowExA) {
+            hookStatus("CreateWindowExA", "not_found");
+        }
+
+        var showWindow = getApi("ShowWindow");
+        if (showWindow && !isHooked("ShowWindow")) {
+            Interceptor.attach(showWindow, {
+                onEnter: function (args) {
+                    log("[ui] ShowWindow cmd=" + args[1].toInt32());
+                }
+            });
+            hookStatus("ShowWindow", "success");
+            markHook("ShowWindow");
+        } else if (!showWindow) {
+            hookStatus("ShowWindow", "not_found");
+        }
+
+        var messageBoxW = getApi("MessageBoxW");
+        if (messageBoxW && !isHooked("MessageBoxW")) {
+            Interceptor.attach(messageBoxW, {
+                onEnter: function (args) {
+                    var text = readMaybeWide(args[1]);
+                    var caption = readMaybeWide(args[2]);
+                    log("[ui] MessageBoxW caption=" + caption + " text=" + text);
+                }
+            });
+            hookStatus("MessageBoxW", "success");
+            markHook("MessageBoxW");
+        } else if (!messageBoxW) {
+            hookStatus("MessageBoxW", "not_found");
+        }
+    } catch (e) {
+        hookStatus("user32_startup", "error", e.toString());
+    }
+}
+
 function hookModuleLoads() {
     function tryExport(moduleName, exportName) {
         try {
@@ -988,6 +1158,8 @@ function retryDeferredHooks() {
     hookWinHttp();
     hookWinInet();
     hookSteamApi();
+    hookProcessLifecycle();
+    hookUser32Startup();
 }
 
 function scheduleDeferredHookRetries(seconds) {
@@ -1021,6 +1193,8 @@ function installHooks() {
     hookWinHttp();
     hookWinInet();
     hookSteamApi();
+    hookProcessLifecycle();
+    hookUser32Startup();
     hookModuleLoads();
     scheduleDeferredHookRetries(30);
 
