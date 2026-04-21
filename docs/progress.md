@@ -1065,6 +1065,23 @@ Disconnected
   - determine whether the REP UDP socket uses Winsock SPI provider callbacks instead of `WSAConnect` / `WSASendTo` / `sendto`
   - catch provider-level UDP send or close behavior immediately after queue admission and REP address resolution
 
+## 2026-04-21 Provider SPI Pass Result
+
+- Archived run `capture/20260421_142133_archived_frida` reached the same REP UDP boundary again:
+  - `getaddrinfo -> 127.0.0.1:23971`
+  - `getaddrinfo -> 127.0.0.1:27000`
+  - `WSASocketW -> AF_INET SOCK_DGRAM proto=17`
+  - `WSAIoctl(..., SIO_UDP_CONNRESET) ret=0`
+- The new Winsock SPI pass did **not** expose a hidden provider-level REP send path:
+  - `WSPStartup` was `not_found`
+  - therefore no `WSPSendTo` / `WSPIoctl` / `WSPConnect` / `WSPCloseSocket` hooks were installed
+- The low-level NTDLL pass also remained unavailable on this archived build/runtime:
+  - `NtDeviceIoControlFile` was `not_found`
+  - `NtClose` was `not_found`
+- Result:
+  - even after exhausting normal Winsock exports, IOCP, extension functions, NTDLL, and provider SPI, the archived client still shows no observable outbound REP UDP datagram
+  - the current blocker remains precisely: after REP UDP socket creation/configuration, before any first send that reaches a hookable OS networking surface
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
