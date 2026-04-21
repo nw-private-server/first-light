@@ -1032,6 +1032,41 @@ function hookWinsock() {
             hookStatus("ws2_bind", "not_found");
         }
 
+        var setsockoptFn = getWs2Export("setsockopt");
+        if (setsockoptFn && !isHooked("ws2_setsockopt")) {
+            Interceptor.attach(setsockoptFn, {
+                onEnter: function (args) {
+                    this.sock = args[0];
+                    this.level = args[1].toInt32();
+                    this.optname = args[2].toInt32();
+                },
+                onLeave: function (retval) {
+                    log("[ws2] setsockopt(" + this.sock + ", level=" + this.level + ", opt=" + this.optname + ") ret=" + retval.toInt32());
+                }
+            });
+            hookStatus("ws2_setsockopt", "success");
+            markHook("ws2_setsockopt");
+        } else if (!setsockoptFn) {
+            hookStatus("ws2_setsockopt", "not_found");
+        }
+
+        var ioctlsocketFn = getWs2Export("ioctlsocket");
+        if (ioctlsocketFn && !isHooked("ws2_ioctlsocket")) {
+            Interceptor.attach(ioctlsocketFn, {
+                onEnter: function (args) {
+                    this.sock = args[0];
+                    this.cmd = args[1].toUInt32();
+                },
+                onLeave: function (retval) {
+                    log("[ws2] ioctlsocket(" + this.sock + ", cmd=0x" + this.cmd.toString(16) + ") ret=" + retval.toInt32());
+                }
+            });
+            hookStatus("ws2_ioctlsocket", "success");
+            markHook("ws2_ioctlsocket");
+        } else if (!ioctlsocketFn) {
+            hookStatus("ws2_ioctlsocket", "not_found");
+        }
+
         var wsaIoctl = getWs2Export("WSAIoctl");
         if (wsaIoctl && !isHooked("WSAIoctl")) {
             Interceptor.attach(wsaIoctl, {
@@ -1098,6 +1133,93 @@ function hookWinsock() {
         }
     } catch (e) {
         hookStatus("winsock", "error", e.toString());
+    }
+}
+
+function hookKernelSocketInfra() {
+    function getApi(name) {
+        var imp = findImportedFunction(name);
+        if (imp !== null) return imp;
+        try {
+            return Module.getExportByName("kernel32.dll", name);
+        } catch (_) {
+            try {
+                return Module.getExportByName("KernelBase.dll", name);
+            } catch (_) {
+                return null;
+            }
+        }
+    }
+
+    try {
+        var createIocp = getApi("CreateIoCompletionPort");
+        if (createIocp && !isHooked("CreateIoCompletionPort")) {
+            Interceptor.attach(createIocp, {
+                onEnter: function (args) {
+                    this.fileHandle = args[0];
+                    this.existingPort = args[1];
+                    this.completionKey = args[2];
+                    this.threads = args[3].toUInt32();
+                },
+                onLeave: function (retval) {
+                    log("[iocp] CreateIoCompletionPort(file=" + this.fileHandle +
+                        ", existing=" + this.existingPort +
+                        ", key=" + this.completionKey +
+                        ", threads=" + this.threads +
+                        ") -> " + retval);
+                }
+            });
+            hookStatus("CreateIoCompletionPort", "success");
+            markHook("CreateIoCompletionPort");
+        } else if (!createIocp) {
+            hookStatus("CreateIoCompletionPort", "not_found");
+        }
+
+        var getQcs = getApi("GetQueuedCompletionStatus");
+        if (getQcs && !isHooked("GetQueuedCompletionStatus")) {
+            Interceptor.attach(getQcs, {
+                onEnter: function (args) {
+                    this.port = args[0];
+                    this.bytesPtr = args[1];
+                    this.keyPtr = args[2];
+                    this.ovPtr = args[3];
+                    this.timeout = args[4].toUInt32();
+                },
+                onLeave: function (retval) {
+                    var ok = retval.toInt32();
+                    var extra = "";
+                    try {
+                        var bytes = this.bytesPtr.isNull() ? 0 : this.bytesPtr.readU32();
+                        var key = this.keyPtr.isNull() ? ptr("0") : this.keyPtr.readPointer();
+                        var ov = this.ovPtr.isNull() ? ptr("0") : this.ovPtr.readPointer();
+                        extra = " bytes=" + bytes + " key=" + key + " ov=" + ov;
+                    } catch (_) {}
+                    log("[iocp] GetQueuedCompletionStatus(port=" + this.port + ", timeout=" + this.timeout + ") -> " + ok + extra);
+                }
+            });
+            hookStatus("GetQueuedCompletionStatus", "success");
+            markHook("GetQueuedCompletionStatus");
+        } else if (!getQcs) {
+            hookStatus("GetQueuedCompletionStatus", "not_found");
+        }
+
+        var postQcs = getApi("PostQueuedCompletionStatus");
+        if (postQcs && !isHooked("PostQueuedCompletionStatus")) {
+            Interceptor.attach(postQcs, {
+                onEnter: function (args) {
+                    log("[iocp] PostQueuedCompletionStatus(port=" + args[0] +
+                        ", bytes=" + args[1].toUInt32() +
+                        ", key=" + args[2] +
+                        ", ov=" + args[3] + ")");
+                }
+            });
+            hookStatus("PostQueuedCompletionStatus", "success");
+            markHook("PostQueuedCompletionStatus");
+        } else if (!postQcs) {
+            hookStatus("PostQueuedCompletionStatus", "not_found");
+        }
+    } catch (e) {
+        hookStatus("kernel_socket_infra", "error", e.toString());
     }
 }
 
@@ -1715,6 +1837,7 @@ function installHooks() {
     // Install the cheap, early hooks first so short-lived startup failures still
     // give us some network signal before the heavier SSL scans run.
     hookWinsock();
+    hookKernelSocketInfra();
     hookWinHttp();
     hookWinInet();
     hookSteamApi();
