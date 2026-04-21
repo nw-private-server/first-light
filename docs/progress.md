@@ -935,6 +935,49 @@ Disconnected
 
 ## Next Steps (Priority Order)
 
+## 2026-04-21 Archived Post-Queue State Is Stable; Send Path Still Missing
+
+- Latest archived run (`capture/20260421_123139_archived_frida`) again reached:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - world-scoped remote-config fetches
+- `auth_mock` confirmed this as:
+  - `OUTCOME REACHED_LOGIN_QUEUE_V2`
+- Frida confirms the same internal REP boundary every good run:
+  - `getaddrinfo -> 127.0.0.1:23971`
+  - `getaddrinfo -> 127.0.0.1:27000`
+  - `WSASocketW -> AF_INET SOCK_DGRAM proto=17`
+  - `WSAIoctl(..., SIO_UDP_CONNRESET) ret=0`
+- The recurring `POST / -> 400` noise is fully attributed to:
+  - `POST https://kinesis.us-west-2.amazonaws.com:443/`
+  and remains unrelated telemetry.
+- Important negative result remains unchanged:
+  - no `WSAConnect()` to `23971`
+  - no `sendto()` / `WSASendTo()`
+  - no DTLS packets
+- Current blocker is now very tight:
+  - after REP UDP socket creation/configuration, before first outbound datagram
+
+## 2026-04-21 Winsock Extension Hooking Pass
+
+- Updated `tools/frida_dtls_hook.js` so `WSAIoctl(SIO_GET_EXTENSION_FUNCTION_POINTER)` now:
+  - decodes the input GUID as a real GUID string
+  - maps known extension GUIDs symbolically where possible:
+    - `ConnectEx`
+    - `DisconnectEx`
+    - `AcceptEx`
+    - `GetAcceptExSockaddrs`
+    - `TransmitFile`
+    - `TransmitPackets`
+    - `WSARecvMsg`
+    - `WSASendMsg`
+  - reads the returned function pointer from the output buffer
+  - auto-hooks those extension functions in-process
+- Purpose:
+  - determine whether the missing first REP/DTLS datagram is sent through an extension path instead of normal `sendto` / `WSAConnect`
+  - especially verify whether the client transitions into `WSASendMsg`, `ConnectEx`, or another provider-specific path right after UDP socket setup
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
