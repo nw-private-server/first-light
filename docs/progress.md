@@ -1052,6 +1052,19 @@ Disconnected
   - determine whether the first REP datagram path bypasses normal Winsock send APIs and drops directly into AFD / `NtDeviceIoControlFile`
   - confirm whether the REP UDP socket is immediately closed without ever sending
 
+## 2026-04-21 Winsock Provider SPI Pass
+
+- Added another archived Frida pass to catch REP traffic if it bypasses normal Winsock exports entirely.
+- `tools/frida_dtls_hook.js` now attempts to hook `WSPStartup` and, on success, auto-hooks selected provider procedure table entries:
+  - `WSPSocket`
+  - `WSPConnect`
+  - `WSPIoctl`
+  - `WSPSendTo`
+  - `WSPCloseSocket`
+- Goal:
+  - determine whether the REP UDP socket uses Winsock SPI provider callbacks instead of `WSAConnect` / `WSASendTo` / `sendto`
+  - catch provider-level UDP send or close behavior immediately after queue admission and REP address resolution
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
