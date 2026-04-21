@@ -1255,6 +1255,20 @@ Disconnected
     - `FUN_146425f20` / REP vtable `+0x08/+0x10/+0x18`
     - and `FUN_146b6f190`
   - that gap is now the most likely place where the archived path bails before marking REP authorized/ready
+- Follow-up instrumentation added:
+  - REP object state snapshots on:
+    - `rep.vtbl+0x10`
+    - `rep.vtbl+0x18`
+    - `rep.vtbl+0xa8`
+  - fields logged per call:
+    - `+0x600`
+    - `+0x601`
+    - `+0x6f0`
+    - `+0x6f1`
+    - `+0x6f2`
+    - pointers at `+0xd0` and `+0x118`
+- Goal of the next run:
+  - determine whether the REP object shows any precursor authorization/ready-state mutation at all before the `+0xa8` poll loop starts
 
 ### Immediate (next session) — unblock character creation
 
