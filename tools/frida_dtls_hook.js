@@ -664,6 +664,16 @@ function installHooks() {
     log("[*] PID: " + Process.id);
     log("[*] Main module: " + getMainModule().name + " @ " + getMainModule().base);
     log("[*] Architecture: " + Process.arch);
+
+    // Install the cheap, early hooks first so short-lived startup failures still
+    // give us some network signal before the heavier SSL scans run.
+    hookWinsock();
+    hookWinHttp();
+    hookWinInet();
+
+    // AzNetworking layer next; still cheap if symbols exist.
+    hookAzNetworking();
+
     log("[*] Searching for SSL functions...");
 
     // The list of OpenSSL / BoringSSL functions we want to hook
@@ -777,14 +787,6 @@ function installHooks() {
             hookStatus("SSL_free", "success");
         } catch (_) {}
     }
-
-    // AzNetworking layer
-    hookAzNetworking();
-
-    // Winsock connect/sendto for connection target logging
-    hookWinsock();
-    hookWinHttp();
-    hookWinInet();
 
     log("=== Hook installation complete ===");
 }

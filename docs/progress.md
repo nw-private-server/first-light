@@ -441,6 +441,20 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 - Next value check:
   - rerun the archived Frida path and inspect whether the process reaches **any** plain network API before termination
 
+## 2026-04-20 Archived Frida Attempt #3
+
+- A later archived run regressed to the old Steam blocker. Investigation showed `G:\NewWorldArchive\GameClient\Bin64\steam_appid.txt` was no longer present at run time.
+- The session at `capture/20260420_222214_archived_frida/` confirms the archived process terminated even earlier than the previous run:
+  - only `SSL_read` reached `not_found`
+  - the process detached before the rest of the hook installation completed
+- Practical implication:
+  - the old hook order was still too slow for very early startup failures
+- Follow-up changes:
+  - restored `steam_appid.txt` with `1063730`
+  - changed `tools/frida_dtls_hook.js` to install **Winsock / WinHTTP / WinINet hooks before** the slower SSL symbol scans
+- Next archived rerun should now answer the right question:
+  - does the archived binary touch any plain network API at all before it dies?
+
 ---
 
 ## Connection State Machine
