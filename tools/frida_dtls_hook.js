@@ -463,6 +463,8 @@ function hookWinsock() {
                 }
             });
             hookStatus("ws2_connect", "success");
+        } else {
+            hookStatus("ws2_connect", "not_found");
         }
 
         var sendto = getWs2Export("sendto");
@@ -479,6 +481,8 @@ function hookWinsock() {
                 }
             });
             hookStatus("ws2_sendto", "success");
+        } else {
+            hookStatus("ws2_sendto", "not_found");
         }
 
         var recvfrom = getWs2Export("recvfrom");
@@ -495,6 +499,8 @@ function hookWinsock() {
                 }
             });
             hookStatus("ws2_recvfrom", "success");
+        } else {
+            hookStatus("ws2_recvfrom", "not_found");
         }
 
         var send = getWs2Export("send");
@@ -508,6 +514,8 @@ function hookWinsock() {
                 }
             });
             hookStatus("ws2_send", "success");
+        } else {
+            hookStatus("ws2_send", "not_found");
         }
 
         var recv = getWs2Export("recv");
@@ -521,9 +529,129 @@ function hookWinsock() {
                 }
             });
             hookStatus("ws2_recv", "success");
+        } else {
+            hookStatus("ws2_recv", "not_found");
         }
     } catch (e) {
         hookStatus("winsock", "error", e.toString());
+    }
+}
+
+// ---------------------------------------------------------------------------
+//  WinHTTP / WinINet hooks (supplementary -- to see plain HTTP reachability)
+// ---------------------------------------------------------------------------
+
+function hookWinHttp() {
+    function getWinHttpExport(name) {
+        try {
+            return Module.getExportByName("winhttp.dll", name);
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function readWide(ptr) {
+        if (ptr.isNull()) return "";
+        try {
+            return ptr.readUtf16String();
+        } catch (_) {
+            return "";
+        }
+    }
+
+    try {
+        var connect = getWinHttpExport("WinHttpConnect");
+        if (connect) {
+            Interceptor.attach(connect, {
+                onEnter: function (args) {
+                    var host = readWide(args[1]);
+                    var port = args[2].toInt32();
+                    log("[winhttp] connect -> " + host + ":" + port);
+                }
+            });
+            hookStatus("WinHttpConnect", "success");
+        } else {
+            hookStatus("WinHttpConnect", "not_found");
+        }
+
+        var openRequest = getWinHttpExport("WinHttpOpenRequest");
+        if (openRequest) {
+            Interceptor.attach(openRequest, {
+                onEnter: function (args) {
+                    var verb = readWide(args[1]);
+                    var objectName = readWide(args[2]);
+                    log("[winhttp] request -> " + verb + " " + objectName);
+                }
+            });
+            hookStatus("WinHttpOpenRequest", "success");
+        } else {
+            hookStatus("WinHttpOpenRequest", "not_found");
+        }
+
+        var sendRequest = getWinHttpExport("WinHttpSendRequest");
+        if (sendRequest) {
+            Interceptor.attach(sendRequest, {
+                onEnter: function (_) {
+                    log("[winhttp] send request");
+                }
+            });
+            hookStatus("WinHttpSendRequest", "success");
+        } else {
+            hookStatus("WinHttpSendRequest", "not_found");
+        }
+    } catch (e) {
+        hookStatus("winhttp", "error", e.toString());
+    }
+}
+
+function hookWinInet() {
+    function getWinInetExport(name) {
+        try {
+            return Module.getExportByName("wininet.dll", name);
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function readWide(ptr) {
+        if (ptr.isNull()) return "";
+        try {
+            return ptr.readUtf16String();
+        } catch (_) {
+            return "";
+        }
+    }
+
+    try {
+        var internetConnect = getWinInetExport("InternetConnectW");
+        if (internetConnect) {
+            Interceptor.attach(internetConnect, {
+                onEnter: function (args) {
+                    var server = readWide(args[1]);
+                    var port = args[3].toInt32();
+                    log("[wininet] connect -> " + server + ":" + port);
+                }
+            });
+            hookStatus("InternetConnectW", "success");
+        } else {
+            hookStatus("InternetConnectW", "not_found");
+        }
+
+        var httpOpenRequest = getWinInetExport("HttpOpenRequestW");
+        if (httpOpenRequest) {
+            Interceptor.attach(httpOpenRequest, {
+                onEnter: function (args) {
+                    var verb = readWide(args[1]);
+                    var objectName = readWide(args[2]);
+                    log("[wininet] request -> " + verb + " " + objectName);
+                }
+            });
+            hookStatus("HttpOpenRequestW", "success");
+        } else {
+            hookStatus("HttpOpenRequestW", "not_found");
+        }
+    } catch (e) {
+        hookStatus("wininet", "error", e.toString());
     }
 }
 
@@ -655,6 +783,8 @@ function installHooks() {
 
     // Winsock connect/sendto for connection target logging
     hookWinsock();
+    hookWinHttp();
+    hookWinInet();
 
     log("=== Hook installation complete ===");
 }

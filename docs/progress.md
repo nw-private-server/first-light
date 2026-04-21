@@ -418,6 +418,29 @@ Things that differ from the initial Perplexity research or are otherwise surpris
   - Steam running and logged in
   - `steam_appid.txt` containing `1063730` next to the archived `NewWorld.exe`
 
+## 2026-04-20 Archived Frida Attempt #2
+
+- Added `steam_appid.txt` containing `1063730` next to `<archive-root>\GameClient\Bin64\NewWorld.exe`
+- Result:
+  - the old `Steam must be running` blocker disappeared
+  - the archived binary now gets farther, but exits with a generic `Unable to connect to New World: Aeternum servers` error
+- The Frida capture from `capture/20260420_221749_archived_frida/` shows:
+  - Frida spawn/attach still works
+  - SSL hooks still do not resolve (`SSL_read`, `SSL_write`, `_ex` variants all `not_found`)
+  - `packets.jsonl` is still empty
+  - process terminates shortly after hook installation
+- Interpretation:
+  - this archived target is now viable enough to continue instrumenting
+  - but the current hook was still too narrow to prove whether the binary reaches plain network APIs before failing
+- Follow-up change:
+  - widened `tools/frida_dtls_hook.js` again so it now:
+    - records explicit `not_found` / `success` states for Winsock exports
+    - hooks `connect`, `sendto`, `recvfrom`, `send`, `recv`
+    - also hooks WinHTTP (`WinHttpConnect`, `WinHttpOpenRequest`, `WinHttpSendRequest`)
+    - and WinINet (`InternetConnectW`, `HttpOpenRequestW`)
+- Next value check:
+  - rerun the archived Frida path and inspect whether the process reaches **any** plain network API before termination
+
 ---
 
 ## Connection State Machine
