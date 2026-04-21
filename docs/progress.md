@@ -859,6 +859,39 @@ Things that differ from the initial Perplexity research or are otherwise surpris
   - `WSAIoctl`
   - any subsequent datagram activity after the `23971` / `27000` resolution point
 
+## 2026-04-21 Archived Client Now Creates And Configures The REP UDP Socket
+
+- Latest archived run:
+  - `capture/20260421_121953_archived_frida/session.log`
+  - auth side confirms the same run reached:
+    - `validator`
+    - `CreateCharacter`
+    - `login/queue/v2`
+    - world remote-config
+- After queue admission, the archived client again resolved:
+  - `127.0.0.1:23971`
+  - `127.0.0.1:27000`
+- New useful signal from the added UDP hooks:
+  - it creates a dedicated UDP socket exactly at that point:
+    - `WSASocketW -> AF_INET SOCK_DGRAM proto=17`
+  - then immediately configures it with:
+    - `WSAIoctl(..., 0x9800000c) ret=0`
+- This is the strongest archived proof so far that the client has crossed from the queue/remote-config flow into REP UDP initialization.
+- Important negative result:
+  - there is still **no** observed:
+    - `WSAConnect()` to `127.0.0.1:23971`
+    - `sendto()` / `WSASendTo()`
+    - `bind()`
+    - DTLS traffic on the archived path
+- The recurring `POST https://kinesis.us-west-2.amazonaws.com/ -> 400` continues after this point and remains background telemetry, not the primary blocker.
+- Current blocker has narrowed again:
+  - the archived client resolves REP endpoints
+  - allocates and configures the UDP socket
+  - but dies before the first outbound datagram / DTLS ClientHello is emitted
+- Highest-value next instrumentation target is now the code path between:
+  - UDP socket creation / `WSAIoctl(0x9800000c)`
+  - and the missing first datagram send
+
 ---
 
 ## Connection State Machine
