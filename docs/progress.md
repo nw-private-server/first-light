@@ -1198,6 +1198,9 @@ Disconnected
   - `rep.vtbl+0x18`
 - Immediately after those calls, the internal start helper returns:
   - `start helper leave ret=0xffff`
+- Important caveat:
+  - `FUN_146425f20` decompiles as `void`
+  - so the observed `ret=0xffff` is just the leftover `RAX` value at function exit, not a trusted helper error code
 - After that, the state machine repeatedly polls:
   - `rep.vtbl+0xa8`
 - That readiness method returns:
@@ -1211,6 +1214,28 @@ Disconnected
 - Practical conclusion:
   - the next RE target is no longer generic transport startup
   - it is specifically the REP object method behind `vtbl+0xa8` (`NewWorld.exe+0x6b6df30`) and the helper path that returns `0xffff` right before polling begins
+
+## 2026-04-21 REP Ready-Flag Mapping
+
+- Raw archived code bytes around `NewWorld.exe+0x6b6df30` show the readiness method is tiny:
+  - `movzx eax, byte ptr [rcx+0x601]`
+  - `ret`
+- So `rep.vtbl+0xa8` is not a complex network routine; it simply reads the REP-object ready flag at offset `+0x601`.
+- Nearby archived transport functions clarify the lifecycle of that flag:
+  - `FUN_146b6f190` sets:
+    - `*(byte *)(param_1 + 0x601) = 1`
+    - on the path that logs / handles `Client connection is authorized`
+  - `FUN_146b6e7c0` checks `*(byte *)(param_1 + 0x601) != 0`, handles disconnect/error work, then clears:
+    - `*(byte *)(param_1 + 0x601) = 0`
+- This means the current archived failure is best described as:
+  - the REP object is created
+  - the ready flag at `+0x601` never flips to `1`
+  - therefore `rep.vtbl+0xa8` keeps returning `0`
+  - and `GameConnectionWrapper` stays stuck waiting for REP connection readiness
+- Follow-up instrumentation added:
+  - direct Frida hooks for:
+    - `FUN_146b6f190` (`NewWorld.exe+0x6b6f190`) — ready-flag setter / authorized path
+    - `FUN_146b6e7c0` (`NewWorld.exe+0x6b6e7c0`) — ready-flag reset / disconnect path
 
 ### Immediate (next session) — unblock character creation
 
