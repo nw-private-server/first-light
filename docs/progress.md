@@ -599,6 +599,28 @@ Things that differ from the initial Perplexity research or are otherwise surpris
   - this archived build is no longer blocked on hook discovery
   - the next value is not more target-discovery work, but capturing *earlier process behavior* (e.g. Steam init return, module load sequence, or startup failure path before network calls)
 
+## 2026-04-20 Archived Startup/Termination Pivot
+
+- Since the manual IAT path now yields real `success` hooks but still no actual network-call logs, the problem is no longer target discovery.
+- New working hypothesis:
+  - the archived process is dying before it reaches the current network log points
+  - so the next useful instrumentation is startup/termination behavior rather than more network-surface expansion
+- Follow-up change:
+  - extended `tools/frida_dtls_hook.js` with:
+    - process-lifecycle hooks:
+      - `ExitProcess`
+      - `TerminateProcess`
+      - `RtlExitUserProcess`
+      - `RaiseFailFastException`
+      - `abort`
+    - early UI hooks:
+      - `CreateWindowExW`
+      - `CreateWindowExA`
+      - `ShowWindow`
+      - `MessageBoxW`
+- Goal of the next archived rerun:
+  - determine whether the process creates UI and which exit path it takes before it dies
+
 ---
 
 ## Connection State Machine
