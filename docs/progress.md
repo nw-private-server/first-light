@@ -1162,6 +1162,33 @@ Disconnected
   - we now have concrete RVAs for the caller chain immediately above successful REP transport creation and secure init
   - the next RE step should target those RVAs directly in Ghidra instead of expanding OS-level hooks further
 
+## 2026-04-21 Ghidra REP State-Machine Mapping
+
+- Mapped the important backtrace RVAs in Ghidra on the archived binary:
+  - `NewWorld.exe+0x644a070` -> `FUN_14644a070`
+  - `NewWorld.exe+0x6425f20` -> `FUN_146425f20`
+  - `NewWorld.exe+0x646d460` -> `FUN_14646d460`
+- `FUN_14644a070` is the `GameConnectionWrapper` state machine.
+  - In the `StartREPConnection` branch it logs the REP address, calls `FUN_146425f20(param_1, param_2)`, and transitions into `WaitingForREPConnection`.
+  - In the next wait branch it checks a virtual method on `*(param_1 + 0x1000)` at vtable offset `+0xa8`; if that reports ready, it advances to `start actor game connection`.
+- `FUN_146425f20` is the REP/bootstrap helper directly called from that state machine branch.
+  - It works against the REP-side object at `param_1 + 0x1000`.
+  - It invokes multiple virtual methods on that object (`+0x08`, `+0x10`, `+0x18`) while setting up the REP side.
+- This means the archived failure is now tightly bounded to:
+  - after successful transport construction / secure init
+  - inside or immediately after the `StartREPConnection` -> `FUN_146425f20` path
+  - before the `*(repObj->vtbl + 0xa8)` readiness gate ever transitions the state machine forward
+- Follow-up instrumentation added to the Frida archived hook:
+  - direct hooks for `FUN_146425f20` and `FUN_14644a070`
+  - dynamic hooks for REP object vtable slots:
+    - `+0x08`
+    - `+0x10`
+    - `+0x18`
+    - `+0xa8`
+- Goal of the next archived run:
+  - determine whether the REP object methods are actually called
+  - and whether the readiness method at `+0xa8` is returning a stable false / error path before any outbound datagram is sent
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
