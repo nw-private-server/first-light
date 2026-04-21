@@ -1082,6 +1082,15 @@ Disconnected
   - even after exhausting normal Winsock exports, IOCP, extension functions, NTDLL, and provider SPI, the archived client still shows no observable outbound REP UDP datagram
   - the current blocker remains precisely: after REP UDP socket creation/configuration, before any first send that reaches a hookable OS networking surface
 
+## 2026-04-21 Internal REP Function Hook Pass
+
+- Added direct internal archived hooks for the two known REP transport RVAs from earlier Ghidra work:
+  - `FUN_146b6a270` (`RVA 0x06b6a270`) — gridmate-udp / REP transport constructor path
+  - `FUN_145dce750` (`RVA 0x05dce750`) — `Javelin_SecureSocketDriver_Initialize`
+- Goal:
+  - determine whether the archived client ever reaches internal REP transport construction and DTLS driver initialization on the failing post-queue path
+  - stop relying purely on OS socket APIs and instead instrument the game-side REP setup one layer earlier
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
