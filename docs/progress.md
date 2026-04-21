@@ -684,6 +684,26 @@ Things that differ from the initial Perplexity research or are otherwise surpris
   - the next highest-value instrumentation is **WinHTTP response/error status**
   - we need to know whether those CloudFront requests are succeeding, failing, or returning an unexpected payload/status before the game throws the generic dialog
 
+## 2026-04-20 Archived HTTP Failure Shape
+
+- The next archived Frida run showed the generic connection error still happens after startup, but with one more concrete signal:
+  - the archived process eventually calls:
+    - `TerminateProcess(handle=0xffffffffffffffff, code=0)`
+  - so it is self-terminating cleanly after its startup HTTP path, not crashing via an obvious fail-fast or exception path
+- Before self-termination, the visible startup/network sequence is:
+  - `SteamAPI_Init -> 1`
+  - main window creation (`GameWindowClass`, `New World`)
+  - repeated `WinHttpConnect/OpenRequest/SendRequest`
+    - host: `d2c74t4zimux3r.cloudfront.net:443`
+    - path: `GET /STEAM_APP_ID.1063730.json`
+- We still did **not** see:
+  - `WinHttpReceiveResponse`
+  - `WinHttpQueryHeaders`
+  - `WinHttpReadData`
+- Practical implication:
+  - the next highest-value hook point is the **WinHTTP async status callback path**
+  - the game is likely learning about request failure through `WinHttpSetStatusCallback` rather than the synchronous response/read APIs we were watching
+
 ---
 
 ## Connection State Machine
