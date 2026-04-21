@@ -621,6 +621,37 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 - Goal of the next archived rerun:
   - determine whether the process creates UI and which exit path it takes before it dies
 
+## 2026-04-20 Archived Startup/Termination Result
+
+- Session: `capture/20260420_225722_archived_frida/`
+- This run ended almost immediately after startup instrumentation finished:
+  - process detached at `22:57:24.549`
+  - roughly 1.5 seconds after the hook installation phase
+- Hook install results improved again:
+  - `success`
+    - `WSAConnect`
+    - `WSASend`
+    - `WSARecv`
+    - `WSARecvFrom`
+    - `GetAddrInfoW`
+    - `getaddrinfo`
+    - `WinHttpConnect`
+    - `SteamAPI_Init`
+    - `SteamInternal_ContextInit`
+    - `CreateWindowExW`
+    - `CreateWindowExA`
+    - `ShowWindow`
+  - some secondary lifecycle/UI hooks still error when Frida tries to intercept the specific target address:
+    - `process_lifecycle`
+    - `user32_startup`
+- Important result:
+  - despite those hooks installing successfully, there were still **no actual `[steam]`, `[ws2]`, `[winhttp]`, `[ui]`, or `[proc]` event logs**
+  - so the archived process is terminating before it reaches the current hooked call sites, not because hook discovery is still failing
+- Practical implication:
+  - the next highest-value path is likely outside the current Frida surface:
+    - either hook an even earlier failure/reporting path
+    - or stop treating this archived build as the best non-EAC candidate if it cannot even reach basic startup calls before dying
+
 ---
 
 ## Connection State Machine
