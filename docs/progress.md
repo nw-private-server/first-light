@@ -1189,6 +1189,29 @@ Disconnected
   - determine whether the REP object methods are actually called
   - and whether the readiness method at `+0xa8` is returning a stable false / error path before any outbound datagram is sent
 
+## 2026-04-21 REP Start Helper / Readiness Gate Result
+
+- Archived run `capture/20260421_150732_archived_frida` hit the new internal hooks and finally exposed the exact post-queue REP behavior.
+- The REP object methods are reached in this order:
+  - `rep.vtbl+0x08`
+  - `rep.vtbl+0x10`
+  - `rep.vtbl+0x18`
+- Immediately after those calls, the internal start helper returns:
+  - `start helper leave ret=0xffff`
+- After that, the state machine repeatedly polls:
+  - `rep.vtbl+0xa8`
+- That readiness method returns:
+  - `0x0`
+  - on every observed poll
+- No outbound REP UDP datagram or DTLS `ClientHello` appears before or during that polling loop.
+- This tightens the archived blocker to:
+  - `FUN_146425f20` completes but returns `0xffff`
+  - the REP object never transitions into the ready state reported by `vtbl+0xa8`
+  - `GameConnectionWrapper` therefore remains stuck in the `WaitingForREPConnection` branch until the process exits
+- Practical conclusion:
+  - the next RE target is no longer generic transport startup
+  - it is specifically the REP object method behind `vtbl+0xa8` (`NewWorld.exe+0x6b6df30`) and the helper path that returns `0xffff` right before polling begins
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
