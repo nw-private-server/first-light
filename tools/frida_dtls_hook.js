@@ -31,6 +31,7 @@ var retryDeadline = 0;
 var winHttpConnectMap = {}; // HINTERNET connection handle -> { host, port }
 var winHttpRequestMap = {}; // HINTERNET request handle -> { host, port, verb, objectName }
 var knownUdpSockets = {};   // SOCKET handle string -> { family, type, proto, ts }
+var wspHookedPtrs = {};     // provider-level SPI function pointer string -> true
 
 // Tunables
 var HEX_HEAD_BYTES = 256;
@@ -89,6 +90,14 @@ function rememberUdpSocket(sock, family, type, proto) {
 
 function isKnownUdpSocket(sock) {
     return knownUdpSockets[ptrKey(sock)] !== undefined;
+}
+
+function markWspPtr(ptr) {
+    wspHookedPtrs[ptrKey(ptr)] = true;
+}
+
+function isWspPtrHooked(ptr) {
+    return wspHookedPtrs[ptrKey(ptr)] === true;
 }
 
 // ---------------------------------------------------------------------------
@@ -1243,6 +1252,121 @@ function hookKernelSocketInfra() {
     }
 }
 
+function hookWinsockProviderSpi() {
+    function getApi(name) {
+        var modules = ["ws2_32.dll", "mswsock.dll", "wsock32.dll"];
+        for (var i = 0; i < modules.length; i++) {
+            try {
+                var addr = Module.getExportByName(modules[i], name);
+                if (addr) return addr;
+            } catch (_) {}
+        }
+        return null;
+    }
+
+    function hookWspProc(name, addr, kind) {
+        if (addr.isNull() || isWspPtrHooked(addr)) return;
+        try {
+            if (kind === "WSPSocket") {
+                Interceptor.attach(addr, {
+                    onEnter: function (args) {
+                        this.family = args[0].toInt32();
+                        this.type = args[1].toInt32();
+                        this.proto = args[2].toInt32();
+                    },
+                    onLeave: function (retval) {
+                        log("[wsp] WSPSocket -> " + retval + " " +
+                            formatFamily(this.family) + " " +
+                            formatSockType(this.type) + " proto=" + this.proto);
+                        if (this.type === 2 || this.proto === 17) {
+                            rememberUdpSocket(retval, this.family, this.type, this.proto);
+                        }
+                    }
+                });
+            } else if (kind === "WSPConnect") {
+                Interceptor.attach(addr, {
+                    onEnter: function (args) {
+                        var target = formatSockaddr(args[1]);
+                        if (target) {
+                            log("[wsp] WSPConnect(" + args[0] + ") -> " + target);
+                        }
+                    }
+                });
+            } else if (kind === "WSPSendTo") {
+                Interceptor.attach(addr, {
+                    onEnter: function (args) {
+                        var sock = args[0];
+                        var target = formatSockaddr(args[4]);
+                        if (isKnownUdpSocket(sock) || target) {
+                            log("[wsp] WSPSendTo(" + sock + ") -> " + (target || "unknown"));
+                        }
+                    }
+                });
+            } else if (kind === "WSPIoctl") {
+                Interceptor.attach(addr, {
+                    onEnter: function (args) {
+                        if (!isKnownUdpSocket(args[0])) return;
+                        var code = args[3].toUInt32();
+                        log("[wsp] WSPIoctl(" + args[0] + ", code=0x" + code.toString(16) + ")");
+                    }
+                });
+            } else if (kind === "WSPCloseSocket") {
+                Interceptor.attach(addr, {
+                    onEnter: function (args) {
+                        if (isKnownUdpSocket(args[0])) {
+                            log("[wsp] WSPCloseSocket(" + args[0] + ")");
+                        }
+                    }
+                });
+            } else {
+                Interceptor.attach(addr, {
+                    onEnter: function (_) {
+                        log("[wsp] " + name + "()");
+                    }
+                });
+            }
+            markWspPtr(addr);
+            hookStatus("wsp_" + kind + "_" + ptrKey(addr), "success");
+            log("[wsp] hooked " + kind + " at " + addr);
+        } catch (e) {
+            hookStatus("wsp_" + kind + "_" + ptrKey(addr), "error", e.toString());
+        }
+    }
+
+    try {
+        var wspStartup = getApi("WSPStartup");
+        if (wspStartup && !isHooked("WSPStartup")) {
+            Interceptor.attach(wspStartup, {
+                onEnter: function (args) {
+                    this.procTable = args[4];
+                },
+                onLeave: function (retval) {
+                    var ok = retval.toInt32() === 0;
+                    log("[wsp] WSPStartup -> " + retval.toInt32());
+                    if (!ok || this.procTable.isNull()) return;
+
+                    try {
+                        var table = this.procTable;
+                        hookWspProc("WSPCloseSocket", table.add(6 * Process.pointerSize).readPointer(), "WSPCloseSocket");
+                        hookWspProc("WSPConnect", table.add(7 * Process.pointerSize).readPointer(), "WSPConnect");
+                        hookWspProc("WSPIoctl", table.add(16 * Process.pointerSize).readPointer(), "WSPIoctl");
+                        hookWspProc("WSPSendTo", table.add(24 * Process.pointerSize).readPointer(), "WSPSendTo");
+                        hookWspProc("WSPSocket", table.add(28 * Process.pointerSize).readPointer(), "WSPSocket");
+                    } catch (e) {
+                        hookStatus("WSPStartup_table_parse", "error", e.toString());
+                    }
+                }
+            });
+            hookStatus("WSPStartup", "success");
+            markHook("WSPStartup");
+        } else if (!wspStartup) {
+            hookStatus("WSPStartup", "not_found");
+        }
+    } catch (e) {
+        hookStatus("winsock_provider_spi", "error", e.toString());
+    }
+}
+
 function hookNtdllSocketInfra() {
     function getApi(name) {
         try {
@@ -1907,6 +2031,7 @@ function installHooks() {
     // Install the cheap, early hooks first so short-lived startup failures still
     // give us some network signal before the heavier SSL scans run.
     hookWinsock();
+    hookWinsockProviderSpi();
     hookKernelSocketInfra();
     hookNtdllSocketInfra();
     hookWinHttp();
