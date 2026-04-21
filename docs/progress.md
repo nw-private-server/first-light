@@ -1300,6 +1300,50 @@ Disconnected
   - the next RE target should focus on how the object at `repObj + 0x118` is supposed to drive the transition into the authorized/ready path
   - that pointer now looks like the most plausible upstream dependency for why `FUN_146b6f190` never fires and `+0x601` never becomes `1`
 
+### Current archived REP focus
+
+- The latest archived Frida runs narrowed the post-queue failure to the object behind:
+  - `repObj + 0x118`
+- Ghidra confirms:
+  - `rep.vtbl+0xa8` is just `return *(byte *)(this + 0x601);`
+  - `FUN_146b6f190` is the setter that flips `+0x601 = 1`
+  - `FUN_146b6e7c0` is a later reset/error path that can clear it back to `0`
+- Runtime state from the last good archived REP-boundary run:
+  - before `rep.vtbl+0x18`:
+    - `+0x600 = 0`
+    - `+0x601 = 0`
+    - `+0x6f0 = 1`
+    - `+0x6f1 = 0`
+    - `+0x6f2 = 0`
+    - `+0xd0 = non-null`
+    - `+0x118 = 0`
+  - after `rep.vtbl+0x18`:
+    - `+0x118` becomes non-null and stays non-null during the poll loop
+  - during repeated `rep.vtbl+0xa8` polls:
+    - `+0x601` remains `0`
+    - `+0x6f1` / `+0x6f2` remain `0`
+    - setter/reset hooks never fire
+- Transport ctor Ghidra review (`FUN_146b6a270`) shows the transport object itself has meaningful vtable activity at:
+  - `+0x08`
+  - `+0x20`
+  - `+0x30`
+  - `+0x48`
+  - `+0x68`
+  - `+0x80`
+- New Frida instrumentation now hooks those exact transport-object methods and snapshots transport state fields:
+  - pointers:
+    - `+0x60`
+    - `+0x68`
+    - `+0x1b0`
+  - integral state:
+    - `+0x164`
+    - `+0x168`
+    - `+0x169`
+    - `+0x16a`
+- Immediate goal for the next archived run:
+  - determine whether the transport object at `repObj+0x118` is actually active
+  - and whether its callback/control fields (especially `+0x60`) ever become populated before the REP ready byte would be set
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):

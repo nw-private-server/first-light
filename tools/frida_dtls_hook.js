@@ -47,6 +47,7 @@ var internalRepBacktraceLogged = {
     repReadyReset: false
 };
 var internalRepDynamicHooks = {}; // hook name -> true
+var internalTransportDynamicHooks = {}; // hook name -> true
 var gameConnStateLogCount = 0;
 
 // Tunables
@@ -141,6 +142,14 @@ function isRepDynamicHooked(name) {
     return internalRepDynamicHooks[name] === true;
 }
 
+function markTransportDynamicHook(name) {
+    internalTransportDynamicHooks[name] = true;
+}
+
+function isTransportDynamicHooked(name) {
+    return internalTransportDynamicHooks[name] === true;
+}
+
 function safeReadPointer(p) {
     try {
         if (p.isNull()) return ptr("0");
@@ -166,6 +175,10 @@ function hookRepVirtualMethod(repObj, byteOffset, hookName, label) {
         Interceptor.attach(target, {
             onEnter: function (args) {
                 this.thisPtr = args[0];
+                try {
+                    var transportObj = this.thisPtr.add(0x118).readPointer();
+                    hookTransportObjectVirtuals(transportObj);
+                } catch (_) {}
                 var extra = "";
                 try {
                     extra = " state=" + describeRepState(this.thisPtr);
@@ -174,6 +187,10 @@ function hookRepVirtualMethod(repObj, byteOffset, hookName, label) {
                     " target=" + target + extra);
             },
             onLeave: function (retval) {
+                try {
+                    var transportObj = this.thisPtr.add(0x118).readPointer();
+                    hookTransportObjectVirtuals(transportObj);
+                } catch (_) {}
                 var extra = "";
                 try {
                     extra = " state=" + describeRepState(this.thisPtr);
@@ -199,6 +216,78 @@ function hookRepObjectVirtuals(repObj) {
     hookRepVirtualMethod(repObj, 0x10, "internal_rep_vtbl_10", "rep.vtbl+0x10");
     hookRepVirtualMethod(repObj, 0x18, "internal_rep_vtbl_18", "rep.vtbl+0x18");
     hookRepVirtualMethod(repObj, 0xa8, "internal_rep_vtbl_a8", "rep.vtbl+0xa8");
+}
+
+function describeTransportState(transportObj) {
+    function rb(off) {
+        try { return transportObj.add(off).readU8(); } catch (_) { return -1; }
+    }
+    function rd(off) {
+        try { return transportObj.add(off).readU32(); } catch (_) { return -1; }
+    }
+    function rp(off) {
+        try { return transportObj.add(off).readPointer(); } catch (_) { return ptr("0"); }
+    }
+    return "{60=" + rp(0x60) +
+        ",68=" + rp(0x68) +
+        ",164=" + rd(0x164) +
+        ",168=" + rb(0x168) +
+        ",169=" + rb(0x169) +
+        ",16a=" + rb(0x16a) +
+        ",1b0=" + rp(0x1b0) + "}";
+}
+
+function hookTransportVirtualMethod(transportObj, byteOffset, hookName, label) {
+    if (transportObj.isNull() || isTransportDynamicHooked(hookName)) {
+        return;
+    }
+    try {
+        var vtbl = safeReadPointer(transportObj);
+        if (vtbl.isNull()) {
+            return;
+        }
+        var target = safeReadPointer(vtbl.add(byteOffset));
+        if (target.isNull()) {
+            return;
+        }
+        Interceptor.attach(target, {
+            onEnter: function (args) {
+                this.thisPtr = args[0];
+                var extra = "";
+                try {
+                    extra = " state=" + describeTransportState(this.thisPtr);
+                } catch (_) {}
+                log("[rep-transport] " + label + " enter this=" + this.thisPtr +
+                    " target=" + target + extra);
+            },
+            onLeave: function (retval) {
+                var extra = "";
+                try {
+                    extra = " state=" + describeTransportState(this.thisPtr);
+                } catch (_) {}
+                log("[rep-transport] " + label + " leave ret=" + retval +
+                    " target=" + target + extra);
+            }
+        });
+        markTransportDynamicHook(hookName);
+        hookStatus(hookName, "success", target.toString());
+        log("[rep-transport] hooked " + label + " at " + target +
+            " (slot +" + byteOffset.toString(16) + ")");
+    } catch (e) {
+        hookStatus(hookName, "error", e.toString());
+    }
+}
+
+function hookTransportObjectVirtuals(transportObj) {
+    if (transportObj.isNull()) {
+        return;
+    }
+    hookTransportVirtualMethod(transportObj, 0x08, "internal_transport_vtbl_08", "transport.vtbl+0x08");
+    hookTransportVirtualMethod(transportObj, 0x20, "internal_transport_vtbl_20", "transport.vtbl+0x20");
+    hookTransportVirtualMethod(transportObj, 0x30, "internal_transport_vtbl_30", "transport.vtbl+0x30");
+    hookTransportVirtualMethod(transportObj, 0x48, "internal_transport_vtbl_48", "transport.vtbl+0x48");
+    hookTransportVirtualMethod(transportObj, 0x68, "internal_transport_vtbl_68", "transport.vtbl+0x68");
+    hookTransportVirtualMethod(transportObj, 0x80, "internal_transport_vtbl_80", "transport.vtbl+0x80");
 }
 
 function describeRepState(repObj) {
@@ -1493,8 +1582,10 @@ function hookInternalRepFunctions() {
             Interceptor.attach(transportCtor, {
                 onEnter: function (args) {
                     this.thisPtr = args[0];
+                    hookTransportObjectVirtuals(this.thisPtr);
                     log("[rep-int] transport ctor enter this=" + this.thisPtr +
-                        " arg1=" + args[1] + " arg2=" + args[2] + " arg3=" + args[3]);
+                        " arg1=" + args[1] + " arg2=" + args[2] + " arg3=" + args[3] +
+                        " state=" + describeTransportState(this.thisPtr));
                     if (!internalRepBacktraceLogged.transportCtor) {
                         internalRepBacktraceLogged.transportCtor = true;
                         try {
@@ -1506,7 +1597,9 @@ function hookInternalRepFunctions() {
                     }
                 },
                 onLeave: function (retval) {
-                    log("[rep-int] transport ctor leave ret=" + retval);
+                    hookTransportObjectVirtuals(this.thisPtr);
+                    log("[rep-int] transport ctor leave ret=" + retval +
+                        " state=" + describeTransportState(this.thisPtr));
                 }
             });
             hookStatus("internal_rep_transport_ctor", "success");
