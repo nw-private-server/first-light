@@ -85,6 +85,17 @@ function nowISO() {
  */
 
 var _SSL_version = null;  // resolved later
+var _GetLastError = null;
+
+try {
+    _GetLastError = new NativeFunction(
+        Module.getExportByName("kernel32.dll", "GetLastError"),
+        "uint32",
+        []
+    );
+} catch (_) {
+    _GetLastError = null;
+}
 
 function classifySSL(sslPtr) {
     var key = sslPtr.toString();
@@ -806,6 +817,22 @@ function hookWinHttp() {
         }
     }
 
+    function readAscii(ptr, len) {
+        if (ptr.isNull()) return "";
+        try {
+            if (len !== undefined && len !== null && len > 0) {
+                return ptr.readAnsiString(len);
+            }
+            return ptr.readAnsiString();
+        } catch (_) {
+            return "";
+        }
+    }
+
+    function boolResult(retval) {
+        return !retval.isNull() && retval.toInt32() !== 0;
+    }
+
     try {
         var connect = getWinHttpExport("WinHttpConnect");
         if (connect && !isHooked("WinHttpConnect")) {
@@ -842,12 +869,93 @@ function hookWinHttp() {
             Interceptor.attach(sendRequest, {
                 onEnter: function (_) {
                     log("[winhttp] send request");
+                },
+                onLeave: function (retval) {
+                    if (!boolResult(retval) && _GetLastError !== null) {
+                        log("[winhttp] send request failed gle=" + _GetLastError());
+                    }
                 }
             });
             hookStatus("WinHttpSendRequest", "success");
             markHook("WinHttpSendRequest");
         } else if (!sendRequest) {
             hookStatus("WinHttpSendRequest", "not_found");
+        }
+
+        var receiveResponse = getWinHttpExport("WinHttpReceiveResponse");
+        if (receiveResponse && !isHooked("WinHttpReceiveResponse")) {
+            Interceptor.attach(receiveResponse, {
+                onLeave: function (retval) {
+                    if (boolResult(retval)) {
+                        log("[winhttp] receive response -> success");
+                    } else if (_GetLastError !== null) {
+                        log("[winhttp] receive response failed gle=" + _GetLastError());
+                    }
+                }
+            });
+            hookStatus("WinHttpReceiveResponse", "success");
+            markHook("WinHttpReceiveResponse");
+        } else if (!receiveResponse) {
+            hookStatus("WinHttpReceiveResponse", "not_found");
+        }
+
+        var queryHeaders = getWinHttpExport("WinHttpQueryHeaders");
+        if (queryHeaders && !isHooked("WinHttpQueryHeaders")) {
+            Interceptor.attach(queryHeaders, {
+                onEnter: function (args) {
+                    this.infoLevel = args[1].toUInt32();
+                    this.buffer = args[3];
+                    this.bufferLenPtr = args[4];
+                },
+                onLeave: function (retval) {
+                    if (!boolResult(retval)) {
+                        return;
+                    }
+                    var level = this.infoLevel & 0xffff;
+                    try {
+                        if (level === 19 && !this.buffer.isNull()) { // WINHTTP_QUERY_STATUS_CODE
+                            log("[winhttp] status code -> " + readWide(this.buffer));
+                        } else if (level === 22 && !this.buffer.isNull()) { // WINHTTP_QUERY_CONTENT_LENGTH
+                            log("[winhttp] content-length -> " + readWide(this.buffer));
+                        } else if (level === 5 && !this.buffer.isNull()) { // WINHTTP_QUERY_RAW_HEADERS_CRLF
+                            var chars = 0;
+                            if (!this.bufferLenPtr.isNull()) {
+                                chars = this.bufferLenPtr.readU32() / 2;
+                            }
+                            var hdrs = readWide(this.buffer);
+                            if (hdrs && hdrs.length > 0) {
+                                log("[winhttp] raw headers -> " + hdrs.replace(/\r\n/g, " | "));
+                            }
+                        }
+                    } catch (_) {}
+                }
+            });
+            hookStatus("WinHttpQueryHeaders", "success");
+            markHook("WinHttpQueryHeaders");
+        } else if (!queryHeaders) {
+            hookStatus("WinHttpQueryHeaders", "not_found");
+        }
+
+        var readData = getWinHttpExport("WinHttpReadData");
+        if (readData && !isHooked("WinHttpReadData")) {
+            Interceptor.attach(readData, {
+                onEnter: function (args) {
+                    this.bytesReadPtr = args[3];
+                },
+                onLeave: function (retval) {
+                    if (boolResult(retval) && !this.bytesReadPtr.isNull()) {
+                        try {
+                            log("[winhttp] read data -> " + this.bytesReadPtr.readU32() + " bytes");
+                        } catch (_) {}
+                    } else if (!boolResult(retval) && _GetLastError !== null) {
+                        log("[winhttp] read data failed gle=" + _GetLastError());
+                    }
+                }
+            });
+            hookStatus("WinHttpReadData", "success");
+            markHook("WinHttpReadData");
+        } else if (!readData) {
+            hookStatus("WinHttpReadData", "not_found");
         }
     } catch (e) {
         hookStatus("winhttp", "error", e.toString());
