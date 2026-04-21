@@ -1344,6 +1344,29 @@ Disconnected
   - determine whether the transport object at `repObj+0x118` is actually active
   - and whether its callback/control fields (especially `+0x60`) ever become populated before the REP ready byte would be set
 
+### Latest archived run
+
+- The newest archived Frida run reached the same REP-ready poll loop, but from the player perspective it CTD'd before the usual connection-error dialog.
+- Useful internal result:
+  - the REP object still stayed in the same stalled state:
+    - `+0x601 = 0`
+    - `+0x118 = non-null`
+  - transport-object hooks partially attached:
+    - `transport.vtbl+0x20` -> success
+    - `transport.vtbl+0x48` -> success
+    - `transport.vtbl+0x68` -> success
+  - but none of those hooked transport methods actually executed on the failing path
+- One instrumentation issue was exposed:
+  - `transport.vtbl+0x30` repeatedly failed Frida attach with:
+    - `unable to intercept function at 0x...`
+  - this was Frida-side noise from retrying the same failed attach, not a new game-side behavior
+  - the hook now marks failed transport hooks as attempted so future runs do not spam that error
+- Additional runtime observation:
+  - there was at least one later `WSASend` on the process after the REP poll loop, but still no REP-ready transition and no observed outbound DTLS `ClientHello`
+- Current interpretation:
+  - the transport object behind `repObj+0x118` exists, but the expected transport-vtable path that should drive authorization/readiness is still not executing
+  - the blocker remains between successful transport creation and the path that would eventually flip `repObj+0x601 = 1`
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
