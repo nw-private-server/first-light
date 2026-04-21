@@ -1124,6 +1124,44 @@ Disconnected
 - Follow-up change:
   - Frida backtrace logging now includes raw module-relative offsets (`NewWorld.exe+0x...`) so the next archived run produces addresses that can be matched back to Ghidra directly.
 
+## 2026-04-21 Internal REP Backtrace RVAs
+
+- Archived run `capture/20260421_144726_archived_frida` produced clean module-relative caller-chain RVAs for the two internal REP hooks.
+- Transport constructor backtrace included:
+  - `NewWorld.exe+0x6b6d734`
+  - `NewWorld.exe+0x6b6d5e8`
+  - `NewWorld.exe+0x6426391`
+  - `NewWorld.exe+0x644a66f`
+  - `NewWorld.exe+0x646d4af`
+  - `NewWorld.exe+0x646cbe5`
+  - `NewWorld.exe+0x646d3c5`
+  - `NewWorld.exe+0x1044d82`
+  - `NewWorld.exe+0x720bae0`
+  - `NewWorld.exe+0x72181dd`
+  - `NewWorld.exe+0x7aa729e`
+- Secure-init backtrace included:
+  - `NewWorld.exe+0x0f693c0`
+  - `NewWorld.exe+0x5dbb662`
+  - `NewWorld.exe+0x5dbae0d`
+  - `NewWorld.exe+0x5dc8be4`
+  - `NewWorld.exe+0x6b36f03`
+  - `NewWorld.exe+0x6b27e9d`
+  - `NewWorld.exe+0x6b6a8be`
+  - `NewWorld.exe+0x6b6d734`
+  - `NewWorld.exe+0x6b6d5e8`
+  - `NewWorld.exe+0x6426391`
+  - `NewWorld.exe+0x644a66f`
+  - `NewWorld.exe+0x646d4af`
+- These runs still end the same way:
+  - transport constructor enters
+  - secure init enters and returns `0`
+  - UDP socket is created and `SIO_UDP_CONNRESET` is set
+  - no observable outbound REP datagram appears
+  - process exits via `TerminateProcess(handle=-1, code=0)`
+- Result:
+  - we now have concrete RVAs for the caller chain immediately above successful REP transport creation and secure init
+  - the next RE step should target those RVAs directly in Ghidra instead of expanding OS-level hooks further
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
