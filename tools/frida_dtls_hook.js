@@ -32,6 +32,8 @@ var winHttpConnectMap = {}; // HINTERNET connection handle -> { host, port }
 var winHttpRequestMap = {}; // HINTERNET request handle -> { host, port, verb, objectName }
 var knownUdpSockets = {};   // SOCKET handle string -> { family, type, proto, ts }
 var wspHookedPtrs = {};     // provider-level SPI function pointer string -> true
+var INTERNAL_RVA_TRANSPORT_CTOR = 0x06b6a270; // FUN_146b6a270
+var INTERNAL_RVA_SECURE_INIT = 0x05dce750;    // FUN_145dce750
 
 // Tunables
 var HEX_HEAD_BYTES = 256;
@@ -1367,6 +1369,54 @@ function hookWinsockProviderSpi() {
     }
 }
 
+function hookInternalRepFunctions() {
+    try {
+        var base = getMainModule().base;
+
+        var transportCtor = base.add(INTERNAL_RVA_TRANSPORT_CTOR);
+        if (!isHooked("internal_rep_transport_ctor")) {
+            Interceptor.attach(transportCtor, {
+                onEnter: function (args) {
+                    this.thisPtr = args[0];
+                    log("[rep-int] transport ctor enter this=" + this.thisPtr +
+                        " arg1=" + args[1] + " arg2=" + args[2] + " arg3=" + args[3]);
+                },
+                onLeave: function (retval) {
+                    log("[rep-int] transport ctor leave ret=" + retval);
+                }
+            });
+            hookStatus("internal_rep_transport_ctor", "success");
+            markHook("internal_rep_transport_ctor");
+        }
+
+        var secureInit = base.add(INTERNAL_RVA_SECURE_INIT);
+        if (!isHooked("internal_rep_secure_init")) {
+            Interceptor.attach(secureInit, {
+                onEnter: function (args) {
+                    this.ctx = args[0];
+                    var verifyFlag = "<?>", modeFlag = "<?>";
+                    try {
+                        verifyFlag = this.ctx.add(0x288).readPointer();
+                    } catch (_) {}
+                    try {
+                        modeFlag = this.ctx.add(0x270).readU8();
+                    } catch (_) {}
+                    log("[rep-int] secure init enter ctx=" + this.ctx +
+                        " verifyField=" + verifyFlag +
+                        " modeField=" + modeFlag);
+                },
+                onLeave: function (retval) {
+                    log("[rep-int] secure init leave ret=" + retval);
+                }
+            });
+            hookStatus("internal_rep_secure_init", "success");
+            markHook("internal_rep_secure_init");
+        }
+    } catch (e) {
+        hookStatus("internal_rep_functions", "error", e.toString());
+    }
+}
+
 function hookNtdllSocketInfra() {
     function getApi(name) {
         try {
@@ -2034,6 +2084,7 @@ function installHooks() {
     hookWinsockProviderSpi();
     hookKernelSocketInfra();
     hookNtdllSocketInfra();
+    hookInternalRepFunctions();
     hookWinHttp();
     hookWinInet();
     hookSteamApi();
