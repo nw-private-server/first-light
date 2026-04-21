@@ -1091,6 +1091,25 @@ Disconnected
   - determine whether the archived client ever reaches internal REP transport construction and DTLS driver initialization on the failing post-queue path
   - stop relying purely on OS socket APIs and instead instrument the game-side REP setup one layer earlier
 
+## 2026-04-21 Internal REP Hook Result
+
+- Archived run `capture/20260421_143357_archived_frida` reached the same REP UDP boundary again and, for the first time, also hit the new internal REP hooks:
+  - `[rep-int] transport ctor enter ...`
+  - `[rep-int] secure init enter ctx=... verifyField=0x200fb1a7800 modeField=0`
+  - `WSASocketW -> AF_INET SOCK_DGRAM proto=17`
+  - `WSAIoctl(..., SIO_UDP_CONNRESET) ret=0`
+  - `[rep-int] secure init leave ret=0x0`
+  - `[rep-int] transport ctor leave ret=...`
+- Important result:
+  - the archived client definitely reaches both:
+    - REP transport construction (`FUN_146b6a270`)
+    - secure socket / DTLS driver initialization (`FUN_145dce750`)
+  - both return successfully on the failing post-queue path
+- This moves the blocker again:
+  - no longer “before transport construction”
+  - no longer “inside secure init”
+  - now specifically after successful REP transport creation + secure init, but still before any observable outbound REP UDP datagram or DTLS ClientHello
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
