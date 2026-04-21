@@ -748,6 +748,27 @@ function hookWinsock() {
             hookStatus("WSARecvFrom", "not_found");
         }
 
+        var wsaSendTo = getWs2Export("WSASendTo");
+        if (wsaSendTo && !isHooked("WSASendTo")) {
+            Interceptor.attach(wsaSendTo, {
+                onEnter: function (args) {
+                    this.target = formatSockaddr(args[5]);
+                    this.bufCount = args[2].toInt32();
+                },
+                onLeave: function (_) {
+                    if (this.target) {
+                        log("[ws2] WSASendTo -> " + this.target + " buffers=" + this.bufCount);
+                    } else {
+                        log("[ws2] WSASendTo -> buffers=" + this.bufCount);
+                    }
+                }
+            });
+            hookStatus("WSASendTo", "success");
+            markHook("WSASendTo");
+        } else if (!wsaSendTo) {
+            hookStatus("WSASendTo", "not_found");
+        }
+
         var sendto = getWs2Export("sendto");
         if (sendto && !isHooked("ws2_sendto")) {
             Interceptor.attach(sendto, {
@@ -850,6 +871,40 @@ function hookWinsock() {
             markHook("getaddrinfo");
         } else if (!getaddrinfo) {
             hookStatus("getaddrinfo", "not_found");
+        }
+
+        var bindFn = getWs2Export("bind");
+        if (bindFn && !isHooked("ws2_bind")) {
+            Interceptor.attach(bindFn, {
+                onEnter: function (args) {
+                    this.target = formatSockaddr(args[1]);
+                    this.sock = args[0];
+                },
+                onLeave: function (retval) {
+                    log("[ws2] bind(" + this.sock + ") -> " + (this.target || "unknown") + " ret=" + retval.toInt32());
+                }
+            });
+            hookStatus("ws2_bind", "success");
+            markHook("ws2_bind");
+        } else if (!bindFn) {
+            hookStatus("ws2_bind", "not_found");
+        }
+
+        var wsaIoctl = getWs2Export("WSAIoctl");
+        if (wsaIoctl && !isHooked("WSAIoctl")) {
+            Interceptor.attach(wsaIoctl, {
+                onEnter: function (args) {
+                    this.sock = args[0];
+                    this.code = args[1].toUInt32();
+                },
+                onLeave: function (retval) {
+                    log("[ws2] WSAIoctl(" + this.sock + ", 0x" + this.code.toString(16) + ") ret=" + retval.toInt32());
+                }
+            });
+            hookStatus("WSAIoctl", "success");
+            markHook("WSAIoctl");
+        } else if (!wsaIoctl) {
+            hookStatus("WSAIoctl", "not_found");
         }
 
         var closesocket = getWs2Export("closesocket");
