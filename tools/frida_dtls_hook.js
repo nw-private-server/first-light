@@ -25,6 +25,9 @@
 var seqNo = 0;          // monotonic packet counter
 var mainModule = null;   // cached Process.enumerateModules()[0]
 var sslContextCache = {};  // ptr.toString() -> { protocol: "tls"|"dtls" }
+var installedHooks = {};    // hook name -> true
+var pendingRetryTimer = null;
+var retryDeadline = 0;
 
 // Tunables
 var HEX_HEAD_BYTES = 256;
@@ -39,6 +42,14 @@ function log(text) {
 
 function hookStatus(name, status, detail) {
     send({ type: "hook_status", name: name, status: status, detail: detail || "" });
+}
+
+function markHook(name) {
+    installedHooks[name] = true;
+}
+
+function isHooked(name) {
+    return installedHooks[name] === true;
 }
 
 function toHex(buf, maxLen) {
@@ -453,7 +464,7 @@ function hookWinsock() {
 
     try {
         var connect = getWs2Export("connect");
-        if (connect) {
+        if (connect && !isHooked("ws2_connect")) {
             Interceptor.attach(connect, {
                 onEnter: function (args) {
                     var target = formatSockaddr(args[1]);
@@ -463,12 +474,13 @@ function hookWinsock() {
                 }
             });
             hookStatus("ws2_connect", "success");
-        } else {
+            markHook("ws2_connect");
+        } else if (!connect) {
             hookStatus("ws2_connect", "not_found");
         }
 
         var sendto = getWs2Export("sendto");
-        if (sendto) {
+        if (sendto && !isHooked("ws2_sendto")) {
             Interceptor.attach(sendto, {
                 onEnter: function (args) {
                     this.target = formatSockaddr(args[4]);
@@ -481,12 +493,13 @@ function hookWinsock() {
                 }
             });
             hookStatus("ws2_sendto", "success");
-        } else {
+            markHook("ws2_sendto");
+        } else if (!sendto) {
             hookStatus("ws2_sendto", "not_found");
         }
 
         var recvfrom = getWs2Export("recvfrom");
-        if (recvfrom) {
+        if (recvfrom && !isHooked("ws2_recvfrom")) {
             Interceptor.attach(recvfrom, {
                 onEnter: function (args) {
                     this.len = args[2].toInt32();
@@ -499,12 +512,13 @@ function hookWinsock() {
                 }
             });
             hookStatus("ws2_recvfrom", "success");
-        } else {
+            markHook("ws2_recvfrom");
+        } else if (!recvfrom) {
             hookStatus("ws2_recvfrom", "not_found");
         }
 
         var send = getWs2Export("send");
-        if (send) {
+        if (send && !isHooked("ws2_send")) {
             Interceptor.attach(send, {
                 onEnter: function (args) {
                     this.len = args[2].toInt32();
@@ -514,12 +528,13 @@ function hookWinsock() {
                 }
             });
             hookStatus("ws2_send", "success");
-        } else {
+            markHook("ws2_send");
+        } else if (!send) {
             hookStatus("ws2_send", "not_found");
         }
 
         var recv = getWs2Export("recv");
-        if (recv) {
+        if (recv && !isHooked("ws2_recv")) {
             Interceptor.attach(recv, {
                 onLeave: function (retval) {
                     var moved = retval.toInt32();
@@ -529,7 +544,8 @@ function hookWinsock() {
                 }
             });
             hookStatus("ws2_recv", "success");
-        } else {
+            markHook("ws2_recv");
+        } else if (!recv) {
             hookStatus("ws2_recv", "not_found");
         }
     } catch (e) {
@@ -561,7 +577,7 @@ function hookWinHttp() {
 
     try {
         var connect = getWinHttpExport("WinHttpConnect");
-        if (connect) {
+        if (connect && !isHooked("WinHttpConnect")) {
             Interceptor.attach(connect, {
                 onEnter: function (args) {
                     var host = readWide(args[1]);
@@ -570,12 +586,13 @@ function hookWinHttp() {
                 }
             });
             hookStatus("WinHttpConnect", "success");
-        } else {
+            markHook("WinHttpConnect");
+        } else if (!connect) {
             hookStatus("WinHttpConnect", "not_found");
         }
 
         var openRequest = getWinHttpExport("WinHttpOpenRequest");
-        if (openRequest) {
+        if (openRequest && !isHooked("WinHttpOpenRequest")) {
             Interceptor.attach(openRequest, {
                 onEnter: function (args) {
                     var verb = readWide(args[1]);
@@ -584,19 +601,21 @@ function hookWinHttp() {
                 }
             });
             hookStatus("WinHttpOpenRequest", "success");
-        } else {
+            markHook("WinHttpOpenRequest");
+        } else if (!openRequest) {
             hookStatus("WinHttpOpenRequest", "not_found");
         }
 
         var sendRequest = getWinHttpExport("WinHttpSendRequest");
-        if (sendRequest) {
+        if (sendRequest && !isHooked("WinHttpSendRequest")) {
             Interceptor.attach(sendRequest, {
                 onEnter: function (_) {
                     log("[winhttp] send request");
                 }
             });
             hookStatus("WinHttpSendRequest", "success");
-        } else {
+            markHook("WinHttpSendRequest");
+        } else if (!sendRequest) {
             hookStatus("WinHttpSendRequest", "not_found");
         }
     } catch (e) {
@@ -624,7 +643,7 @@ function hookWinInet() {
 
     try {
         var internetConnect = getWinInetExport("InternetConnectW");
-        if (internetConnect) {
+        if (internetConnect && !isHooked("InternetConnectW")) {
             Interceptor.attach(internetConnect, {
                 onEnter: function (args) {
                     var server = readWide(args[1]);
@@ -633,12 +652,13 @@ function hookWinInet() {
                 }
             });
             hookStatus("InternetConnectW", "success");
-        } else {
+            markHook("InternetConnectW");
+        } else if (!internetConnect) {
             hookStatus("InternetConnectW", "not_found");
         }
 
         var httpOpenRequest = getWinInetExport("HttpOpenRequestW");
-        if (httpOpenRequest) {
+        if (httpOpenRequest && !isHooked("HttpOpenRequestW")) {
             Interceptor.attach(httpOpenRequest, {
                 onEnter: function (args) {
                     var verb = readWide(args[1]);
@@ -647,12 +667,74 @@ function hookWinInet() {
                 }
             });
             hookStatus("HttpOpenRequestW", "success");
-        } else {
+            markHook("HttpOpenRequestW");
+        } else if (!httpOpenRequest) {
             hookStatus("HttpOpenRequestW", "not_found");
         }
     } catch (e) {
         hookStatus("wininet", "error", e.toString());
     }
+}
+
+function hookModuleLoads() {
+    function tryExport(moduleName, exportName) {
+        try {
+            return Module.getExportByName(moduleName, exportName);
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function attachLoadHook(exportName, wide) {
+        var addr = tryExport("kernel32.dll", exportName) || tryExport("KernelBase.dll", exportName);
+        if (!addr || isHooked(exportName)) return;
+        Interceptor.attach(addr, {
+            onEnter: function (args) {
+                this.path = "";
+                try {
+                    this.path = wide ? args[0].readUtf16String() : args[0].readUtf8String();
+                } catch (_) {}
+            },
+            onLeave: function (retval) {
+                if (!retval.isNull() && this.path) {
+                    log("[loader] " + exportName + " -> " + this.path);
+                    retryDeferredHooks();
+                }
+            }
+        });
+        hookStatus(exportName, "success");
+        markHook(exportName);
+    }
+
+    try {
+        attachLoadHook("LoadLibraryW", true);
+        attachLoadHook("LoadLibraryA", false);
+        attachLoadHook("LoadLibraryExW", true);
+        attachLoadHook("LoadLibraryExA", false);
+    } catch (e) {
+        hookStatus("loader_hooks", "error", e.toString());
+    }
+}
+
+function retryDeferredHooks() {
+    hookWinsock();
+    hookWinHttp();
+    hookWinInet();
+}
+
+function scheduleDeferredHookRetries(seconds) {
+    retryDeadline = Date.now() + (seconds * 1000);
+    if (pendingRetryTimer !== null) {
+        return;
+    }
+    pendingRetryTimer = setInterval(function () {
+        retryDeferredHooks();
+        if (Date.now() >= retryDeadline) {
+            clearInterval(pendingRetryTimer);
+            pendingRetryTimer = null;
+            log("[*] Deferred network hook retries finished");
+        }
+    }, 1000);
 }
 
 // ---------------------------------------------------------------------------
@@ -670,6 +752,8 @@ function installHooks() {
     hookWinsock();
     hookWinHttp();
     hookWinInet();
+    hookModuleLoads();
+    scheduleDeferredHookRetries(30);
 
     // AzNetworking layer next; still cheap if symbols exist.
     hookAzNetworking();
