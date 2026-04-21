@@ -978,6 +978,27 @@ Disconnected
   - determine whether the missing first REP/DTLS datagram is sent through an extension path instead of normal `sendto` / `WSAConnect`
   - especially verify whether the client transitions into `WSASendMsg`, `ConnectEx`, or another provider-specific path right after UDP socket setup
 
+## 2026-04-21 Extension GUID Decode Result
+
+- The extension-function pass is working:
+  - `SIO_GET_EXTENSION_FUNCTION_POINTER` now resolves concrete Winsock extensions instead of logging raw buffers
+  - current archived runs successfully auto-hook:
+    - `ConnectEx`
+    - `DisconnectEx`
+- Important result:
+  - on the latest archived attempts, the observed extension usage is still only on the normal TCP/HTTPS side
+  - example:
+    - `ConnectEx(...) -> 127.0.0.1:443`
+    - `ConnectEx(...) -> 34.223.45.127:443`
+- No REP-specific extension send path has been observed yet:
+  - no `WSASendMsg`
+  - no UDP-side `ConnectEx`
+  - no first datagram to `127.0.0.1:23971`
+- One of the latest attempts (`capture/20260421_125553_archived_frida`) did **not** reach the REP boundary at all:
+  - auth mock only reached `getlogininfo`
+  - no validator/create/login-queue on that run
+- So the extension-hooking pass is validated, but it has not yet shown a hidden REP send path.
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
