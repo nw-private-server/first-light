@@ -28,6 +28,8 @@ var sslContextCache = {};  // ptr.toString() -> { protocol: "tls"|"dtls" }
 var installedHooks = {};    // hook name -> true
 var pendingRetryTimer = null;
 var retryDeadline = 0;
+var winHttpConnectMap = {}; // HINTERNET connection handle -> { host, port }
+var winHttpRequestMap = {}; // HINTERNET request handle -> { host, port, verb, objectName }
 
 // Tunables
 var HEX_HEAD_BYTES = 256;
@@ -64,6 +66,15 @@ function toHex(buf, maxLen) {
 
 function nowISO() {
     return new Date().toISOString();
+}
+
+function ptrKey(ptr) {
+    if (ptr === null || ptr === undefined) return "null";
+    try {
+        return ptr.toString();
+    } catch (_) {
+        return "invalid";
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -611,7 +622,59 @@ function hookWinsock() {
         return null;
     }
 
+    function formatFamily(family) {
+        if (family === 2) return "AF_INET";
+        if (family === 23) return "AF_INET6";
+        return "AF_" + family;
+    }
+
+    function formatSockType(t) {
+        if (t === 1) return "SOCK_STREAM";
+        if (t === 2) return "SOCK_DGRAM";
+        return "TYPE_" + t;
+    }
+
     try {
+        var wsaSocketW = getWs2Export("WSASocketW");
+        if (wsaSocketW && !isHooked("WSASocketW")) {
+            Interceptor.attach(wsaSocketW, {
+                onEnter: function (args) {
+                    this.family = args[0].toInt32();
+                    this.type = args[1].toInt32();
+                    this.proto = args[2].toInt32();
+                },
+                onLeave: function (retval) {
+                    log("[ws2] WSASocketW -> " + retval + " " +
+                        formatFamily(this.family) + " " +
+                        formatSockType(this.type) + " proto=" + this.proto);
+                }
+            });
+            hookStatus("WSASocketW", "success");
+            markHook("WSASocketW");
+        } else if (!wsaSocketW) {
+            hookStatus("WSASocketW", "not_found");
+        }
+
+        var socketFn = getWs2Export("socket");
+        if (socketFn && !isHooked("ws2_socket")) {
+            Interceptor.attach(socketFn, {
+                onEnter: function (args) {
+                    this.family = args[0].toInt32();
+                    this.type = args[1].toInt32();
+                    this.proto = args[2].toInt32();
+                },
+                onLeave: function (retval) {
+                    log("[ws2] socket -> " + retval + " " +
+                        formatFamily(this.family) + " " +
+                        formatSockType(this.type) + " proto=" + this.proto);
+                }
+            });
+            hookStatus("ws2_socket", "success");
+            markHook("ws2_socket");
+        } else if (!socketFn) {
+            hookStatus("ws2_socket", "not_found");
+        }
+
         var wsaConnect = getWs2Export("WSAConnect");
         if (wsaConnect && !isHooked("WSAConnect")) {
             Interceptor.attach(wsaConnect, {
@@ -788,6 +851,19 @@ function hookWinsock() {
         } else if (!getaddrinfo) {
             hookStatus("getaddrinfo", "not_found");
         }
+
+        var closesocket = getWs2Export("closesocket");
+        if (closesocket && !isHooked("ws2_closesocket")) {
+            Interceptor.attach(closesocket, {
+                onEnter: function (args) {
+                    log("[ws2] closesocket(" + args[0] + ")");
+                }
+            });
+            hookStatus("ws2_closesocket", "success");
+            markHook("ws2_closesocket");
+        } else if (!closesocket) {
+            hookStatus("ws2_closesocket", "not_found");
+        }
     } catch (e) {
         hookStatus("winsock", "error", e.toString());
     }
@@ -871,6 +947,12 @@ function hookWinHttp() {
         return parts.join("|") || ("0x" + flags.toString(16));
     }
 
+    function describeRequestHandle(hRequest) {
+        var info = winHttpRequestMap[ptrKey(hRequest)];
+        if (!info) return "handle=" + hRequest;
+        return info.verb + " https://" + info.host + ":" + info.port + info.objectName;
+    }
+
     try {
         var setStatusCallback = getWinHttpExport("WinHttpSetStatusCallback");
         if (setStatusCallback && !isHooked("WinHttpSetStatusCallback")) {
@@ -902,9 +984,17 @@ function hookWinHttp() {
         if (connect && !isHooked("WinHttpConnect")) {
             Interceptor.attach(connect, {
                 onEnter: function (args) {
-                    var host = readWide(args[1]);
-                    var port = args[2].toInt32();
-                    log("[winhttp] connect -> " + host + ":" + port);
+                    this.host = readWide(args[1]);
+                    this.port = args[2].toInt32();
+                    log("[winhttp] connect -> " + this.host + ":" + this.port);
+                },
+                onLeave: function (retval) {
+                    if (!retval.isNull()) {
+                        winHttpConnectMap[ptrKey(retval)] = {
+                            host: this.host,
+                            port: this.port
+                        };
+                    }
                 }
             });
             hookStatus("WinHttpConnect", "success");
@@ -917,9 +1007,26 @@ function hookWinHttp() {
         if (openRequest && !isHooked("WinHttpOpenRequest")) {
             Interceptor.attach(openRequest, {
                 onEnter: function (args) {
-                    var verb = readWide(args[1]);
-                    var objectName = readWide(args[2]);
-                    log("[winhttp] request -> " + verb + " " + objectName);
+                    this.connectHandle = args[0];
+                    this.verb = readWide(args[1]);
+                    this.objectName = readWide(args[2]);
+                    var conn = winHttpConnectMap[ptrKey(this.connectHandle)];
+                    if (conn) {
+                        log("[winhttp] request -> " + this.verb + " https://" + conn.host + ":" + conn.port + this.objectName);
+                    } else {
+                        log("[winhttp] request -> " + this.verb + " " + this.objectName);
+                    }
+                },
+                onLeave: function (retval) {
+                    if (!retval.isNull()) {
+                        var conn = winHttpConnectMap[ptrKey(this.connectHandle)] || { host: "?", port: 0 };
+                        winHttpRequestMap[ptrKey(retval)] = {
+                            host: conn.host,
+                            port: conn.port,
+                            verb: this.verb,
+                            objectName: this.objectName
+                        };
+                    }
                 }
             });
             hookStatus("WinHttpOpenRequest", "success");
@@ -931,12 +1038,13 @@ function hookWinHttp() {
         var sendRequest = getWinHttpExport("WinHttpSendRequest");
         if (sendRequest && !isHooked("WinHttpSendRequest")) {
             Interceptor.attach(sendRequest, {
-                onEnter: function (_) {
-                    log("[winhttp] send request");
+                onEnter: function (args) {
+                    this.requestHandle = args[0];
+                    log("[winhttp] send request -> " + describeRequestHandle(this.requestHandle));
                 },
                 onLeave: function (retval) {
                     if (!boolResult(retval) && _GetLastError !== null) {
-                        log("[winhttp] send request failed gle=" + _GetLastError());
+                        log("[winhttp] send request failed gle=" + _GetLastError() + " -> " + describeRequestHandle(this.requestHandle));
                     }
                 }
             });
@@ -949,11 +1057,14 @@ function hookWinHttp() {
         var receiveResponse = getWinHttpExport("WinHttpReceiveResponse");
         if (receiveResponse && !isHooked("WinHttpReceiveResponse")) {
             Interceptor.attach(receiveResponse, {
+                onEnter: function (args) {
+                    this.requestHandle = args[0];
+                },
                 onLeave: function (retval) {
                     if (boolResult(retval)) {
-                        log("[winhttp] receive response -> success");
+                        log("[winhttp] receive response -> success -> " + describeRequestHandle(this.requestHandle));
                     } else if (_GetLastError !== null) {
-                        log("[winhttp] receive response failed gle=" + _GetLastError());
+                        log("[winhttp] receive response failed gle=" + _GetLastError() + " -> " + describeRequestHandle(this.requestHandle));
                     }
                 }
             });
@@ -967,6 +1078,7 @@ function hookWinHttp() {
         if (queryHeaders && !isHooked("WinHttpQueryHeaders")) {
             Interceptor.attach(queryHeaders, {
                 onEnter: function (args) {
+                    this.requestHandle = args[0];
                     this.infoLevel = args[1].toUInt32();
                     this.buffer = args[3];
                     this.bufferLenPtr = args[4];
@@ -978,9 +1090,9 @@ function hookWinHttp() {
                     var level = this.infoLevel & 0xffff;
                     try {
                         if (level === 19 && !this.buffer.isNull()) { // WINHTTP_QUERY_STATUS_CODE
-                            log("[winhttp] status code -> " + readWide(this.buffer));
+                            log("[winhttp] status code -> " + readWide(this.buffer) + " -> " + describeRequestHandle(this.requestHandle));
                         } else if (level === 22 && !this.buffer.isNull()) { // WINHTTP_QUERY_CONTENT_LENGTH
-                            log("[winhttp] content-length -> " + readWide(this.buffer));
+                            log("[winhttp] content-length -> " + readWide(this.buffer) + " -> " + describeRequestHandle(this.requestHandle));
                         } else if (level === 5 && !this.buffer.isNull()) { // WINHTTP_QUERY_RAW_HEADERS_CRLF
                             var chars = 0;
                             if (!this.bufferLenPtr.isNull()) {
@@ -988,7 +1100,7 @@ function hookWinHttp() {
                             }
                             var hdrs = readWide(this.buffer);
                             if (hdrs && hdrs.length > 0) {
-                                log("[winhttp] raw headers -> " + hdrs.replace(/\r\n/g, " | "));
+                                log("[winhttp] raw headers -> " + describeRequestHandle(this.requestHandle) + " :: " + hdrs.replace(/\r\n/g, " | "));
                             }
                         }
                     } catch (_) {}
@@ -1004,15 +1116,16 @@ function hookWinHttp() {
         if (readData && !isHooked("WinHttpReadData")) {
             Interceptor.attach(readData, {
                 onEnter: function (args) {
+                    this.requestHandle = args[0];
                     this.bytesReadPtr = args[3];
                 },
                 onLeave: function (retval) {
                     if (boolResult(retval) && !this.bytesReadPtr.isNull()) {
                         try {
-                            log("[winhttp] read data -> " + this.bytesReadPtr.readU32() + " bytes");
+                            log("[winhttp] read data -> " + this.bytesReadPtr.readU32() + " bytes -> " + describeRequestHandle(this.requestHandle));
                         } catch (_) {}
                     } else if (!boolResult(retval) && _GetLastError !== null) {
-                        log("[winhttp] read data failed gle=" + _GetLastError());
+                        log("[winhttp] read data failed gle=" + _GetLastError() + " -> " + describeRequestHandle(this.requestHandle));
                     }
                 }
             });

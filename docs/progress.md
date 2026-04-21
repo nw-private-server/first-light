@@ -800,6 +800,37 @@ Things that differ from the initial Perplexity research or are otherwise surpris
   - it is now reaching the local REP setup boundary
   - next highest-value work should focus on correlating this archived failure with the live DTLS/REP path rather than continuing to treat it as a pure auth/create problem
 
+## 2026-04-21 Archived Run Reaches Create + Queue + Local REP Resolution
+
+- Latest paired evidence from:
+  - `capture/auth_mock_logs/20260421.log`
+  - `capture/20260421_115623_archived_frida/session.log`
+- The archived client now definitely completes the mocked happy path through:
+  - `POST /prod/game/worlds/.../characters/validator/jwt/omni` -> `200`
+  - post-validator `GET /prod/game/getlogininfo/jwt/omni` -> `200`
+  - `POST /prod/game/worlds/.../characters/jwt/omni` -> `200`
+  - `POST /prod/game/login/queue/v2/jwt/omni` -> `200`
+  - world remote-config fetches -> `200`
+- The mocked create response was accepted:
+  - auth mock logged persisted character count increasing to `2`
+  - client accepted the top-level PascalCase `{"Character": {...}}` payload
+- The mocked queue response was also accepted:
+  - auth mock logged issued ticket `22a363e1-23c9-43cd-a9b7-b0e2d6199af4`
+  - client continued into remote-config + local-address resolution instead of failing at queue parsing
+- Frida then showed the archived client resolving the local REP-related endpoints:
+  - `127.0.0.1:23971`
+  - `127.0.0.1:27000`
+- Important current gap:
+  - no actual socket connect/sendto to `23971` was observed yet
+  - instead, after address resolution, the client still performs one or more `WinHTTP POST /` calls that return `400`
+  - from the user’s point of view this still surfaces as the same generic server connection error
+- Interpretation:
+  - auth/create/login-queue parsing is now good enough on the archived path
+  - the next blocker is downstream of queue admission and overlaps the REP startup boundary
+  - the remaining useful instrumentation work is:
+    - attribute those anonymous `POST / -> 400` calls to their exact host/handle
+    - watch for actual socket creation / UDP path startup after `23971` resolution
+
 ---
 
 ## Connection State Machine
