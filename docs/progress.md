@@ -784,6 +784,22 @@ Things that differ from the initial Perplexity research or are otherwise surpris
   - `WorldId = ctx.world_id`
   - plus timestamp/string fields populated with safe defaults
 
+## 2026-04-21 Archived Flow Breakthrough To REP Setup
+
+- With `auth_mock` running, the archived build can now get beyond character select and into the post-create/login path under Frida.
+- New observed sequence from `capture/20260421_114737_archived_frida/session.log`:
+  - remote-config GET succeeded with `200` and tiny `{}`-style bodies
+  - the client then resolved:
+    - `127.0.0.1:23971`
+    - `127.0.0.1:27000`
+  - this is the first archived-run proof that it is consuming the mocked login/REP addressing and preparing local socket setup
+- After that, the archived run still ends in the generic connection error / relaunch behavior.
+- There is still a repeated side-channel `POST /` returning `400`, but at this stage it is happening **after** remote config and REP-address resolution, so it is weaker as the primary blocker than before.
+- Practical implication:
+  - the archived path is no longer blocked at character select alone
+  - it is now reaching the local REP setup boundary
+  - next highest-value work should focus on correlating this archived failure with the live DTLS/REP path rather than continuing to treat it as a pure auth/create problem
+
 ---
 
 ## Connection State Machine
