@@ -536,6 +536,28 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 - Expected value:
   - the next archived rerun should tell us whether the process actually calls imported Steam / WSA / WinHTTP APIs before it dies, instead of failing at target discovery time
 
+## 2026-04-20 Archived Import-Hook Result
+
+- The import-thunk lookup rerun still produced `not_found` for all targeted Steam / WSA / WinHTTP hooks, even though the archived binary's on-disk import table proves those symbols exist.
+- That rules out simple export-name mismatch as the main issue.
+- Practical conclusion:
+  - the next hook iteration needs to stop relying on Frida's high-level module/import lookup for this target
+  - and instead resolve the main module's import table manually in memory, then hook the resulting thunk addresses directly
+- Added `tools/import_table_probe.py` as a tiny host-side sanity check for the exact imported symbols we care about while preparing that next hook step.
+
+## 2026-04-20 Archived Manual IAT Hook Prep
+
+- Implemented a manual PE import-table walker inside `tools/frida_dtls_hook.js`
+- New behavior:
+  - `findImportedFunction(name)` now first walks the main module's PE headers in memory
+  - resolves the import descriptor table
+  - walks the thunk/IAT pairs
+  - and returns the imported function thunk address directly
+  - only after that does it fall back to Frida's `Module.enumerateImportsSync(...)`
+- Why this matters:
+  - the archived target has already proven that Frida's high-level import visibility is unreliable here
+  - manual IAT resolution is the cleanest next escalation before abandoning this archived build
+
 ---
 
 ## Connection State Machine

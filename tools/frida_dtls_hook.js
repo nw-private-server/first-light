@@ -222,7 +222,121 @@ function getMainModule() {
     return mainModule;
 }
 
+function enumerateMainImportsManual() {
+    var mod = getMainModule();
+    var base = mod.base;
+    var imports = [];
+
+    try {
+        if (base.readU16() !== 0x5a4d) { // MZ
+            return imports;
+        }
+
+        var peOff = base.add(0x3c).readU32();
+        var pe = base.add(peOff);
+        if (pe.readU32() !== 0x00004550) { // PE\0\0
+            return imports;
+        }
+
+        var coff = pe.add(4);
+        var numSections = coff.add(2).readU16();
+        var sizeOptHdr = coff.add(16).readU16();
+        var opt = coff.add(20);
+        var magic = opt.readU16();
+        if (magic !== 0x20b) { // PE32+
+            return imports;
+        }
+
+        var importRva = opt.add(0x78).readU32();
+        if (importRva === 0) {
+            return imports;
+        }
+
+        var sectionTable = opt.add(sizeOptHdr);
+        var sections = [];
+        for (var i = 0; i < numSections; i++) {
+            var s = sectionTable.add(i * 40);
+            sections.push({
+                va: s.add(12).readU32(),
+                vs: s.add(8).readU32(),
+                rs: s.add(16).readU32(),
+                rp: s.add(20).readU32()
+            });
+        }
+
+        function rvaToPtr(rva) {
+            for (var j = 0; j < sections.length; j++) {
+                var sec = sections[j];
+                var size = sec.vs > sec.rs ? sec.vs : sec.rs;
+                if (rva >= sec.va && rva < sec.va + size) {
+                    return base.add(rva);
+                }
+            }
+            return base.add(rva);
+        }
+
+        var desc = rvaToPtr(importRva);
+        while (true) {
+            var originalFirstThunk = desc.readU32();
+            var nameRva = desc.add(12).readU32();
+            var firstThunk = desc.add(16).readU32();
+            if (originalFirstThunk === 0 && nameRva === 0 && firstThunk === 0) {
+                break;
+            }
+
+            var dllName = "";
+            try {
+                dllName = rvaToPtr(nameRva).readUtf8String();
+            } catch (_) {}
+
+            var thunkRva = originalFirstThunk !== 0 ? originalFirstThunk : firstThunk;
+            var thunk = rvaToPtr(thunkRva);
+            var iat = rvaToPtr(firstThunk);
+
+            while (true) {
+                var entry = thunk.readU64();
+                if (entry.isZero ? entry.isZero() : entry.compare(0) === 0) {
+                    break;
+                }
+
+                var isOrdinal = (entry.shr(63).toUInt32() !== 0);
+                if (!isOrdinal) {
+                    var namePtr = rvaToPtr(entry.toUInt32()).add(2);
+                    var symName = "";
+                    try {
+                        symName = namePtr.readUtf8String();
+                    } catch (_) {}
+                    if (symName) {
+                        imports.push({
+                            dll: dllName,
+                            name: symName,
+                            address: iat
+                        });
+                    }
+                }
+
+                thunk = thunk.add(8);
+                iat = iat.add(8);
+            }
+
+            desc = desc.add(20);
+        }
+    } catch (e) {
+        log("[!] manual import walk failed: " + e);
+    }
+
+    return imports;
+}
+
 function findImportedFunction(name) {
+    try {
+        var manual = enumerateMainImportsManual();
+        for (var i = 0; i < manual.length; i++) {
+            if (manual[i].name === name && manual[i].address) {
+                return manual[i].address;
+            }
+        }
+    } catch (_) {}
     try {
         var imports = Module.enumerateImportsSync(getMainModule().name);
         for (var i = 0; i < imports.length; i++) {
