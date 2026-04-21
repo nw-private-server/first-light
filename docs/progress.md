@@ -666,6 +666,24 @@ Things that differ from the initial Perplexity research or are otherwise surpris
   - either we finally get real `[steam]`, `[ws2]`, `[winhttp]`, and/or `[ui]` runtime events
   - or we can rule out the imported-API surface with much higher confidence
 
+## 2026-04-20 Archived Runtime Signal Breakthrough
+
+- After fixing the imported-target hook path, the archived Frida run finally produced real runtime events.
+- Confirmed startup sequence:
+  - `SteamAPI_Init -> 1` early in startup
+  - main game UI window created:
+    - `CreateWindowExW class=GameWindowClass title=New World`
+  - additional helper/UI windows appear later
+  - `ShowWindow cmd=1`
+- Confirmed network surface:
+  - repeated WinHTTP requests to:
+    - `d2c74t4zimux3r.cloudfront.net:443`
+    - `GET /STEAM_APP_ID.1063730.json`
+- The process still ends in the generic connection-error dialog, but this is no longer a black box.
+- Practical implication:
+  - the next highest-value instrumentation is **WinHTTP response/error status**
+  - we need to know whether those CloudFront requests are succeeding, failing, or returning an unexpected payload/status before the game throws the generic dialog
+
 ---
 
 ## Connection State Machine
