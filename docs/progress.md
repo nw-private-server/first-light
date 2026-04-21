@@ -999,6 +999,35 @@ Disconnected
   - no validator/create/login-queue on that run
 - So the extension-hooking pass is validated, but it has not yet shown a hidden REP send path.
 
+## 2026-04-21 Good Archived Post-Queue Run Under Extension Hooks
+
+- Archived run `capture/20260421_134015_archived_frida` reached the full mocked handoff again:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - world remote-config
+  - `OUTCOME REACHED_LOGIN_QUEUE_V2`
+- After queue admission, Frida again shows:
+  - `getaddrinfo -> 127.0.0.1:23971`
+  - `getaddrinfo -> 127.0.0.1:27000`
+  - `WSASocketW -> AF_INET SOCK_DGRAM proto=17`
+  - `WSAIoctl(..., SIO_UDP_CONNRESET) ret=0`
+- Critical negative result:
+  - even on a true post-queue run, there is still no:
+    - UDP-side `ConnectEx`
+    - `WSASendMsg`
+    - `WSASendTo`
+    - `sendto`
+    - DTLS packet to `127.0.0.1:23971`
+- The new extension hooks only caught the already-known TCP/HTTPS path:
+  - repeated `ConnectEx(... -> 127.0.0.1:443)`
+  - repeated `ConnectEx(... -> 34.223.45.86:443)`
+- Process still exits cleanly via:
+  - `TerminateProcess(handle=0xffffffffffffffff, code=0)`
+- Current conclusion:
+  - the archived client definitely reaches REP UDP socket initialization
+  - but the first outbound REP datagram is still gated before any observable Winsock send path we currently hook
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
