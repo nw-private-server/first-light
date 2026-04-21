@@ -51,6 +51,7 @@ CAPTURE_DIR = PROJECT_DIR / "capture"
 TOOLS_DIR = PROJECT_DIR / "tools"
 HOOK_SCRIPT = TOOLS_DIR / "frida_dtls_hook.js"
 GAME_EXE = Path(r"<steam-library>\steamapps\common\New World\Bin64\NewWorld.exe")
+DEFAULT_STEAM_APP_ID = "1063730"
 
 # ---------------------------------------------------------------------------
 #  Session setup
@@ -225,6 +226,16 @@ def spawn_and_attach(writer: SessionWriter) -> tuple:
         writer.log(f"[!] Game executable not found: {GAME_EXE}")
         writer.log("    Update GAME_EXE path in this script.")
         sys.exit(1)
+
+    # Archived / non-EAC targets can regress to Steam launch-context errors if
+    # steam_appid.txt is missing. Recreate it on every spawn attempt so the
+    # run is self-contained instead of relying on the file to persist.
+    steam_appid = GAME_EXE.parent / "steam_appid.txt"
+    try:
+        steam_appid.write_text(DEFAULT_STEAM_APP_ID, encoding="ascii")
+        writer.log(f"[*] Ensured steam_appid.txt at {steam_appid} = {DEFAULT_STEAM_APP_ID}")
+    except Exception as e:
+        writer.log(f"[!] Failed to write steam_appid.txt: {e}")
 
     writer.log(f"[*] Spawning: {GAME_EXE}")
     device = frida.get_local_device()
