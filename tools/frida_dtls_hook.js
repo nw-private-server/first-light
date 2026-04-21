@@ -643,6 +643,117 @@ function hookWinsock() {
         return "0x" + code.toString(16);
     }
 
+    function formatGuidBytes(ptr16) {
+        if (ptr16.isNull()) return null;
+        try {
+            var d1 = ptr16.readU32();
+            var d2 = ptr16.add(4).readU16();
+            var d3 = ptr16.add(6).readU16();
+            var tail = [];
+            for (var i = 0; i < 8; i++) {
+                var b = ptr16.add(8 + i).readU8().toString(16);
+                tail.push(b.length < 2 ? "0" + b : b);
+            }
+            return (
+                ("00000000" + d1.toString(16)).slice(-8) + "-" +
+                ("0000" + d2.toString(16)).slice(-4) + "-" +
+                ("0000" + d3.toString(16)).slice(-4) + "-" +
+                tail.slice(0, 2).join("") + "-" +
+                tail.slice(2).join("")
+            ).toLowerCase();
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function describeExtensionGuid(guid) {
+        if (!guid) return "unknown";
+        var known = {
+            "25a207b9-ddf3-4660-8ee9-76e58c74063e": "ConnectEx",
+            "7fda2e11-8630-436f-a031-f536a6eec157": "DisconnectEx",
+            "b5367df1-cbac-11cf-95ca-00805f48a192": "AcceptEx",
+            "b5367df2-cbac-11cf-95ca-00805f48a192": "GetAcceptExSockaddrs",
+            "b5367df0-cbac-11cf-95ca-00805f48a192": "TransmitFile",
+            "d9689da0-1f90-11d3-9971-00c04f68c876": "TransmitPackets",
+            "f689d7c8-6f1f-436b-8a53-e54fe351c322": "WSARecvMsg",
+            "a441e712-754f-43ca-84a7-0dee44cf606d": "WSASendMsg"
+        };
+        return known[guid] || guid;
+    }
+
+    function hookExtensionFunction(name, addr) {
+        var hookName = "ext_" + name + "_" + ptrKey(addr);
+        if (isHooked(hookName) || addr.isNull()) return;
+
+        try {
+            if (name === "WSASendMsg") {
+                Interceptor.attach(addr, {
+                    onEnter: function (args) {
+                        this.sock = args[0];
+                        this.target = null;
+                        try {
+                            var wsamsg = args[1];
+                            this.target = formatSockaddr(wsamsg.readPointer());
+                        } catch (_) {}
+                    },
+                    onLeave: function (retval) {
+                        log("[ws2-ext] WSASendMsg(" + this.sock + ") -> " + (this.target || "unknown") + " ret=" + retval.toInt32());
+                    }
+                });
+            } else if (name === "WSARecvMsg") {
+                Interceptor.attach(addr, {
+                    onEnter: function (args) {
+                        this.sock = args[0];
+                    },
+                    onLeave: function (retval) {
+                        log("[ws2-ext] WSARecvMsg(" + this.sock + ") ret=" + retval.toInt32());
+                    }
+                });
+            } else if (name === "ConnectEx") {
+                Interceptor.attach(addr, {
+                    onEnter: function (args) {
+                        this.sock = args[0];
+                        this.target = formatSockaddr(args[1]);
+                    },
+                    onLeave: function (retval) {
+                        log("[ws2-ext] ConnectEx(" + this.sock + ") -> " + (this.target || "unknown") + " ret=" + retval.toInt32());
+                    }
+                });
+            } else if (name === "DisconnectEx") {
+                Interceptor.attach(addr, {
+                    onEnter: function (args) {
+                        this.sock = args[0];
+                    },
+                    onLeave: function (retval) {
+                        log("[ws2-ext] DisconnectEx(" + this.sock + ") ret=" + retval.toInt32());
+                    }
+                });
+            } else if (name === "AcceptEx") {
+                Interceptor.attach(addr, {
+                    onEnter: function (args) {
+                        this.listenSock = args[0];
+                        this.acceptSock = args[1];
+                    },
+                    onLeave: function (retval) {
+                        log("[ws2-ext] AcceptEx(" + this.listenSock + ", " + this.acceptSock + ") ret=" + retval.toInt32());
+                    }
+                });
+            } else {
+                Interceptor.attach(addr, {
+                    onEnter: function (_) {
+                        log("[ws2-ext] " + name + "()");
+                    }
+                });
+            }
+
+            hookStatus(hookName, "success");
+            markHook(hookName);
+            log("[ws2-ext] hooked " + name + " at " + addr);
+        } catch (e) {
+            hookStatus(hookName, "error", e.toString());
+        }
+    }
+
     try {
         var wsaSocketW = getWs2Export("WSASocketW");
         if (wsaSocketW && !isHooked("WSASocketW")) {
@@ -929,12 +1040,22 @@ function hookWinsock() {
                     this.code = args[1].toUInt32();
                     this.inBuf = args[2];
                     this.inLen = args[3].toUInt32();
+                    this.outBuf = args[4];
+                    this.outLen = args[5].toUInt32();
+                    this.bytesReturnedPtr = args[6];
                 },
                 onLeave: function (retval) {
                     var extra = "";
                     if (this.code === 0xc8000006 && !this.inBuf.isNull() && this.inLen >= 16) {
                         try {
-                            extra = " guid=" + this.inBuf.readByteArray(16);
+                            var guid = formatGuidBytes(this.inBuf);
+                            var guidName = describeExtensionGuid(guid);
+                            extra = " guid=" + guidName;
+                            if (retval.toInt32() === 0 && !this.outBuf.isNull() && this.outLen >= Process.pointerSize) {
+                                var fnPtr = this.outBuf.readPointer();
+                                extra += " fn=" + fnPtr;
+                                hookExtensionFunction(guidName, fnPtr);
+                            }
                         } catch (_) {}
                     }
                     log("[ws2] WSAIoctl(" + this.sock + ", " + decodeIoctl(this.code) + ")" + extra + " ret=" + retval.toInt32());
