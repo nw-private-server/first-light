@@ -652,6 +652,20 @@ Things that differ from the initial Perplexity research or are otherwise surpris
     - either hook an even earlier failure/reporting path
     - or stop treating this archived build as the best non-EAC candidate if it cannot even reach basic startup calls before dying
 
+## 2026-04-20 Archived Import-Hook False Positive
+
+- We found the reason the archived Frida runs were reporting import-hook `success` without any runtime events:
+  - the manual import walker was returning the **IAT slot address**
+  - not the **resolved function pointer stored in that slot**
+- That means `Interceptor.attach(...)` was landing on import-table data cells instead of the actual target code.
+- This explains the contradiction we saw:
+  - the archived build visibly created UI and reached the generic connection-error dialog
+  - but none of the supposedly successful `WSA*`, `WinHttp*`, `SteamAPI_*`, or `CreateWindowEx*` hooks ever logged a call
+- `tools/frida_dtls_hook.js` now dereferences each IAT entry with `iat.readPointer()` and attaches to the resolved target address.
+- Expected effect of the next archived rerun:
+  - either we finally get real `[steam]`, `[ws2]`, `[winhttp]`, and/or `[ui]` runtime events
+  - or we can rule out the imported-API surface with much higher confidence
+
 ---
 
 ## Connection State Machine

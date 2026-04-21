@@ -308,10 +308,15 @@ function enumerateMainImportsManual() {
                         symName = namePtr.readUtf8String();
                     } catch (_) {}
                     if (symName) {
+                        var target = null;
+                        try {
+                            target = iat.readPointer();
+                        } catch (_) {}
                         imports.push({
                             dll: dllName,
                             name: symName,
-                            address: iat
+                            iatAddress: iat,
+                            address: target
                         });
                     }
                 }
@@ -333,7 +338,9 @@ function findImportedFunction(name) {
     try {
         var manual = enumerateMainImportsManual();
         for (var i = 0; i < manual.length; i++) {
-            if (manual[i].name === name && manual[i].address) {
+            if (manual[i].name === name && manual[i].address && !manual[i].address.isNull()) {
+                log("[*] Resolved import " + name + " via manual IAT to " + manual[i].address +
+                    " (slot " + manual[i].iatAddress + ")");
                 return manual[i].address;
             }
         }
@@ -343,6 +350,7 @@ function findImportedFunction(name) {
         for (var i = 0; i < imports.length; i++) {
             var imp = imports[i];
             if (imp.type === "function" && imp.name === name && imp.address) {
+                log("[*] Resolved import " + name + " via Frida import table to " + imp.address);
                 return imp.address;
             }
         }
