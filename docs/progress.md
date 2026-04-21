@@ -482,6 +482,48 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 - Practical implication:
   - future archived spawn tests no longer depend on the file surviving from a previous manual setup step
 
+## 2026-04-20 Archived Frida Attempt #6 Prep
+
+- Even with the self-healing `steam_appid.txt` path, the archived process still reaches only the generic `Unable to connect to New World: Aeternum servers` error.
+- The latest Frida session still showed only startup-time `not_found` results and no packet or API activity before termination.
+- Next highest-value move:
+  - stop guessing which Windows networking exports this archived build should touch
+  - inspect the archived binary's actual import table first
+- Added `tools/list_pe_imports.py` for exactly that purpose so we can target the right API surface for the next hook iteration.
+
+## 2026-04-20 Archived Import Audit
+
+- Ran `tools/list_pe_imports.py` against `G:\NewWorldArchive\GameClient\Bin64\NewWorld.exe`
+- Important result: the archived binary really does import the Windows and Steam APIs we care about, but not necessarily the specific plain-socket names we first guessed.
+- Relevant imports confirmed:
+  - `steam_api64.dll`
+    - `SteamAPI_Init`
+    - `SteamInternal_ContextInit`
+    - related Steam callback/context exports
+  - `WINHTTP.dll`
+    - `WinHttpOpen`
+    - `WinHttpConnect`
+    - `WinHttpOpenRequest`
+    - `WinHttpSendRequest`
+    - `WinHttpReceiveResponse`
+    - `WinHttpReadData`
+    - `WinHttpWriteData`
+  - `WS2_32.dll`
+    - `WSAConnect`
+    - `WSASend`
+    - `WSARecv`
+    - `WSARecvFrom`
+    - `GetAddrInfoW`
+    - `getaddrinfo`
+    - plus socket/event/ioctl support
+- Follow-up change:
+  - retargeted `tools/frida_dtls_hook.js` to hook the imported API surface that actually exists in this archived build:
+    - Steam: `SteamAPI_Init`, `SteamInternal_ContextInit`
+    - Winsock: `WSAConnect`, `WSASend`, `WSARecv`, `WSARecvFrom`, `GetAddrInfoW`, `getaddrinfo`
+    - kept the older plain-socket and WinHTTP/WinINet probes as secondary coverage
+- Expected value from the next archived rerun:
+  - if this binary reaches real startup/network paths before failing, we should finally see concrete Steam or WSA/WinHTTP activity instead of a wall of `not_found`
+
 ---
 
 ## Connection State Machine

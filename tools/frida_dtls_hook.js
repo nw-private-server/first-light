@@ -463,6 +463,22 @@ function hookWinsock() {
     }
 
     try {
+        var wsaConnect = getWs2Export("WSAConnect");
+        if (wsaConnect && !isHooked("WSAConnect")) {
+            Interceptor.attach(wsaConnect, {
+                onEnter: function (args) {
+                    var target = formatSockaddr(args[1]);
+                    if (target) {
+                        log("[ws2] WSAConnect() -> " + target);
+                    }
+                }
+            });
+            hookStatus("WSAConnect", "success");
+            markHook("WSAConnect");
+        } else if (!wsaConnect) {
+            hookStatus("WSAConnect", "not_found");
+        }
+
         var connect = getWs2Export("connect");
         if (connect && !isHooked("ws2_connect")) {
             Interceptor.attach(connect, {
@@ -477,6 +493,47 @@ function hookWinsock() {
             markHook("ws2_connect");
         } else if (!connect) {
             hookStatus("ws2_connect", "not_found");
+        }
+
+        var wsaSend = getWs2Export("WSASend");
+        if (wsaSend && !isHooked("WSASend")) {
+            Interceptor.attach(wsaSend, {
+                onEnter: function (args) {
+                    this.bufCount = args[2].toInt32();
+                    log("[ws2] WSASend -> buffers=" + this.bufCount);
+                }
+            });
+            hookStatus("WSASend", "success");
+            markHook("WSASend");
+        } else if (!wsaSend) {
+            hookStatus("WSASend", "not_found");
+        }
+
+        var wsaRecv = getWs2Export("WSARecv");
+        if (wsaRecv && !isHooked("WSARecv")) {
+            Interceptor.attach(wsaRecv, {
+                onEnter: function (args) {
+                    this.bufCount = args[2].toInt32();
+                    log("[ws2] WSARecv <- buffers=" + this.bufCount);
+                }
+            });
+            hookStatus("WSARecv", "success");
+            markHook("WSARecv");
+        } else if (!wsaRecv) {
+            hookStatus("WSARecv", "not_found");
+        }
+
+        var wsaRecvFrom = getWs2Export("WSARecvFrom");
+        if (wsaRecvFrom && !isHooked("WSARecvFrom")) {
+            Interceptor.attach(wsaRecvFrom, {
+                onEnter: function (_) {
+                    log("[ws2] WSARecvFrom <-");
+                }
+            });
+            hookStatus("WSARecvFrom", "success");
+            markHook("WSARecvFrom");
+        } else if (!wsaRecvFrom) {
+            hookStatus("WSARecvFrom", "not_found");
         }
 
         var sendto = getWs2Export("sendto");
@@ -547,6 +604,40 @@ function hookWinsock() {
             markHook("ws2_recv");
         } else if (!recv) {
             hookStatus("ws2_recv", "not_found");
+        }
+
+        var getAddrInfoW = getWs2Export("GetAddrInfoW");
+        if (getAddrInfoW && !isHooked("GetAddrInfoW")) {
+            Interceptor.attach(getAddrInfoW, {
+                onEnter: function (args) {
+                    try {
+                        var node = args[0].isNull() ? "" : args[0].readUtf16String();
+                        var service = args[1].isNull() ? "" : args[1].readUtf16String();
+                        log("[ws2] GetAddrInfoW -> node=" + node + " service=" + service);
+                    } catch (_) {}
+                }
+            });
+            hookStatus("GetAddrInfoW", "success");
+            markHook("GetAddrInfoW");
+        } else if (!getAddrInfoW) {
+            hookStatus("GetAddrInfoW", "not_found");
+        }
+
+        var getaddrinfo = getWs2Export("getaddrinfo");
+        if (getaddrinfo && !isHooked("getaddrinfo")) {
+            Interceptor.attach(getaddrinfo, {
+                onEnter: function (args) {
+                    try {
+                        var nodeA = args[0].isNull() ? "" : args[0].readUtf8String();
+                        var serviceA = args[1].isNull() ? "" : args[1].readUtf8String();
+                        log("[ws2] getaddrinfo -> node=" + nodeA + " service=" + serviceA);
+                    } catch (_) {}
+                }
+            });
+            hookStatus("getaddrinfo", "success");
+            markHook("getaddrinfo");
+        } else if (!getaddrinfo) {
+            hookStatus("getaddrinfo", "not_found");
         }
     } catch (e) {
         hookStatus("winsock", "error", e.toString());
@@ -676,6 +767,46 @@ function hookWinInet() {
     }
 }
 
+function hookSteamApi() {
+    function getSteamExport(name) {
+        try {
+            return Module.getExportByName("steam_api64.dll", name);
+        } catch (_) {
+            return null;
+        }
+    }
+
+    try {
+        var steamInit = getSteamExport("SteamAPI_Init");
+        if (steamInit && !isHooked("SteamAPI_Init")) {
+            Interceptor.attach(steamInit, {
+                onLeave: function (retval) {
+                    log("[steam] SteamAPI_Init -> " + retval.toInt32());
+                }
+            });
+            hookStatus("SteamAPI_Init", "success");
+            markHook("SteamAPI_Init");
+        } else if (!steamInit) {
+            hookStatus("SteamAPI_Init", "not_found");
+        }
+
+        var steamContext = getSteamExport("SteamInternal_ContextInit");
+        if (steamContext && !isHooked("SteamInternal_ContextInit")) {
+            Interceptor.attach(steamContext, {
+                onEnter: function (_) {
+                    log("[steam] SteamInternal_ContextInit");
+                }
+            });
+            hookStatus("SteamInternal_ContextInit", "success");
+            markHook("SteamInternal_ContextInit");
+        } else if (!steamContext) {
+            hookStatus("SteamInternal_ContextInit", "not_found");
+        }
+    } catch (e) {
+        hookStatus("steam_api", "error", e.toString());
+    }
+}
+
 function hookModuleLoads() {
     function tryExport(moduleName, exportName) {
         try {
@@ -720,6 +851,7 @@ function retryDeferredHooks() {
     hookWinsock();
     hookWinHttp();
     hookWinInet();
+    hookSteamApi();
 }
 
 function scheduleDeferredHookRetries(seconds) {
@@ -752,6 +884,7 @@ function installHooks() {
     hookWinsock();
     hookWinHttp();
     hookWinInet();
+    hookSteamApi();
     hookModuleLoads();
     scheduleDeferredHookRetries(30);
 
