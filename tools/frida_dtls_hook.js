@@ -166,12 +166,20 @@ function hookRepVirtualMethod(repObj, byteOffset, hookName, label) {
         Interceptor.attach(target, {
             onEnter: function (args) {
                 this.thisPtr = args[0];
+                var extra = "";
+                try {
+                    extra = " state=" + describeRepState(this.thisPtr);
+                } catch (_) {}
                 log("[rep-vtbl] " + label + " enter this=" + this.thisPtr +
-                    " target=" + target);
+                    " target=" + target + extra);
             },
             onLeave: function (retval) {
+                var extra = "";
+                try {
+                    extra = " state=" + describeRepState(this.thisPtr);
+                } catch (_) {}
                 log("[rep-vtbl] " + label + " leave ret=" + retval +
-                    " target=" + target);
+                    " target=" + target + extra);
             }
         });
         markRepDynamicHook(hookName);
@@ -191,6 +199,22 @@ function hookRepObjectVirtuals(repObj) {
     hookRepVirtualMethod(repObj, 0x10, "internal_rep_vtbl_10", "rep.vtbl+0x10");
     hookRepVirtualMethod(repObj, 0x18, "internal_rep_vtbl_18", "rep.vtbl+0x18");
     hookRepVirtualMethod(repObj, 0xa8, "internal_rep_vtbl_a8", "rep.vtbl+0xa8");
+}
+
+function describeRepState(repObj) {
+    function rb(off) {
+        try { return repObj.add(off).readU8(); } catch (_) { return -1; }
+    }
+    function rp(off) {
+        try { return repObj.add(off).readPointer(); } catch (_) { return ptr("0"); }
+    }
+    return "{600=" + rb(0x600) +
+        ",601=" + rb(0x601) +
+        ",6f0=" + rb(0x6f0) +
+        ",6f1=" + rb(0x6f1) +
+        ",6f2=" + rb(0x6f2) +
+        ",d0=" + rp(0xd0) +
+        ",118=" + rp(0x118) + "}";
 }
 
 // ---------------------------------------------------------------------------
