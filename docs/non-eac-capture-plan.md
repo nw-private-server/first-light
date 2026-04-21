@@ -49,6 +49,18 @@ Success criteria:
 - ideally the session reaches the same REP registration window as the real
   captures so we can align decrypted content with known encrypted lengths/times
 
+Archived-binary note:
+- The first direct archived launch reached Frida cleanly, but the process
+  immediately surfaced a Steam launch-context error before reaching network
+  activity.
+- The project already knows the game's Steam App ID is `1063730`.
+- So the next practical archived attempt should be:
+  - ensure Steam is running and logged in
+  - place a `steam_appid.txt` containing `1063730` next to the archived
+    `NewWorld.exe`
+  - then retry the Frida spawn path
+- This is still lower-risk than going back to the live EAC client.
+
 ### 2. Archived / non-EAC-friendly binary + SSLKEYLOGFILE capture
 
 Status: worth trying once the client can run without EAC interference

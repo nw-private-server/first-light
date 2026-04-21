@@ -402,6 +402,22 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 - Immediate focus once any route yields decrypted bytes:
   - use the already-isolated server REP registration window (`seq 1..3`, especially the stable `len 139` record) as the first decryption target
 
+## 2026-04-20 Archived Frida Attempt
+
+- Tried `tools/frida_capture.py --exe "G:\NewWorldArchive\GameClient\Bin64\NewWorld.exe" --name archived_frida`
+- Important result: Frida spawn/attach **worked** on the archived binary. This is materially better than the live EAC path, where attach failed with `VirtualAllocEx` `ACCESS_DENIED`.
+- Immediate blocker on that archived run:
+  - the client surfaced `Steam must be running to play this game`
+  - so the archived target still needs proper Steam launch context before it can reach network activity
+- Hook result from that run:
+  - OpenSSL symbols were still not found (`SSL_read`, `SSL_write`, `_ex` variants)
+  - the previous winsock fallback also failed because the script used a bad static `Module.findExportByName(...)` call in this runtime
+- Follow-up change:
+  - fixed `tools/frida_dtls_hook.js` winsock fallback to use proper `ws2_32.dll` export lookups and added `connect`, `sendto`, `recvfrom`, `send`, and `recv` logging
+- Next archived-binary attempt should add Steam context first:
+  - Steam running and logged in
+  - `steam_appid.txt` containing `1063730` next to the archived `NewWorld.exe`
+
 ---
 
 ## Connection State Machine
