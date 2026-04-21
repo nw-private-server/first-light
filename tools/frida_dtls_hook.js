@@ -34,6 +34,10 @@ var knownUdpSockets = {};   // SOCKET handle string -> { family, type, proto, ts
 var wspHookedPtrs = {};     // provider-level SPI function pointer string -> true
 var INTERNAL_RVA_TRANSPORT_CTOR = 0x06b6a270; // FUN_146b6a270
 var INTERNAL_RVA_SECURE_INIT = 0x05dce750;    // FUN_145dce750
+var internalRepBacktraceLogged = {
+    transportCtor: false,
+    secureInit: false
+};
 
 // Tunables
 var HEX_HEAD_BYTES = 256;
@@ -1380,6 +1384,16 @@ function hookInternalRepFunctions() {
                     this.thisPtr = args[0];
                     log("[rep-int] transport ctor enter this=" + this.thisPtr +
                         " arg1=" + args[1] + " arg2=" + args[2] + " arg3=" + args[3]);
+                    if (!internalRepBacktraceLogged.transportCtor) {
+                        internalRepBacktraceLogged.transportCtor = true;
+                        try {
+                            var frames = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                                .slice(0, 12)
+                                .map(DebugSymbol.fromAddress)
+                                .join(" | ");
+                            log("[rep-int] transport ctor bt " + frames);
+                        } catch (_) {}
+                    }
                 },
                 onLeave: function (retval) {
                     log("[rep-int] transport ctor leave ret=" + retval);
@@ -1404,6 +1418,16 @@ function hookInternalRepFunctions() {
                     log("[rep-int] secure init enter ctx=" + this.ctx +
                         " verifyField=" + verifyFlag +
                         " modeField=" + modeFlag);
+                    if (!internalRepBacktraceLogged.secureInit) {
+                        internalRepBacktraceLogged.secureInit = true;
+                        try {
+                            var frames = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                                .slice(0, 12)
+                                .map(DebugSymbol.fromAddress)
+                                .join(" | ");
+                            log("[rep-int] secure init bt " + frames);
+                        } catch (_) {}
+                    }
                 },
                 onLeave: function (retval) {
                     log("[rep-int] secure init leave ret=" + retval);

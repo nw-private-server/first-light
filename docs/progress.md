@@ -1109,6 +1109,9 @@ Disconnected
   - no longer “before transport construction”
   - no longer “inside secure init”
   - now specifically after successful REP transport creation + secure init, but still before any observable outbound REP UDP datagram or DTLS ClientHello
+- Follow-up instrumentation added after this result:
+  - one-shot Frida backtraces on the transport-constructor hook and secure-init hook
+  - goal is to identify the internal caller chain immediately above successful REP transport setup on the failing archived path
 
 ### Immediate (next session) — unblock character creation
 
