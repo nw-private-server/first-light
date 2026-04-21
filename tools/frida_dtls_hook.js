@@ -427,53 +427,100 @@ function hookAzNetworking() {
 // ---------------------------------------------------------------------------
 
 function hookWinsock() {
+    function getWs2Export(name) {
+        try {
+            return Module.getExportByName("ws2_32.dll", name);
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function formatSockaddr(sockaddr) {
+        if (sockaddr.isNull()) return null;
+        try {
+            var family = sockaddr.readU16();
+            if (family === 2) { // AF_INET
+                var port = (sockaddr.add(2).readU8() << 8) | sockaddr.add(3).readU8();
+                var ip = sockaddr.add(4).readU8() + "." +
+                         sockaddr.add(5).readU8() + "." +
+                         sockaddr.add(6).readU8() + "." +
+                         sockaddr.add(7).readU8();
+                return ip + ":" + port;
+            }
+        } catch (_) {}
+        return null;
+    }
+
     try {
-        var connect = Module.findExportByName("ws2_32.dll", "connect");
+        var connect = getWs2Export("connect");
         if (connect) {
             Interceptor.attach(connect, {
                 onEnter: function (args) {
-                    var sockaddr = args[1];
-                    var family = sockaddr.readU16();
-                    if (family === 2) { // AF_INET
-                        var port = (sockaddr.add(2).readU8() << 8) | sockaddr.add(3).readU8();
-                        var ip = sockaddr.add(4).readU8() + "." +
-                                 sockaddr.add(5).readU8() + "." +
-                                 sockaddr.add(6).readU8() + "." +
-                                 sockaddr.add(7).readU8();
-                        log("[ws2] connect() -> " + ip + ":" + port);
+                    var target = formatSockaddr(args[1]);
+                    if (target) {
+                        log("[ws2] connect() -> " + target);
                     }
                 }
             });
             hookStatus("ws2_connect", "success");
         }
 
-        var sendto = Module.findExportByName("ws2_32.dll", "sendto");
+        var sendto = getWs2Export("sendto");
         if (sendto) {
             Interceptor.attach(sendto, {
                 onEnter: function (args) {
-                    var toAddr = args[4];
-                    if (!toAddr.isNull()) {
-                        var family = toAddr.readU16();
-                        if (family === 2) {
-                            var port = (toAddr.add(2).readU8() << 8) | toAddr.add(3).readU8();
-                            var ip = toAddr.add(4).readU8() + "." +
-                                     toAddr.add(5).readU8() + "." +
-                                     toAddr.add(6).readU8() + "." +
-                                     toAddr.add(7).readU8();
-                            this.target = ip + ":" + port;
-                        }
-                    }
-                    this.buf = args[1];
+                    this.target = formatSockaddr(args[4]);
                     this.len = args[2].toInt32();
                 },
-                onLeave: function (retval) {
-                    // Only log, don't capture raw -- SSL layer captures decrypted
+                onLeave: function (_) {
                     if (this.target) {
                         log("[ws2] sendto -> " + this.target + " (" + this.len + " bytes)");
                     }
                 }
             });
             hookStatus("ws2_sendto", "success");
+        }
+
+        var recvfrom = getWs2Export("recvfrom");
+        if (recvfrom) {
+            Interceptor.attach(recvfrom, {
+                onEnter: function (args) {
+                    this.len = args[2].toInt32();
+                },
+                onLeave: function (retval) {
+                    var moved = retval.toInt32();
+                    if (moved > 0) {
+                        log("[ws2] recvfrom <- " + moved + " bytes");
+                    }
+                }
+            });
+            hookStatus("ws2_recvfrom", "success");
+        }
+
+        var send = getWs2Export("send");
+        if (send) {
+            Interceptor.attach(send, {
+                onEnter: function (args) {
+                    this.len = args[2].toInt32();
+                },
+                onLeave: function (_) {
+                    log("[ws2] send -> " + this.len + " bytes");
+                }
+            });
+            hookStatus("ws2_send", "success");
+        }
+
+        var recv = getWs2Export("recv");
+        if (recv) {
+            Interceptor.attach(recv, {
+                onLeave: function (retval) {
+                    var moved = retval.toInt32();
+                    if (moved > 0) {
+                        log("[ws2] recv <- " + moved + " bytes");
+                    }
+                }
+            });
+            hookStatus("ws2_recv", "success");
         }
     } catch (e) {
         hookStatus("winsock", "error", e.toString());
