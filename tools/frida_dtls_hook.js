@@ -30,6 +30,7 @@ var pendingRetryTimer = null;
 var retryDeadline = 0;
 var winHttpConnectMap = {}; // HINTERNET connection handle -> { host, port }
 var winHttpRequestMap = {}; // HINTERNET request handle -> { host, port, verb, objectName }
+var knownUdpSockets = {};   // SOCKET handle string -> { family, type, proto, ts }
 
 // Tunables
 var HEX_HEAD_BYTES = 256;
@@ -75,6 +76,19 @@ function ptrKey(ptr) {
     } catch (_) {
         return "invalid";
     }
+}
+
+function rememberUdpSocket(sock, family, type, proto) {
+    knownUdpSockets[ptrKey(sock)] = {
+        family: family,
+        type: type,
+        proto: proto,
+        ts: nowISO()
+    };
+}
+
+function isKnownUdpSocket(sock) {
+    return knownUdpSockets[ptrKey(sock)] !== undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -767,6 +781,9 @@ function hookWinsock() {
                     log("[ws2] WSASocketW -> " + retval + " " +
                         formatFamily(this.family) + " " +
                         formatSockType(this.type) + " proto=" + this.proto);
+                    if (this.type === 2 || this.proto === 17) {
+                        rememberUdpSocket(retval, this.family, this.type, this.proto);
+                    }
                 }
             });
             hookStatus("WSASocketW", "success");
@@ -787,6 +804,9 @@ function hookWinsock() {
                     log("[ws2] socket -> " + retval + " " +
                         formatFamily(this.family) + " " +
                         formatSockType(this.type) + " proto=" + this.proto);
+                    if (this.type === 2 || this.proto === 17) {
+                        rememberUdpSocket(retval, this.family, this.type, this.proto);
+                    }
                 }
             });
             hookStatus("ws2_socket", "success");
@@ -1220,6 +1240,56 @@ function hookKernelSocketInfra() {
         }
     } catch (e) {
         hookStatus("kernel_socket_infra", "error", e.toString());
+    }
+}
+
+function hookNtdllSocketInfra() {
+    function getApi(name) {
+        try {
+            return Module.getExportByName("ntdll.dll", name);
+        } catch (_) {
+            return null;
+        }
+    }
+
+    try {
+        var ntDeviceIoControlFile = getApi("NtDeviceIoControlFile");
+        if (ntDeviceIoControlFile && !isHooked("NtDeviceIoControlFile")) {
+            Interceptor.attach(ntDeviceIoControlFile, {
+                onEnter: function (args) {
+                    this.fileHandle = args[0];
+                    this.ioctl = args[5].toUInt32();
+                    this.shouldLog = isKnownUdpSocket(this.fileHandle);
+                },
+                onLeave: function (retval) {
+                    if (!this.shouldLog) return;
+                    log("[ntdll] NtDeviceIoControlFile(handle=" + this.fileHandle +
+                        ", ioctl=0x" + this.ioctl.toString(16) +
+                        ") -> 0x" + retval.toUInt32().toString(16));
+                }
+            });
+            hookStatus("NtDeviceIoControlFile", "success");
+            markHook("NtDeviceIoControlFile");
+        } else if (!ntDeviceIoControlFile) {
+            hookStatus("NtDeviceIoControlFile", "not_found");
+        }
+
+        var ntClose = getApi("NtClose");
+        if (ntClose && !isHooked("NtClose")) {
+            Interceptor.attach(ntClose, {
+                onEnter: function (args) {
+                    if (isKnownUdpSocket(args[0])) {
+                        log("[ntdll] NtClose(handle=" + args[0] + ")");
+                    }
+                }
+            });
+            hookStatus("NtClose", "success");
+            markHook("NtClose");
+        } else if (!ntClose) {
+            hookStatus("NtClose", "not_found");
+        }
+    } catch (e) {
+        hookStatus("ntdll_socket_infra", "error", e.toString());
     }
 }
 
@@ -1838,6 +1908,7 @@ function installHooks() {
     // give us some network signal before the heavier SSL scans run.
     hookWinsock();
     hookKernelSocketInfra();
+    hookNtdllSocketInfra();
     hookWinHttp();
     hookWinInet();
     hookSteamApi();

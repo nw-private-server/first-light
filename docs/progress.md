@@ -1041,6 +1041,17 @@ Disconnected
   - determine whether the archived client associates the REP UDP socket with an IO completion port
   - capture any lower-level socket configuration immediately before the missing first DTLS/UDP send
 
+## 2026-04-21 Low-Level NTDLL Socket Pass
+
+- Added a deeper archived Frida pass for the exact REP UDP gap after `WSASocketW(AF_INET, SOCK_DGRAM, 17)`.
+- `tools/frida_dtls_hook.js` now tracks known datagram socket handles and hooks:
+  - `NtDeviceIoControlFile`
+  - `NtClose`
+- These hooks are filtered to known UDP socket handles only.
+- Goal:
+  - determine whether the first REP datagram path bypasses normal Winsock send APIs and drops directly into AFD / `NtDeviceIoControlFile`
+  - confirm whether the REP UDP socket is immediately closed without ever sending
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
