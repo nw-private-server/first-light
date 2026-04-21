@@ -558,6 +558,18 @@ Things that differ from the initial Perplexity research or are otherwise surpris
   - the archived target has already proven that Frida's high-level import visibility is unreliable here
   - manual IAT resolution is the cleanest next escalation before abandoning this archived build
 
+## 2026-04-20 Archived Manual IAT Bugfix
+
+- The first run with the manual IAT path still failed before producing signal.
+- The session log finally revealed why:
+  - `manual import walk failed: TypeError: not a function`
+- Root cause:
+  - the first implementation relied on 64-bit helper methods (`shr`, `compare`, etc.) that are not available in this Frida runtime
+- Fix:
+  - rewrote the thunk walk to use plain 32-bit reads (`entryLow`, `entryHigh`) and an explicit high-bit ordinal check
+- Expected result:
+  - the next archived rerun should actually exercise the manual import-table resolution instead of failing inside the resolver itself
+
 ---
 
 ## Connection State Machine
