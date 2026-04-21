@@ -1237,6 +1237,25 @@ Disconnected
     - `FUN_146b6f190` (`NewWorld.exe+0x6b6f190`) — ready-flag setter / authorized path
     - `FUN_146b6e7c0` (`NewWorld.exe+0x6b6e7c0`) — ready-flag reset / disconnect path
 
+## 2026-04-21 REP Ready-Flag Hook Result
+
+- Archived run `capture/20260421_152417_archived_frida` reached the same post-queue REP boundary again.
+- The key new result is negative but decisive:
+  - neither the ready-flag setter hook (`FUN_146b6f190`) nor the reset hook (`FUN_146b6e7c0`) fired at all on the failing path
+- At the same time:
+  - `FUN_146425f20` (`start helper`) still ran once
+  - `rep.vtbl+0x08`, `+0x10`, and `+0x18` still ran
+  - `rep.vtbl+0xa8` was polled repeatedly and kept returning `0`
+- So the current archived failure is even tighter than before:
+  - the transport never reaches the code path that sets `repObj+0x601 = 1`
+  - and it never reaches the disconnect/reset path that clears that same flag either
+  - the state machine is simply stuck polling the readiness byte while it remains `0`
+- Practical implication:
+  - the next RE target should shift from the ready-flag setter itself to the specific branch between:
+    - `FUN_146425f20` / REP vtable `+0x08/+0x10/+0x18`
+    - and `FUN_146b6f190`
+  - that gap is now the most likely place where the archived path bails before marking REP authorized/ready
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
