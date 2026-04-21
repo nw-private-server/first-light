@@ -85,6 +85,23 @@ function ptrKey(ptr) {
     }
 }
 
+function formatBacktrace(frames) {
+    var mod = getMainModule();
+    return frames.map(function (addr) {
+        try {
+            var sym = DebugSymbol.fromAddress(addr);
+            var name = (sym && sym.name) ? sym.name : "unknown";
+            if (addr.compare(mod.base) >= 0 && addr.compare(mod.base.add(mod.size)) < 0) {
+                var rva = addr.sub(mod.base);
+                return addr + " [" + mod.name + "+0x" + rva.toString(16) + "] " + name;
+            }
+            return addr + " " + name;
+        } catch (_) {
+            return addr.toString();
+        }
+    }).join(" | ");
+}
+
 function rememberUdpSocket(sock, family, type, proto) {
     knownUdpSockets[ptrKey(sock)] = {
         family: family,
@@ -1388,10 +1405,9 @@ function hookInternalRepFunctions() {
                         internalRepBacktraceLogged.transportCtor = true;
                         try {
                             var frames = Thread.backtrace(this.context, Backtracer.ACCURATE)
-                                .slice(0, 12)
-                                .map(DebugSymbol.fromAddress)
-                                .join(" | ");
-                            log("[rep-int] transport ctor bt " + frames);
+                                .slice(0, 12);
+                            var formatted = formatBacktrace(frames);
+                            log("[rep-int] transport ctor bt " + formatted);
                         } catch (_) {}
                     }
                 },
@@ -1422,10 +1438,9 @@ function hookInternalRepFunctions() {
                         internalRepBacktraceLogged.secureInit = true;
                         try {
                             var frames = Thread.backtrace(this.context, Backtracer.ACCURATE)
-                                .slice(0, 12)
-                                .map(DebugSymbol.fromAddress)
-                                .join(" | ");
-                            log("[rep-int] secure init bt " + frames);
+                                .slice(0, 12);
+                            var formatted = formatBacktrace(frames);
+                            log("[rep-int] secure init bt " + formatted);
                         } catch (_) {}
                     }
                 },

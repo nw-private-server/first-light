@@ -1113,6 +1113,17 @@ Disconnected
   - one-shot Frida backtraces on the transport-constructor hook and secure-init hook
   - goal is to identify the internal caller chain immediately above successful REP transport setup on the failing archived path
 
+## 2026-04-21 Internal REP Backtrace Result
+
+- Archived run `capture/20260421_144129_archived_frida` confirmed the new one-shot backtrace hooks fire on the failing post-queue path:
+  - `[rep-int] transport ctor bt ...`
+  - `[rep-int] secure init bt ...`
+- The backtraces were useful in one respect:
+  - they confirmed the hooks are firing at the exact REP boundary where address resolution and UDP socket creation happen
+- But the symbol names in the archived runtime are too noisy / misleading for direct interpretation.
+- Follow-up change:
+  - Frida backtrace logging now includes raw module-relative offsets (`NewWorld.exe+0x...`) so the next archived run produces addresses that can be matched back to Ghidra directly.
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
