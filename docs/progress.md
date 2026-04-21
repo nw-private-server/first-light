@@ -1270,6 +1270,36 @@ Disconnected
 - Goal of the next run:
   - determine whether the REP object shows any precursor authorization/ready-state mutation at all before the `+0xa8` poll loop starts
 
+## 2026-04-21 REP Object State Snapshot Result
+
+- Archived run `capture/20260421_153259_archived_frida` produced the first useful REP-object state snapshot around the last internal methods before the poll loop.
+- At `rep.vtbl+0x10` / `rep.vtbl+0x18` entry the object looked like:
+  - `+0x600 = 0`
+  - `+0x601 = 0`
+  - `+0x6f0 = 1`
+  - `+0x6f1 = 0`
+  - `+0x6f2 = 0`
+  - `+0xd0 = non-null`
+  - `+0x118 = 0`
+- After `rep.vtbl+0x18` returns, the object changes only in one obvious way:
+  - `+0x118` becomes non-null
+- Then, during the repeated `rep.vtbl+0xa8` readiness polls, the object remains stable:
+  - `+0x600 = 0`
+  - `+0x601 = 0`
+  - `+0x6f0 = 1`
+  - `+0x6f1 = 0`
+  - `+0x6f2 = 0`
+  - `+0xd0 = same non-null pointer`
+  - `+0x118 = same non-null pointer`
+- So the archived path is not failing because the REP object is uninitialized.
+- Instead:
+  - `vtbl+0x18` appears to populate/attach the object behind `+0x118`
+  - but nothing ever flips the readiness byte `+0x601`
+  - and the auxiliary state bytes `+0x6f1` / `+0x6f2` also never change from `0`
+- Practical implication:
+  - the next RE target should focus on how the object at `repObj + 0x118` is supposed to drive the transition into the authorized/ready path
+  - that pointer now looks like the most plausible upstream dependency for why `FUN_146b6f190` never fires and `+0x601` never becomes `1`
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
