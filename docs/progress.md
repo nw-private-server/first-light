@@ -831,6 +831,34 @@ Things that differ from the initial Perplexity research or are otherwise surpris
     - attribute those anonymous `POST / -> 400` calls to their exact host/handle
     - watch for actual socket creation / UDP path startup after `23971` resolution
 
+## 2026-04-21 Archived `POST / -> 400` Is Kinesis, Not The REP Blocker
+
+- Latest archived Frida run:
+  - `capture/20260421_121413_archived_frida/session.log`
+- New WinHTTP handle tracking proved the previously anonymous `POST / -> 400` requests are:
+  - `POST https://kinesis.us-west-2.amazonaws.com:443/`
+- This happened both before and after create/queue, and the client still continued past:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - world remote-config fetches
+- So the recurring `400` is background telemetry/noise, not the primary blocker.
+- More important signal from the same run:
+  - immediately after queue admission and world remote-config, the client resolved:
+    - `127.0.0.1:23971`
+    - `127.0.0.1:27000`
+  - and then created:
+    - `WSASocketW -> AF_INET SOCK_DGRAM proto=17`
+- That is the strongest archived proof so far that the client is crossing into the REP/UDP startup path.
+- Current remaining gap:
+  - no actual UDP send/connect event to `23971` has been observed yet
+  - no DTLS bytes captured yet on the archived path
+- Next instrumentation priority is therefore the UDP path, not WinHTTP:
+  - `WSASendTo`
+  - `bind`
+  - `WSAIoctl`
+  - any subsequent datagram activity after the `23971` / `27000` resolution point
+
 ---
 
 ## Connection State Machine
