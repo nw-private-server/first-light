@@ -36,11 +36,15 @@ var INTERNAL_RVA_TRANSPORT_CTOR = 0x06b6a270; // FUN_146b6a270
 var INTERNAL_RVA_SECURE_INIT = 0x05dce750;    // FUN_145dce750
 var INTERNAL_RVA_REP_START_HELPER = 0x06425f20; // FUN_146425f20
 var INTERNAL_RVA_GAMECONN_STATE = 0x0644a070;   // FUN_14644a070
+var INTERNAL_RVA_REP_READY_SETTER = 0x06b6f190; // FUN_146b6f190
+var INTERNAL_RVA_REP_READY_RESET = 0x06b6e7c0;  // FUN_146b6e7c0
 var internalRepBacktraceLogged = {
     transportCtor: false,
     secureInit: false,
     repStartHelper: false,
-    gameConnState: false
+    gameConnState: false,
+    repReadySetter: false,
+    repReadyReset: false
 };
 var internalRepDynamicHooks = {}; // hook name -> true
 var gameConnStateLogCount = 0;
@@ -1584,6 +1588,73 @@ function hookInternalRepFunctions() {
             });
             hookStatus("internal_gameconn_state", "success");
             markHook("internal_gameconn_state");
+        }
+
+        var repReadySetter = base.add(INTERNAL_RVA_REP_READY_SETTER);
+        if (!isHooked("internal_rep_ready_setter")) {
+            Interceptor.attach(repReadySetter, {
+                onEnter: function (args) {
+                    this.repObj = args[0];
+                    this.arg2 = args[1];
+                    var readyBefore = "<?>";
+                    try {
+                        readyBefore = this.repObj.add(0x601).readU8();
+                    } catch (_) {}
+                    log("[rep-ready] setter enter repObj=" + this.repObj +
+                        " arg2=" + this.arg2 + " readyBefore=" + readyBefore);
+                    if (!internalRepBacktraceLogged.repReadySetter) {
+                        internalRepBacktraceLogged.repReadySetter = true;
+                        try {
+                            var setterFrames = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                                .slice(0, 12);
+                            log("[rep-ready] setter bt " + formatBacktrace(setterFrames));
+                        } catch (_) {}
+                    }
+                },
+                onLeave: function (retval) {
+                    var readyAfter = "<?>";
+                    try {
+                        readyAfter = this.repObj.add(0x601).readU8();
+                    } catch (_) {}
+                    log("[rep-ready] setter leave ret=" + retval +
+                        " readyAfter=" + readyAfter + " repObj=" + this.repObj);
+                }
+            });
+            hookStatus("internal_rep_ready_setter", "success");
+            markHook("internal_rep_ready_setter");
+        }
+
+        var repReadyReset = base.add(INTERNAL_RVA_REP_READY_RESET);
+        if (!isHooked("internal_rep_ready_reset")) {
+            Interceptor.attach(repReadyReset, {
+                onEnter: function (args) {
+                    this.repObj = args[0];
+                    var readyBefore = "<?>";
+                    try {
+                        readyBefore = this.repObj.add(0x601).readU8();
+                    } catch (_) {}
+                    log("[rep-ready] reset enter repObj=" + this.repObj +
+                        " readyBefore=" + readyBefore);
+                    if (!internalRepBacktraceLogged.repReadyReset) {
+                        internalRepBacktraceLogged.repReadyReset = true;
+                        try {
+                            var resetFrames = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                                .slice(0, 12);
+                            log("[rep-ready] reset bt " + formatBacktrace(resetFrames));
+                        } catch (_) {}
+                    }
+                },
+                onLeave: function (retval) {
+                    var readyAfter = "<?>";
+                    try {
+                        readyAfter = this.repObj.add(0x601).readU8();
+                    } catch (_) {}
+                    log("[rep-ready] reset leave ret=" + retval +
+                        " readyAfter=" + readyAfter + " repObj=" + this.repObj);
+                }
+            });
+            hookStatus("internal_rep_ready_reset", "success");
+            markHook("internal_rep_ready_reset");
         }
     } catch (e) {
         hookStatus("internal_rep_functions", "error", e.toString());
