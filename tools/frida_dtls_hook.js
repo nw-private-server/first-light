@@ -833,7 +833,71 @@ function hookWinHttp() {
         return !retval.isNull() && retval.toInt32() !== 0;
     }
 
+    function decodeWinHttpFlags(flags) {
+        var known = [
+            [0x00000001, "RESOLVING_NAME"],
+            [0x00000002, "NAME_RESOLVED"],
+            [0x00000004, "CONNECTING"],
+            [0x00000008, "CONNECTED"],
+            [0x00000010, "SENDING_REQUEST"],
+            [0x00000020, "REQUEST_SENT"],
+            [0x00000040, "RECEIVING_RESPONSE"],
+            [0x00000080, "RESPONSE_RECEIVED"],
+            [0x00000100, "CLOSING_CONNECTION"],
+            [0x00000200, "CONNECTION_CLOSED"],
+            [0x00000400, "HANDLE_CREATED"],
+            [0x00000800, "HANDLE_CLOSING"],
+            [0x00001000, "DETECTING_PROXY"],
+            [0x00002000, "REDIRECT"],
+            [0x00004000, "INTERMEDIATE_RESPONSE"],
+            [0x00008000, "SECURE_FAILURE"],
+            [0x00010000, "HEADERS_AVAILABLE"],
+            [0x00020000, "DATA_AVAILABLE"],
+            [0x00040000, "READ_COMPLETE"],
+            [0x00080000, "WRITE_COMPLETE"],
+            [0x00100000, "REQUEST_ERROR"],
+            [0x00200000, "SENDREQUEST_COMPLETE"],
+            [0x00400000, "GETPROXYFORURL_COMPLETE"],
+            [0x00800000, "CLOSE_COMPLETE"],
+            [0x20000000, "HANDLES"],
+            [0x3FFFFFFF, "ALL_COMPLETIONS"]
+        ];
+        var parts = [];
+        for (var i = 0; i < known.length; i++) {
+            if ((flags & known[i][0]) === known[i][0]) {
+                parts.push(known[i][1]);
+            }
+        }
+        return parts.join("|") || ("0x" + flags.toString(16));
+    }
+
     try {
+        var setStatusCallback = getWinHttpExport("WinHttpSetStatusCallback");
+        if (setStatusCallback && !isHooked("WinHttpSetStatusCallback")) {
+            Interceptor.attach(setStatusCallback, {
+                onEnter: function (args) {
+                    var cb = args[1];
+                    var flags = args[2].toUInt32();
+                    log("[winhttp] set status callback cb=" + cb + " flags=" + decodeWinHttpFlags(flags));
+                    if (!cb.isNull()) {
+                        try {
+                            Interceptor.attach(cb, {
+                                onEnter: function (cbArgs) {
+                                    var status = cbArgs[2].toUInt32();
+                                    var infoLen = cbArgs[4].toUInt32();
+                                    log("[winhttp-cb] status=" + decodeWinHttpFlags(status) + " len=" + infoLen);
+                                }
+                            });
+                        } catch (_) {}
+                    }
+                }
+            });
+            hookStatus("WinHttpSetStatusCallback", "success");
+            markHook("WinHttpSetStatusCallback");
+        } else if (!setStatusCallback) {
+            hookStatus("WinHttpSetStatusCallback", "not_found");
+        }
+
         var connect = getWinHttpExport("WinHttpConnect");
         if (connect && !isHooked("WinHttpConnect")) {
             Interceptor.attach(connect, {
