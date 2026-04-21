@@ -34,10 +34,16 @@ var knownUdpSockets = {};   // SOCKET handle string -> { family, type, proto, ts
 var wspHookedPtrs = {};     // provider-level SPI function pointer string -> true
 var INTERNAL_RVA_TRANSPORT_CTOR = 0x06b6a270; // FUN_146b6a270
 var INTERNAL_RVA_SECURE_INIT = 0x05dce750;    // FUN_145dce750
+var INTERNAL_RVA_REP_START_HELPER = 0x06425f20; // FUN_146425f20
+var INTERNAL_RVA_GAMECONN_STATE = 0x0644a070;   // FUN_14644a070
 var internalRepBacktraceLogged = {
     transportCtor: false,
-    secureInit: false
+    secureInit: false,
+    repStartHelper: false,
+    gameConnState: false
 };
+var internalRepDynamicHooks = {}; // hook name -> true
+var gameConnStateLogCount = 0;
 
 // Tunables
 var HEX_HEAD_BYTES = 256;
@@ -121,6 +127,66 @@ function markWspPtr(ptr) {
 
 function isWspPtrHooked(ptr) {
     return wspHookedPtrs[ptrKey(ptr)] === true;
+}
+
+function markRepDynamicHook(name) {
+    internalRepDynamicHooks[name] = true;
+}
+
+function isRepDynamicHooked(name) {
+    return internalRepDynamicHooks[name] === true;
+}
+
+function safeReadPointer(p) {
+    try {
+        if (p.isNull()) return ptr("0");
+        return p.readPointer();
+    } catch (_) {
+        return ptr("0");
+    }
+}
+
+function hookRepVirtualMethod(repObj, byteOffset, hookName, label) {
+    if (repObj.isNull() || isRepDynamicHooked(hookName)) {
+        return;
+    }
+    try {
+        var vtbl = safeReadPointer(repObj);
+        if (vtbl.isNull()) {
+            return;
+        }
+        var target = safeReadPointer(vtbl.add(byteOffset));
+        if (target.isNull()) {
+            return;
+        }
+        Interceptor.attach(target, {
+            onEnter: function (args) {
+                this.thisPtr = args[0];
+                log("[rep-vtbl] " + label + " enter this=" + this.thisPtr +
+                    " target=" + target);
+            },
+            onLeave: function (retval) {
+                log("[rep-vtbl] " + label + " leave ret=" + retval +
+                    " target=" + target);
+            }
+        });
+        markRepDynamicHook(hookName);
+        hookStatus(hookName, "success", target.toString());
+        log("[rep-vtbl] hooked " + label + " at " + target +
+            " (slot +" + byteOffset.toString(16) + ")");
+    } catch (e) {
+        hookStatus(hookName, "error", e.toString());
+    }
+}
+
+function hookRepObjectVirtuals(repObj) {
+    if (repObj.isNull()) {
+        return;
+    }
+    hookRepVirtualMethod(repObj, 0x08, "internal_rep_vtbl_08", "rep.vtbl+0x08");
+    hookRepVirtualMethod(repObj, 0x10, "internal_rep_vtbl_10", "rep.vtbl+0x10");
+    hookRepVirtualMethod(repObj, 0x18, "internal_rep_vtbl_18", "rep.vtbl+0x18");
+    hookRepVirtualMethod(repObj, 0xa8, "internal_rep_vtbl_a8", "rep.vtbl+0xa8");
 }
 
 // ---------------------------------------------------------------------------
@@ -1450,6 +1516,74 @@ function hookInternalRepFunctions() {
             });
             hookStatus("internal_rep_secure_init", "success");
             markHook("internal_rep_secure_init");
+        }
+
+        var repStartHelper = base.add(INTERNAL_RVA_REP_START_HELPER);
+        if (!isHooked("internal_rep_start_helper")) {
+            Interceptor.attach(repStartHelper, {
+                onEnter: function (args) {
+                    this.gameConn = args[0];
+                    this.arg1 = args[1];
+                    this.repObj = ptr("0");
+                    try {
+                        this.repObj = this.gameConn.add(0x1000).readPointer();
+                    } catch (_) {}
+                    log("[rep-int] start helper enter gameConn=" + this.gameConn +
+                        " arg1=" + this.arg1 + " repObj=" + this.repObj);
+                    hookRepObjectVirtuals(this.repObj);
+                    if (!internalRepBacktraceLogged.repStartHelper) {
+                        internalRepBacktraceLogged.repStartHelper = true;
+                        try {
+                            var helperFrames = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                                .slice(0, 12);
+                            log("[rep-int] start helper bt " + formatBacktrace(helperFrames));
+                        } catch (_) {}
+                    }
+                },
+                onLeave: function (retval) {
+                    log("[rep-int] start helper leave ret=" + retval);
+                }
+            });
+            hookStatus("internal_rep_start_helper", "success");
+            markHook("internal_rep_start_helper");
+        }
+
+        var gameConnState = base.add(INTERNAL_RVA_GAMECONN_STATE);
+        if (!isHooked("internal_gameconn_state")) {
+            Interceptor.attach(gameConnState, {
+                onEnter: function (args) {
+                    this.gameConn = args[0];
+                    this.arg1 = args[1];
+                    this.repObj = ptr("0");
+                    try {
+                        this.repObj = this.gameConn.add(0x1000).readPointer();
+                    } catch (_) {}
+                    if (!this.repObj.isNull()) {
+                        if (gameConnStateLogCount < 20) {
+                            gameConnStateLogCount++;
+                            log("[rep-sm] tick gameConn=" + this.gameConn +
+                                " arg1=" + this.arg1 + " repObj=" + this.repObj +
+                                " count=" + gameConnStateLogCount);
+                        }
+                        hookRepObjectVirtuals(this.repObj);
+                    }
+                    if (!internalRepBacktraceLogged.gameConnState && !this.repObj.isNull()) {
+                        internalRepBacktraceLogged.gameConnState = true;
+                        try {
+                            var tickFrames = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                                .slice(0, 12);
+                            log("[rep-sm] tick bt " + formatBacktrace(tickFrames));
+                        } catch (_) {}
+                    }
+                },
+                onLeave: function (retval) {
+                    if (!this.repObj.isNull() && gameConnStateLogCount <= 20) {
+                        log("[rep-sm] tick leave ret=" + retval + " repObj=" + this.repObj);
+                    }
+                }
+            });
+            hookStatus("internal_gameconn_state", "success");
+            markHook("internal_gameconn_state");
         }
     } catch (e) {
         hookStatus("internal_rep_functions", "error", e.toString());
