@@ -274,6 +274,7 @@ function hookTransportVirtualMethod(transportObj, byteOffset, hookName, label) {
         log("[rep-transport] hooked " + label + " at " + target +
             " (slot +" + byteOffset.toString(16) + ")");
     } catch (e) {
+        markTransportDynamicHook(hookName);
         hookStatus(hookName, "error", e.toString());
     }
 }
