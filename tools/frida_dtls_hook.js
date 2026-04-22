@@ -37,6 +37,7 @@ var pendingRepUdpSocketStartMs = 0;
 var wspHookedPtrs = {};     // provider-level SPI function pointer string -> true
 var currentRepObj = ptr("0");
 var currentTransportObj = ptr("0");
+var repStartWindowDeadlineMs = 0;
 var repSocketCorrelationCache = {}; // key -> last positive hit signature
 var transportStateCache = {}; // transport ptr string -> last seen snapshot
 var INTERNAL_RVA_TRANSPORT_CTOR = 0x06b6a270; // FUN_146b6a270
@@ -244,6 +245,14 @@ function noteCurrentRepObjects(repObj) {
     }
 }
 
+function openRepStartWindow(ms) {
+    repStartWindowDeadlineMs = Date.now() + ms;
+}
+
+function isRepStartWindowActive() {
+    return Date.now() <= repStartWindowDeadlineMs && !currentRepObj.isNull();
+}
+
 function safeReadU32(p) {
     try { return p.readU32(); } catch (_) { return null; }
 }
@@ -441,7 +450,7 @@ function hookRepGetterObject(getterObj, sourceLabel) {
     try {
         var vtbl = safeReadPointer(getterObj);
         if (vtbl.isNull()) return;
-        [0x40, 0x50].forEach(function (byteOffset) {
+        [0x50].forEach(function (byteOffset) {
             try {
                 var target = safeReadPointer(vtbl.add(byteOffset));
                 if (target.isNull()) return;
@@ -2124,6 +2133,7 @@ function hookInternalRepFunctions() {
                         this.repObj = this.gameConn.add(0x1000).readPointer();
                     } catch (_) {}
                     noteCurrentRepObjects(this.repObj);
+                    openRepStartWindow(5000);
                     log("[rep-int] start helper enter gameConn=" + this.gameConn +
                         " arg1=" + this.arg1 + " repObj=" + this.repObj);
                     hookRepObjectVirtuals(this.repObj);
@@ -2254,6 +2264,8 @@ function hookInternalRepFunctions() {
         if (!isHooked("internal_rep_getter_owner")) {
             Interceptor.attach(repGetterOwner, {
                 onEnter: function (args) {
+                    this.skip = !isRepStartWindowActive();
+                    if (this.skip) return;
                     this.owner = args[0];
                     this.beforeGetter = ptr("0");
                     try {
@@ -2271,6 +2283,7 @@ function hookInternalRepFunctions() {
                     }
                 },
                 onLeave: function (retval) {
+                    if (this.skip) return;
                     var afterGetter = ptr("0");
                     try {
                         afterGetter = this.owner.add(0x58).readPointer();
