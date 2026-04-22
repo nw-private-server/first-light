@@ -55,6 +55,7 @@ var internalRepBacktraceLogged = {
 };
 var internalRepDynamicHooks = {}; // hook name -> true
 var internalTransportDynamicHooks = {}; // hook name -> true
+var internalTransportSubobjDynamicHooks = {}; // hook name -> true
 var gameConnStateLogCount = 0;
 
 // Tunables
@@ -337,6 +338,14 @@ function isTransportDynamicHooked(name) {
     return internalTransportDynamicHooks[name] === true;
 }
 
+function markTransportSubobjDynamicHook(name) {
+    internalTransportSubobjDynamicHooks[name] = true;
+}
+
+function isTransportSubobjDynamicHooked(name) {
+    return internalTransportSubobjDynamicHooks[name] === true;
+}
+
 function safeReadPointer(p) {
     try {
         if (p.isNull()) return ptr("0");
@@ -482,6 +491,54 @@ function logTransportStateChanges(sourceTag, transportObj) {
     }
 }
 
+function hookTransportSubobjectMethod(subObj, subLabel, byteOffset) {
+    if (subObj.isNull()) return;
+    var hookName = "internal_" + subLabel + "_vtbl_" + byteOffset.toString(16) + "_" + ptrKey(subObj);
+    if (isTransportSubobjDynamicHooked(hookName)) return;
+    try {
+        var vtbl = safeReadPointer(subObj);
+        if (vtbl.isNull()) return;
+        var target = safeReadPointer(vtbl.add(byteOffset));
+        if (target.isNull()) return;
+        Interceptor.attach(target, {
+            onEnter: function (args) {
+                this.thisPtr = args[0];
+                log("[rep-subobj] " + subLabel + "+0x" + byteOffset.toString(16) +
+                    " enter this=" + this.thisPtr + " target=" + target);
+            },
+            onLeave: function (retval) {
+                log("[rep-subobj] " + subLabel + "+0x" + byteOffset.toString(16) +
+                    " leave ret=" + retval + " target=" + target);
+            }
+        });
+        markTransportSubobjDynamicHook(hookName);
+        hookStatus(hookName, "success", target.toString());
+    } catch (e) {
+        markTransportSubobjDynamicHook(hookName);
+        hookStatus(hookName, "error", e.toString());
+    }
+}
+
+function hookTransportSubobjects(transportObj) {
+    if (transportObj.isNull()) return;
+    try {
+        var sub60 = transportObj.add(0x60).readPointer();
+        if (!sub60.isNull()) {
+            hookTransportSubobjectMethod(sub60, "transport+0x60", 0x08);
+            hookTransportSubobjectMethod(sub60, "transport+0x60", 0x10);
+            hookTransportSubobjectMethod(sub60, "transport+0x60", 0x18);
+        }
+    } catch (_) {}
+    try {
+        var sub68 = transportObj.add(0x68).readPointer();
+        if (!sub68.isNull()) {
+            hookTransportSubobjectMethod(sub68, "transport+0x68", 0x08);
+            hookTransportSubobjectMethod(sub68, "transport+0x68", 0x10);
+            hookTransportSubobjectMethod(sub68, "transport+0x68", 0x18);
+        }
+    } catch (_) {}
+}
+
 function hookTransportVirtualMethod(transportObj, byteOffset, hookName, label) {
     if (transportObj.isNull() || isTransportDynamicHooked(hookName)) {
         return;
@@ -531,6 +588,7 @@ function hookTransportObjectVirtuals(transportObj) {
         return;
     }
     logTransportStateChanges("hook transport object", transportObj);
+    hookTransportSubobjects(transportObj);
     hookTransportVirtualMethod(transportObj, 0x08, "internal_transport_vtbl_08", "transport.vtbl+0x08");
     hookTransportVirtualMethod(transportObj, 0x20, "internal_transport_vtbl_20", "transport.vtbl+0x20");
     hookTransportVirtualMethod(transportObj, 0x30, "internal_transport_vtbl_30", "transport.vtbl+0x30");
