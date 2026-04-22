@@ -1679,6 +1679,28 @@ Disconnected
   - hook the object returned by `transport+0x68->vtbl+0x48`
   - inspect whether methods on that returned object are the actual last internal gate before REP becomes ready
 
+### Repeated `transport+0x68->vtbl+0x48` result
+
+- Archived run `20260421_205113_archived_frida` was another confirmed post-queue run:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - `OUTCOME REACHED_LOGIN_QUEUE_V2`
+- The main repeated live signal stayed the same:
+  - `transport+0x68->vtbl+0x48` fired over and over during the REP-ready stall
+  - the return value stayed stable and pointer-like:
+    - `ret=0x5bfdfd8d08`
+- This run also reverted to:
+  - `start helper leave ret=0xffff`
+- What did **not** happen:
+  - no `[rep-retobj] ...` calls fired from the current “returned object” hook pass
+  - `repObj+0x601` still never flipped
+  - `rep.vtbl+0xa8` still kept returning `0`
+- Current best conclusion:
+  - the most concrete live gate is now the repeatedly-called nested method:
+    - `transport+0x68 -> vtbl+0x48`
+  - the follow-on returned-object hook did not yet produce signal, so the next best move is to reverse that concrete method directly in Ghidra rather than keep widening generic Frida hooks blindly
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
