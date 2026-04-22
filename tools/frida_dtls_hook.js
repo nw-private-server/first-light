@@ -37,7 +37,7 @@ var pendingRepUdpSocketStartMs = 0;
 var wspHookedPtrs = {};     // provider-level SPI function pointer string -> true
 var currentRepObj = ptr("0");
 var currentTransportObj = ptr("0");
-var repSocketCorrelationCache = {}; // key -> true
+var repSocketCorrelationCache = {}; // key -> last positive hit signature
 var INTERNAL_RVA_TRANSPORT_CTOR = 0x06b6a270; // FUN_146b6a270
 var INTERNAL_RVA_SECURE_INIT = 0x05dce750;    // FUN_145dce750
 var INTERNAL_RVA_REP_START_HELPER = 0x06425f20; // FUN_146425f20
@@ -254,25 +254,44 @@ function scanObjectForSocketRef(basePtr, byteLength, sock) {
     return hits;
 }
 
+function scanRepSocketRefs(sock) {
+    var results = [];
+    function addScan(label, basePtr, byteLength) {
+        if (basePtr.isNull()) return;
+        var hits = scanObjectForSocketRef(basePtr, byteLength, sock);
+        if (hits.length > 0) {
+            results.push(label + "=[" + hits.join(",") + "]");
+        }
+    }
+
+    addScan("rep", currentRepObj, 0x900);
+    addScan("transport", currentTransportObj, 0x300);
+
+    try { addScan("rep+0xd0", currentRepObj.add(0xd0).readPointer(), 0x300); } catch (_) {}
+    try { addScan("rep+0x118", currentRepObj.add(0x118).readPointer(), 0x300); } catch (_) {}
+    try { addScan("transport+0x60", currentTransportObj.add(0x60).readPointer(), 0x300); } catch (_) {}
+    try { addScan("transport+0x68", currentTransportObj.add(0x68).readPointer(), 0x300); } catch (_) {}
+    try { addScan("transport+0x1b0", currentTransportObj.add(0x1b0).readPointer(), 0x300); } catch (_) {}
+
+    return results;
+}
+
 function correlateSocketWithRep(sock, sourceTag) {
     if (!isKnownUdpSocket(sock)) return;
     var sockKey = ptrKey(sock);
     var repKey = ptrKey(currentRepObj);
     var transportKey = ptrKey(currentTransportObj);
     var cacheKey = sourceTag + "|" + sockKey + "|" + repKey + "|" + transportKey;
-    if (repSocketCorrelationCache[cacheKey]) return;
-    repSocketCorrelationCache[cacheKey] = true;
-
-    var repHits = scanObjectForSocketRef(currentRepObj, 0x900, sock);
-    var transportHits = scanObjectForSocketRef(currentTransportObj, 0x300, sock);
-    if (repHits.length > 0 || transportHits.length > 0) {
-        log("[rep-sock] correlate " + sourceTag +
-            " sock=" + sock +
-            " repObj=" + currentRepObj +
-            " transportObj=" + currentTransportObj +
-            " repHits=[" + repHits.join(",") + "]" +
-            " transportHits=[" + transportHits.join(",") + "]");
-    }
+    var scans = scanRepSocketRefs(sock);
+    if (scans.length <= 0) return;
+    var signature = scans.join(" | ");
+    if (repSocketCorrelationCache[cacheKey] === signature) return;
+    repSocketCorrelationCache[cacheKey] = signature;
+    log("[rep-sock] correlate " + sourceTag +
+        " sock=" + sock +
+        " repObj=" + currentRepObj +
+        " transportObj=" + currentTransportObj +
+        " " + signature);
 }
 
 function markWspPtr(ptr) {
