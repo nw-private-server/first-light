@@ -1525,6 +1525,26 @@ Disconnected
     - created outside the current timing window, or
     - referenced through a different internal object path than the current candidate logic
 
+### REP socket-correlation fix
+
+- The first REP-object-side correlation pass had a flaw:
+  - it memoized correlation attempts before any hits were found
+  - so if a UDP handle was inserted into the REP/transport object later, subsequent scans for the same source/socket/object tuple would be skipped
+- The hook was updated so that:
+  - only positive correlation signatures are cached
+  - misses are not cached anymore
+- The REP socket scan was also widened beyond just the top-level objects:
+  - `rep`
+  - `transport`
+  - `rep+0xd0`
+  - `rep+0x118`
+  - `transport+0x60`
+  - `transport+0x68`
+  - `transport+0x1b0`
+- Goal of the next good post-queue archived run:
+  - catch late attachment of the real active UDP handle into the REP object graph
+  - instead of relying only on the timing-based `repCandidate` heuristic
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
