@@ -1367,6 +1367,27 @@ Disconnected
   - the transport object behind `repObj+0x118` exists, but the expected transport-vtable path that should drive authorization/readiness is still not executing
   - the blocker remains between successful transport creation and the path that would eventually flip `repObj+0x601 = 1`
 
+### Newest archived CTD run
+
+- This run CTD'd from the player's perspective right after character creation, but the logs show it still reached the same deeper boundary:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - REP-ready poll loop on `rep.vtbl+0xa8`
+- So this was not a regression back to the create path; it was the same post-queue REP stall followed by process termination.
+- The transport-object pass still showed:
+  - `transport.vtbl+0x20` / `+0x48` / `+0x68` are hookable
+  - none of those successfully hooked transport methods executed before termination
+- New side observation:
+  - there were late `WSASend` / `WSARecv` calls after the REP poll loop
+  - but previous logs did not include socket handles, so it was unclear whether those belonged to the REP UDP socket or unrelated TCP/WinHTTP traffic
+- Next instrumentation pass now logs for `WSASend` / `WSARecv`:
+  - socket handle
+  - whether that handle is one of the known REP UDP sockets
+  - first buffer length
+- Immediate goal for the next run:
+  - determine whether the late send/recv activity is on the REP UDP socket or only on unrelated sockets
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
