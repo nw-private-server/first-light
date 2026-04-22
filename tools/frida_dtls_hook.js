@@ -38,6 +38,7 @@ var wspHookedPtrs = {};     // provider-level SPI function pointer string -> tru
 var currentRepObj = ptr("0");
 var currentTransportObj = ptr("0");
 var repSocketCorrelationCache = {}; // key -> last positive hit signature
+var transportStateCache = {}; // transport ptr string -> last seen snapshot
 var INTERNAL_RVA_TRANSPORT_CTOR = 0x06b6a270; // FUN_146b6a270
 var INTERNAL_RVA_SECURE_INIT = 0x05dce750;    // FUN_145dce750
 var INTERNAL_RVA_REP_START_HELPER = 0x06425f20; // FUN_146425f20
@@ -364,6 +365,7 @@ function hookRepVirtualMethod(repObj, byteOffset, hookName, label) {
                 try {
                     var transportObj = this.thisPtr.add(0x118).readPointer();
                     hookTransportObjectVirtuals(transportObj);
+                    logTransportStateChanges(label + " enter via rep", transportObj);
                 } catch (_) {}
                 var extra = "";
                 try {
@@ -376,6 +378,7 @@ function hookRepVirtualMethod(repObj, byteOffset, hookName, label) {
                 try {
                     var transportObj = this.thisPtr.add(0x118).readPointer();
                     hookTransportObjectVirtuals(transportObj);
+                    logTransportStateChanges(label + " leave via rep", transportObj);
                 } catch (_) {}
                 var extra = "";
                 try {
@@ -423,6 +426,62 @@ function describeTransportState(transportObj) {
         ",1b0=" + rp(0x1b0) + "}";
 }
 
+function snapshotTransportState(transportObj) {
+    function rb(off) {
+        try { return transportObj.add(off).readU8(); } catch (_) { return null; }
+    }
+    function rd(off) {
+        try { return transportObj.add(off).readU32(); } catch (_) { return null; }
+    }
+    function rp(off) {
+        try { return ptrKey(transportObj.add(off).readPointer()); } catch (_) { return "null"; }
+    }
+    return {
+        p60: rp(0x60),
+        p68: rp(0x68),
+        d164: rd(0x164),
+        b168: rb(0x168),
+        b169: rb(0x169),
+        b16a: rb(0x16a),
+        p1b0: rp(0x1b0)
+    };
+}
+
+function logTransportStateChanges(sourceTag, transportObj) {
+    if (transportObj.isNull()) return;
+    var key = ptrKey(transportObj);
+    var next = snapshotTransportState(transportObj);
+    var prev = transportStateCache[key];
+    transportStateCache[key] = next;
+
+    if (prev === undefined) {
+        log("[rep-transport] " + sourceTag + " snapshot transport=" + transportObj +
+            " state=" + describeTransportState(transportObj));
+        return;
+    }
+
+    var labels = {
+        p60: "+0x60",
+        p68: "+0x68",
+        d164: "+0x164",
+        b168: "+0x168",
+        b169: "+0x169",
+        b16a: "+0x16a",
+        p1b0: "+0x1b0"
+    };
+    var parts = [];
+    for (var field in labels) {
+        if (!Object.prototype.hasOwnProperty.call(labels, field)) continue;
+        if (prev[field] !== next[field]) {
+            parts.push(labels[field] + ":" + prev[field] + "->" + next[field]);
+        }
+    }
+    if (parts.length > 0) {
+        log("[rep-transport] " + sourceTag + " changed transport=" + transportObj +
+            " " + parts.join(" | "));
+    }
+}
+
 function hookTransportVirtualMethod(transportObj, byteOffset, hookName, label) {
     if (transportObj.isNull() || isTransportDynamicHooked(hookName)) {
         return;
@@ -439,6 +498,7 @@ function hookTransportVirtualMethod(transportObj, byteOffset, hookName, label) {
         Interceptor.attach(target, {
             onEnter: function (args) {
                 this.thisPtr = args[0];
+                logTransportStateChanges(label + " enter", this.thisPtr);
                 var extra = "";
                 try {
                     extra = " state=" + describeTransportState(this.thisPtr);
@@ -447,6 +507,7 @@ function hookTransportVirtualMethod(transportObj, byteOffset, hookName, label) {
                     " target=" + target + extra);
             },
             onLeave: function (retval) {
+                logTransportStateChanges(label + " leave", this.thisPtr);
                 var extra = "";
                 try {
                     extra = " state=" + describeTransportState(this.thisPtr);
@@ -469,6 +530,7 @@ function hookTransportObjectVirtuals(transportObj) {
     if (transportObj.isNull()) {
         return;
     }
+    logTransportStateChanges("hook transport object", transportObj);
     hookTransportVirtualMethod(transportObj, 0x08, "internal_transport_vtbl_08", "transport.vtbl+0x08");
     hookTransportVirtualMethod(transportObj, 0x20, "internal_transport_vtbl_20", "transport.vtbl+0x20");
     hookTransportVirtualMethod(transportObj, 0x30, "internal_transport_vtbl_30", "transport.vtbl+0x30");
@@ -1833,6 +1895,7 @@ function hookInternalRepFunctions() {
                 onEnter: function (args) {
                     this.thisPtr = args[0];
                     hookTransportObjectVirtuals(this.thisPtr);
+                    logTransportStateChanges("transport ctor enter", this.thisPtr);
                     log("[rep-int] transport ctor enter this=" + this.thisPtr +
                         " arg1=" + args[1] + " arg2=" + args[2] + " arg3=" + args[3] +
                         " state=" + describeTransportState(this.thisPtr));
@@ -1848,6 +1911,7 @@ function hookInternalRepFunctions() {
                 },
                 onLeave: function (retval) {
                     hookTransportObjectVirtuals(this.thisPtr);
+                    logTransportStateChanges("transport ctor leave", this.thisPtr);
                     log("[rep-int] transport ctor leave ret=" + retval +
                         " state=" + describeTransportState(this.thisPtr));
                 }
