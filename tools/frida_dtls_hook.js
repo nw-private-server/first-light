@@ -42,6 +42,7 @@ var repSocketCorrelationCache = {}; // key -> last positive hit signature
 var transportStateCache = {}; // transport ptr string -> last seen snapshot
 var repGetterHotPathLogCount = 0;
 var repReturnedObjHotPathLogCount = 0;
+var repReturnedObjSnapshotLogged = {};
 var INTERNAL_RVA_TRANSPORT_CTOR = 0x06b6a270; // FUN_146b6a270
 var INTERNAL_RVA_SECURE_INIT = 0x05dce750;    // FUN_145dce750
 var INTERNAL_RVA_REP_START_HELPER = 0x06425f20; // FUN_146425f20
@@ -252,6 +253,44 @@ function noteCurrentRepObjects(repObj) {
         currentTransportObj = repObj.isNull() ? ptr("0") : repObj.add(0x118).readPointer();
     } catch (_) {
         currentTransportObj = ptr("0");
+    }
+}
+
+function logReturnedObjectSnapshot(objPtr, sourceLabel) {
+    var key = ptrKey(objPtr);
+    if (repReturnedObjSnapshotLogged[key]) return;
+    repReturnedObjSnapshotLogged[key] = true;
+    try {
+        var vtbl = safeReadPointer(objPtr);
+        var slot08 = ptr("0");
+        var slot18 = ptr("0");
+        var slot20 = ptr("0");
+        var slot28 = ptr("0");
+        var q08 = ptr("0");
+        var q10 = ptr("0");
+        var q18 = ptr("0");
+        var q20 = ptr("0");
+        var q28 = ptr("0");
+        var q30 = ptr("0");
+        var q38 = ptr("0");
+        try { if (!vtbl.isNull()) slot08 = safeReadPointer(vtbl.add(0x08)); } catch (_) {}
+        try { if (!vtbl.isNull()) slot18 = safeReadPointer(vtbl.add(0x18)); } catch (_) {}
+        try { if (!vtbl.isNull()) slot20 = safeReadPointer(vtbl.add(0x20)); } catch (_) {}
+        try { if (!vtbl.isNull()) slot28 = safeReadPointer(vtbl.add(0x28)); } catch (_) {}
+        try { q08 = safeReadPointer(objPtr.add(0x08)); } catch (_) {}
+        try { q10 = safeReadPointer(objPtr.add(0x10)); } catch (_) {}
+        try { q18 = safeReadPointer(objPtr.add(0x18)); } catch (_) {}
+        try { q20 = safeReadPointer(objPtr.add(0x20)); } catch (_) {}
+        try { q28 = safeReadPointer(objPtr.add(0x28)); } catch (_) {}
+        try { q30 = safeReadPointer(objPtr.add(0x30)); } catch (_) {}
+        try { q38 = safeReadPointer(objPtr.add(0x38)); } catch (_) {}
+        log("[rep-retobj] " + sourceLabel + " snapshot obj=" + objPtr +
+            " vtbl=" + vtbl +
+            " slots={08=" + slot08 + ",18=" + slot18 + ",20=" + slot20 + ",28=" + slot28 + "}" +
+            " qwords={08=" + q08 + ",10=" + q10 + ",18=" + q18 + ",20=" + q20 +
+            ",28=" + q28 + ",30=" + q30 + ",38=" + q38 + "}");
+    } catch (e) {
+        log("[rep-retobj] " + sourceLabel + " snapshot error obj=" + objPtr + " err=" + e);
     }
 }
 
@@ -689,6 +728,7 @@ function hookTransportSubobjectMethod(subObj, subLabel, byteOffset) {
                 if (byteOffset === 0x48) {
                     try {
                         if (!retval.isNull()) {
+                            logReturnedObjectSnapshot(retval, subLabel + "+0x48");
                             hookTransportReturnedObject(retval, subLabel + "+0x48");
                         }
                     } catch (_) {}
