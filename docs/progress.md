@@ -1701,6 +1701,24 @@ Disconnected
     - `transport+0x68 -> vtbl+0x48`
   - the follow-on returned-object hook did not yet produce signal, so the next best move is to reverse that concrete method directly in Ghidra rather than keep widening generic Frida hooks blindly
 
+### Ghidra result for `transport+0x68->vtbl+0x48`
+
+- The concrete method behind the repeated live path was mapped in Ghidra:
+  - runtime target: `0x7ff61ef8dc90`
+  - archived RVA: `NewWorld.exe+0x46dc90`
+  - Ghidra address: `0x14046dc90`
+- Decompiled result:
+  - `longlong Transport68_GetInnerPtr(longlong param_1) { return param_1 + 8; }`
+- So the repeatedly-called nested method is only a trivial getter:
+  - it returns `this + 8`
+  - it is not itself doing the REP-ready work
+- Ghidra was updated:
+  - renamed to `Transport68_GetInnerPtr`
+  - decompiler comment added documenting the REP-stall observation
+- Next step:
+  - capture a one-shot backtrace for the repeated `transport+0x68->vtbl+0x48` live call
+  - then map that caller chain back into Ghidra, because the real gate is now above this trivial getter, not inside it
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
