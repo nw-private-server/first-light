@@ -33,6 +33,7 @@ var winHttpRequestMap = {}; // HINTERNET request handle -> { host, port, verb, o
 var knownUdpSockets = {};   // SOCKET handle string -> { family, type, proto, ts }
 var repCandidateSockets = {}; // SOCKET handle string -> true
 var pendingRepUdpSocketDeadlineMs = 0;
+var pendingRepUdpSocketStartMs = 0;
 var wspHookedPtrs = {};     // provider-level SPI function pointer string -> true
 var INTERNAL_RVA_TRANSPORT_CTOR = 0x06b6a270; // FUN_146b6a270
 var INTERNAL_RVA_SECURE_INIT = 0x05dce750;    // FUN_145dce750
@@ -180,7 +181,8 @@ function rememberUdpSocket(sock, family, type, proto) {
         family: family,
         type: type,
         proto: proto,
-        ts: nowISO()
+        ts: nowISO(),
+        ms: Date.now()
     };
 }
 
@@ -194,6 +196,16 @@ function markRepCandidateSocket(sock) {
 
 function isRepCandidateSocket(sock) {
     return repCandidateSockets[ptrKey(sock)] === true;
+}
+
+function describeUdpSocketTiming(sock) {
+    var rec = knownUdpSockets[ptrKey(sock)];
+    if (!rec) return "ageMs=unknown";
+    var parts = ["ageMs=" + (Date.now() - rec.ms)];
+    if (pendingRepUdpSocketStartMs > 0) {
+        parts.push("sinceRepWindowMs=" + (rec.ms - pendingRepUdpSocketStartMs));
+    }
+    return parts.join(" ");
 }
 
 function markWspPtr(ptr) {
@@ -1069,9 +1081,12 @@ function hookWinsock() {
                         formatSockType(this.type) + " proto=" + this.proto);
                     if (this.type === 2 || this.proto === 17) {
                         rememberUdpSocket(retval, this.family, this.type, this.proto);
+                        var timing = describeUdpSocketTiming(retval);
                         if (Date.now() <= pendingRepUdpSocketDeadlineMs) {
                             markRepCandidateSocket(retval);
-                            log("[ws2] REP candidate socket -> " + retval);
+                            log("[ws2] REP candidate socket -> " + retval + " " + timing);
+                        } else {
+                            log("[ws2] UDP socket (non-candidate) -> " + retval + " " + timing);
                         }
                     }
                 }
@@ -1096,9 +1111,12 @@ function hookWinsock() {
                         formatSockType(this.type) + " proto=" + this.proto);
                     if (this.type === 2 || this.proto === 17) {
                         rememberUdpSocket(retval, this.family, this.type, this.proto);
+                        var timing = describeUdpSocketTiming(retval);
                         if (Date.now() <= pendingRepUdpSocketDeadlineMs) {
                             markRepCandidateSocket(retval);
-                            log("[ws2] REP candidate socket -> " + retval);
+                            log("[ws2] REP candidate socket -> " + retval + " " + timing);
+                        } else {
+                            log("[ws2] UDP socket (non-candidate) -> " + retval + " " + timing);
                         }
                     }
                 }
@@ -1364,6 +1382,7 @@ function hookWinsock() {
                         var serviceA = args[1].isNull() ? "" : args[1].readUtf8String();
                         log("[ws2] getaddrinfo -> node=" + nodeA + " service=" + serviceA);
                         if (nodeA === "127.0.0.1" && (serviceA === "23971" || serviceA === "27000")) {
+                            pendingRepUdpSocketStartMs = Date.now();
                             pendingRepUdpSocketDeadlineMs = Date.now() + 5000;
                             log("[ws2] REP address-resolution window opened for " + nodeA + ":" + serviceA);
                         }
