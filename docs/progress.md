@@ -1801,6 +1801,37 @@ Disconnected
   - rerun the archived post-queue path
   - use the first `owner+0x58->vtbl+0x50` backtrace as the next concrete Ghidra target above the hot getter path
 
+### Returned-object path result
+
+- Archived run `20260421_220206_archived_frida` was a good post-queue run and the script captured the whole failure before process termination, even though the client was later closed manually.
+- What the run proved:
+  - the REP-window gate still worked
+  - `start helper` entered and returned `0xffff`
+  - the usual REP-ready stall still held:
+    - `repObj+0x601 = 0`
+    - `rep.vtbl+0xa8 -> 0`
+- The new useful signal was not the gated `owner+0x58->vtbl+0x50` path.
+  - Instead, the returned-object hooks under:
+    - `transport+0x68->vtbl+0x48->ret+...`
+    - were the dominant live post-queue path.
+- Repeated returned-object slots observed:
+  - `ret+0x08`
+  - `ret+0x18`
+  - `ret+0x20`
+  - `ret+0x28`
+- `ret+0x28` appears to be especially hot on this REP-stall path.
+- Current conclusion:
+  - the runtime focus has moved one step deeper again
+  - the most promising next internal caller target is now the first `ret+0x28` path above the returned object
+- Fix applied:
+  - throttle returned-object logging
+  - keep only capped enter/leave logs
+  - add a one-shot backtrace for the first:
+    - `transport+0x68->vtbl+0x48->ret+0x28`
+- Next step:
+  - rerun another good post-queue archived flow
+  - use the first `ret+0x28` backtrace as the next Ghidra target
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):

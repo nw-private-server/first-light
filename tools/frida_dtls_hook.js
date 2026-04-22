@@ -41,6 +41,7 @@ var repStartWindowDeadlineMs = 0;
 var repSocketCorrelationCache = {}; // key -> last positive hit signature
 var transportStateCache = {}; // transport ptr string -> last seen snapshot
 var repGetterHotPathLogCount = 0;
+var repReturnedObjHotPathLogCount = 0;
 var INTERNAL_RVA_TRANSPORT_CTOR = 0x06b6a270; // FUN_146b6a270
 var INTERNAL_RVA_SECURE_INIT = 0x05dce750;    // FUN_145dce750
 var INTERNAL_RVA_REP_START_HELPER = 0x06425f20; // FUN_146425f20
@@ -56,7 +57,8 @@ var internalRepBacktraceLogged = {
     repReadySetter: false,
     repReadyReset: false,
     repGetterOwner: false,
-    repGetterMethod50: false
+    repGetterMethod50: false,
+    repReturnedObjMethod28: false
 };
 var internalRepDynamicHooks = {}; // hook name -> true
 var internalTransportDynamicHooks = {}; // hook name -> true
@@ -616,7 +618,7 @@ function hookTransportReturnedObject(objPtr, sourceLabel) {
         var vtbl = safeReadPointer(objPtr);
         if (vtbl.isNull()) return;
         markTransportReturnedObjHook(objPtr);
-        [0x08, 0x10, 0x18, 0x20, 0x28].forEach(function (byteOffset) {
+        [0x08, 0x18, 0x20, 0x28].forEach(function (byteOffset) {
             try {
                 var target = safeReadPointer(vtbl.add(byteOffset));
                 if (target.isNull()) return;
@@ -624,12 +626,26 @@ function hookTransportReturnedObject(objPtr, sourceLabel) {
                 if (isTransportSubobjDynamicHooked(hookName)) return;
                 Interceptor.attach(target, {
                     onEnter: function (args) {
-                        log("[rep-retobj] " + sourceLabel + "->ret+0x" + byteOffset.toString(16) +
-                            " enter this=" + args[0] + " target=" + target);
+                        this.shouldLog = repReturnedObjHotPathLogCount < 20;
+                        if (this.shouldLog) {
+                            repReturnedObjHotPathLogCount++;
+                            log("[rep-retobj] " + sourceLabel + "->ret+0x" + byteOffset.toString(16) +
+                                " enter this=" + args[0] + " target=" + target);
+                        }
+                        if (byteOffset === 0x28 && !internalRepBacktraceLogged.repReturnedObjMethod28) {
+                            internalRepBacktraceLogged.repReturnedObjMethod28 = true;
+                            try {
+                                var ret28Frames = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                                    .slice(0, 12);
+                                log("[rep-retobj] " + sourceLabel + "->ret+0x28 bt " + formatBacktrace(ret28Frames));
+                            } catch (_) {}
+                        }
                     },
                     onLeave: function (retval) {
-                        log("[rep-retobj] " + sourceLabel + "->ret+0x" + byteOffset.toString(16) +
-                            " leave ret=" + retval + " target=" + target);
+                        if (this.shouldLog) {
+                            log("[rep-retobj] " + sourceLabel + "->ret+0x" + byteOffset.toString(16) +
+                                " leave ret=" + retval + " target=" + target);
+                        }
                     }
                 });
                 markTransportSubobjDynamicHook(hookName);
