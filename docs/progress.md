@@ -1545,6 +1545,25 @@ Disconnected
   - catch late attachment of the real active UDP handle into the REP object graph
   - instead of relying only on the timing-based `repCandidate` heuristic
 
+### Socket handle-reuse fix
+
+- A later archived run exposed a second correlation bug:
+  - socket handle reuse
+- Example:
+  - handle `0x1e70` first appeared as `AF_INET6 SOCK_DGRAM proto=0`
+  - later the same numeric handle was reused for `AF_INET SOCK_STREAM proto=6`
+  - the old tracking logic still treated it as `udpKnown=true`, which polluted the post-queue UDP analysis
+- The hook was updated so that:
+  - new socket creations always refresh classification for that numeric handle
+  - non-UDP socket creation clears any stale UDP/REP-candidate state for the reused handle
+  - `closesocket`
+  - `WSPCloseSocket`
+  - `NtClose` on known UDP handles
+    now clear the tracked socket state too
+- Goal of the next confirmed post-queue run:
+  - eliminate false `udpKnown=true` carryover from handle reuse
+  - so any future active UDP handle near REP startup is classified cleanly
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):

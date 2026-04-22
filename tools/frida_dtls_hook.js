@@ -189,6 +189,24 @@ function rememberUdpSocket(sock, family, type, proto) {
     };
 }
 
+function forgetSocket(sock) {
+    try {
+        var key = ptrKey(sock);
+        delete knownUdpSockets[key];
+        delete repCandidateSockets[key];
+    } catch (_) {}
+}
+
+function refreshSocketClassification(sock, family, type, proto) {
+    var isUdpLike = (type === 2 || proto === 17);
+    if (isUdpLike) {
+        rememberUdpSocket(sock, family, type, proto);
+    } else {
+        forgetSocket(sock);
+    }
+    return isUdpLike;
+}
+
 function isKnownUdpSocket(sock) {
     return knownUdpSockets[ptrKey(sock)] !== undefined;
 }
@@ -1165,8 +1183,7 @@ function hookWinsock() {
                     log("[ws2] WSASocketW -> " + retval + " " +
                         formatFamily(this.family) + " " +
                         formatSockType(this.type) + " proto=" + this.proto);
-                    if (this.type === 2 || this.proto === 17) {
-                        rememberUdpSocket(retval, this.family, this.type, this.proto);
+                    if (refreshSocketClassification(retval, this.family, this.type, this.proto)) {
                         var timing = describeUdpSocketTiming(retval);
                         if (Date.now() <= pendingRepUdpSocketDeadlineMs) {
                             markRepCandidateSocket(retval);
@@ -1195,8 +1212,7 @@ function hookWinsock() {
                     log("[ws2] socket -> " + retval + " " +
                         formatFamily(this.family) + " " +
                         formatSockType(this.type) + " proto=" + this.proto);
-                    if (this.type === 2 || this.proto === 17) {
-                        rememberUdpSocket(retval, this.family, this.type, this.proto);
+                    if (refreshSocketClassification(retval, this.family, this.type, this.proto)) {
                         var timing = describeUdpSocketTiming(retval);
                         if (Date.now() <= pendingRepUdpSocketDeadlineMs) {
                             markRepCandidateSocket(retval);
@@ -1592,6 +1608,7 @@ function hookWinsock() {
         if (closesocket && !isHooked("ws2_closesocket")) {
             Interceptor.attach(closesocket, {
                 onEnter: function (args) {
+                    forgetSocket(args[0]);
                     log("[ws2] closesocket(" + args[0] + ")");
                 }
             });
@@ -1718,9 +1735,7 @@ function hookWinsockProviderSpi() {
                         log("[wsp] WSPSocket -> " + retval + " " +
                             formatFamily(this.family) + " " +
                             formatSockType(this.type) + " proto=" + this.proto);
-                        if (this.type === 2 || this.proto === 17) {
-                            rememberUdpSocket(retval, this.family, this.type, this.proto);
-                        }
+                        refreshSocketClassification(retval, this.family, this.type, this.proto);
                     }
                 });
             } else if (kind === "WSPConnect") {
@@ -1756,6 +1771,7 @@ function hookWinsockProviderSpi() {
                         if (isKnownUdpSocket(args[0])) {
                             log("[wsp] WSPCloseSocket(" + args[0] + ")");
                         }
+                        forgetSocket(args[0]);
                     }
                 });
             } else {
@@ -2051,6 +2067,7 @@ function hookNtdllSocketInfra() {
                 onEnter: function (args) {
                     if (isKnownUdpSocket(args[0])) {
                         log("[ntdll] NtClose(handle=" + args[0] + ")");
+                        forgetSocket(args[0]);
                     }
                 }
             });
