@@ -1404,6 +1404,35 @@ Disconnected
 - Immediate goal for the next run:
   - determine whether any actual send/recv traffic belongs to the REP-candidate socket rather than unrelated UDP activity
 
+### REP-candidate UDP traffic breakthrough
+
+- The newest good archived run proved the REP-candidate socket is not inert.
+- After:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - REP address resolution for `127.0.0.1:23971` / `127.0.0.1:27000`
+- the session log now shows real traffic on `repCandidate=true` UDP sockets.
+- Concrete examples from `capture/20260421_162305_archived_frida/session.log`:
+  - `sock=0x18bc udpKnown=true repCandidate=true`
+    - `WSASend` lengths: `194`, `93`, `3516`, `31`
+    - `WSARecv` buffers: `4096`
+  - `sock=0x230c udpKnown=true repCandidate=true`
+    - `WSASend` lengths: `194`, `93`, `283`, `31`
+  - `sock=0x2230 udpKnown=true repCandidate=true`
+    - `WSASend` lengths: `228`, `126`, `1217`, `3118`, `31`
+    - `WSARecv` buffers: `4096`, `16384`, `20480`
+  - `sock=0x2244 udpKnown=true repCandidate=true`
+    - `WSASend` lengths: `207`, `93`, `1176`, `31`
+- At the same time, the REP state machine still stalls:
+  - `repObj+0x118 = non-null`
+  - `repObj+0x601 = 0`
+  - `rep.vtbl+0xa8` keeps returning `0`
+- This is the first strong proof that the archived path is exchanging UDP traffic on the REP-candidate socket even though the ready flag never flips.
+- Next instrumentation pass:
+  - dump a short hex prefix and classify likely DTLS/TLS records for `WSASend` / `WSARecv` when `repCandidate=true`
+  - goal: determine whether the REP-candidate traffic is actually DTLS (`16 fe fd` / `17 fe fd` etc.) or some other pre-auth datagram protocol
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):

@@ -85,6 +85,16 @@ function toHex(buf, maxLen) {
     return hex.join(" ");
 }
 
+function toHexByteArray(byteArr, maxLen) {
+    var len = Math.min(byteArr.length, maxLen);
+    var hex = [];
+    for (var i = 0; i < len; i++) {
+        var b = byteArr[i].toString(16);
+        hex.push(b.length < 2 ? "0" + b : b);
+    }
+    return hex.join(" ");
+}
+
 function nowISO() {
     return new Date().toISOString();
 }
@@ -96,6 +106,56 @@ function ptrKey(ptr) {
     } catch (_) {
         return "invalid";
     }
+}
+
+function readWsabufPreview(bufArrayPtr, maxBytes) {
+    try {
+        if (bufArrayPtr.isNull()) return null;
+        var firstLen = bufArrayPtr.readU32();
+        var firstBuf = bufArrayPtr.add(Process.pointerSize).readPointer();
+        if (firstBuf.isNull() || firstLen <= 0) return null;
+        var previewLen = Math.min(firstLen, maxBytes);
+        var raw = firstBuf.readByteArray(previewLen);
+        if (raw === null) return null;
+        return {
+            firstLen: firstLen,
+            previewLen: previewLen,
+            bytes: new Uint8Array(raw)
+        };
+    } catch (_) {
+        return null;
+    }
+}
+
+function classifyDatagramPreview(bytes) {
+    if (!bytes || bytes.length < 3) return "unknown";
+    var b0 = bytes[0];
+    var b1 = bytes[1];
+    var b2 = bytes[2];
+
+    if ((b0 === 0x14 || b0 === 0x15 || b0 === 0x16 || b0 === 0x17) &&
+        b1 === 0xfe && (b2 === 0xfd || b2 === 0xff)) {
+        if (b0 === 0x16) return "dtls_handshake";
+        if (b0 === 0x14) return "dtls_change_cipher_spec";
+        if (b0 === 0x15) return "dtls_alert";
+        if (b0 === 0x17) return "dtls_application_data";
+        return "dtls";
+    }
+
+    if ((b0 === 0x14 || b0 === 0x15 || b0 === 0x16 || b0 === 0x17) &&
+        b1 === 0x03 && b2 >= 0x00 && b2 <= 0x04) {
+        return "tls_record";
+    }
+
+    return "unknown";
+}
+
+function formatPreview(preview) {
+    if (!preview) return "preview=none";
+    return "previewLen=" + preview.previewLen +
+        " firstLen=" + preview.firstLen +
+        " kind=" + classifyDatagramPreview(preview.bytes) +
+        " hex=" + toHexByteArray(preview.bytes, Math.min(preview.previewLen, 32));
 }
 
 function formatBacktrace(frames) {
@@ -1086,16 +1146,22 @@ function hookWinsock() {
             Interceptor.attach(wsaSend, {
                 onEnter: function (args) {
                     this.sock = args[0];
+                    this.bufArray = args[1];
                     this.bufCount = args[2].toInt32();
                     var firstLen = -1;
                     try {
                         firstLen = args[1].readU32();
                     } catch (_) {}
-                    log("[ws2] WSASend -> sock=" + this.sock +
+                    var repCandidate = isRepCandidateSocket(this.sock);
+                    var msg = "[ws2] WSASend -> sock=" + this.sock +
                         " udpKnown=" + isKnownUdpSocket(this.sock) +
-                        " repCandidate=" + isRepCandidateSocket(this.sock) +
+                        " repCandidate=" + repCandidate +
                         " buffers=" + this.bufCount +
-                        " firstLen=" + firstLen);
+                        " firstLen=" + firstLen;
+                    if (repCandidate) {
+                        msg += " " + formatPreview(readWsabufPreview(this.bufArray, 64));
+                    }
+                    log(msg);
                 }
             });
             hookStatus("WSASend", "success");
@@ -1109,16 +1175,35 @@ function hookWinsock() {
             Interceptor.attach(wsaRecv, {
                 onEnter: function (args) {
                     this.sock = args[0];
+                    this.bufArray = args[1];
                     this.bufCount = args[2].toInt32();
+                    this.bytesRecvdPtr = args[3];
                     var firstLen = -1;
                     try {
                         firstLen = args[1].readU32();
                     } catch (_) {}
+                    this.repCandidate = isRepCandidateSocket(this.sock);
                     log("[ws2] WSARecv <- sock=" + this.sock +
                         " udpKnown=" + isKnownUdpSocket(this.sock) +
-                        " repCandidate=" + isRepCandidateSocket(this.sock) +
+                        " repCandidate=" + this.repCandidate +
                         " buffers=" + this.bufCount +
                         " firstLen=" + firstLen);
+                },
+                onLeave: function (retval) {
+                    if (!this.repCandidate) return;
+                    try {
+                        if (retval.toInt32() !== 0) return;
+                    } catch (_) {
+                        return;
+                    }
+                    var bytesRecvd = 0;
+                    try {
+                        bytesRecvd = this.bytesRecvdPtr.readU32();
+                    } catch (_) {}
+                    if (bytesRecvd <= 0) return;
+                    log("[ws2] WSARecv data <- sock=" + this.sock +
+                        " bytesRecvd=" + bytesRecvd + " " +
+                        formatPreview(readWsabufPreview(this.bufArray, Math.min(bytesRecvd, 64))));
                 }
             });
             hookStatus("WSARecv", "success");
