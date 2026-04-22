@@ -1776,6 +1776,31 @@ Disconnected
   - rerun the archived flow with the gated hook
   - verify that `[rep-getter] ...` only appears on good post-queue runs near the REP stall
 
+### Gated `Getter`-object result
+
+- Archived run `20260421_214647_archived_frida` was a good post-queue run again:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - then the usual post-queue REP stall / CTD
+- The REP-window gating worked:
+  - the new `[rep-getter] ...` lines no longer appeared during first loading-screen startup
+  - they only appeared after `start helper` entered on the REP path
+- However, the remaining hook target:
+  - `owner+0x58->vtbl+0x50`
+  - is an extremely hot path once the REP window opens
+  - so full per-call logging still produced too much output
+- Important conclusion:
+  - the hook is now in the right phase of execution
+  - but the `+0x50` method must be treated as a hot path and logged in one-shot / capped form only
+- Fix applied:
+  - keep the REP-window gate
+  - cap `owner+0x58->vtbl+0x50` enter/leave logs to a small number
+  - add a one-shot backtrace for the first `+0x50` call
+- Next step:
+  - rerun the archived post-queue path
+  - use the first `owner+0x58->vtbl+0x50` backtrace as the next concrete Ghidra target above the hot getter path
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):

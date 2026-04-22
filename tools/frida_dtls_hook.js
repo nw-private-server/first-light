@@ -40,6 +40,7 @@ var currentTransportObj = ptr("0");
 var repStartWindowDeadlineMs = 0;
 var repSocketCorrelationCache = {}; // key -> last positive hit signature
 var transportStateCache = {}; // transport ptr string -> last seen snapshot
+var repGetterHotPathLogCount = 0;
 var INTERNAL_RVA_TRANSPORT_CTOR = 0x06b6a270; // FUN_146b6a270
 var INTERNAL_RVA_SECURE_INIT = 0x05dce750;    // FUN_145dce750
 var INTERNAL_RVA_REP_START_HELPER = 0x06425f20; // FUN_146425f20
@@ -54,7 +55,8 @@ var internalRepBacktraceLogged = {
     gameConnState: false,
     repReadySetter: false,
     repReadyReset: false,
-    repGetterOwner: false
+    repGetterOwner: false,
+    repGetterMethod50: false
 };
 var internalRepDynamicHooks = {}; // hook name -> true
 var internalTransportDynamicHooks = {}; // hook name -> true
@@ -459,12 +461,26 @@ function hookRepGetterObject(getterObj, sourceLabel) {
                 Interceptor.attach(target, {
                     onEnter: function (args) {
                         this.thisPtr = args[0];
-                        log("[rep-getter] " + sourceLabel + "+0x" + byteOffset.toString(16) +
-                            " enter this=" + this.thisPtr + " target=" + target);
+                        this.shouldLog = repGetterHotPathLogCount < 12;
+                        if (this.shouldLog) {
+                            repGetterHotPathLogCount++;
+                            log("[rep-getter] " + sourceLabel + "+0x" + byteOffset.toString(16) +
+                                " enter this=" + this.thisPtr + " target=" + target);
+                        }
+                        if (byteOffset === 0x50 && !internalRepBacktraceLogged.repGetterMethod50) {
+                            internalRepBacktraceLogged.repGetterMethod50 = true;
+                            try {
+                                var getter50Frames = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                                    .slice(0, 12);
+                                log("[rep-getter] " + sourceLabel + "+0x50 bt " + formatBacktrace(getter50Frames));
+                            } catch (_) {}
+                        }
                     },
                     onLeave: function (retval) {
-                        log("[rep-getter] " + sourceLabel + "+0x" + byteOffset.toString(16) +
-                            " leave ret=" + retval + " target=" + target);
+                        if (this.shouldLog) {
+                            log("[rep-getter] " + sourceLabel + "+0x" + byteOffset.toString(16) +
+                                " leave ret=" + retval + " target=" + target);
+                        }
                     }
                 });
                 markRepDynamicHook(hookName);
