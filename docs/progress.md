@@ -1832,6 +1832,36 @@ Disconnected
   - rerun another good post-queue archived flow
   - use the first `ret+0x28` backtrace as the next Ghidra target
 
+### First `ret+0x28` backtrace
+
+- Archived run `20260421_222721_archived_frida` was another confirmed good post-queue run:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - then the usual REP-ready stall / error
+- The throttled returned-object pass succeeded:
+  - the first `transport+0x68->vtbl+0x48->ret+0x28` backtrace was captured cleanly
+- Captured backtrace:
+  - `NewWorld.exe+0x6c9f72f`
+  - `NewWorld.exe+0x0c43461`
+  - `NewWorld.exe+0x0d4bbc3`
+  - `NewWorld.exe+0x0d92d99`
+  - `NewWorld.exe+0x0ce4ed8`
+  - `NewWorld.exe+0x143fe81`
+  - `NewWorld.exe+0x13f9f30`
+  - `NewWorld.exe+0x14a0539`
+  - `NewWorld.exe+0x14b620f`
+- The REP state itself stayed unchanged during that call:
+  - `start helper leave ret=0xffff`
+  - `repObj+0x601 = 0`
+  - `rep.vtbl+0xa8 -> 0`
+- Current conclusion:
+  - we now have the next concrete internal caller chain above the hot returned-object path
+  - the best next RE target is the `ret+0x28` backtrace chain, starting with `NewWorld.exe+0x6c9f72f`
+- Next step:
+  - map those RVAs in Ghidra
+  - identify which one owns the REP-ready decision above the returned-object hot path
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
