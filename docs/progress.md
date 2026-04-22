@@ -1958,6 +1958,40 @@ Disconnected
     - set `repObj+0x601 = 1`, or
     - enqueue work into the empty `FUN_14646d600` callback queue
 
+### Returned-object path after empty queue result
+
+- The same good post-queue run also reaffirmed that the only hot internal transport-side method during the stall is:
+  - `transport+0x68->vtbl+0x48`
+- That method's archived target remains:
+  - `NewWorld.exe+0x46dc90`
+  - and earlier Ghidra resolution showed it is just a trivial getter returning `this + 8`
+- The first caller-chain above that getter remains:
+  - `NewWorld.exe+0x64b2b73`
+  - `NewWorld.exe+0x650144b`
+  - `NewWorld.exe+0x6519860`
+  - `NewWorld.exe+0x7158cbf`
+  - `NewWorld.exe+0x6dbd146`
+  - `NewWorld.exe+0x646cf35`
+- Existing returned-object hooks (`ret+0x08/+0x18/+0x20/+0x28`) have not produced useful follow-on calls.
+- New runtime pass added for the next good archived REP-handoff run:
+  - one-shot raw snapshot of the returned object from:
+    - `transport+0x68->vtbl+0x48`
+  - logs:
+    - returned object pointer
+    - vtable pointer
+    - vtable slots `+0x08/+0x18/+0x20/+0x28`
+    - qword fields at:
+      - `+0x08`
+      - `+0x10`
+      - `+0x18`
+      - `+0x20`
+      - `+0x28`
+      - `+0x30`
+      - `+0x38`
+- Purpose:
+  - determine whether the returned object is actually a meaningful polymorphic object, a thin façade, or mostly a data carrier
+  - avoid blind hook widening if the object is not dispatching the slots we previously assumed
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
