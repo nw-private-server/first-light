@@ -1456,6 +1456,34 @@ Disconnected
   - log socket age relative to the REP address-resolution window for **all** UDP socket creations
   - goal: determine whether the actual active post-queue UDP socket is being created slightly before or after the current 5s REP-candidate tagging window
 
+### Refined REP UDP correlation result
+
+- The next confirmed good archived run (`OUTCOME REACHED_LOGIN_QUEUE_V2`) tightened the picture again.
+- Good-path milestones:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - `start helper enter`
+  - REP readiness poll loop on `rep.vtbl+0xa8`
+- Internal state still did not change:
+  - `repObj+0x601` stayed `0`
+  - `repObj+0x118` stayed non-null
+  - `rep.vtbl+0xa8` kept returning `0`
+- The refined socket-timing instrumentation showed:
+  - a REP address-resolution window opened at:
+    - `getaddrinfo -> 127.0.0.1:23971`
+    - `getaddrinfo -> 127.0.0.1:27000`
+  - a REP candidate socket was immediately created:
+    - `REP candidate socket -> 0xc30 ageMs=0 sinceRepWindowMs=0`
+- But after that:
+  - there were still **no** `WSASend` / `WSARecv` events on `sock=0xc30`
+  - all later active UDP traffic belonged to sockets still labeled `repCandidate=false`
+- Important implication:
+  - the current REP-candidate heuristic is still not identifying the actual active post-queue UDP socket
+  - the “real” active UDP socket is likely created outside the narrow current window or selected through a different internal object path than the one we are correlating today
+- This is still progress because it rules out a simpler interpretation:
+  - the candidate socket created immediately at REP handoff is not the one later carrying the visible UDP traffic in this run
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
