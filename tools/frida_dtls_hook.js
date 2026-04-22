@@ -46,6 +46,7 @@ var INTERNAL_RVA_TRANSPORT_CTOR = 0x06b6a270; // FUN_146b6a270
 var INTERNAL_RVA_SECURE_INIT = 0x05dce750;    // FUN_145dce750
 var INTERNAL_RVA_REP_START_HELPER = 0x06425f20; // FUN_146425f20
 var INTERNAL_RVA_GAMECONN_STATE = 0x0644a070;   // FUN_14644a070
+var INTERNAL_RVA_GAMECONN_WRAPPER_TICK = 0x0646d460; // FUN_14646d460
 var INTERNAL_RVA_REP_READY_SETTER = 0x06b6f190; // FUN_146b6f190
 var INTERNAL_RVA_REP_READY_RESET = 0x06b6e7c0;  // FUN_146b6e7c0
 var INTERNAL_RVA_REP_GETTER_OWNER = 0x05012f0;  // FUN_1405012f0
@@ -56,9 +57,11 @@ var internalRepBacktraceLogged = {
     gameConnState: false,
     repReadySetter: false,
     repReadyReset: false,
+    gameConnWrapperTick: false,
     repGetterOwner: false,
     repGetterMethod50: false,
-    repReturnedObjMethod28: false
+    repReturnedObjMethod28: false,
+    repWrapperTickMethod08: false
 };
 var internalRepDynamicHooks = {}; // hook name -> true
 var internalTransportDynamicHooks = {}; // hook name -> true
@@ -66,6 +69,8 @@ var internalTransportSubobjDynamicHooks = {}; // hook name -> true
 var internalTransportReturnedObjHooks = {}; // ptr string -> true
 var transportSubobjBacktraceLogged = {}; // label -> true
 var gameConnStateLogCount = 0;
+var repSubobj48LogCount = 0;
+var repWrapperTickLogCount = 0;
 
 // Tunables
 var HEX_HEAD_BYTES = 256;
@@ -494,6 +499,47 @@ function hookRepGetterObject(getterObj, sourceLabel) {
     } catch (_) {}
 }
 
+function hookRepWrapperTickObject(objPtr, sourceLabel) {
+    if (objPtr.isNull()) return;
+    try {
+        var vtbl = safeReadPointer(objPtr);
+        if (vtbl.isNull()) return;
+        var byteOffset = 0x08;
+        var target = safeReadPointer(vtbl.add(byteOffset));
+        if (target.isNull()) return;
+        var hookName = "internal_rep_wrapper_tick_" + ptrKey(objPtr) + "_" + byteOffset.toString(16);
+        if (isRepDynamicHooked(hookName)) return;
+        Interceptor.attach(target, {
+            onEnter: function (args) {
+                this.thisPtr = args[0];
+                this.shouldLog = repWrapperTickLogCount < 20;
+                if (this.shouldLog) {
+                    repWrapperTickLogCount++;
+                    log("[rep-wrapper] " + sourceLabel + "+0x08 enter this=" + this.thisPtr +
+                        " target=" + target);
+                }
+                if (!internalRepBacktraceLogged.repWrapperTickMethod08) {
+                    internalRepBacktraceLogged.repWrapperTickMethod08 = true;
+                    try {
+                        var frames = Thread.backtrace(this.context, Backtracer.ACCURATE).slice(0, 12);
+                        log("[rep-wrapper] " + sourceLabel + "+0x08 bt " + formatBacktrace(frames));
+                    } catch (_) {}
+                }
+            },
+            onLeave: function (retval) {
+                if (this.shouldLog) {
+                    log("[rep-wrapper] " + sourceLabel + "+0x08 leave ret=" + retval +
+                        " target=" + target);
+                }
+            }
+        });
+        markRepDynamicHook(hookName);
+        hookStatus(hookName, "success", target.toString());
+    } catch (e) {
+        hookStatus("internal_rep_wrapper_tick_" + ptrKey(objPtr) + "_08", "error", e.toString());
+    }
+}
+
 function describeTransportState(transportObj) {
     function rb(off) {
         try { return transportObj.add(off).readU8(); } catch (_) { return -1; }
@@ -581,8 +627,15 @@ function hookTransportSubobjectMethod(subObj, subLabel, byteOffset) {
         Interceptor.attach(target, {
             onEnter: function (args) {
                 this.thisPtr = args[0];
-                log("[rep-subobj] " + subLabel + "+0x" + byteOffset.toString(16) +
-                    " enter this=" + this.thisPtr + " target=" + target);
+                this.shouldLog = true;
+                if (subLabel === "transport+0x68" && byteOffset === 0x48) {
+                    this.shouldLog = repSubobj48LogCount < 30;
+                    if (this.shouldLog) repSubobj48LogCount++;
+                }
+                if (this.shouldLog) {
+                    log("[rep-subobj] " + subLabel + "+0x" + byteOffset.toString(16) +
+                        " enter this=" + this.thisPtr + " target=" + target);
+                }
                 if (subLabel === "transport+0x68" && byteOffset === 0x48 &&
                     !isTransportSubobjBacktraceLogged(subLabel + "+0x48")) {
                     markTransportSubobjBacktraceLogged(subLabel + "+0x48");
@@ -593,8 +646,10 @@ function hookTransportSubobjectMethod(subObj, subLabel, byteOffset) {
                 }
             },
             onLeave: function (retval) {
-                log("[rep-subobj] " + subLabel + "+0x" + byteOffset.toString(16) +
-                    " leave ret=" + retval + " target=" + target);
+                if (this.shouldLog) {
+                    log("[rep-subobj] " + subLabel + "+0x" + byteOffset.toString(16) +
+                        " leave ret=" + retval + " target=" + target);
+                }
                 if (byteOffset === 0x48) {
                     try {
                         if (!retval.isNull()) {
@@ -2223,6 +2278,52 @@ function hookInternalRepFunctions() {
             });
             hookStatus("internal_gameconn_state", "success");
             markHook("internal_gameconn_state");
+        }
+
+        var gameConnWrapperTick = base.add(INTERNAL_RVA_GAMECONN_WRAPPER_TICK);
+        if (!isHooked("internal_gameconn_wrapper_tick")) {
+            Interceptor.attach(gameConnWrapperTick, {
+                onEnter: function (args) {
+                    this.wrapper = args[0];
+                    this.shouldLog = false;
+                    this.state = -1;
+                    this.repObj = ptr("0");
+                    this.tickObj = ptr("0");
+                    try { this.state = this.wrapper.add(0x1530).readU32(); } catch (_) {}
+                    try { this.repObj = this.wrapper.add(0x1000).readPointer(); } catch (_) {}
+                    try { this.tickObj = this.wrapper.add(0x118).readPointer(); } catch (_) {}
+                    this.shouldLog = (this.state === 9 || this.state === 10);
+                    if (!this.shouldLog) return;
+                    noteCurrentRepObjects(this.repObj);
+                    hookRepObjectVirtuals(this.repObj);
+                    hookRepWrapperTickObject(this.tickObj, "wrapper+0x118");
+                    log("[rep-wrapper] tick enter wrapper=" + this.wrapper +
+                        " state=" + this.state +
+                        " repObj=" + this.repObj +
+                        " wrapper+0x118=" + this.tickObj);
+                    if (!internalRepBacktraceLogged.gameConnWrapperTick) {
+                        internalRepBacktraceLogged.gameConnWrapperTick = true;
+                        try {
+                            var wrapperFrames = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                                .slice(0, 12);
+                            log("[rep-wrapper] tick bt " + formatBacktrace(wrapperFrames));
+                        } catch (_) {}
+                    }
+                },
+                onLeave: function (retval) {
+                    if (!this.shouldLog) return;
+                    var tickObjAfter = ptr("0");
+                    try { tickObjAfter = this.wrapper.add(0x118).readPointer(); } catch (_) {}
+                    if (!tickObjAfter.isNull()) {
+                        hookRepWrapperTickObject(tickObjAfter, "wrapper+0x118");
+                    }
+                    log("[rep-wrapper] tick leave ret=" + retval +
+                        " state=" + this.state +
+                        " wrapper+0x118=" + tickObjAfter);
+                }
+            });
+            hookStatus("internal_gameconn_wrapper_tick", "success");
+            markHook("internal_gameconn_wrapper_tick");
         }
 
         var repReadySetter = base.add(INTERNAL_RVA_REP_READY_SETTER);
