@@ -1896,6 +1896,47 @@ Disconnected
   - `[rep-wrapper] wrapper+0x118+0x08 ...`
   - which should tell us what object is actually being serviced while REP remains stuck not-ready
 
+### REP wrapper callback queue
+
+- The latest confirmed good archived REP-handoff run is still:
+  - `capture/20260421_224444_archived_frida`
+  - `auth_mock` reached:
+    - `validator`
+    - `CreateCharacter`
+    - `login/queue/v2`
+    - `OUTCOME REACHED_LOGIN_QUEUE_V2`
+- That run confirmed the same deeper stall:
+  - `FUN_146425f20` ran
+  - `transport ctor` and `secure init` succeeded
+  - `repObj+0x118` became non-null
+  - `repObj+0x601` stayed `0`
+  - `rep.vtbl+0xa8` kept returning `0`
+- Ghidra resolution of the wrapper-tick object is now specific:
+  - `wrapper+0x118->vtbl+0x08`
+  - runtime target:
+    - `0x7ff624f8d600`
+  - archived RVA:
+    - `NewWorld.exe+0x646d600`
+  - Ghidra function:
+    - `FUN_14646d600`
+- `FUN_14646d600` is a callback-queue pump, not a transport/socket routine:
+  - queue begin at `+0x38`
+  - queue end at `+0x40`
+  - queue capacity/end storage at `+0x48`
+  - callback object pointer in each 0x40-byte entry at `entry+0x38`
+  - callback invoke via callback-object vtable `+0x10`
+  - callback destroy via callback-object vtable `+0x20`
+- New Frida instrumentation is now in place for the next good post-queue run:
+  - log `queueBegin`, `queueEnd`, and `queueCap` on `wrapper+0x118->vtbl+0x08` enter/leave
+  - one-shot dump of up to 4 queued entries:
+    - entry pointer
+    - callback object pointer
+    - callback object vtable
+- The latest run did **not** contain those queue-detail lines because it predates this patch.
+- Current best hypothesis:
+  - the REP ready-setter path may depend on a queued callback in `FUN_14646d600`
+  - the next good archived post-queue run should tell us whether that callback queue is empty during the state-10 poll loop or contains a stable callback object that never produces readiness
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
