@@ -1587,6 +1587,31 @@ Disconnected
   - the immediate REP object/transport setup succeeds
   - but we still do not see the real active outbound REP socket become visible through current object correlation
 
+### Transport-object diff tracking
+
+- The current best upstream dependency is still the non-null object at:
+  - `repObj + 0x118`
+- Ghidra and prior Frida runs already showed:
+  - `repObj+0x118` becomes non-null after `rep.vtbl+0x18`
+  - `repObj+0x601` never flips to `1`
+  - the ready setter/resetter paths never fire
+- `tools/frida_dtls_hook.js` now keeps a per-transport snapshot cache and logs only actual field transitions for:
+  - `+0x60`
+  - `+0x68`
+  - `+0x164`
+  - `+0x168`
+  - `+0x169`
+  - `+0x16a`
+  - `+0x1b0`
+- The diff logging is emitted from:
+  - REP vtable `+0x08/+0x10/+0x18/+0xa8`
+  - transport ctor enter/leave
+  - hooked transport vtable methods
+  - initial transport-object hook install
+- Goal of the next confirmed post-queue run:
+  - identify which transport fields or nested pointers actually move between `rep.vtbl+0x18` and the endless readiness poll
+  - and use those transitions to choose the next direct internal hook target above the stalled REP ready gate
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
