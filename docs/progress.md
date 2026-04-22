@@ -1433,6 +1433,29 @@ Disconnected
   - dump a short hex prefix and classify likely DTLS/TLS records for `WSASend` / `WSARecv` when `repCandidate=true`
   - goal: determine whether the REP-candidate traffic is actually DTLS (`16 fe fd` / `17 fe fd` etc.) or some other pre-auth datagram protocol
 
+### Confirmed good post-queue run after packet-classifier patch
+
+- The next archived run after the packet-classifier patch was a confirmed good path:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - `OUTCOME REACHED_LOGIN_QUEUE_V2`
+- Internal REP state remained the same:
+  - `FUN_146425f20` / start helper entered
+  - returned `0xffff`
+  - `rep.vtbl+0xa8` kept returning `0`
+  - `repObj+0x601` never flipped to `1`
+- A new REP candidate socket was created:
+  - `REP candidate socket -> 0x2290`
+- But on this run there were still **no** `WSASend` / `WSARecv` logs for that specific `repCandidate=true` handle before termination.
+- So the latest evidence is:
+  - the client definitely reaches REP handoff
+  - it definitely allocates a REP-candidate UDP socket
+  - but the active UDP traffic seen later may still belong to a different socket than the one currently tagged as the REP candidate
+- Next instrumentation refinement:
+  - log socket age relative to the REP address-resolution window for **all** UDP socket creations
+  - goal: determine whether the actual active post-queue UDP socket is being created slightly before or after the current 5s REP-candidate tagging window
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
