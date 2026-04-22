@@ -1992,6 +1992,53 @@ Disconnected
   - determine whether the returned object is actually a meaningful polymorphic object, a thin façade, or mostly a data carrier
   - avoid blind hook widening if the object is not dispatching the slots we previously assumed
 
+### Latest archived REP returned-object snapshot
+
+- Archived run `20260421_230736_archived_frida` was another confirmed post-queue run:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - `OUTCOME REACHED_LOGIN_QUEUE_V2`
+- Internal REP state stayed unchanged during the stall:
+  - `start helper leave ret=0xffff`
+  - `repObj+0x118` non-null
+  - `repObj+0x601` stayed `0`
+  - `rep.vtbl+0xa8` kept returning `0`
+  - `wrapper+0x118->vtbl+0x08` callback queue stayed empty
+- The new raw snapshot proved the hot returned-object path is a real polymorphic object, not junk:
+  - `transport+0x68->vtbl+0x48 snapshot obj=0x1edeec4c468 vtbl=0x7ff6270d76f0`
+  - live returned-object slot targets:
+    - `ret+0x08 = 0x7ff61f1e6a00`
+    - `ret+0x18 = 0x7ff61edc1da0`
+    - `ret+0x20 = 0x7ff61f1e5990`
+    - `ret+0x28 = 0x7ff61f1ecf20`
+- The returned-object methods that actually executed on the failing path were:
+  - `ret+0x08`
+  - `ret+0x18`
+  - `ret+0x20`
+  - `ret+0x28`
+- Observed behavior:
+  - `ret+0x08` returned stable pointer-like values
+  - `ret+0x18` returned `0` for some `this` values and non-null pointers for others
+  - `ret+0x20` was especially hot and returned stable pointer-like values
+  - `ret+0x28` produced the first clean caller-chain above the returned-object path:
+    - `NewWorld.exe+0x6c9f72f`
+    - `NewWorld.exe+0x0c43461`
+    - `NewWorld.exe+0x0d4bbc3`
+    - `NewWorld.exe+0x0d92d99`
+    - `NewWorld.exe+0x0ce4ed8`
+    - `NewWorld.exe+0x143fe81`
+    - `NewWorld.exe+0x13f9f30`
+    - `NewWorld.exe+0x14a0539`
+    - `NewWorld.exe+0x14b620f`
+- New conclusion:
+  - the next useful RE targets are the concrete returned-object methods:
+    - `NewWorld.exe+0x1e6a00` (`ret+0x08`)
+    - `NewWorld.exe+0x0dc1da0` (`ret+0x18`)
+    - `NewWorld.exe+0x1e5990` (`ret+0x20`)
+    - `NewWorld.exe+0x1ecf20` (`ret+0x28`)
+  - the next runtime pass should capture one-shot backtraces on `ret+0x08/+0x18/+0x20` as cleanly as it already does for `ret+0x28`.
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):

@@ -763,12 +763,18 @@ function hookTransportReturnedObject(objPtr, sourceLabel) {
                             log("[rep-retobj] " + sourceLabel + "->ret+0x" + byteOffset.toString(16) +
                                 " enter this=" + args[0] + " target=" + target);
                         }
-                        if (byteOffset === 0x28 && !internalRepBacktraceLogged.repReturnedObjMethod28) {
-                            internalRepBacktraceLogged.repReturnedObjMethod28 = true;
+                        var btKey = null;
+                        if (byteOffset === 0x08) btKey = "repReturnedObjMethod08";
+                        else if (byteOffset === 0x18) btKey = "repReturnedObjMethod18";
+                        else if (byteOffset === 0x20) btKey = "repReturnedObjMethod20";
+                        else if (byteOffset === 0x28) btKey = "repReturnedObjMethod28";
+                        if (btKey !== null && !internalRepBacktraceLogged[btKey]) {
+                            internalRepBacktraceLogged[btKey] = true;
                             try {
-                                var ret28Frames = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                                var retFrames = Thread.backtrace(this.context, Backtracer.ACCURATE)
                                     .slice(0, 12);
-                                log("[rep-retobj] " + sourceLabel + "->ret+0x28 bt " + formatBacktrace(ret28Frames));
+                                log("[rep-retobj] " + sourceLabel + "->ret+0x" +
+                                    byteOffset.toString(16) + " bt " + formatBacktrace(retFrames));
                             } catch (_) {}
                         }
                     },
