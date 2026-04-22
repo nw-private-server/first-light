@@ -1564,6 +1564,29 @@ Disconnected
   - eliminate false `udpKnown=true` carryover from handle reuse
   - so any future active UDP handle near REP startup is classified cleanly
 
+### First clean post-queue run after handle-reuse fix
+
+- Archived Frida run `20260421_175345_archived_frida` was a confirmed good REP-handoff run:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - `OUTCOME REACHED_LOGIN_QUEUE_V2`
+- Internal REP behavior still did not change:
+  - `start helper` entered
+  - `transport ctor` entered and succeeded
+  - `secure init` entered and returned `0`
+  - `repObj+0x118` stayed non-null
+  - `repObj+0x601` stayed `0`
+  - `rep.vtbl+0xa8` kept returning `0`
+- After the handle-reuse fix, the earlier false UDP positives disappeared:
+  - no post-queue active sockets were misclassified as `udpKnown=true`
+  - no `[rep-sock] correlate ...` hits were produced
+  - later socket activity near failure was cleanly classified as non-REP/non-UDP or unrelated traffic
+- Current best conclusion:
+  - the archived client still reaches REP handoff cleanly
+  - the immediate REP object/transport setup succeeds
+  - but we still do not see the real active outbound REP socket become visible through current object correlation
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
