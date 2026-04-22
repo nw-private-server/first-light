@@ -1612,6 +1612,29 @@ Disconnected
   - identify which transport fields or nested pointers actually move between `rep.vtbl+0x18` and the endless readiness poll
   - and use those transitions to choose the next direct internal hook target above the stalled REP ready gate
 
+### First transport diff result
+
+- Archived run `20260421_182715_archived_frida` was a confirmed good post-queue run:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - `OUTCOME REACHED_LOGIN_QUEUE_V2`
+- The new transport diff logging fired successfully.
+- At first sight of the transport object, before ctor work completed, these fields still looked like junk/uninitialized data:
+  - `+0x60`
+  - `+0x68`
+  - `+0x164 = 2`
+- During transport ctor completion, the first real transition was:
+  - `+0x60: 0x7573222c303a2264 -> 0x1f043e0ade0`
+  - `+0x68: 0x22646574726f7070 -> 0x1f043e0add0`
+  - `+0x164: 2 -> 0`
+- After that normalization:
+  - no further transport-field transitions were observed before the REP ready poll stalled
+  - the ready byte still stayed `repObj+0x601 = 0`
+- Next step:
+  - hook the nested sub-objects at `transport+0x60` and `transport+0x68`
+  - because those are now the only clearly meaningful transport-side pointers that change during ctor before the stall
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
