@@ -1388,6 +1388,22 @@ Disconnected
 - Immediate goal for the next run:
   - determine whether the late send/recv activity is on the REP UDP socket or only on unrelated sockets
 
+### Socket-label follow-up
+
+- The next archived run showed that `udpKnown=true` was not specific enough:
+  - there is definitely send/recv activity on UDP sockets
+  - but the old label only meant “some UDP socket created by the process,” not “the REP socket created right after `23971/27000` resolution”
+- New instrumentation now opens a short REP-candidate window when the client resolves:
+  - `127.0.0.1:23971`
+  - `127.0.0.1:27000`
+- Any UDP socket created during that window is now marked:
+  - `repCandidate=true`
+- `WSASend` / `WSARecv` logs now include both:
+  - `udpKnown=...`
+  - `repCandidate=...`
+- Immediate goal for the next run:
+  - determine whether any actual send/recv traffic belongs to the REP-candidate socket rather than unrelated UDP activity
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
