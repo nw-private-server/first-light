@@ -57,6 +57,7 @@ var internalRepDynamicHooks = {}; // hook name -> true
 var internalTransportDynamicHooks = {}; // hook name -> true
 var internalTransportSubobjDynamicHooks = {}; // hook name -> true
 var internalTransportReturnedObjHooks = {}; // ptr string -> true
+var transportSubobjBacktraceLogged = {}; // label -> true
 var gameConnStateLogCount = 0;
 
 // Tunables
@@ -355,6 +356,14 @@ function isTransportReturnedObjHooked(p) {
     return internalTransportReturnedObjHooks[ptrKey(p)] === true;
 }
 
+function markTransportSubobjBacktraceLogged(label) {
+    transportSubobjBacktraceLogged[label] = true;
+}
+
+function isTransportSubobjBacktraceLogged(label) {
+    return transportSubobjBacktraceLogged[label] === true;
+}
+
 function safeReadPointer(p) {
     try {
         if (p.isNull()) return ptr("0");
@@ -514,6 +523,14 @@ function hookTransportSubobjectMethod(subObj, subLabel, byteOffset) {
                 this.thisPtr = args[0];
                 log("[rep-subobj] " + subLabel + "+0x" + byteOffset.toString(16) +
                     " enter this=" + this.thisPtr + " target=" + target);
+                if (subLabel === "transport+0x68" && byteOffset === 0x48 &&
+                    !isTransportSubobjBacktraceLogged(subLabel + "+0x48")) {
+                    markTransportSubobjBacktraceLogged(subLabel + "+0x48");
+                    try {
+                        var frames = Thread.backtrace(this.context, Backtracer.ACCURATE).slice(0, 12);
+                        log("[rep-subobj] " + subLabel + "+0x48 bt " + formatBacktrace(frames));
+                    } catch (_) {}
+                }
             },
             onLeave: function (retval) {
                 log("[rep-subobj] " + subLabel + "+0x" + byteOffset.toString(16) +
