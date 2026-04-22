@@ -521,20 +521,25 @@ function hookTransportSubobjectMethod(subObj, subLabel, byteOffset) {
 
 function hookTransportSubobjects(transportObj) {
     if (transportObj.isNull()) return;
+    function hookCommonSlots(subObj, subLabel) {
+        hookTransportSubobjectMethod(subObj, subLabel, 0x08);
+        hookTransportSubobjectMethod(subObj, subLabel, 0x10);
+        hookTransportSubobjectMethod(subObj, subLabel, 0x18);
+        hookTransportSubobjectMethod(subObj, subLabel, 0x20);
+        hookTransportSubobjectMethod(subObj, subLabel, 0x28);
+        hookTransportSubobjectMethod(subObj, subLabel, 0x30);
+        hookTransportSubobjectMethod(subObj, subLabel, 0x48);
+    }
     try {
         var sub60 = transportObj.add(0x60).readPointer();
         if (!sub60.isNull()) {
-            hookTransportSubobjectMethod(sub60, "transport+0x60", 0x08);
-            hookTransportSubobjectMethod(sub60, "transport+0x60", 0x10);
-            hookTransportSubobjectMethod(sub60, "transport+0x60", 0x18);
+            hookCommonSlots(sub60, "transport+0x60");
         }
     } catch (_) {}
     try {
         var sub68 = transportObj.add(0x68).readPointer();
         if (!sub68.isNull()) {
-            hookTransportSubobjectMethod(sub68, "transport+0x68", 0x08);
-            hookTransportSubobjectMethod(sub68, "transport+0x68", 0x10);
-            hookTransportSubobjectMethod(sub68, "transport+0x68", 0x18);
+            hookCommonSlots(sub68, "transport+0x68");
         }
     } catch (_) {}
 }

@@ -1635,6 +1635,27 @@ Disconnected
   - hook the nested sub-objects at `transport+0x60` and `transport+0x68`
   - because those are now the only clearly meaningful transport-side pointers that change during ctor before the stall
 
+### First transport sub-object result
+
+- Archived run `20260421_195314_archived_frida` was another confirmed good post-queue run:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - `OUTCOME REACHED_LOGIN_QUEUE_V2`
+- The transport diff result repeated cleanly:
+  - `transport+0x60` normalized from junk to a stable pointer
+  - `transport+0x68` normalized from junk to a stable pointer
+  - `transport+0x164` flipped `2 -> 0`
+- However, none of the first-pass nested sub-object hooks fired before the REP ready poll froze:
+  - no `transport+0x60` `+0x08/+0x10/+0x18`
+  - no `transport+0x68` `+0x08/+0x10/+0x18`
+- Current conclusion:
+  - the nested objects at `transport+0x60` and `transport+0x68` are real and stabilize during ctor
+  - but the REP-ready failure is still happening before any of those first-pass vtable slots are invoked
+- Next step:
+  - widen the sub-object vtable coverage beyond `+0x08/+0x10/+0x18`
+  - specifically add `+0x20/+0x28/+0x30/+0x48` for both nested sub-objects
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
