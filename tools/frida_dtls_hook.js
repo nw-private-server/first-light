@@ -35,6 +35,9 @@ var repCandidateSockets = {}; // SOCKET handle string -> true
 var pendingRepUdpSocketDeadlineMs = 0;
 var pendingRepUdpSocketStartMs = 0;
 var wspHookedPtrs = {};     // provider-level SPI function pointer string -> true
+var currentRepObj = ptr("0");
+var currentTransportObj = ptr("0");
+var repSocketCorrelationCache = {}; // key -> true
 var INTERNAL_RVA_TRANSPORT_CTOR = 0x06b6a270; // FUN_146b6a270
 var INTERNAL_RVA_SECURE_INIT = 0x05dce750;    // FUN_145dce750
 var INTERNAL_RVA_REP_START_HELPER = 0x06425f20; // FUN_146425f20
@@ -206,6 +209,70 @@ function describeUdpSocketTiming(sock) {
         parts.push("sinceRepWindowMs=" + (rec.ms - pendingRepUdpSocketStartMs));
     }
     return parts.join(" ");
+}
+
+function noteCurrentRepObjects(repObj) {
+    currentRepObj = repObj;
+    try {
+        currentTransportObj = repObj.isNull() ? ptr("0") : repObj.add(0x118).readPointer();
+    } catch (_) {
+        currentTransportObj = ptr("0");
+    }
+}
+
+function safeReadU32(p) {
+    try { return p.readU32(); } catch (_) { return null; }
+}
+
+function safeReadPtrValue(p) {
+    try { return p.readPointer(); } catch (_) { return null; }
+}
+
+function scanObjectForSocketRef(basePtr, byteLength, sock) {
+    if (basePtr.isNull()) return [];
+    var hits = [];
+    var sockKey = ptrKey(sock);
+    var sockU32 = null;
+    try { sockU32 = sock.toUInt32(); } catch (_) {}
+    for (var off = 0; off <= byteLength - 8; off += 8) {
+        var slot = basePtr.add(off);
+        var pv = safeReadPtrValue(slot);
+        if (pv !== null && ptrKey(pv) === sockKey) {
+            hits.push("+0x" + off.toString(16) + "=ptr");
+        }
+        if (sockU32 !== null) {
+            var u32lo = safeReadU32(slot);
+            var u32hi = safeReadU32(slot.add(4));
+            if (u32lo !== null && u32lo === sockU32) {
+                hits.push("+0x" + off.toString(16) + "=u32");
+            }
+            if (u32hi !== null && u32hi === sockU32) {
+                hits.push("+0x" + (off + 4).toString(16) + "=u32");
+            }
+        }
+    }
+    return hits;
+}
+
+function correlateSocketWithRep(sock, sourceTag) {
+    if (!isKnownUdpSocket(sock)) return;
+    var sockKey = ptrKey(sock);
+    var repKey = ptrKey(currentRepObj);
+    var transportKey = ptrKey(currentTransportObj);
+    var cacheKey = sourceTag + "|" + sockKey + "|" + repKey + "|" + transportKey;
+    if (repSocketCorrelationCache[cacheKey]) return;
+    repSocketCorrelationCache[cacheKey] = true;
+
+    var repHits = scanObjectForSocketRef(currentRepObj, 0x900, sock);
+    var transportHits = scanObjectForSocketRef(currentTransportObj, 0x300, sock);
+    if (repHits.length > 0 || transportHits.length > 0) {
+        log("[rep-sock] correlate " + sourceTag +
+            " sock=" + sock +
+            " repObj=" + currentRepObj +
+            " transportObj=" + currentTransportObj +
+            " repHits=[" + repHits.join(",") + "]" +
+            " transportHits=[" + transportHits.join(",") + "]");
+    }
 }
 
 function markWspPtr(ptr) {
@@ -1180,6 +1247,7 @@ function hookWinsock() {
                         msg += " " + formatPreview(readWsabufPreview(this.bufArray, 64));
                     }
                     log(msg);
+                    correlateSocketWithRep(this.sock, "WSASend");
                 }
             });
             hookStatus("WSASend", "success");
@@ -1206,8 +1274,10 @@ function hookWinsock() {
                         " repCandidate=" + this.repCandidate +
                         " buffers=" + this.bufCount +
                         " firstLen=" + firstLen);
+                    correlateSocketWithRep(this.sock, "WSARecv.enter");
                 },
                 onLeave: function (retval) {
+                    correlateSocketWithRep(this.sock, "WSARecv.leave");
                     if (!this.repCandidate) return;
                     try {
                         if (retval.toInt32() !== 0) return;
@@ -1794,6 +1864,7 @@ function hookInternalRepFunctions() {
                     try {
                         this.repObj = this.gameConn.add(0x1000).readPointer();
                     } catch (_) {}
+                    noteCurrentRepObjects(this.repObj);
                     log("[rep-int] start helper enter gameConn=" + this.gameConn +
                         " arg1=" + this.arg1 + " repObj=" + this.repObj);
                     hookRepObjectVirtuals(this.repObj);
@@ -1824,6 +1895,7 @@ function hookInternalRepFunctions() {
                     try {
                         this.repObj = this.gameConn.add(0x1000).readPointer();
                     } catch (_) {}
+                    noteCurrentRepObjects(this.repObj);
                     if (!this.repObj.isNull()) {
                         if (gameConnStateLogCount < 20) {
                             gameConnStateLogCount++;
