@@ -1932,10 +1932,31 @@ Disconnected
     - entry pointer
     - callback object pointer
     - callback object vtable
-- The latest run did **not** contain those queue-detail lines because it predates this patch.
-- Current best hypothesis:
-  - the REP ready-setter path may depend on a queued callback in `FUN_14646d600`
-  - the next good archived post-queue run should tell us whether that callback queue is empty during the state-10 poll loop or contains a stable callback object that never produces readiness
+- Archived run `capture/20260421_225628_archived_frida` was the first good post-queue run with the queue instrumentation active:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - `OUTCOME REACHED_LOGIN_QUEUE_V2`
+- It answered the queue question directly:
+  - `wrapper+0x118->vtbl+0x08` repeatedly logged:
+    - `queueBegin=0x0`
+    - `queueEnd=0x0`
+    - `queueCap=0x0`
+  - enter/leave both stayed zero during the entire state-10 REP stall
+  - no queued callback entries existed at all
+- This rules out the “stuck queued callback in FUN_14646d600” theory.
+- Current tighter boundary:
+  - REP transport construction succeeds
+  - secure init succeeds
+  - `repObj+0x118` becomes non-null
+  - the wrapper queue pump object at `wrapper+0x118` exists but its callback queue is empty
+  - `repObj+0x601` stays `0`
+  - `rep.vtbl+0xa8` keeps returning `0`
+- New conclusion:
+  - the missing REP-ready transition is not waiting in the wrapper callback queue
+  - the remaining gate is upstream of queue delivery, in the internal path that should either:
+    - set `repObj+0x601 = 1`, or
+    - enqueue work into the empty `FUN_14646d600` callback queue
 
 ### Immediate (next session) — unblock character creation
 
