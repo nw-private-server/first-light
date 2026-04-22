@@ -1495,6 +1495,36 @@ Disconnected
 - This should answer the next concrete question:
   - which live UDP handle is the REP stack internally pointing at while the ready flag remains `0`
 
+### Latest confirmed REP-handoff run
+
+- Latest archived Frida run `20260421_172121_archived_frida` was another real post-queue run:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - `OUTCOME REACHED_LOGIN_QUEUE_V2`
+- Internal REP state remained unchanged:
+  - `start helper` entered and returned `0xffff`
+  - `transport ctor` entered and returned successfully
+  - `secure init` entered and returned `0`
+  - `repObj+0x118` stayed non-null
+  - `repObj+0x601` stayed `0`
+  - `rep.vtbl+0xa8` continued polling and returning `0`
+- The REP window opened cleanly:
+  - `getaddrinfo -> 127.0.0.1:23971`
+  - `getaddrinfo -> 127.0.0.1:27000`
+  - immediate REP candidate socket creation:
+    - `0x1e64`
+  - immediate UDP configuration:
+    - `WSAIoctl(0x1e64, SIO_UDP_CONNRESET) ret=0`
+- But there were still no `WSASend` / `WSARecv` events on that REP-candidate handle.
+- Later visible UDP traffic again belonged to other sockets, all still `repCandidate=false`.
+- So the current best conclusion is unchanged but reinforced:
+  - the client reaches REP handoff cleanly
+  - the immediate REP-candidate socket is still not the active visible UDP socket
+  - the real post-queue active UDP handle is either:
+    - created outside the current timing window, or
+    - referenced through a different internal object path than the current candidate logic
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
