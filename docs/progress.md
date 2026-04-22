@@ -1749,6 +1749,33 @@ Disconnected
   - hook the object stored at `owner+0x58`
   - log its `vtbl+0x40` / `vtbl+0x50` calls on the next good post-queue archived run
 
+### `FUN_1405012f0` broad-hook failure and narrowing
+
+- Archived run `20260421_213756_archived_frida` did **not** reach the usual REP boundary. The game stalled on the first loading screen and the Frida output exploded.
+- Root cause from `session.log`:
+  - the new direct hook on `FUN_1405012f0` fired far too early and broadly during unrelated startup code
+  - the first captured backtrace was clearly not REP-related; it was dominated by audio/renderer paths
+  - example first backtrace:
+    - `NewWorld.exe+0x48b623`
+    - `NewWorld.exe+0x4f42444`
+    - `NewWorld.exe+0x137a50e`
+    - `NewWorld.exe+0x11c3fe2`
+    - `NewWorld.exe+0x6edb1a`
+- Side effect:
+  - the hook created many unrelated `Getter` objects
+  - `owner+0x58->vtbl+0x50` then spammed heavily during startup
+  - `owner+0x58->vtbl+0x40` also repeatedly failed Frida attach at the same code address
+- Current conclusion:
+  - `FUN_1405012f0` is reused in multiple non-REP systems
+  - it must be gated to the REP-start window, not hooked globally from process startup
+- Fix applied:
+  - only activate the `FUN_1405012f0` owner logging/handoff after `start helper` opens a short REP-start window
+  - skip the unstable `owner+0x58->vtbl+0x40` hook for now
+  - keep only the `owner+0x58->vtbl+0x50` hook during the REP window
+- Next step:
+  - rerun the archived flow with the gated hook
+  - verify that `[rep-getter] ...` only appears on good post-queue runs near the REP stall
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
