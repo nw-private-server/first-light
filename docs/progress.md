@@ -1484,6 +1484,17 @@ Disconnected
 - This is still progress because it rules out a simpler interpretation:
   - the candidate socket created immediately at REP handoff is not the one later carrying the visible UDP traffic in this run
 
+### Next correlation refinement
+
+- The next instrumentation pass stops relying only on timing.
+- New goal:
+  - when a known UDP socket hits `WSASend` / `WSARecv`, scan the current:
+    - REP object
+    - transport object (`repObj+0x118`)
+  - and log whether that active socket handle is actually stored anywhere inside those objects
+- This should answer the next concrete question:
+  - which live UDP handle is the REP stack internally pointing at while the ready flag remains `0`
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
