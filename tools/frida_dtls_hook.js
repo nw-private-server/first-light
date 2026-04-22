@@ -1067,8 +1067,16 @@ function hookWinsock() {
         if (wsaSend && !isHooked("WSASend")) {
             Interceptor.attach(wsaSend, {
                 onEnter: function (args) {
+                    this.sock = args[0];
                     this.bufCount = args[2].toInt32();
-                    log("[ws2] WSASend -> buffers=" + this.bufCount);
+                    var firstLen = -1;
+                    try {
+                        firstLen = args[1].readU32();
+                    } catch (_) {}
+                    log("[ws2] WSASend -> sock=" + this.sock +
+                        " udpKnown=" + isKnownUdpSocket(this.sock) +
+                        " buffers=" + this.bufCount +
+                        " firstLen=" + firstLen);
                 }
             });
             hookStatus("WSASend", "success");
@@ -1081,8 +1089,16 @@ function hookWinsock() {
         if (wsaRecv && !isHooked("WSARecv")) {
             Interceptor.attach(wsaRecv, {
                 onEnter: function (args) {
+                    this.sock = args[0];
                     this.bufCount = args[2].toInt32();
-                    log("[ws2] WSARecv <- buffers=" + this.bufCount);
+                    var firstLen = -1;
+                    try {
+                        firstLen = args[1].readU32();
+                    } catch (_) {}
+                    log("[ws2] WSARecv <- sock=" + this.sock +
+                        " udpKnown=" + isKnownUdpSocket(this.sock) +
+                        " buffers=" + this.bufCount +
+                        " firstLen=" + firstLen);
                 }
             });
             hookStatus("WSARecv", "success");
