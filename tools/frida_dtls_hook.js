@@ -71,6 +71,7 @@ var transportSubobjBacktraceLogged = {}; // label -> true
 var gameConnStateLogCount = 0;
 var repSubobj48LogCount = 0;
 var repWrapperTickLogCount = 0;
+var repWrapperQueueDetailLogged = false;
 
 // Tunables
 var HEX_HEAD_BYTES = 256;
@@ -513,10 +514,19 @@ function hookRepWrapperTickObject(objPtr, sourceLabel) {
             onEnter: function (args) {
                 this.thisPtr = args[0];
                 this.shouldLog = repWrapperTickLogCount < 20;
+                this.queueBegin = ptr("0");
+                this.queueEnd = ptr("0");
+                this.queueCap = ptr("0");
+                try { this.queueBegin = this.thisPtr.add(0x38).readPointer(); } catch (_) {}
+                try { this.queueEnd = this.thisPtr.add(0x40).readPointer(); } catch (_) {}
+                try { this.queueCap = this.thisPtr.add(0x48).readPointer(); } catch (_) {}
                 if (this.shouldLog) {
                     repWrapperTickLogCount++;
                     log("[rep-wrapper] " + sourceLabel + "+0x08 enter this=" + this.thisPtr +
-                        " target=" + target);
+                        " target=" + target +
+                        " queueBegin=" + this.queueBegin +
+                        " queueEnd=" + this.queueEnd +
+                        " queueCap=" + this.queueCap);
                 }
                 if (!internalRepBacktraceLogged.repWrapperTickMethod08) {
                     internalRepBacktraceLogged.repWrapperTickMethod08 = true;
@@ -525,11 +535,37 @@ function hookRepWrapperTickObject(objPtr, sourceLabel) {
                         log("[rep-wrapper] " + sourceLabel + "+0x08 bt " + formatBacktrace(frames));
                     } catch (_) {}
                 }
+                if (!repWrapperQueueDetailLogged) {
+                    repWrapperQueueDetailLogged = true;
+                    try {
+                        var begin = this.queueBegin;
+                        var end = this.queueEnd;
+                        var idx = 0;
+                        while (!begin.isNull() && begin.compare(end) < 0 && idx < 4) {
+                            var cbObj = ptr("0");
+                            var cbVtable = ptr("0");
+                            try { cbObj = begin.add(0x38).readPointer(); } catch (_) {}
+                            if (!cbObj.isNull()) {
+                                try { cbVtable = cbObj.readPointer(); } catch (_) {}
+                            }
+                            log("[rep-wrapper] " + sourceLabel + "+0x08 queue[" + idx + "] entry=" + begin +
+                                " cbObj=" + cbObj + " cbVtable=" + cbVtable);
+                            begin = begin.add(0x40);
+                            idx++;
+                        }
+                    } catch (_) {}
+                }
             },
             onLeave: function (retval) {
                 if (this.shouldLog) {
+                    var queueBeginAfter = ptr("0");
+                    var queueEndAfter = ptr("0");
+                    try { queueBeginAfter = this.thisPtr.add(0x38).readPointer(); } catch (_) {}
+                    try { queueEndAfter = this.thisPtr.add(0x40).readPointer(); } catch (_) {}
                     log("[rep-wrapper] " + sourceLabel + "+0x08 leave ret=" + retval +
-                        " target=" + target);
+                        " target=" + target +
+                        " queueBegin=" + queueBeginAfter +
+                        " queueEnd=" + queueEndAfter);
                 }
             }
         });
