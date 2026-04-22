@@ -1656,6 +1656,29 @@ Disconnected
   - widen the sub-object vtable coverage beyond `+0x08/+0x10/+0x18`
   - specifically add `+0x20/+0x28/+0x30/+0x48` for both nested sub-objects
 
+### First widened sub-object result
+
+- Archived run `20260421_204517_archived_frida` was another confirmed good post-queue run:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - `OUTCOME REACHED_LOGIN_QUEUE_V2`
+- The widened sub-object hooks finally produced a live nested-method signal:
+  - `transport+0x68->vtbl+0x48` fired repeatedly during the REP-ready stall
+  - no other widened `transport+0x60` / `transport+0x68` slots fired on that run
+- The repeated return value was stable and pointer-like:
+  - `ret=0x7b268f90c8`
+- Also notable on this run:
+  - `start helper leave ret=0x0`
+  - but `repObj+0x601` still never flipped and `rep.vtbl+0xa8` still kept returning `0`
+- Current best conclusion:
+  - the readiness stall is no longer just “somewhere under transport”
+  - it is now tightly associated with the repeatedly-called nested path:
+    - `transport+0x68 -> vtbl+0x48`
+- Next step:
+  - hook the object returned by `transport+0x68->vtbl+0x48`
+  - inspect whether methods on that returned object are the actual last internal gate before REP becomes ready
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
