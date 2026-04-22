@@ -1862,6 +1862,40 @@ Disconnected
   - map those RVAs in Ghidra
   - identify which one owns the REP-ready decision above the returned-object hot path
 
+### REP state-machine resolution
+
+- The noisy `0x646...` frames from the REP-window backtraces are not random renderer junk.
+- Ghidra confirmed:
+  - `FUN_14644a070` (`NewWorld.exe+0x644a070`) is the actual `GameConnection` REP state machine.
+  - State `9` logs `GameConnectionWrapper: start REP connection ...`, calls `FUN_146425f20`, then advances to state `10`.
+  - State `10` polls:
+    - `(**(code **)(**(longlong **)(param_1 + 0x1000) + 0xa8))()`
+    - which matches the already traced `repObj->vtbl+0xa8` readiness gate.
+  - When that returns nonzero, the state machine starts actor game connection; on failing archived runs it never does.
+- Ghidra also confirmed:
+  - `FUN_14646d460` (`NewWorld.exe+0x646d460`) wraps `FUN_14644a070`
+  - then, if `param_1+0x118` is non-null, it calls:
+    - `(**(code **)(**(longlong **)(param_1 + 0x118) + 8))()`
+- Current interpretation:
+  - the post-queue REP stall is now bounded to the `FUN_14646d460` / `FUN_14644a070` tick path
+  - `param_1+0x118->vtbl+8` is a cleaner next runtime target than the earlier hot getter/returned-object helpers
+- Frida changes prepared for the next run:
+  - added a direct hook for:
+    - `FUN_14646d460` (`internal_gameconn_wrapper_tick`)
+  - it only logs state `9` / `10`
+  - it logs:
+    - wrapper pointer
+    - state
+    - `repObj`
+    - `wrapper+0x118`
+  - it dynamically hooks:
+    - `wrapper+0x118->vtbl+0x08`
+  - the very hot `transport+0x68->vtbl+0x48` path is now capped harder to reduce log spam
+- Next useful signal expected from the next good post-queue archived run:
+  - `[rep-wrapper] tick ...`
+  - `[rep-wrapper] wrapper+0x118+0x08 ...`
+  - which should tell us what object is actually being serviced while REP remains stuck not-ready
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
