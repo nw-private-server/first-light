@@ -43,6 +43,7 @@ var transportStateCache = {}; // transport ptr string -> last seen snapshot
 var repGetterHotPathLogCount = 0;
 var repReturnedObjHotPathLogCount = 0;
 var repReturnedObjSnapshotLogged = {};
+var repReturnedObjStateCache = {};
 var INTERNAL_RVA_TRANSPORT_CTOR = 0x06b6a270; // FUN_146b6a270
 var INTERNAL_RVA_SECURE_INIT = 0x05dce750;    // FUN_145dce750
 var INTERNAL_RVA_REP_START_HELPER = 0x06425f20; // FUN_146425f20
@@ -258,8 +259,6 @@ function noteCurrentRepObjects(repObj) {
 
 function logReturnedObjectSnapshot(objPtr, sourceLabel) {
     var key = ptrKey(objPtr);
-    if (repReturnedObjSnapshotLogged[key]) return;
-    repReturnedObjSnapshotLogged[key] = true;
     try {
         var vtbl = safeReadPointer(objPtr);
         var slot08 = ptr("0");
@@ -284,11 +283,41 @@ function logReturnedObjectSnapshot(objPtr, sourceLabel) {
         try { q28 = safeReadPointer(objPtr.add(0x28)); } catch (_) {}
         try { q30 = safeReadPointer(objPtr.add(0x30)); } catch (_) {}
         try { q38 = safeReadPointer(objPtr.add(0x38)); } catch (_) {}
-        log("[rep-retobj] " + sourceLabel + " snapshot obj=" + objPtr +
-            " vtbl=" + vtbl +
-            " slots={08=" + slot08 + ",18=" + slot18 + ",20=" + slot20 + ",28=" + slot28 + "}" +
-            " qwords={08=" + q08 + ",10=" + q10 + ",18=" + q18 + ",20=" + q20 +
-            ",28=" + q28 + ",30=" + q30 + ",38=" + q38 + "}");
+        var next = {
+            vtbl: ptrKey(vtbl),
+            slot08: ptrKey(slot08),
+            slot18: ptrKey(slot18),
+            slot20: ptrKey(slot20),
+            slot28: ptrKey(slot28),
+            q08: ptrKey(q08),
+            q10: ptrKey(q10),
+            q18: ptrKey(q18),
+            q20: ptrKey(q20),
+            q28: ptrKey(q28),
+            q30: ptrKey(q30),
+            q38: ptrKey(q38)
+        };
+        if (!repReturnedObjSnapshotLogged[key]) {
+            repReturnedObjSnapshotLogged[key] = true;
+            repReturnedObjStateCache[key] = next;
+            log("[rep-retobj] " + sourceLabel + " snapshot obj=" + objPtr +
+                " vtbl=" + vtbl +
+                " slots={08=" + slot08 + ",18=" + slot18 + ",20=" + slot20 + ",28=" + slot28 + "}" +
+                " qwords={08=" + q08 + ",10=" + q10 + ",18=" + q18 + ",20=" + q20 +
+                ",28=" + q28 + ",30=" + q30 + ",38=" + q38 + "}");
+            return;
+        }
+        var prev = repReturnedObjStateCache[key];
+        var changes = [];
+        Object.keys(next).forEach(function (field) {
+            if (prev[field] !== next[field]) {
+                changes.push(field + ":" + prev[field] + "->" + next[field]);
+            }
+        });
+        if (changes.length > 0) {
+            repReturnedObjStateCache[key] = next;
+            log("[rep-retobj] " + sourceLabel + " changed obj=" + objPtr + " " + changes.join(" | "));
+        }
     } catch (e) {
         log("[rep-retobj] " + sourceLabel + " snapshot error obj=" + objPtr + " err=" + e);
     }
