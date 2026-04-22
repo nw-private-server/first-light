@@ -2062,6 +2062,31 @@ Disconnected
     - after the returned object exists
     - before any of the hooked `ret+0x08/+0x18/+0x20/+0x28` methods are invoked on this specific stall path
 
+### Static re-check of returned-object slot targets
+
+- After the latest runtime boundary, the captured returned-object slot targets were checked again in Ghidra instead of assuming they were all meaningful live methods.
+- Result:
+  - `NewWorld.exe+0x1e6a00` decompiles to `FUN_1401e6a00`, a tiny init-style helper that sets a global byte via `FUN_1461a95c0(...)`
+  - `NewWorld.exe+0x1ecf20` lands inside `FUN_1401ecee0`, another startup/init-style allocator-lock setup helper
+  - `NewWorld.exe+0x0dc1da0` is inside `FUN_140dc1cf0`, a generic callback/dispatch-style routine, not an obvious REP transport method
+  - `NewWorld.exe+0x1e5990` also lands in an init-style region near `FUN_1401e58f0`
+- New conclusion:
+  - the raw returned-object slot values are not reliable enough to keep treating as clean REP vtable methods
+  - the better next runtime signal is field mutation on the returned object itself, not more blind method-hook expansion on those slot addresses
+- New runtime pass:
+  - keep the first raw returned-object snapshot
+  - then diff the returned-object fields over time:
+    - `vtbl`
+    - `slot08/18/20/28`
+    - `q08`
+    - `q10`
+    - `q18`
+    - `q20`
+    - `q28`
+    - `q30`
+    - `q38`
+  - purpose: detect whether the returned object is being populated later on the failing REP stall path even when none of the hooked returned-object methods fire
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
