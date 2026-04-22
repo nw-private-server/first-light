@@ -2039,6 +2039,29 @@ Disconnected
     - `NewWorld.exe+0x1ecf20` (`ret+0x28`)
   - the next runtime pass should capture one-shot backtraces on `ret+0x08/+0x18/+0x20` as cleanly as it already does for `ret+0x28`.
 
+### Follow-up good run after returned-object method backtrace pass
+
+- Archived run `20260421_231626_archived_frida` was another confirmed post-queue run:
+  - `validator`
+  - `CreateCharacter`
+  - `login/queue/v2`
+  - `OUTCOME REACHED_LOGIN_QUEUE_V2`
+- Internal REP state was still unchanged:
+  - `start helper leave ret=0xffff`
+  - `repObj+0x118` non-null
+  - `repObj+0x601` stayed `0`
+  - `rep.vtbl+0xa8` kept returning `0`
+  - wrapper callback queue stayed empty
+- The new pass did **not** produce any `ret+0x08/+0x18/+0x20/+0x28` method-call logs on this run.
+- Only the raw returned-object snapshot appeared:
+  - `transport+0x68->vtbl+0x48 snapshot obj=0x9b139e91f8 ...`
+- Useful conclusion:
+  - the returned object is still present on the failing path
+  - but this latest run did not execute any of the concrete returned-object vtable methods we hooked
+  - so the boundary is now:
+    - after the returned object exists
+    - before any of the hooked `ret+0x08/+0x18/+0x20/+0x28` methods are invoked on this specific stall path
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
