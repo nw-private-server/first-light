@@ -45,13 +45,15 @@ var INTERNAL_RVA_REP_START_HELPER = 0x06425f20; // FUN_146425f20
 var INTERNAL_RVA_GAMECONN_STATE = 0x0644a070;   // FUN_14644a070
 var INTERNAL_RVA_REP_READY_SETTER = 0x06b6f190; // FUN_146b6f190
 var INTERNAL_RVA_REP_READY_RESET = 0x06b6e7c0;  // FUN_146b6e7c0
+var INTERNAL_RVA_REP_GETTER_OWNER = 0x05012f0;  // FUN_1405012f0
 var internalRepBacktraceLogged = {
     transportCtor: false,
     secureInit: false,
     repStartHelper: false,
     gameConnState: false,
     repReadySetter: false,
-    repReadyReset: false
+    repReadyReset: false,
+    repGetterOwner: false
 };
 var internalRepDynamicHooks = {}; // hook name -> true
 var internalTransportDynamicHooks = {}; // hook name -> true
@@ -432,6 +434,37 @@ function hookRepObjectVirtuals(repObj) {
     hookRepVirtualMethod(repObj, 0x10, "internal_rep_vtbl_10", "rep.vtbl+0x10");
     hookRepVirtualMethod(repObj, 0x18, "internal_rep_vtbl_18", "rep.vtbl+0x18");
     hookRepVirtualMethod(repObj, 0xa8, "internal_rep_vtbl_a8", "rep.vtbl+0xa8");
+}
+
+function hookRepGetterObject(getterObj, sourceLabel) {
+    if (getterObj.isNull()) return;
+    try {
+        var vtbl = safeReadPointer(getterObj);
+        if (vtbl.isNull()) return;
+        [0x40, 0x50].forEach(function (byteOffset) {
+            try {
+                var target = safeReadPointer(vtbl.add(byteOffset));
+                if (target.isNull()) return;
+                var hookName = "internal_rep_getter_" + ptrKey(getterObj) + "_" + byteOffset.toString(16);
+                if (isRepDynamicHooked(hookName)) return;
+                Interceptor.attach(target, {
+                    onEnter: function (args) {
+                        this.thisPtr = args[0];
+                        log("[rep-getter] " + sourceLabel + "+0x" + byteOffset.toString(16) +
+                            " enter this=" + this.thisPtr + " target=" + target);
+                    },
+                    onLeave: function (retval) {
+                        log("[rep-getter] " + sourceLabel + "+0x" + byteOffset.toString(16) +
+                            " leave ret=" + retval + " target=" + target);
+                    }
+                });
+                markRepDynamicHook(hookName);
+                hookStatus(hookName, "success", target.toString());
+            } catch (e) {
+                hookStatus("internal_rep_getter_" + ptrKey(getterObj) + "_" + byteOffset.toString(16), "error", e.toString());
+            }
+        });
+    } catch (_) {}
 }
 
 function describeTransportState(transportObj) {
@@ -2215,6 +2248,41 @@ function hookInternalRepFunctions() {
             });
             hookStatus("internal_rep_ready_reset", "success");
             markHook("internal_rep_ready_reset");
+        }
+
+        var repGetterOwner = base.add(INTERNAL_RVA_REP_GETTER_OWNER);
+        if (!isHooked("internal_rep_getter_owner")) {
+            Interceptor.attach(repGetterOwner, {
+                onEnter: function (args) {
+                    this.owner = args[0];
+                    this.beforeGetter = ptr("0");
+                    try {
+                        this.beforeGetter = this.owner.add(0x58).readPointer();
+                    } catch (_) {}
+                    log("[rep-getter] owner enter this=" + this.owner +
+                        " getterBefore=" + this.beforeGetter);
+                    if (!internalRepBacktraceLogged.repGetterOwner) {
+                        internalRepBacktraceLogged.repGetterOwner = true;
+                        try {
+                            var getterFrames = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                                .slice(0, 12);
+                            log("[rep-getter] owner bt " + formatBacktrace(getterFrames));
+                        } catch (_) {}
+                    }
+                },
+                onLeave: function (retval) {
+                    var afterGetter = ptr("0");
+                    try {
+                        afterGetter = this.owner.add(0x58).readPointer();
+                    } catch (_) {}
+                    log("[rep-getter] owner leave ret=" + retval +
+                        " this=" + this.owner +
+                        " getterAfter=" + afterGetter);
+                    hookRepGetterObject(afterGetter, "owner+0x58");
+                }
+            });
+            hookStatus("internal_rep_getter_owner", "success");
+            markHook("internal_rep_getter_owner");
         }
     } catch (e) {
         hookStatus("internal_rep_functions", "error", e.toString());

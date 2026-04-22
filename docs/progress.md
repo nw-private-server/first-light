@@ -1719,6 +1719,36 @@ Disconnected
   - capture a one-shot backtrace for the repeated `transport+0x68->vtbl+0x48` live call
   - then map that caller chain back into Ghidra, because the real gate is now above this trivial getter, not inside it
 
+### Caller-chain result above the trivial getter
+
+- Archived run `20260421_212756_archived_frida` produced a clean one-shot backtrace for the repeated live getter call:
+  - `[rep-subobj] transport+0x68+0x48 bt ...`
+- The most useful module-relative callers in that chain were:
+  - `NewWorld.exe+0x64b2b73`
+  - `NewWorld.exe+0x650144b`
+  - `NewWorld.exe+0x6519860`
+  - `NewWorld.exe+0x7158cbf`
+  - `NewWorld.exe+0x6dbd146`
+  - `NewWorld.exe+0x646cf35`
+  - `NewWorld.exe+0x646d3c5`
+- Ghidra follow-up:
+  - `NewWorld.exe+0x46dc90` / `0x14046dc90` was confirmed as the repeated getter:
+    - `Transport68_GetInnerPtr(this) { return this + 8; }`
+  - `NewWorld.exe+0x5012f0` / `0x1405012f0` is now the strongest new target above that getter path.
+- `FUN_1405012f0` behavior from Ghidra:
+  - builds a `"%s::%s::Getter"` object via `FUN_140530930`
+  - stores that object at `param_1 + 0x58`
+  - checks it through vtable slots:
+    - `+0x40`
+    - `+0x50`
+- Current conclusion:
+  - the repeated `transport+0x68->vtbl+0x48` call is only feeding a higher-level `Getter` object path
+  - the next useful runtime instrumentation target is that `Getter` object stored at `+0x58`, not the trivial getter itself
+- Next step:
+  - hook `FUN_1405012f0` directly
+  - hook the object stored at `owner+0x58`
+  - log its `vtbl+0x40` / `vtbl+0x50` calls on the next good post-queue archived run
+
 ### Immediate (next session) — unblock character creation
 
 1. **Extract the real entitlement-service schema.** Our `{}` stub for `GET /entitlements` and `POST /entitlements/sync` holds up on initial load but trips a CTD on region switch (right after the post-switch `POST /sync`). A guessed `BaseGame` entitlement caused a delayed CTD too. Route through Codex (ghidraMCP bridge handles wide string/xref work now):
