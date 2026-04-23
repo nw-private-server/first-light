@@ -76,8 +76,11 @@ def main() -> None:
         "-msg",
         "-debug",
         "-state",
-        # -quiet prevents interactive banner/input; we're not typing anything in
-        "-quiet",
+        # -ign_eof: don't tear down the DTLS connection when our stdin
+        # reaches EOF (which it does immediately, since stdin is DEVNULL).
+        # Without this, s_server writes close_notify the moment the
+        # handshake finishes. Valid with DTLS; -rev is TLS-only.
+        "-ign_eof",
     ]
 
     print(f"[+] openssl: {openssl}")
@@ -93,6 +96,9 @@ def main() -> None:
     print("=" * 60)
 
     with open(log_path, "wb") as fh:
+        # DEVNULL is fine here because -rev implies -ign_eof, so s_server
+        # stays alive past the stdin EOF. Using a PIPE on Windows hangs
+        # openssl on a blocking stdin read and starves the UDP accept loop.
         proc = subprocess.Popen(
             cmd,
             stdin=subprocess.DEVNULL,
