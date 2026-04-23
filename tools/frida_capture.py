@@ -50,6 +50,7 @@ PROJECT_DIR = Path(r"C:\Users\<username>\Programs\NewWorldPrivate")
 CAPTURE_DIR = PROJECT_DIR / "capture"
 TOOLS_DIR = PROJECT_DIR / "tools"
 HOOK_SCRIPT = TOOLS_DIR / "frida_dtls_hook.js"
+TRUST_PATCH_SCRIPT = TOOLS_DIR / "frida_dtls_trust_patch.js"
 GAME_EXE = Path(r"<steam-library>\steamapps\common\New World\Bin64\NewWorld.exe")
 DEFAULT_STEAM_APP_ID = "1063730"
 
@@ -182,6 +183,10 @@ def make_on_message(writer: SessionWriter):
                     payload.get("detail", ""),
                 )
 
+            elif msg_type == "status":
+                prefix = "[+]" if payload.get("ok") else "[!]"
+                writer.log(f"{prefix} {payload.get('text', '')}")
+
             else:
                 writer.log(f"[frida] Unknown message type: {msg_type}")
 
@@ -217,10 +222,20 @@ def find_pid_by_name(name: str = "NewWorld.exe") -> int | None:
     return None
 
 
-def spawn_and_attach(writer: SessionWriter) -> tuple:
+def _load_script(session, script_path: Path, writer: SessionWriter, label: str):
+    """Create and load a Frida script from disk, wiring up message handling."""
+    script_source = script_path.read_text(encoding="utf-8")
+    script = session.create_script(script_source)
+    script.on("message", make_on_message(writer))
+    script.load()
+    writer.log(f"[+] {label} loaded ({script_path.name})")
+    return script
+
+
+def spawn_and_attach(writer: SessionWriter, patch_trust: bool = True) -> tuple:
     """Spawn NewWorld.exe suspended, attach Frida, then resume.
 
-    Returns (session, script, pid).
+    Returns (session, [scripts], pid).
     """
     if not GAME_EXE.exists():
         writer.log(f"[!] Game executable not found: {GAME_EXE}")
@@ -245,24 +260,27 @@ def spawn_and_attach(writer: SessionWriter) -> tuple:
     session = device.attach(pid)
     writer.log(f"[+] Attached to PID {pid}")
 
-    script_source = HOOK_SCRIPT.read_text(encoding="utf-8")
-    script = session.create_script(script_source)
-    script.on("message", make_on_message(writer))
-    script.load()
-    writer.log("[+] Hook script loaded")
+    scripts = []
+    # Trust patch must run before the main hook so byte rewrite lands before
+    # the game's DTLS driver initializes.
+    if patch_trust:
+        scripts.append(_load_script(session, TRUST_PATCH_SCRIPT, writer, "Trust patch"))
+        time.sleep(0.2)  # let the patch's status message flush
+    scripts.append(_load_script(session, HOOK_SCRIPT, writer, "Hook script"))
 
     writer.log("[*] Resuming process...")
     device.resume(pid)
     writer.log("[+] Process resumed -- game is starting")
 
-    return session, script, pid
+    return session, scripts, pid
 
 
 def attach_to_running(writer: SessionWriter, pid: int | None = None,
-                      process_name: str = "NewWorld.exe") -> tuple:
+                      process_name: str = "NewWorld.exe",
+                      patch_trust: bool = True) -> tuple:
     """Attach to an already-running NewWorld.exe.
 
-    Returns (session, script, pid).
+    Returns (session, [scripts], pid).
     """
     if pid is None:
         pid = find_pid_by_name(process_name)
@@ -275,13 +293,13 @@ def attach_to_running(writer: SessionWriter, pid: int | None = None,
     session = device.attach(pid)
     writer.log(f"[+] Attached to PID {pid}")
 
-    script_source = HOOK_SCRIPT.read_text(encoding="utf-8")
-    script = session.create_script(script_source)
-    script.on("message", make_on_message(writer))
-    script.load()
-    writer.log("[+] Hook script loaded into running process")
+    scripts = []
+    if patch_trust:
+        scripts.append(_load_script(session, TRUST_PATCH_SCRIPT, writer, "Trust patch"))
+        time.sleep(0.2)
+    scripts.append(_load_script(session, HOOK_SCRIPT, writer, "Hook script"))
 
-    return session, script, pid
+    return session, scripts, pid
 
 
 # ---------------------------------------------------------------------------
@@ -312,6 +330,11 @@ def main():
         "--process-name", type=str, default="NewWorld.exe",
         help="Process name to search for in attach mode"
     )
+    parser.add_argument(
+        "--no-patch-trust", dest="patch_trust", action="store_false",
+        help="Skip the DTLS trust-bypass byte patch (frida_dtls_trust_patch.js)"
+    )
+    parser.set_defaults(patch_trust=True)
     args = parser.parse_args()
 
     global GAME_EXE
@@ -332,15 +355,18 @@ def main():
     print(f"  Session:   {session_dir.name}")
     print(f"  Output:    {session_dir}")
     print(f"  Mode:      {'attach' if args.attach else 'spawn'}")
+    print(f"  Trust patch: {'on' if args.patch_trust else 'off'}")
     print("=" * 64)
     print()
 
     # Attach or spawn
     try:
         if args.attach:
-            session, script, pid = attach_to_running(writer, args.pid, args.process_name)
+            session, scripts, pid = attach_to_running(
+                writer, args.pid, args.process_name, patch_trust=args.patch_trust
+            )
         else:
-            session, script, pid = spawn_and_attach(writer)
+            session, scripts, pid = spawn_and_attach(writer, patch_trust=args.patch_trust)
     except frida.ProcessNotFoundError:
         writer.log("[!] Process not found. Is the game running?")
         writer.close()
@@ -376,10 +402,11 @@ def main():
         writer.log("[*] Ctrl+C received, stopping capture...")
 
     # Cleanup
-    try:
-        script.unload()
-    except Exception:
-        pass
+    for script in scripts:
+        try:
+            script.unload()
+        except Exception:
+            pass
 
     try:
         session.detach()

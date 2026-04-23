@@ -1,7 +1,7 @@
 # New World Private Server — Progress & Findings
 
 > Living document. Updated as we learn more.
-> Last updated: 2026-04-20 (live Steam path reaches REP/DTLS but is blocked by certificate trust and EAC. Current highest-value work is offline DTLS/Javelin decoding from captures, not more live patch attempts.)
+> Last updated: 2026-04-23 (DTLS trust gate is cleanly bypassed on the archived non-EAC build via a runtime Frida onEnter hook on `FUN_145dce750` that nulls `verifyField` / `param_1[0x51]`. Client now completes the full DTLS 1.2 handshake against our self-signed cert and emits encrypted application data. Current blocker: `openssl s_server` was tearing the connection down immediately after the handshake; fix in place. Next step is reading the first decrypted Javelin record and beginning to speak REP.)
 
 ---
 
@@ -2104,3 +2104,60 @@ Disconnected
 5. **Use the registration window as the first decryption target** — server app-data seq `1..3`, especially the stable `len 139` record that aligns with the logged registration response.
 6. **Harvest full chunk catalog** (auto-define strings first, then re-run FindChunkRegistrations.py).
 7. **Find `Cmd_*` switch** at the top of replica dispatch — gives per-chunk payload decoding.
+
+---
+
+## 2026-04-23: DTLS trust gate bypassed, first full handshake
+
+### Headline
+
+The archived non-EAC build (`<archive-root>\GameClient\Bin64\NewWorld.exe`) now completes a full DTLS 1.2 handshake against our self-signed cert at `127.0.0.1:23971`. No `unknown ca` alert. Client accepts `CN=New World` server cert, finishes key exchange, writes `Finished`, and immediately sends application data (the first Javelin record). The 4-month cert-trust wall is down.
+
+### What works
+
+- **Trust bypass via Frida onEnter hook** on `FUN_145dce750` (`Javelin_SecureSocketDriver_Initialize`), RVA `0x5dce750`. Hook nulls `param_1[0x51]` (the 8-byte `verifyField` pointer at `ctx+0x288`) before the function body runs. The function's own `JZ` at `0x145dce8b5` then naturally takes the permissive branch, which calls `SSL_CTX_set_verify(..., FUN_1402a1a70)` — the always-return-1 callback. No byte rewrite, no code-flow change, SSL_CTX ends up cleanly configured.
+- **Frida spawn-attach on the archived build** with the patch + capture hook both loaded while the process is still suspended. EAC blocks this on live Steam, so only the archived build is usable.
+- **Full DTLS 1.2 handshake reaches `write finished` on both sides.** Captured in `capture/dtls_probe_20260423_151655.log`.
+- **REP state machine transitions state 9 → state 10** for the first time in any session (`capture/20260423_152727_archived_probe_running/session.log`). State 10 is post-secure-init, waiting on server-sent Javelin messages.
+
+### Why the initial byte-patch attempt broke the client
+
+The first version of the trust patch (`frida_dtls_trust_patch.js` pre-rewrite) replaced the `JZ +0x119` at `0x145dce8b5` with `JMP +0x119` + NOP — forcing the permissive branch unconditionally. **Symptom:** client created the REP UDP socket but never emitted a single datagram; 2.68 s later the process died silently. **Root cause:** with `verifyField` still non-null, forcing the JMP past the strict branch skipped its CA-list setup, leaving the SSL_CTX half-wired. The DTLS state machine couldn't start the handshake. Replacing the byte patch with a data-level `onEnter` hook (null the field and let the function's own branch logic run) fixed it cleanly.
+
+### Why the probe saw bytes, then stopped seeing bytes
+
+Two separate issues:
+
+1. **`-quiet` + `stdin=DEVNULL`** causes `openssl s_server` to send `close_notify` the instant its stdin reaches EOF (immediately after the handshake). Client retries indefinitely, each handshake succeeds, each gets torn down before any app data can be decrypted. Captured repeatedly in `dtls_probe_20260423_151655.log`.
+2. **Switching `stdin` to `subprocess.PIPE`** (my first fix attempt) hung `s_server` on Windows: its POSIX-style `select()` event loop can't multiplex a blocking pipe-read with the UDP socket, so the accept loop never services incoming datagrams. Empty probe log, silent client failure.
+
+Final fix: `stdin=subprocess.DEVNULL` + `-ign_eof` flag. `-ign_eof` tells `s_server` to not shut down on stdin EOF; works with DTLS (`-rev` does not).
+
+### State of the tooling
+
+- `tools/frida_dtls_trust_patch.js` — onEnter hook form. Installs `Interceptor.attach` on `FUN_145dce750`, zeros `ctx+0x288` before entry. Emits a `[trust-bypass] zeroed verifyField ctx=... was=0x...` line each call.
+- `tools/frida_capture.py` — spawn flow loads the trust-patch script *first* (while process is still suspended), then the main hook script. `--no-patch-trust` disables it. Both scripts load in order, both hooks install before `device.resume(pid)`.
+- `tools/dtls_probe.py` — `openssl s_server -dtls1_2 ... -ign_eof` wrapper. Binds `0.0.0.0:23971`, stays alive past handshake, logs everything via `-msg -debug -state`.
+- `server/certs/server.crt` + `server.key` — self-signed cert matching `CN=New World, OU=Amazon Game Studios`. Client accepts this once trust bypass is active.
+
+### Where we are, exactly
+
+The probe at `151655` **captured a complete encrypted Javelin record** post-handshake at line 405:
+```
+17 fe fd 00 01 00 00 00 00 00 01 00 3b  [59 bytes of encrypted app data]
+```
+— but openssl was shutting down, so those bytes never got decrypted. With `-ign_eof` in place, the next probe run should decrypt and dump the record, giving us our first real Javelin message to parse.
+
+### Next action
+
+1. Re-run the three-terminal flow with the fixed probe:
+   ```
+   python -m server.auth_mock --port 443
+   python tools\dtls_probe.py
+   python tools\frida_capture.py --exe "<archive-root>\GameClient\Bin64\NewWorld.exe" --name archived_probe_running
+   ```
+2. Character-create → enter world. Let it run 15–20 s.
+3. In the probe log, look for `SSL_accept:SSLv3/TLS write finished` followed by **decrypted application-data hex blocks** (no `close notify` in between).
+4. The first decrypted block is the client's first Javelin message. Feed its bytes into `server/javelin/frame.py:parse_datagram()` to identify the message type and fields.
+5. From the parsed record, build the minimum server-side response the client expects (probably the auth/welcome message handled by `FUN_146b6f190` — that handler sets `repObj+0x601 = 1` when the right message arrives, per prior RE notes).
+6. Start a new module `server/rep_responder.py` that terminates DTLS (self-signed cert) and speaks Javelin to the client. Initially just echoes the parsed bytes; iteratively add the handshake/auth response.
