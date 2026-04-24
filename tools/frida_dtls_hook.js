@@ -55,7 +55,21 @@ var INTERNAL_RVA_REP_READY_RESET = 0x06b6e7c0;  // FUN_146b6e7c0
 // then calls FUN_140f66850 to allocate a record and queue it on channel=3.
 // We hook the entry to capture the msgId and the body bytes (the bitstream
 // content at this point is the body BEFORE msgId is appended).
+// EMPIRICAL (2026-04-23): never fires; client uses a different path for
+// SM_CONNECT_REQUEST. Kept hook for completeness — also hooking the lower
+// queuer FUN_140f66850 and the inline sender FUN_140f80770 below.
 var INTERNAL_RVA_CARRIER_SEND_SYSMSG = 0x00f805f0; // FUN_140f805f0
+// Generic message-record queuer. Signature (per decompile):
+//   FUN_140f66850(carrier, payload_bytes, payload_size_u32, channel_ptr,
+//                 reliable_flag, num_chunks, channel_num_u8=3, &cb)
+// EVERY queued MessageRecord goes through here — channel 0,1,2 game data AND
+// channel 3 system messages. The payload at this point already has msgId
+// appended (if it's a system message), so we can read msgId as last byte.
+var INTERNAL_RVA_QUEUE_RECORD = 0x00f66850; // FUN_140f66850
+// Low-level inline sysmsg queuer used directly by the transmission tick for
+// SM_CT_ACKS (msgId=6) and SM_CT_CONN_CONTROL (msgId=7). Hook for completeness
+// so we can confirm what subset of msgIds it actually carries.
+var INTERNAL_RVA_QUEUE_SYSMSG_INLINE = 0x00f80770; // FUN_140f80770
 
 // EXPERIMENT (2026-04-23): force repObj+0x601 = 1 from the wrapper tick once
 // state==10 is observed. RESULT: the wrapper state never advanced past 10,
@@ -82,7 +96,9 @@ var internalRepBacktraceLogged = {
     repGetterMethod50: false,
     repReturnedObjMethod28: false,
     repWrapperTickMethod08: false,
-    carrierSendSysmsg: false
+    carrierSendSysmsg: false,
+    queueRecord: false,
+    queueSysmsgInline: false
 };
 var internalRepDynamicHooks = {}; // hook name -> true
 var internalTransportDynamicHooks = {}; // hook name -> true
@@ -2554,6 +2570,90 @@ function hookInternalRepFunctions() {
             });
             hookStatus("internal_carrier_send_sysmsg", "success");
             markHook("internal_carrier_send_sysmsg");
+        }
+
+        var queueRecord = base.add(INTERNAL_RVA_QUEUE_RECORD);
+        if (!isHooked("internal_queue_record")) {
+            // FUN_140f66850(carrier, payload_bytes, size_u32, channel_ptr,
+            //               reliable_u32, num_chunks_u32, channel_num_u8, &cb)
+            // We log channel_num + size + msgId (last byte for ch=3) + body hex.
+            Interceptor.attach(queueRecord, {
+                onEnter: function (args) {
+                    var payloadPtr = args[1];
+                    var size = args[2].toInt32() & 0xffffffff;
+                    var reliable = args[4].toInt32() & 0xff;
+                    var chanNum = args[6].toInt32() & 0xff;
+                    var bodyHex = "";
+                    var lastByte = "?";
+                    try {
+                        if (!payloadPtr.isNull() && size > 0 && size <= 1024) {
+                            var raw = payloadPtr.readByteArray(size);
+                            var u8 = new Uint8Array(raw);
+                            bodyHex = Array.prototype.map.call(u8, function (b) {
+                                return ("0" + b.toString(16)).slice(-2);
+                            }).join("");
+                            if (size > 0) {
+                                lastByte = "0x" + u8[u8.length - 1].toString(16);
+                            }
+                        }
+                    } catch (e) {
+                        bodyHex = "<read-error: " + e + ">";
+                    }
+                    log("[queue-record] ch=" + chanNum + " size=" + size +
+                        " reliable=" + reliable +
+                        " lastByte=" + lastByte +
+                        " body=" + bodyHex);
+                    if (!internalRepBacktraceLogged.queueRecord) {
+                        internalRepBacktraceLogged.queueRecord = true;
+                        try {
+                            var frames = Thread.backtrace(this.context, Backtracer.ACCURATE).slice(0, 16);
+                            log("[queue-record] bt " + formatBacktrace(frames));
+                        } catch (_) {}
+                    }
+                }
+            });
+            hookStatus("internal_queue_record", "success");
+            markHook("internal_queue_record");
+        }
+
+        var queueSysmsgInline = base.add(INTERNAL_RVA_QUEUE_SYSMSG_INLINE);
+        if (!isHooked("internal_queue_sysmsg_inline")) {
+            // FUN_140f80770(carrier, msgId_u8, bitstream*, channel_ptr)
+            // BitStream layout: +0x08 buf, +0x10 bit_pos
+            Interceptor.attach(queueSysmsgInline, {
+                onEnter: function (args) {
+                    var msgId = args[1].toInt32() & 0xff;
+                    var bitstream = args[2];
+                    var bodyHex = "";
+                    var bitPos = -1;
+                    try {
+                        var bufPtr = bitstream.add(0x08).readPointer();
+                        bitPos = bitstream.add(0x10).readU32();
+                        var bodyBytes = (bitPos + 7) >>> 3;
+                        if (!bufPtr.isNull() && bodyBytes > 0 && bodyBytes <= 1024) {
+                            var raw = bufPtr.readByteArray(bodyBytes);
+                            var u8 = new Uint8Array(raw);
+                            bodyHex = Array.prototype.map.call(u8, function (b) {
+                                return ("0" + b.toString(16)).slice(-2);
+                            }).join("");
+                        }
+                    } catch (e) {
+                        bodyHex = "<read-error: " + e + ">";
+                    }
+                    log("[sysmsg-inline] msgId=0x" + msgId.toString(16) +
+                        " bodyBits=" + bitPos +
+                        " body=" + bodyHex);
+                    if (!internalRepBacktraceLogged.queueSysmsgInline) {
+                        internalRepBacktraceLogged.queueSysmsgInline = true;
+                        try {
+                            var frames = Thread.backtrace(this.context, Backtracer.ACCURATE).slice(0, 12);
+                            log("[sysmsg-inline] bt " + formatBacktrace(frames));
+                        } catch (_) {}
+                    }
+                }
+            });
+            hookStatus("internal_queue_sysmsg_inline", "success");
+            markHook("internal_queue_sysmsg_inline");
         }
 
         var repReadyReset = base.add(INTERNAL_RVA_REP_READY_RESET);
