@@ -2240,6 +2240,31 @@ The responder must:
 - **`Dtls` PyPI package**: thin OpenSSL wrapper specifically for DTLS. May be unmaintained.
 - **Subprocess pipe to s_server**: spawn openssl with `stdin=PIPE` from Python and write our reply bytes to stdin (s_server encrypts and forwards). Read decrypted client bytes from stdout. Hacky but reuses already-validated handshake. Good for first iteration.
 
+## 2026-04-23 (later): Sender hunt — six candidates, zero hits
+
+After payload iteration exhausted itself (mirror/empty/echo/v0/dynamic all carrier-acked but app-rejected), pivoted to finding the SM_CONNECT_REQUEST builder via Frida hooks. Decompiled and hooked SIX candidate sender functions across multiple sessions:
+
+- `FUN_140f805f0` — public msgId+bitstream sender (calls FUN_140f66850 with channel=3)
+- `FUN_140f66850` — generic message-record queuer (8 callers per Ghidra xref)
+- `FUN_140f80770` — inline ack sender (confirmed for msgIds 6 & 7 in Ghidra)
+- `FUN_140f7fe50` — contains literal `0x05000000` constant (= byte-swapped BE form of `00 00 00 05`, the body bytes we observe)
+- `FUN_140f802e0` — sister candidate
+- `FUN_140f80440` — confirmed SM_CLOCK_SYNC sender (msgId=4)
+
+**ALL SIX install correctly. NONE fire during the connect attempt.** Verified via runtime byte-prologue dump that the addresses point at the correct functions (matches Ghidra disassembly exactly). Even the SM_CLOCK_SYNC sender (which a normally-running client uses regularly) doesn't fire — consistent with the connection never advancing past the carrier-pre-connect state.
+
+**Conclusion:** The SM_CONNECT_REQUEST builder is on a code path that doesn't intersect any of these obvious carrier-sender functions. Strongest hypothesis: the body lives in a shared buffer in the channel struct (FUN_140f7fe50 reads bitstream pointers from offsets +0x138/+0x140 and +0x160/+0x168), and some background tick mutates the buffer in place (one `0x01` byte appended per retry) while re-queueing the same MessageRecord. The MessageRecord allocation may happen ONCE during channel setup.
+
+### Better next moves
+
+The Frida-hook-everything approach has hit diminishing returns. Better paths from here:
+
+1. **Hook `FUN_140f8ab70` (transmission tick) entry** — walk the channel send queue at +0x90/+0xa0 *at that moment*, dump pending MessageRecords. If SM_CONNECT_REQUEST records are visible, we know the queue offset and can hook memory writes to find the appender.
+2. **Hook `FUN_140f8bfd0` (BitStream::WriteBits)** with a filter for writes containing the magic `00 00 00 05` bytes — catches whoever mutates the body buffer.
+3. **Open Ghidra UI directly** — MCP can't see all unidentified-function regions in the binary. Manual inspection of the channel struct allocator and its callers may reveal the builder faster than more Frida iteration.
+
+Per `feedback_character_select_unreliable` (~10 min wall-clock per attempt), the value-per-iteration calculus increasingly favors deeper static analysis over more runtime A/B/C cycles.
+
 ## 2026-04-23 (responder bring-up + payload iterations)
 
 `server/rep_responder.py` shipped using pyOpenSSL `DTLS_SERVER_METHOD` with memory BIOs. First run: DTLS handshake passed, parsed inbound, sent SM_CONNECT_ACK with body `00 00 00 05 02` (mirror of client's `00 00 00 05 01`), client carrier-acked our outbound seq=0 explicitly, but never advanced state. Game lived 1m40s vs 3s baseline. Confirmed the responder is working at the carrier layer; the application-level connect-handler in the channel struct is rejecting our payload content.
