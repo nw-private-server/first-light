@@ -2392,6 +2392,30 @@ Nine other type-cascade slots (FUN_1407f6a30/2370/1cc0/0940/ebec0/ec780/f72e0/ef
 2. **Trace the inbound dispatch chain**: 0x146b6ed39 (sole in-code caller of FUN_146b6f190) is the dispatcher. Its containing function is the message-routing layer that converts wire bytes → typed message → dispatcher call. Find it to learn the wire format.
 3. **GridMate open source**: search GitHub for `RegistrationRequestV3Msg` or the GUID `0B826B33-89F5-49E0-B8CB-FE4433427778` — the definition gives us the wire format directly.
 
+## 2026-04-23 (post-test): --GatewayMode=stubbed didn't change behavior
+
+Tested `python tools\frida_capture.py --exe ... --exe-arg=--GatewayMode=stubbed`.
+Spawn line confirmed the arg was passed at the OS level. **Same exact behavior**
+as previous runs: rep-wrapper hit state 10 ~3603 times, `601=0` stuck, same
+eventual `process-terminated`.
+
+Two possible explanations:
+1. **CLI flag syntax wrong**: FUN_14645b520 reads keys `"GatewayMode"`, `"GatewayAddr"`,
+   `"HttpGatewayAddr"`, `"AuthMode"`, etc. — bare names without dashes. The CLI string
+   format the binary's parser expects (--Name=value, /Name=value, -Name:value, etc.)
+   isn't visible from the decompile alone. Our `--GatewayMode=stubbed` may have been
+   silently dropped.
+2. **STUBBED mode might not actually bypass REP DTLS** — re-reading the subagent's report,
+   FUN_146425000 (ConfigureLogin) controls the HTTP gateway / signing / region setup.
+   But state 10 is "WaitingForREPConnection" — the DTLS layer, not HTTP. MODE_STUBBED
+   could bypass HTTP-gateway init while STILL initializing REP DTLS independently.
+
+Three alternative ways to enable stubbed mode worth trying:
+- Write `ClientOverride.json` in the assets path (logs "Using client config override
+  file: %s" if found) with `{"client-connection":{"client-gateway":{"mode":"stubbed"}}}`
+- Frida-hook the config-getter to always return "stubbed" for the mode key
+- Decompile FUN_146425000 to verify whether it actually controls REP init scope
+
 ## 2026-04-23 (TRUE FINAL): STUBBED MODE BYPASS DISCOVERED
 
 Subagent string-enumeration of NewWorld.exe found the explicit dev/test bypass for the entire REP gateway handshake.
