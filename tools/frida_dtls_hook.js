@@ -51,6 +51,11 @@ var INTERNAL_RVA_GAMECONN_STATE = 0x0644a070;   // FUN_14644a070
 var INTERNAL_RVA_GAMECONN_WRAPPER_TICK = 0x0646d460; // FUN_14646d460
 var INTERNAL_RVA_REP_READY_SETTER = 0x06b6f190; // FUN_146b6f190
 var INTERNAL_RVA_REP_READY_RESET = 0x06b6e7c0;  // FUN_146b6e7c0
+// Carrier "send system message" public entry — appends msgId byte to bitstream
+// then calls FUN_140f66850 to allocate a record and queue it on channel=3.
+// We hook the entry to capture the msgId and the body bytes (the bitstream
+// content at this point is the body BEFORE msgId is appended).
+var INTERNAL_RVA_CARRIER_SEND_SYSMSG = 0x00f805f0; // FUN_140f805f0
 
 // EXPERIMENT (2026-04-23): force repObj+0x601 = 1 from the wrapper tick once
 // state==10 is observed. RESULT: the wrapper state never advanced past 10,
@@ -76,7 +81,8 @@ var internalRepBacktraceLogged = {
     repGetterOwner: false,
     repGetterMethod50: false,
     repReturnedObjMethod28: false,
-    repWrapperTickMethod08: false
+    repWrapperTickMethod08: false,
+    carrierSendSysmsg: false
 };
 var internalRepDynamicHooks = {}; // hook name -> true
 var internalTransportDynamicHooks = {}; // hook name -> true
@@ -2499,6 +2505,55 @@ function hookInternalRepFunctions() {
             });
             hookStatus("internal_rep_ready_setter", "success");
             markHook("internal_rep_ready_setter");
+        }
+
+        var carrierSendSysmsg = base.add(INTERNAL_RVA_CARRIER_SEND_SYSMSG);
+        if (!isHooked("internal_carrier_send_sysmsg")) {
+            // FUN_140f805f0(carrier, msgId, bitstream, channel, ?, ?)
+            // Body bytes are already in the bitstream at entry; msgId is
+            // appended by the function. We dump (msgId, body, channel-or-bcast).
+            // BitStream layout per FUN_140f80770:
+            //   +0x08: data buffer pointer
+            //   +0x10: bit position (low 3 bits = bit-in-byte, rest = byte index)
+            Interceptor.attach(carrierSendSysmsg, {
+                onEnter: function (args) {
+                    var msgId = args[1].toInt32() & 0xff;
+                    var bitstream = args[2];
+                    var chanArg = args[3];
+                    var bufStr = "<?>";
+                    var bitPos = -1;
+                    var bodyHex = "";
+                    try {
+                        var bufPtr = bitstream.add(0x08).readPointer();
+                        bitPos = bitstream.add(0x10).readU32();
+                        var bodyBytes = (bitPos + 7) >>> 3;
+                        bufStr = bufPtr.toString();
+                        if (!bufPtr.isNull() && bodyBytes > 0 && bodyBytes <= 1024) {
+                            var raw = bufPtr.readByteArray(bodyBytes);
+                            var u8 = new Uint8Array(raw);
+                            bodyHex = Array.prototype.map.call(u8, function (b) {
+                                return ("0" + b.toString(16)).slice(-2);
+                            }).join("");
+                        }
+                    } catch (e) {
+                        bodyHex = "<read-error: " + e + ">";
+                    }
+                    log("[carrier-send] msgId=0x" + msgId.toString(16) +
+                        " channel=" + chanArg +
+                        " bodyBits=" + bitPos +
+                        " body=" + bodyHex);
+                    // First time only: log a backtrace so we can find the caller.
+                    if (!internalRepBacktraceLogged.carrierSendSysmsg) {
+                        internalRepBacktraceLogged.carrierSendSysmsg = true;
+                        try {
+                            var frames = Thread.backtrace(this.context, Backtracer.ACCURATE).slice(0, 12);
+                            log("[carrier-send] bt " + formatBacktrace(frames));
+                        } catch (_) {}
+                    }
+                }
+            });
+            hookStatus("internal_carrier_send_sysmsg", "success");
+            markHook("internal_carrier_send_sysmsg");
         }
 
         var repReadyReset = base.add(INTERNAL_RVA_REP_READY_RESET);
