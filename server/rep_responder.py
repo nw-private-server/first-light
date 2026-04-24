@@ -78,6 +78,18 @@ ACK_VARIANTS: dict[str, bytes] = {
     "echo":   b"\x00\x00\x00\x05\x00\x02",
     "v0":     b"\x00\x00\x00\x00\x02",
     "dynamic": b"",  # marker — actual payload built per send from last request
+    # New informed guesses based on RE'd RegistrationResponseMsg in-memory struct.
+    # GridMate uses BE byte order (kCarrierEndian = EndianType::BigEndian).
+    # DefaultHandshake's OnInitiate writes just `m_version` (= 5 per captures),
+    # but NewWorld uses a custom V3 handshake with additional fields. The
+    # in-memory RegistrationResponseMsg has error_code at +0x08 (must be 0)
+    # and an EOS flag at +0x5b (must be 0). These variants attempt minimal
+    # serializations of the response struct.
+    #
+    # 9-byte: version + error_code (no session string, no status bytes)
+    "v3_min":  b"\x00\x00\x00\x05" b"\x00\x00\x00\x00" b"\x02",
+    # 14-byte: version + error_code + str_len(0) + 3 status bytes + eos_flag + msgId
+    "v3_full": b"\x00\x00\x00\x05" b"\x00\x00\x00\x00" b"\x00\x00" b"\x00\x00\x00" b"\x00" b"\x02",
 }
 
 

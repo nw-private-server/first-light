@@ -2392,6 +2392,77 @@ Nine other type-cascade slots (FUN_1407f6a30/2370/1cc0/0940/ebec0/ec780/f72e0/ef
 2. **Trace the inbound dispatch chain**: 0x146b6ed39 (sole in-code caller of FUN_146b6f190) is the dispatcher. Its containing function is the message-routing layer that converts wire bytes → typed message → dispatcher call. Find it to learn the wire format.
 3. **GridMate open source**: search GitHub for `RegistrationRequestV3Msg` or the GUID `0B826B33-89F5-49E0-B8CB-FE4433427778` — the definition gives us the wire format directly.
 
+## 2026-04-23 (FINAL × 5): GridMate DefaultHandshake source confirms wire format basics
+
+Searched and pulled `aws/lumberyard` GitHub repo. Confirmed GridMate is the Amazon-internal name; the `ContainerClientSDK` strings in NewWorld.exe are Amazon's internal extensions on top.
+
+**Key discovery from `Carrier.cpp`:**
+```cpp
+enum SystemMessageId {
+    SM_CONNECT_REQUEST = 1,
+    SM_CONNECT_ACK,         // = 2
+    SM_DISCONNECT,          // = 3
+    SM_CLOCK_SYNC,          // = 4
+    SM_CT_FIRST,            // = 5
+    SM_CT_ACKS,             // = 6
+    SM_CT_CONN_CONTROL,     // = 7
+    SM_CT_BANDWIDTH,        // = 8
+};
+```
+
+So our original `SystemMessageId` interpretation was CORRECT all along — `msgId=1` = SM_CONNECT_REQUEST, `msgId=2` = SM_CONNECT_ACK, channel=3 (k_systemChannel), big-endian byte order (`kCarrierEndian = EndianType::BigEndian`).
+
+The "RegistrationRequestV3Msg" we found is a HIGHER-LAYER concept — Amazon's REP application uses GridMate's SM_CONNECT_REQUEST to wrap their registration message. The architecture is:
+
+```
+DTLS (encryption)
+  └─ Carrier envelope (4B: type 0x80|0x81 + proto 0x01 + seq u16 BE)
+       └─ Carrier records (flags + size + channel + seq + relSeq + payload)
+            └─ For ch=3: payload = [body bytes][SystemMessageId byte at end]
+                 └─ For SM_CONNECT_REQUEST: body = whatever Handshake::OnInitiate writes
+```
+
+**Pulled `DefaultHandshake.cpp`:**
+```cpp
+// OnInitiate (builds SM_CONNECT_REQUEST body):
+wb.Write(m_version);
+
+// OnReceiveRequest (builds SM_CONNECT_ACK reply when receiving valid request):
+VersionType version;
+if (rb.Read(version) && version == m_version) {
+    OnInitiate(id, wb);  // delegates: writes m_version back
+    return HandshakeErrorCode::OK;
+}
+return HandshakeErrorCode::VERSION_MISMATCH;
+```
+
+**This means for pure DefaultHandshake:**
+- SM_CONNECT_REQUEST body = `[VersionType m_version]`
+- SM_CONNECT_ACK body = `[VersionType m_version]` (same)
+
+Our captured client SM_CONNECT_REQUEST body is `00 00 00 05` = VersionType u32 BE = **5**. So if NewWorld used DefaultHandshake, our `mirror` variant (`00 00 00 05 02`) WOULD WORK.
+
+**It doesn't, because NewWorld uses a custom V3 handshake** (string evidence: "Client connection using authtoken V3 registration message type"). The V3 handshake's `OnInitiate` writes additional fields beyond just version — that's why the request body GROWS by `0x01` per retry (extra V3-specific fields the custom impl writes).
+
+The V3 handshake's `OnReceiveRequest` reads those additional fields and writes back a richer ACK. To craft a working SM_CONNECT_ACK, we need to mirror the V3 handshake's reply format.
+
+**What the V3 ACK likely contains** (from our in-memory RegistrationResponseMsg decode):
+- u32 BE: version (= 5, must match)
+- u32 BE: error_code (= 0 for success)
+- string: session_token (length-prefixed AZStd::string)
+- 3 bytes: status flags (status_a/b/c)
+- u8: eos_error_flag (= 0)
+- ... possibly more
+
+A reasonable next-attempt body (untested):
+`00 00 00 05` (version) `00 00 00 00` (error=0) `00 00` (str_len=0) `00 00 00` (status flags) `00` (eos flag) `02` (msgId)
+
+= 14 bytes. Add as a variant, run the responder, see if state advances.
+
+Even shorter test — the EXACT mirror was 5 bytes; try a richer 9-byte version too: `00 00 00 05` (version) `00 00 00 00` (error=0) `02` (msgId) — minimum needed if there's no string field.
+
+This is the actual next thing to try when starting fresh.
+
 ## 2026-04-23 (responder bring-up + payload iterations)
 
 `server/rep_responder.py` shipped using pyOpenSSL `DTLS_SERVER_METHOD` with memory BIOs. First run: DTLS handshake passed, parsed inbound, sent SM_CONNECT_ACK with body `00 00 00 05 02` (mirror of client's `00 00 00 05 01`), client carrier-acked our outbound seq=0 explicitly, but never advanced state. Game lived 1m40s vs 3s baseline. Confirmed the responder is working at the carrier layer; the application-level connect-handler in the channel struct is rejecting our payload content.
