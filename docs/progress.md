@@ -2199,3 +2199,43 @@ REP state 10 stalls. The handshake-then-CTD cycle is fully understood. The block
 - `tools/dtls_probe.py` capture file: `capture/dtls_probe_20260423_164554.log` is the canonical "all 149 records" snapshot. Keep it for offline parser/responder development — no need to re-run the game on every iteration.
 - PowerShell redirect (`*>`/`>`) is byte-destructive for raw streams. Always either let Python capture via `subprocess.PIPE` or wrap commands in `cmd /c "... > file 2>&1"` (cmd.exe `>` is byte-faithful).
 - The encrypted/compressed envelope path (`type == 0x81`) is unimplemented and currently un-triggered — the client doesn't seem to use it during connect. If it shows up later, we'll need to find which cipher/compressor the binary is using.
+
+## 2026-04-23 (experiment B): force `repObj+0x601 = 1` to test for shortcut
+
+Goal: before committing to building a real DTLS responder, sanity-check whether the wrapper state machine can be made to advance just by flipping the `0x601` ready flag in the rep object. If yes, the carrier handshake matters but isn't actually load-bearing for state advance and we have flexibility. If no, building the responder is unavoidable.
+
+**Patch:** Added `EXPERIMENT_FORCE_REP_READY` flag to `tools/frida_dtls_hook.js`. When the wrapper tick fires with `state == 10` and reads `repObj+0x601 == 0`, write `1`. Otherwise pure observation.
+
+**Result:** Carrier handshake is required. No shortcut.
+
+- The force fired exactly once at 17:51:35.670 (then stayed set, no resets).
+- `rep.vtbl+0xa8` immediately changed return value from `0` → `1` (so it WAS reading 0x601 directly as a sub-gate).
+- A downstream sub-object event loop started: `transport+0x68+0x48` cycled through 9 vtables (`0xb07e6c57 → 0x26b4094a → 0xdcbb3429 → 0xea5cc214 → 0x1053ff77 → 0x27029ea9 → 0xdd0da3ca → 0xe382a943 → 0x198d9420 → 0xb07e6c57`) with `q08` ticking 0→1→2→3 in a tight loop. **22,341 vtable transitions** during the experiment window. Looks like an internal carrier-side state machine that was previously starved.
+- **Wrapper state never left 10.** Only 9 and 10 ever appeared.
+- Client sent **no new message types** over the wire — same 197 datagrams of `SM_CONNECT_REQUEST + SM_CT_ACKS` retries.
+- Game lived **22.7 seconds** post-force vs ~3 seconds without. Then clean `process-terminated` (no `csdkerr`, no MessageBox, no abort, no TerminateProcess hit).
+
+**Interpretation:** `0x601` is a status flag downstream of carrier connect — setting it manually unblocks one local check (`vtbl+0xa8` returns 1) and starts the internal ack-pump loop, but the wrapper state machine has its own check looking at actual carrier-handshake completion (presumably reads received SM_CONNECT_ACK or an internal "carrier connected" flag elsewhere). The 22-second timeout is a different watchdog than the original 3-second one. Eventually the client decides the connection is dead and process-exits cleanly.
+
+**Good news:** the rest of the REP machinery is wired and ready — once we send a proper `SM_CONNECT_ACK`, things should cascade. This is now firmly a "build the responder" problem, not a "find more gates" problem.
+
+**Patch left in place** (gated by `EXPERIMENT_FORCE_REP_READY = false`) for future re-testing if needed.
+
+### Next: `server/rep_responder.py`
+
+The responder must:
+1. Terminate DTLS 1.2 with our self-signed `server/certs/server.crt`/`server.key` (replacing `openssl s_server`).
+2. Parse incoming Javelin via `parse_envelope` + `parse_datagram`.
+3. On receiving a `SM_CONNECT_REQUEST` (channel=3, msgId=1), reply with `SM_CONNECT_ACK` (msgId=2).
+4. Wire each outbound datagram with the 4-byte Carrier envelope: `b'\x80\x01' + struct.pack('>H', out_seq)`.
+5. Almost certainly need to ack received reliable messages via `SM_CT_ACKS` too.
+
+**Open question that gates everything:** what's the SM_CONNECT_ACK payload format? Captured `SM_CONNECT_REQUEST` body is `00 00 00 05 01` (msgId at end → body = `00 00 00 05`). The corresponding ACK structure isn't known. Three ways to find out:
+- RE the binary's connect-handshake state machine (search downstream of `FUN_140f66430` queue dispatcher for the channel-3, msgId-2 case).
+- RE the SM_CONNECT_REQUEST builder (where `00 00 00 05` is constructed) — the symmetric ACK builder is usually nearby.
+- Try empty payload (`02` only) first; if the client rejects, iterate.
+
+**DTLS server library options for the responder:**
+- **pyOpenSSL**: production-grade OpenSSL bindings. DTLS support exists but is sparsely documented. Best long-term choice if it works on Windows.
+- **`Dtls` PyPI package**: thin OpenSSL wrapper specifically for DTLS. May be unmaintained.
+- **Subprocess pipe to s_server**: spawn openssl with `stdin=PIPE` from Python and write our reply bytes to stdin (s_server encrypts and forwards). Read decrypted client bytes from stdout. Hacky but reuses already-validated handshake. Good for first iteration.
