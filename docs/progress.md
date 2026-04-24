@@ -2281,6 +2281,27 @@ The carrier-path search has run its course. Three productive directions:
 
 Tonight's net: durable infrastructure is built (DTLS responder, parser, envelope, ack-iteration scaffold), and we've definitively ruled out 7 candidate functions. We know the search space is NOT the standard Carrier — the answer lies in REP-specific code or below the Carrier layer at the SSL boundary. That's a meaningful narrowing even if the gate isn't open yet.
 
+## 2026-04-23 (truly final): ParseMessages also bypassed — REP has parallel implementation
+
+Tried option 2 from above: hooked `FUN_140f77eb0` (Carrier_ParseMessages) — the supposed-only inbound parser, called only from FUN_140f898e0 per Ghidra xref. Run with character creation completed; responder shows `new peer` connection. ParseMessages **never fires**.
+
+This makes EIGHT carrier-layer functions that don't fire during the REP connect. RVA validator confirmed all addresses correct. The conclusion is now unambiguous and high-confidence:
+
+**The REP DTLS code uses an entirely separate parallel Javelin implementation.** All our successfully-firing hooks are in the 0x14[5-6]______ region (FUN_146b6a270, FUN_14646d460, FUN_146b6f190, FUN_14644a070, FUN_146425f20). All our silent hooks are in 0x140f______ (the standard Carrier code). Two completely different code regions. The Carrier code we've been studying is presumably for game-data channels or a different transport — NOT for the REP DTLS handshake.
+
+Same wire format (envelope + records — we've confirmed parsing), different implementation. Likely the REP transport struct embeds its own miniature carrier; the `transport+0x68+0x48` subobject cycling we see active in every session is probably that mini-carrier's per-tick processing loop.
+
+### Where to go from here
+
+Manual Ghidra UI exploration of the REP region is the highest-leverage move. Specifically:
+- Start at `FUN_146b6a270` (transport ctor) and follow xrefs forward
+- Decompile the transport+0x60 and transport+0x68 vtable methods (we observed those cycling)
+- Look for functions that construct `00 00 00 05` followed by msgId byte 0x01
+
+Alternative: implement byte-pattern signature scanning for SSL_write (the static-linked OpenSSL has stripped names; current export+string-xref fallback fails). Hooking the SSL boundary would let us catch every plaintext bytestream and backtrace the sender, completely independent of what carrier code is in use.
+
+The Frida iteration approach has run its course — eight functions ruled out is meaningful narrowing, but further blind-hooking is unlikely to hit the right address without static analysis input.
+
 ## 2026-04-23 (responder bring-up + payload iterations)
 
 `server/rep_responder.py` shipped using pyOpenSSL `DTLS_SERVER_METHOD` with memory BIOs. First run: DTLS handshake passed, parsed inbound, sent SM_CONNECT_ACK with body `00 00 00 05 02` (mirror of client's `00 00 00 05 01`), client carrier-acked our outbound seq=0 explicitly, but never advanced state. Game lived 1m40s vs 3s baseline. Confirmed the responder is working at the carrier layer; the application-level connect-handler in the channel struct is rejecting our payload content.
