@@ -2338,6 +2338,60 @@ The growing-body pattern across retries (`00 00 00 05 01`, `00 00 00 05 01 01`..
 
 This is the unblocking thread. Stop tonight — fresh eyes for next session will move much faster with GridMate as the search keyword.
 
+## 2026-04-23 (final-final-final): RegistrationResponseMsg in-memory struct decoded
+
+Pushed further into the breakthrough. Extracted the 3 GUIDs:
+- RegistrationResponseMsg: `104145a7-ff95-44f1-9468-21fb41c8ac2b`
+- RegistrationRequestV2Msg: `DA4E5889-A65C-4480-8642-0278160125A7`
+- RegistrationRequestV3Msg: `0B826B33-89F5-49E0-B8CB-FE4433427778`
+
+Decompiled `FUN_146b6f190` — the function whose hook fires `repObj+0x601=1`. It's a **massive type-cascade message dispatcher**. When a RegistrationResponseMsg arrives via `param_2`, the success path:
+
+```c
+lVar20 = *param_2;                              // message data ptr
+if (cVar8 != '\\0' /* IS RegistrationResponseMsg */) {
+    if (param_1[0xc0] == 0) {                   // not yet authorized
+        param_1[0xc0] = 1;
+        if (*(int *)(lVar20 + 8) == 0) {        // error_code MUST be 0
+            if (*(char *)(lVar20 + 0x5b) == 0) { // eos_flag MUST be 0
+                // Extract session_token string from lVar20+0x18 (24-byte AZStd::string)
+                // Copy lVar20+0x58/0x59/0x5a → param_1+0xde/0x6f1/0x6f2
+                *(undefined1 *)((longlong)param_1 + 0x601) = 1;  // ← THE FLAG
+                FUN_146b66e70(...);             // state advance
+            }
+        }
+    }
+}
+```
+
+**RegistrationResponseMsg in-memory layout:**
+| Offset | Type | Field | Notes |
+|---|---|---|---|
+| 0x00 | void* | header | pointer |
+| 0x08 | int32_t | error_code | **MUST be 0 for success** |
+| 0x0c | int32_t | pad | |
+| 0x10 | void* | string_buf_ptr | |
+| 0x18 | AZStd::string | session_token | 24 bytes |
+| 0x38..0x57 | bytes | (transport endpoints?) | |
+| 0x58 | uint8_t | status_a | → param_1+0xde |
+| 0x59 | uint8_t | status_b | → param_1+0x6f1 |
+| 0x5a | uint8_t | status_c | → param_1+0x6f2 |
+| 0x5b | uint8_t | eos_error_flag | **MUST be 0** |
+
+This is the IN-MEMORY layout the binary CONSUMES after deserialization. The wire-format SERIALIZATION is the remaining unknown — likely lives in the type's vtable methods at `PTR_FUN_147f46910` (referenced by both `FUN_1407f2e80` and `FUN_1407cd200`).
+
+**Key hooks already in place** that can verify our work:
+- `internal_rep_ready_setter` hooks FUN_146b6f190 entry — we'll see this fire IF and ONLY IF our packet reaches the dispatcher with the right type ID.
+- The setter hook reads `repObj+0x601` before/after — once a properly-formed packet arrives, we should see `readyAfter=1`.
+
+Nine other type-cascade slots (FUN_1407f6a30/2370/1cc0/0940/ebec0/ec780/f72e0/ef9d0/ee830) handle other GridMate message types (player whitelist, target updates, etc.) we haven't identified yet. Not needed for connect — only RegistrationResponseMsg is.
+
+### Yet-newer next steps
+
+1. **Find the serializer**: vtable at `PTR_FUN_147f46910` is the type info vtable. Its methods include serialize/deserialize. Walk it and find the byte-layout writer.
+2. **Trace the inbound dispatch chain**: 0x146b6ed39 (sole in-code caller of FUN_146b6f190) is the dispatcher. Its containing function is the message-routing layer that converts wire bytes → typed message → dispatcher call. Find it to learn the wire format.
+3. **GridMate open source**: search GitHub for `RegistrationRequestV3Msg` or the GUID `0B826B33-89F5-49E0-B8CB-FE4433427778` — the definition gives us the wire format directly.
+
 ## 2026-04-23 (responder bring-up + payload iterations)
 
 `server/rep_responder.py` shipped using pyOpenSSL `DTLS_SERVER_METHOD` with memory BIOs. First run: DTLS handshake passed, parsed inbound, sent SM_CONNECT_ACK with body `00 00 00 05 02` (mirror of client's `00 00 00 05 01`), client carrier-acked our outbound seq=0 explicitly, but never advanced state. Game lived 1m40s vs 3s baseline. Confirmed the responder is working at the carrier layer; the application-level connect-handler in the channel struct is rejecting our payload content.
