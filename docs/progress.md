@@ -2392,6 +2392,31 @@ Nine other type-cascade slots (FUN_1407f6a30/2370/1cc0/0940/ebec0/ec780/f72e0/ef
 2. **Trace the inbound dispatch chain**: 0x146b6ed39 (sole in-code caller of FUN_146b6f190) is the dispatcher. Its containing function is the message-routing layer that converts wire bytes → typed message → dispatcher call. Find it to learn the wire format.
 3. **GridMate open source**: search GitHub for `RegistrationRequestV3Msg` or the GUID `0B826B33-89F5-49E0-B8CB-FE4433427778` — the definition gives us the wire format directly.
 
+## 2026-04-23 (extra-final): SM_CLOCK_SYNC + reliable ACK didn't help
+
+Per Carrier.cpp: on receiving SM_CONNECT_REQUEST and validating, the server should `SendSyncTime()` then `SendSystemMessage(SM_CONNECT_ACK, wb, conn, SEND_RELIABLE)`. Implemented both in the responder — paired SM_CLOCK_SYNC + reliable SM_CONNECT_ACK in a single batched datagram. Tested with `--ack-variant mirror` (the body content that uniquely got carrier "simple-ack" treatment in earlier runs).
+
+**Result: same dead end.** State doesn't advance past 10. Worse, adding the SM_CLOCK_SYNC + reliable flag pushed our message OUT of the "simple-ack" carrier-treatment that bare mirror alone uniquely got. We're now in the "extended-ack tracking" mode like all the other variants.
+
+**Most informative observation tonight:** bare mirror alone (single record, non-reliable, 5-byte body) is the ONLY variant that matched what the carrier expects format-wise. Anything we add — extra records, reliable flag, more body bytes — breaks that match.
+
+Yet bare mirror also doesn't unlock state. So the carrier validation passes for mirror, but **the client still rejects at a higher layer**.
+
+The subagent dive into Lumberyard source confirmed:
+- `RegistrationResponseMsg` is NOT the SM_CONNECT_ACK payload — it's a higher-layer Hub actor message dispatched AFTER carrier handshake completes
+- `ContainerClientSDK::Handshake` subclass does NOT exist in the binary
+- Public source has only `DefaultHandshake` (wire format = `wb.Write(m_version)`)
+
+**Possibilities for what's wrong:**
+1. The 4-byte `00 00 00 05` body isn't actually `m_version` — might be a request type/session ID and we're misinterpreting the entire wire format
+2. The two SM_CONNECT_REQUESTs in the client's first datagram (4B body + 5B body) might be V1 + V3 version-negotiation, requiring per-version response selection
+3. Some additional carrier-level state (clock sync inbound, connection-control message, etc.) is gating the application-level dispatcher
+
+Future variant guessing without more static analysis input has very low expected value. Highest-leverage move from here is direct Ghidra UI work on:
+- The unidentified function containing 0x146b6ed39 (sole caller of FUN_146b6f190 — the dispatcher)
+- FUN_146b66e70 (called after auth-ready, state advance logic)
+- FUN_146b6df50 (checks client-gateway.mode config against "stubbed" / "dummy" — possible debug-mode shortcut?)
+
 ## 2026-04-23 (FINAL × 5): GridMate DefaultHandshake source confirms wire format basics
 
 Searched and pulled `aws/lumberyard` GitHub repo. Confirmed GridMate is the Amazon-internal name; the `ContainerClientSDK` strings in NewWorld.exe are Amazon's internal extensions on top.
