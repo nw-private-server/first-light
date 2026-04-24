@@ -81,6 +81,13 @@ var INTERNAL_RVA_SEND_CLOCK_SYNC        = 0x00f80440; // FUN_140f80440 (msgId=4)
 // a channel and writes them into the outbound bitstream. EVERY outbound msg
 // passes through here; if it doesn't fire, the carrier isn't being driven.
 var INTERNAL_RVA_CARRIER_WRITE_MESSAGES = 0x00f65b20; // FUN_140f65b20
+// Carrier_ParseMessages — the inbound parser. RVA-validated, only one in-code
+// caller per Ghidra (FUN_140f898e0 — itself called from an unidentified
+// region 0x140f82d01). Hooking entry to catch our outbound SM_CONNECT_ACK
+// being parsed by the client. Backtrace gives us actual return addresses
+// from any unidentified callers — those are the REP-specific code regions
+// the static analysis can't see.
+var INTERNAL_RVA_CARRIER_PARSE_MESSAGES = 0x00f77eb0; // FUN_140f77eb0
 
 // EXPERIMENT (2026-04-23): force repObj+0x601 = 1 from the wrapper tick once
 // state==10 is observed. RESULT: the wrapper state never advanced past 10,
@@ -113,7 +120,8 @@ var internalRepBacktraceLogged = {
     sendConnectCandidate: false,
     send802e0Candidate: false,
     sendClockSync: false,
-    carrierWriteMessages: false
+    carrierWriteMessages: false,
+    carrierParseMessages: false
 };
 var internalRepDynamicHooks = {}; // hook name -> true
 var internalTransportDynamicHooks = {}; // hook name -> true
@@ -2841,6 +2849,61 @@ function hookInternalRepFunctions() {
                 markHook("internal_carrier_write_messages");
             } catch (e) {
                 hookStatus("internal_carrier_write_messages", "error: " + e);
+            }
+        }
+
+        // Carrier_ParseMessages — inbound parser. Hook entry, dump bitstream
+        // contents (the bytes about to be parsed) and capture backtrace —
+        // backtrace will reveal callers in unidentified Ghidra regions, which
+        // is presumably where the REP-specific code we can't see lives.
+        //
+        // Args (per FUN_140f898e0 call site and ParseMessages decompile):
+        //   param_1 = carrier-ish struct
+        //   param_2 = channel ptr
+        //   param_3 = parser context (with state/cursor at +0x18)
+        //   param_4 = bitstream
+        //
+        // BitStream layout: +0x08 buffer, +0x10 bit_pos (current), +0x18 total bits.
+        var carrierParseMessages = base.add(INTERNAL_RVA_CARRIER_PARSE_MESSAGES);
+        if (!isHooked("internal_carrier_parse_messages")) {
+            try {
+                Interceptor.attach(carrierParseMessages, {
+                    onEnter: function (args) {
+                        var bitstream = args[3];
+                        var bufHex = "";
+                        var bitPos = -1, totalBits = -1;
+                        try {
+                            var bufPtr = bitstream.add(0x08).readPointer();
+                            bitPos = bitstream.add(0x10).readU32();
+                            totalBits = bitstream.add(0x18).readU32();
+                            // Dump the entire buffer (bytes from start to total/8)
+                            var totalBytes = (totalBits + 7) >>> 3;
+                            if (!bufPtr.isNull() && totalBytes > 0 && totalBytes <= 512) {
+                                var raw = bufPtr.readByteArray(totalBytes);
+                                var u8 = new Uint8Array(raw);
+                                bufHex = Array.prototype.map.call(u8, function (b) {
+                                    return ("0" + b.toString(16)).slice(-2);
+                                }).join("");
+                            }
+                        } catch (e) {
+                            bufHex = "<read-err: " + e + ">";
+                        }
+                        log("[carrier-parse] enter carrier=" + args[0] +
+                            " channel=" + args[1] +
+                            " bitPos=" + bitPos + " totalBits=" + totalBits +
+                            " buf=" + bufHex);
+                        // Always log backtrace (not just first time) — different
+                        // calls may come from different paths.
+                        try {
+                            var frames = Thread.backtrace(this.context, Backtracer.ACCURATE).slice(0, 10);
+                            log("[carrier-parse] bt " + formatBacktrace(frames));
+                        } catch (_) {}
+                    }
+                });
+                hookStatus("internal_carrier_parse_messages", "success");
+                markHook("internal_carrier_parse_messages");
+            } catch (e) {
+                hookStatus("internal_carrier_parse_messages", "error: " + e);
             }
         }
 
