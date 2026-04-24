@@ -51,6 +51,19 @@ var INTERNAL_RVA_GAMECONN_STATE = 0x0644a070;   // FUN_14644a070
 var INTERNAL_RVA_GAMECONN_WRAPPER_TICK = 0x0646d460; // FUN_14646d460
 var INTERNAL_RVA_REP_READY_SETTER = 0x06b6f190; // FUN_146b6f190
 var INTERNAL_RVA_REP_READY_RESET = 0x06b6e7c0;  // FUN_146b6e7c0
+
+// EXPERIMENT (2026-04-23): force repObj+0x601 = 1 from the wrapper tick once
+// state==10 is observed. RESULT: the wrapper state never advanced past 10,
+// but rep.vtbl+0xa8 started returning 1 (was 0) and a downstream sub-object
+// queue started cycling (22k vtable transitions on transport+0x68+0x48).
+// Game lived ~22s instead of ~3s but ultimately process-terminated cleanly
+// without sending any new message types. Conclusion: 0x601 is a downstream
+// status flag, not the carrier-handshake gate. The state machine itself is
+// waiting for an actual SM_CONNECT_ACK over the wire — no shortcut. Default
+// false now so observation runs are clean; flip true to re-test.
+var EXPERIMENT_FORCE_REP_READY = false;
+var experimentForceReadyHits = 0;     // how many times we've forced 601=1
+var experimentForceReadyLogged = false;  // throttle log spam after first set
 var INTERNAL_RVA_REP_GETTER_OWNER = 0x05012f0;  // FUN_1405012f0
 var internalRepBacktraceLogged = {
     transportCtor: false,
@@ -2419,6 +2432,23 @@ function hookInternalRepFunctions() {
                                 .slice(0, 12);
                             log("[rep-wrapper] tick bt " + formatBacktrace(wrapperFrames));
                         } catch (_) {}
+                    }
+                    if (EXPERIMENT_FORCE_REP_READY && this.state === 10 && !this.repObj.isNull()) {
+                        try {
+                            var readyAddr = this.repObj.add(0x601);
+                            var readyBefore = readyAddr.readU8();
+                            if (readyBefore === 0) {
+                                readyAddr.writeU8(1);
+                                experimentForceReadyHits++;
+                                if (!experimentForceReadyLogged) {
+                                    experimentForceReadyLogged = true;
+                                    log("[experiment] FORCED repObj+0x601 = 1 (was 0) " +
+                                        "repObj=" + this.repObj + " hits=" + experimentForceReadyHits);
+                                }
+                            }
+                        } catch (e) {
+                            log("[experiment] force-ready write failed: " + e);
+                        }
                     }
                 },
                 onLeave: function (retval) {
