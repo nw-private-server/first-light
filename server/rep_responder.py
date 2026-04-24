@@ -30,6 +30,7 @@ import logging
 import socket
 import struct
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -116,6 +117,10 @@ class PeerSession:
         self.ack_payload = ack_payload
         self.handshake_done = False
         self.out_seq = 0  # outbound Carrier-envelope sequence number
+        # Per-channel outbound sequence + reliable-sequence counters. GridMate
+        # increments these per outgoing record on each channel.
+        self.out_msg_seq = [0, 0, 0, 0]
+        self.out_rel_seq = [0, 0, 0, 0]
         self.conn = SSL.Connection(ctx, None)
         self.conn.set_accept_state()
         # Counts how many SM_CONNECT_ACK datagrams we've sent. Don't gate
@@ -126,6 +131,11 @@ class PeerSession:
         # For the "dynamic" variant: track the latest SM_CONNECT_REQUEST body
         # we've seen. The body grows by one 0x01 per retry; we mirror it back.
         self.last_request_body: bytes = b""
+        # Process start-time anchor so SM_CLOCK_SYNC values are monotonic and
+        # within u32 range. GridMate's SyncTime is typically a uint32 of
+        # milliseconds since some local epoch (matches the BE u32 we saw the
+        # SM_CLOCK_SYNC sender FUN_140f80440 byte-swap before writing).
+        self.start_ms = time.monotonic_ns() // 1_000_000
 
     # ---------- BIO bridging ----------
 
@@ -220,29 +230,69 @@ class PeerSession:
                 self.send_connect_ack()
                 break
 
-    def send_connect_ack(self) -> None:
-        # SM_CONNECT_ACK payload chosen by --ack-variant flag. The msgId
-        # (0x02) goes LAST per the channel-3 system-message convention.
-        # The "dynamic" variant mirrors the latest SM_CONNECT_REQUEST body
-        # byte-for-byte and substitutes the msgId.
-        if self.ack_payload == b"":  # dynamic mode marker
-            payload = self.last_request_body + b"\x02"
+    def _next_seq(self, channel: int, reliable: bool) -> tuple[int, int]:
+        """Allocate (seq, rel_seq) for a new outbound record on `channel`."""
+        seq = self.out_msg_seq[channel]
+        self.out_msg_seq[channel] = (seq + 1) & 0xFFFF
+        if reliable:
+            rel = self.out_rel_seq[channel]
+            self.out_rel_seq[channel] = (rel + 1) & 0xFFFF
         else:
-            payload = self.ack_payload
-        rec = MessageRecord(
+            # Sentinel matches what the captured client sends for non-reliable
+            # records (relSeq = 0xFFFF when it doesn't apply).
+            rel = 0xFFFF
+        return seq, rel
+
+    def send_connect_ack(self) -> None:
+        # GridMate's Carrier.cpp on receiving a valid SM_CONNECT_REQUEST does:
+        #     SendSyncTime();        // ← SM_CLOCK_SYNC first
+        #     SendSystemMessage(SM_CONNECT_ACK, wb, conn, SEND_RELIABLE);
+        # Both messages on channel 3 (system). SM_CONNECT_ACK is RELIABLE.
+        # We batch them in a single Carrier datagram (the wire allows multi-record
+        # datagrams; the client's transmission tick does the same).
+        #
+        # SM_CLOCK_SYNC body: u32 BE millisecond timestamp (per FUN_140f80440
+        # decompile — vcall returns uint, byte-swapped to BE, written as 32 bits).
+        elapsed_ms = (time.monotonic_ns() // 1_000_000 - self.start_ms) & 0xFFFFFFFF
+        sync_body = struct.pack(">I", elapsed_ms) + b"\x04"  # +msgId=SM_CLOCK_SYNC
+
+        # SM_CONNECT_ACK body chosen by --ack-variant flag. The msgId (0x02)
+        # goes LAST per the channel-3 system-message convention.
+        if self.ack_payload == b"":  # dynamic mode marker
+            ack_payload = self.last_request_body + b"\x02"
+        else:
+            ack_payload = self.ack_payload
+
+        # Build both records with proper per-channel sequencing.
+        sync_seq, sync_rel = self._next_seq(3, reliable=False)  # CLOCK_SYNC: not reliable
+        sync_rec = MessageRecord(
             channel=3,
-            payload=payload,
-            sequence=0,
-            reliable_sequence=0xFFFF,
+            payload=sync_body,
+            sequence=sync_seq,
+            reliable_sequence=sync_rel,
             reliable=False,
             connecting=True,
             num_chunks=1,
         )
-        body = marshal_datagram([rec])
+        ack_seq, ack_rel = self._next_seq(3, reliable=True)  # CONNECT_ACK: reliable
+        ack_rec = MessageRecord(
+            channel=3,
+            payload=ack_payload,
+            sequence=ack_seq,
+            reliable_sequence=ack_rel,
+            reliable=True,
+            connecting=True,
+            num_chunks=1,
+        )
+
+        body = marshal_datagram([sync_rec, ack_rec])
         datagram = self.wrap_envelope(body)
         self.send_app(datagram)
         self.connect_ack_count += 1
-        self.log.info(f">> SM_CONNECT_ACK #{self.connect_ack_count} datagram={datagram.hex()}")
+        self.log.info(
+            f">> SM_CLOCK_SYNC+SM_CONNECT_ACK #{self.connect_ack_count} "
+            f"sync_ms={elapsed_ms} datagram={datagram.hex()}"
+        )
         self.drain_outbound()
 
 
