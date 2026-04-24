@@ -30,9 +30,8 @@ import logging
 import socket
 import struct
 import sys
-import time
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from OpenSSL import SSL
 
@@ -85,8 +84,11 @@ class PeerSession:
         self.out_seq = 0  # outbound Carrier-envelope sequence number
         self.conn = SSL.Connection(ctx, None)
         self.conn.set_accept_state()
-        # Tracks whether we've already sent the connect ACK
-        self.connect_ack_sent = False
+        # Counts how many SM_CONNECT_ACK datagrams we've sent. Don't gate
+        # at one — if the client rejects our first ACK, it'll keep retrying
+        # SM_CONNECT_REQUEST and we should keep ACKing so the iteration loop
+        # converges as we tweak the payload.
+        self.connect_ack_count = 0
 
     # ---------- BIO bridging ----------
 
@@ -171,12 +173,12 @@ class PeerSession:
                 for m in result.messages
             )
         )
-        # If we haven't sent the connect ACK yet and the client just sent a
-        # SM_CONNECT_REQUEST, reply now with our best guess.
+        # ACK every SM_CONNECT_REQUEST we see. While we're iterating on the
+        # payload, the client keeps retrying because it hasn't accepted our
+        # ACK yet — so we should keep sending too.
         for m in result.messages:
-            if m.is_system and m.system_msg_id == 1 and not self.connect_ack_sent:
+            if m.is_system and m.system_msg_id == 1:
                 self.send_connect_ack()
-                self.connect_ack_sent = True
                 break
 
     def send_connect_ack(self) -> None:
@@ -197,7 +199,8 @@ class PeerSession:
         body = marshal_datagram([rec])
         datagram = self.wrap_envelope(body)
         self.send_app(datagram)
-        self.log.info(f">> SM_CONNECT_ACK datagram={datagram.hex()}")
+        self.connect_ack_count += 1
+        self.log.info(f">> SM_CONNECT_ACK #{self.connect_ack_count} datagram={datagram.hex()}")
         self.drain_outbound()
 
 
@@ -208,12 +211,20 @@ def main() -> int:
     ap.add_argument("--verbose", "-v", action="count", default=0)
     args = ap.parse_args()
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose >= 2 else logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S",
-    )
+    log_dir = PROJECT / "capture"
+    log_dir.mkdir(exist_ok=True)
+    log_path = log_dir / f"responder_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+
+    fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
     log = logging.getLogger("rep_responder")
+    log.setLevel(logging.DEBUG if args.verbose >= 2 else logging.INFO)
+    file_h = logging.FileHandler(log_path, encoding="utf-8")
+    file_h.setFormatter(fmt)
+    log.addHandler(file_h)
+    stream_h = logging.StreamHandler(sys.stdout)
+    stream_h.setFormatter(fmt)
+    log.addHandler(stream_h)
+    log.info(f"log file: {log_path}")
 
     if not CERT_PATH.is_file() or not KEY_PATH.is_file():
         log.error(f"cert/key missing: {CERT_PATH} / {KEY_PATH}")
