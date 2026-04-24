@@ -2392,6 +2392,38 @@ Nine other type-cascade slots (FUN_1407f6a30/2370/1cc0/0940/ebec0/ec780/f72e0/ef
 2. **Trace the inbound dispatch chain**: 0x146b6ed39 (sole in-code caller of FUN_146b6f190) is the dispatcher. Its containing function is the message-routing layer that converts wire bytes → typed message → dispatcher call. Find it to learn the wire format.
 3. **GridMate open source**: search GitHub for `RegistrationRequestV3Msg` or the GUID `0B826B33-89F5-49E0-B8CB-FE4433427778` — the definition gives us the wire format directly.
 
+## 2026-04-23 (TRUE FINAL): STUBBED MODE BYPASS DISCOVERED
+
+Subagent string-enumeration of NewWorld.exe found the explicit dev/test bypass for the entire REP gateway handshake.
+
+**Function**: `FUN_146425000` (ConfigureLogin) at 0x146425000. Reads `client-connection.client-gateway.mode` config and three-way branches:
+- `"dummy"` → skip everything, set dummy flag
+- `"stubbed"` → builds stubbed gateway client (PTR_FUN_1484fdfa0), **bypasses REP signing + region setup entirely**
+- `"gateway"` (default) → real REP/gateway client (FUN_146402cc0) — what we've been hitting all night
+
+**MODE_STUBBED routes around the entire REP handshake we couldn't crack.**
+
+**Two ways to enable** (no patching needed):
+1. **CLI flag**: `--GatewayMode=stubbed` (parser at FUN_14645b520 writes it directly into the config key)
+2. **Config file**: edit `@assets@/Client.json` or `@assets@/ClientOverride.json`
+
+`tools/frida_capture.py` now supports `--exe-arg=...` passthrough to spawn args.
+
+**Test command**:
+```powershell
+python tools\frida_capture.py --exe "<archive-root>\GameClient\Bin64\NewWorld.exe" --name stubbed_test --exe-arg=--GatewayMode=stubbed
+```
+
+Other CLI flags worth knowing (each maps to a config key, all from FUN_14645b520):
+- `--AuthMode=stubbed`, `--AuthBackend=...`
+- `--GatewayAddr=host:port`, `--HttpGatewayAddr=host:port`
+- `--GatewayRegion=us_west_2`, `--GatewaySigningHost=...`
+- `--DeveloperLoginAssumeRole=...`
+
+Fallback if CLI is silently ignored: Frida byte-patch `FUN_146b6df50` (or `FUN_146445f30`) — both are pure `IsClientGatewayStubbedOrDummy()` predicates — to `mov al, 1; ret` so all callers think we're in stubbed mode.
+
+This is the unblock. Test it next.
+
 ## 2026-04-23 (extra-final): SM_CLOCK_SYNC + reliable ACK didn't help
 
 Per Carrier.cpp: on receiving SM_CONNECT_REQUEST and validating, the server should `SendSyncTime()` then `SendSystemMessage(SM_CONNECT_ACK, wb, conn, SEND_RELIABLE)`. Implemented both in the responder — paired SM_CLOCK_SYNC + reliable SM_CONNECT_ACK in a single batched datagram. Tested with `--ack-variant mirror` (the body content that uniquely got carrier "simple-ack" treatment in earlier runs).
