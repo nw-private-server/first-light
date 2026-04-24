@@ -2302,6 +2302,42 @@ Alternative: implement byte-pattern signature scanning for SSL_write (the static
 
 The Frida iteration approach has run its course — eight functions ruled out is meaningful narrowing, but further blind-hooking is unlikely to hit the right address without static analysis input.
 
+## 2026-04-23 (truly truly final): GridMate-Carrier breakthrough via string enumeration
+
+Did one more pivot before stopping: enumerated strings in the binary looking for Connect/Register/Carrier/Javelin keywords. **Massive payoff** — the REP protocol is not what we thought:
+
+**It's Amazon's GridMate-Carrier middleware**, not generic Javelin Carrier. Messages are identified by 16-byte GUIDs, with named types like:
+- `RegistrationRequestV3Msg` (current variant — log line says "Client connection using authtoken V3 registration message type")
+- `RegistrationRequestV2Msg`, `RegistrationRequestMsg` (older variants)
+- `RegistrationResponseMsg`
+
+The transport identifies as `"GridMate-Carrier"` (string at 0x147fbe7e8) and uses a state machine with labels like `CS_WAIT_FOR_STATEFUL_HANDSHAKE`, `CS_SSL_HANDSHAKE_ACCEPT`, `CS_SSL_HANDSHAKE_CONNECT`.
+
+**This explains why all 8 Carrier hooks were silent:** the Javelin Carrier code at 0x140f______ is for a different subsystem entirely. The REP DTLS uses GridMate-Carrier.
+
+**Concrete identifications:**
+- `FUN_1464755e0` is the **RegistrationResponseMsg receive handler** — logs the "received registration response" line, then reads `(server_version, string)` from the response.
+- `FUN_1407f2c50` and `FUN_1407f2e80` are static initializers for the V3-Request and Response message type info.
+- `FUN_140235010` is a huge GUID lookup-table initializer parsing ~17 message-type GUIDs into consecutive 16-byte slots starting at `DAT_14a4357f0`. The msgId byte we observe in carrier records (0x01, 0x02, etc.) likely indexes into this table — the byte ISN'T a generic SystemMessageId; it's a per-table index into GridMate-Carrier's message type registry.
+
+**Reinterpretation of captured wire bytes:**
+The body `00 00 00 05 01` we've been treating as `[magic 5][msgId 0x01]` is more likely:
+- `00 00 00 05` = some carrier-level field (length, version, or header)
+- `01` = INDEX into GridMate-Carrier's message-type GUID table → identifies `RegistrationRequestV3Msg`
+
+The growing-body pattern across retries (`00 00 00 05 01`, `00 00 00 05 01 01`...) might be retry counters or session/sequence info appended on each attempt.
+
+**Bonus discovery:** GridMate is **open-source** — it's part of Amazon Lumberyard / Open 3D Engine. Public SDK reference implementations should exist. Future research can pull message format definitions from there directly instead of pure RE.
+
+### Truly real next steps (next session)
+
+1. **Read the actual GUID bytes** at 0x147f47ec0 (RegistrationResponseMsg), 0x147f48660 (V3 Request), 0x147f48528 (V2 Request) — those are the type identifiers we need.
+2. **Look up GridMate source** in Open 3D Engine repo on GitHub. The `RegistrationRequestV3Msg` definition there is likely directly applicable.
+3. **Decompile `FUN_146460240`** (event dispatcher called from FUN_14642d950 with various event codes — likely the trigger that schedules registration).
+4. **Find xrefs to the parsed GUID slots** (e.g., DAT_14a435920) once we know which slot holds which type — that gives us all the use sites.
+
+This is the unblocking thread. Stop tonight — fresh eyes for next session will move much faster with GridMate as the search keyword.
+
 ## 2026-04-23 (responder bring-up + payload iterations)
 
 `server/rep_responder.py` shipped using pyOpenSSL `DTLS_SERVER_METHOD` with memory BIOs. First run: DTLS handshake passed, parsed inbound, sent SM_CONNECT_ACK with body `00 00 00 05 02` (mirror of client's `00 00 00 05 01`), client carrier-acked our outbound seq=0 explicitly, but never advanced state. Game lived 1m40s vs 3s baseline. Confirmed the responder is working at the carrier layer; the application-level connect-handler in the channel struct is rejecting our payload content.
