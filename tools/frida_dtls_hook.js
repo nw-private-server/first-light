@@ -2301,6 +2301,41 @@ function hookInternalRepFunctions() {
     try {
         var base = getMainModule().base;
 
+        // RVA validator: print first 16 bytes at each candidate sender so we
+        // can confirm the addresses point at real function prologues vs.
+        // garbage (which would mean the Ghidra DB doesn't match this binary's
+        // build). Compare against Ghidra's view of the same RVA.
+        //
+        // Expected bytes from Ghidra disassembly (2026-04-23):
+        //   FUN_140f7fe50: 48 89 5c 24 18 55 56 57 41 54 41 55 41 56 41 57
+        //                  (mov [rsp+18h],rbx; push rbp,rsi,rdi,r12,r13,r14,r15)
+        //   FUN_140f80440: 48 89 5c 24 10 48 89 74 24 18 55 57 41 56 ...
+        //                  (mov [rsp+10h],rbx; mov [rsp+18h],rsi; push rbp,rdi,r14)
+        //   If runtime bytes don't match these, the Ghidra DB is for a
+        //   different build of NewWorld.exe than the archived binary -- the
+        //   carrier-layer code shifted addresses between versions.
+        function dumpRva(rva, label) {
+            try {
+                var addr = base.add(rva);
+                var raw = addr.readByteArray(16);
+                var u8 = new Uint8Array(raw);
+                var hex = Array.prototype.map.call(u8, function (b) {
+                    return ("0" + b.toString(16)).slice(-2);
+                }).join(" ");
+                log("[rva-validate] " + label + " @ " + addr + " bytes: " + hex);
+            } catch (e) {
+                log("[rva-validate] " + label + " READ FAILED: " + e);
+            }
+        }
+        dumpRva(INTERNAL_RVA_SEND_CONNECT_CANDIDATE, "FUN_140f7fe50/connect");
+        dumpRva(INTERNAL_RVA_SEND_802E0_CANDIDATE,   "FUN_140f802e0/?");
+        dumpRva(INTERNAL_RVA_SEND_CLOCK_SYNC,        "FUN_140f80440/clock_sync");
+        dumpRva(INTERNAL_RVA_CARRIER_SEND_SYSMSG,    "FUN_140f805f0/carrier_send");
+        dumpRva(INTERNAL_RVA_QUEUE_RECORD,           "FUN_140f66850/queue_record");
+        dumpRva(INTERNAL_RVA_QUEUE_SYSMSG_INLINE,    "FUN_140f80770/sysmsg_inline");
+        // Known-working hook for control comparison:
+        dumpRva(INTERNAL_RVA_REP_READY_SETTER,       "FUN_146b6f190/ready_setter [KNOWN]");
+
         var transportCtor = base.add(INTERNAL_RVA_TRANSPORT_CTOR);
         if (!isHooked("internal_rep_transport_ctor")) {
             Interceptor.attach(transportCtor, {
