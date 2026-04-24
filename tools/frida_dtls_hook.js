@@ -70,6 +70,13 @@ var INTERNAL_RVA_QUEUE_RECORD = 0x00f66850; // FUN_140f66850
 // SM_CT_ACKS (msgId=6) and SM_CT_CONN_CONTROL (msgId=7). Hook for completeness
 // so we can confirm what subset of msgIds it actually carries.
 var INTERNAL_RVA_QUEUE_SYSMSG_INLINE = 0x00f80770; // FUN_140f80770
+// Cluster of carrier-system-message senders (per FUN_140f80440 = SM_CLOCK_SYNC):
+// FUN_140f7fe50 contains the magic 0x05000000 constant (BE 5 = '00 00 00 05'),
+// uses a vcall +0x40 instead of FUN_140f66850 -- strongest candidate for the
+// SM_CONNECT_REQUEST sender. FUN_140f802e0 unknown msgId. Hooking the cluster.
+var INTERNAL_RVA_SEND_CONNECT_CANDIDATE = 0x00f7fe50; // FUN_140f7fe50
+var INTERNAL_RVA_SEND_802E0_CANDIDATE   = 0x00f802e0; // FUN_140f802e0
+var INTERNAL_RVA_SEND_CLOCK_SYNC        = 0x00f80440; // FUN_140f80440 (msgId=4)
 
 // EXPERIMENT (2026-04-23): force repObj+0x601 = 1 from the wrapper tick once
 // state==10 is observed. RESULT: the wrapper state never advanced past 10,
@@ -98,7 +105,10 @@ var internalRepBacktraceLogged = {
     repWrapperTickMethod08: false,
     carrierSendSysmsg: false,
     queueRecord: false,
-    queueSysmsgInline: false
+    queueSysmsgInline: false,
+    sendConnectCandidate: false,
+    send802e0Candidate: false,
+    sendClockSync: false
 };
 var internalRepDynamicHooks = {}; // hook name -> true
 var internalTransportDynamicHooks = {}; // hook name -> true
@@ -2655,6 +2665,53 @@ function hookInternalRepFunctions() {
             hookStatus("internal_queue_sysmsg_inline", "success");
             markHook("internal_queue_sysmsg_inline");
         }
+
+        // Generic "this function fired" hook factory for the SM_CONNECT_REQUEST
+        // candidate cluster. We log entry+backtrace and the first 16 bytes of
+        // each register-passed pointer arg (param_1 / param_2 / param_3) so we
+        // can identify the call site and any source bitstream contents.
+        function attachCandidateSender(rva, hookName, label, btFlag) {
+            var fnAddr = base.add(rva);
+            if (isHooked(hookName)) return;
+            try {
+                Interceptor.attach(fnAddr, {
+                    onEnter: function (args) {
+                        var dump = function (p) {
+                            try {
+                                if (p.isNull()) return "<null>";
+                                var raw = p.readByteArray(16);
+                                var u8 = new Uint8Array(raw);
+                                return Array.prototype.map.call(u8, function (b) {
+                                    return ("0" + b.toString(16)).slice(-2);
+                                }).join("");
+                            } catch (_) { return "<unreadable>"; }
+                        };
+                        log("[" + label + "] enter p1=" + args[0] +
+                            " p2=" + args[1] +
+                            " p3=" + args[2] +
+                            " p1[0..16]=" + dump(args[0]));
+                        if (!internalRepBacktraceLogged[btFlag]) {
+                            internalRepBacktraceLogged[btFlag] = true;
+                            try {
+                                var frames = Thread.backtrace(this.context, Backtracer.ACCURATE).slice(0, 12);
+                                log("[" + label + "] bt " + formatBacktrace(frames));
+                            } catch (_) {}
+                        }
+                    }
+                });
+                hookStatus(hookName, "success");
+                markHook(hookName);
+            } catch (e) {
+                hookStatus(hookName, "error: " + e);
+            }
+        }
+
+        attachCandidateSender(INTERNAL_RVA_SEND_CONNECT_CANDIDATE,
+            "internal_send_connect_candidate", "sender-7fe50", "sendConnectCandidate");
+        attachCandidateSender(INTERNAL_RVA_SEND_802E0_CANDIDATE,
+            "internal_send_802e0_candidate",   "sender-802e0", "send802e0Candidate");
+        attachCandidateSender(INTERNAL_RVA_SEND_CLOCK_SYNC,
+            "internal_send_clock_sync",        "sender-clock", "sendClockSync");
 
         var repReadyReset = base.add(INTERNAL_RVA_REP_READY_RESET);
         if (!isHooked("internal_rep_ready_reset")) {
