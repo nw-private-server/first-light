@@ -61,6 +61,22 @@ ENVELOPE_HEAD = b"\x80\x01"
 JAVELIN_CIPHER = "ECDHE-RSA-AES256-GCM-SHA384"
 
 
+# SM_CONNECT_ACK payload variants to iterate on. Last byte is msgId=0x02
+# (the channel-3 system msgId convention).
+#
+# Result tracking (2026-04-23):
+#   "mirror"  -> 00 00 00 05 02       — carrier-acked, app-rejected (CTD ~1m40s)
+#   "empty"   -> 02                   — TODO
+#   "echo"    -> 00 00 00 05 00 02    — TODO (mirror + zero retry counter)
+#   "v0"      -> 00 00 00 00 02       — TODO (zero version field)
+ACK_VARIANTS: dict[str, bytes] = {
+    "mirror": b"\x00\x00\x00\x05\x02",
+    "empty":  b"\x02",
+    "echo":   b"\x00\x00\x00\x05\x00\x02",
+    "v0":     b"\x00\x00\x00\x00\x02",
+}
+
+
 def make_ssl_context() -> SSL.Context:
     ctx = SSL.Context(SSL.DTLS_SERVER_METHOD)
     ctx.use_certificate_file(str(CERT_PATH))
@@ -76,10 +92,12 @@ def make_ssl_context() -> SSL.Context:
 class PeerSession:
     """Per-peer DTLS+Javelin state."""
 
-    def __init__(self, ctx: SSL.Context, peer: tuple, sock: socket.socket, log: logging.Logger):
+    def __init__(self, ctx: SSL.Context, peer: tuple, sock: socket.socket,
+                 log: logging.Logger, ack_payload: bytes):
         self.peer = peer
         self.sock = sock
         self.log = log
+        self.ack_payload = ack_payload
         self.handshake_done = False
         self.out_seq = 0  # outbound Carrier-envelope sequence number
         self.conn = SSL.Connection(ctx, None)
@@ -182,11 +200,9 @@ class PeerSession:
                 break
 
     def send_connect_ack(self) -> None:
-        # First-guess SM_CONNECT_ACK payload: mirror the client's prefix
-        # (00 00 00 05) and put msgId=2 (SM_CONNECT_ACK) at the end as the
-        # channel-3 system convention requires. If the client rejects, the
-        # next iteration is to RE the actual builder.
-        payload = b"\x00\x00\x00\x05" + b"\x02"
+        # SM_CONNECT_ACK payload chosen by --ack-variant flag. The msgId
+        # (0x02) goes LAST per the channel-3 system-message convention.
+        payload = self.ack_payload
         rec = MessageRecord(
             channel=3,
             payload=payload,
@@ -209,7 +225,10 @@ def main() -> int:
     ap.add_argument("--bind-host", default=DEFAULT_BIND[0])
     ap.add_argument("--bind-port", type=int, default=DEFAULT_BIND[1])
     ap.add_argument("--verbose", "-v", action="count", default=0)
+    ap.add_argument("--ack-variant", default="mirror", choices=sorted(ACK_VARIANTS),
+                    help="which SM_CONNECT_ACK payload to send")
     args = ap.parse_args()
+    ack_payload = ACK_VARIANTS[args.ack_variant]
 
     log_dir = PROJECT / "capture"
     log_dir.mkdir(exist_ok=True)
@@ -236,6 +255,7 @@ def main() -> int:
     sock.settimeout(0.1)
     log.info(f"listening DTLS 1.2 on udp/{args.bind_host}:{args.bind_port}")
     log.info(f"cert: {CERT_PATH}")
+    log.info(f"ack variant: {args.ack_variant} payload={ack_payload.hex()}")
 
     sessions: dict[tuple, PeerSession] = {}
 
@@ -255,7 +275,7 @@ def main() -> int:
             sess = sessions.get(peer)
             if sess is None:
                 log.info(f"new peer {peer}")
-                sess = PeerSession(ctx, peer, sock, log)
+                sess = PeerSession(ctx, peer, sock, log, ack_payload)
                 sessions[peer] = sess
 
             sess.feed(data)
