@@ -65,15 +65,19 @@ JAVELIN_CIPHER = "ECDHE-RSA-AES256-GCM-SHA384"
 # (the channel-3 system msgId convention).
 #
 # Result tracking (2026-04-23):
-#   "mirror"  -> 00 00 00 05 02       — carrier-acked, app-rejected (CTD ~1m40s)
-#   "empty"   -> 02                   — TODO
-#   "echo"    -> 00 00 00 05 00 02    — TODO (mirror + zero retry counter)
-#   "v0"      -> 00 00 00 00 02       — TODO (zero version field)
+#   "mirror"  -> 00 00 00 05 02       — carrier-acked simple-format, app-rejected
+#   "empty"   -> 02                   — carrier-acked extended-format (0x40 flag),
+#                                       client briefly stops retrying then resumes
+#   "echo"    -> 00 00 00 05 00 02    — same as empty
+#   "v0"      -> 00 00 00 00 02       — same as empty
+#   "dynamic" -> echoes the client's latest SM_CONNECT_REQUEST body with msgId
+#                swapped to 0x02 (handles the per-retry growing body)
 ACK_VARIANTS: dict[str, bytes] = {
     "mirror": b"\x00\x00\x00\x05\x02",
     "empty":  b"\x02",
     "echo":   b"\x00\x00\x00\x05\x00\x02",
     "v0":     b"\x00\x00\x00\x00\x02",
+    "dynamic": b"",  # marker — actual payload built per send from last request
 }
 
 
@@ -107,6 +111,9 @@ class PeerSession:
         # SM_CONNECT_REQUEST and we should keep ACKing so the iteration loop
         # converges as we tweak the payload.
         self.connect_ack_count = 0
+        # For the "dynamic" variant: track the latest SM_CONNECT_REQUEST body
+        # we've seen. The body grows by one 0x01 per retry; we mirror it back.
+        self.last_request_body: bytes = b""
 
     # ---------- BIO bridging ----------
 
@@ -196,13 +203,20 @@ class PeerSession:
         # ACK yet — so we should keep sending too.
         for m in result.messages:
             if m.is_system and m.system_msg_id == 1:
+                # Strip the trailing msgId byte; the body is everything before it.
+                self.last_request_body = m.payload[:-1]
                 self.send_connect_ack()
                 break
 
     def send_connect_ack(self) -> None:
         # SM_CONNECT_ACK payload chosen by --ack-variant flag. The msgId
         # (0x02) goes LAST per the channel-3 system-message convention.
-        payload = self.ack_payload
+        # The "dynamic" variant mirrors the latest SM_CONNECT_REQUEST body
+        # byte-for-byte and substitutes the msgId.
+        if self.ack_payload == b"":  # dynamic mode marker
+            payload = self.last_request_body + b"\x02"
+        else:
+            payload = self.ack_payload
         rec = MessageRecord(
             channel=3,
             payload=payload,

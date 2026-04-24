@@ -2239,3 +2239,34 @@ The responder must:
 - **pyOpenSSL**: production-grade OpenSSL bindings. DTLS support exists but is sparsely documented. Best long-term choice if it works on Windows.
 - **`Dtls` PyPI package**: thin OpenSSL wrapper specifically for DTLS. May be unmaintained.
 - **Subprocess pipe to s_server**: spawn openssl with `stdin=PIPE` from Python and write our reply bytes to stdin (s_server encrypts and forwards). Read decrypted client bytes from stdout. Hacky but reuses already-validated handshake. Good for first iteration.
+
+## 2026-04-23 (responder bring-up + payload iterations)
+
+`server/rep_responder.py` shipped using pyOpenSSL `DTLS_SERVER_METHOD` with memory BIOs. First run: DTLS handshake passed, parsed inbound, sent SM_CONNECT_ACK with body `00 00 00 05 02` (mirror of client's `00 00 00 05 01`), client carrier-acked our outbound seq=0 explicitly, but never advanced state. Game lived 1m40s vs 3s baseline. Confirmed the responder is working at the carrier layer; the application-level connect-handler in the channel struct is rejecting our payload content.
+
+Iterated four payload variants on `--ack-variant`:
+
+| Variant | Body | Carrier ack reaction | State advanced? |
+|---|---|---|---|
+| `mirror`  | `00 00 00 05 02`       | simple ack `00000006` 3x then idle | no |
+| `empty`   | `02`                   | extended ack `400001000006` (0x40 flag), client briefly skips SM_CONNECT_REQUEST in env_seq=7, then resumes | no |
+| `echo`    | `00 00 00 05 00 02`    | identical to `empty` | no |
+| `v0`      | `00 00 00 00 02`       | identical to `empty` | no |
+
+Key observation: `empty`/`echo`/`v0` ALL produce identical client behavior, but DIFFER from `mirror`. The `mirror` body's `00 00 00 05` prefix appears to trigger a different parser path (perhaps "connect-ack with negotiation params" which then fails validation), while the others trigger "generic ack" with the full extended-ack tracking format. Either way: the application-level handler is unsatisfied.
+
+The cheap-experiment loop has ~exhausted itself; further variant guessing without RE is unlikely to converge. Per `feedback_character_select_unreliable`: each end-to-end iteration is ~10 min wall-clock (game reaches character creation only ~1 in 6 launches), so we can't afford too many more A/B/C runs.
+
+Added a `dynamic` variant that echoes the client's latest SM_CONNECT_REQUEST body byte-for-byte with msgId swapped (handles the per-retry growing body). Worth one run.
+
+### Real next step: find the SM_CONNECT_REQUEST writer
+
+Confirmed that `FUN_140f80770` (the system-message sender) is **only** ever called with `msgId=6` (SM_CT_ACKS) and `msgId=7` (SM_CT_CONN_CONTROL) — there's no caller passing `msgId=1`. So SM_CONNECT_REQUEST is constructed and queued via a different code path (probably the carrier's handler/strategy class at `param_1[2]` — its vtable `+0x80`/`+0x88` look like message-builder methods called from the transmission tick `FUN_140f8ab70`).
+
+Locating that writer will reveal exactly what the `00 00 00 05` body bytes mean (likely a session/connection ID or protocol version number) and what fields SM_CONNECT_ACK needs to mirror or generate. That's the highest-leverage next move.
+
+### Important responder log paths
+
+- `capture/responder_<timestamp>.log` — every run writes here (no need to ask for terminal scrollback)
+- `capture/<timestamp>_<name>/session.log` — Frida session log (existing convention)
+- `capture/<timestamp>_<name>/hooks.log` — Frida hook resolution status
