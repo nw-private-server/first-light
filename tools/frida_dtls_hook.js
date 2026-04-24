@@ -77,6 +77,10 @@ var INTERNAL_RVA_QUEUE_SYSMSG_INLINE = 0x00f80770; // FUN_140f80770
 var INTERNAL_RVA_SEND_CONNECT_CANDIDATE = 0x00f7fe50; // FUN_140f7fe50
 var INTERNAL_RVA_SEND_802E0_CANDIDATE   = 0x00f802e0; // FUN_140f802e0
 var INTERNAL_RVA_SEND_CLOCK_SYNC        = 0x00f80440; // FUN_140f80440 (msgId=4)
+// The message serializer -- THE function that takes queued MessageRecords on
+// a channel and writes them into the outbound bitstream. EVERY outbound msg
+// passes through here; if it doesn't fire, the carrier isn't being driven.
+var INTERNAL_RVA_CARRIER_WRITE_MESSAGES = 0x00f65b20; // FUN_140f65b20
 
 // EXPERIMENT (2026-04-23): force repObj+0x601 = 1 from the wrapper tick once
 // state==10 is observed. RESULT: the wrapper state never advanced past 10,
@@ -108,7 +112,8 @@ var internalRepBacktraceLogged = {
     queueSysmsgInline: false,
     sendConnectCandidate: false,
     send802e0Candidate: false,
-    sendClockSync: false
+    sendClockSync: false,
+    carrierWriteMessages: false
 };
 var internalRepDynamicHooks = {}; // hook name -> true
 var internalTransportDynamicHooks = {}; // hook name -> true
@@ -2747,6 +2752,97 @@ function hookInternalRepFunctions() {
             "internal_send_802e0_candidate",   "sender-802e0", "send802e0Candidate");
         attachCandidateSender(INTERNAL_RVA_SEND_CLOCK_SYNC,
             "internal_send_clock_sync",        "sender-clock", "sendClockSync");
+
+        // Hook FUN_140f65b20 = Carrier_WriteMessages. Walk the channel queues
+        // (param_2) at entry and dump every pending MessageRecord. We expect
+        // SM_CONNECT_REQUEST records (channel=3, msgId=1 at last byte) to be
+        // visible here even if the senders we already hooked don't fire,
+        // because this is the FINAL serializer before bytes hit the wire.
+        //
+        // Channel queue layout (per FUN_140f80770 / FUN_140f66850 source):
+        //   channel + 0x90 = priority-0 queue count (longlong)
+        //   channel + 0xa0 = priority-0 queue tail pointer
+        //   queues at +0x90+N*0x40 for N in [0..3]
+        //
+        // MessageRecord layout (per parser):
+        //   +0x14 = reliable flag (uint)
+        //   +0x18 = channel byte (low byte)
+        //   +0x1a = num_chunks (ushort)
+        //   +0x1c = sequence (ushort)
+        //   +0x1e = rel_seq (ushort)
+        //   +0x20 = payload pointer (qword)
+        //   +0x28 = size (ushort)
+        var carrierWriteMessages = base.add(INTERNAL_RVA_CARRIER_WRITE_MESSAGES);
+        if (!isHooked("internal_carrier_write_messages")) {
+            try {
+                Interceptor.attach(carrierWriteMessages, {
+                    onEnter: function (args) {
+                        var carrier = args[0];
+                        var channel = args[1];
+                        log("[carrier-write] enter carrier=" + carrier + " channel=" + channel);
+                        // Walk the 4 priority queues
+                        for (var pri = 0; pri < 4; pri++) {
+                            try {
+                                var queueBase = channel.add(0x90 + pri * 0x40);
+                                var count = queueBase.readU64();
+                                var head = queueBase.add(0x10).readPointer();
+                                if (count.equals(0) || head.isNull()) continue;
+                                log("[carrier-write] q" + pri + " count=" + count +
+                                    " head=" + head);
+                                // Walk linked list: each MessageRecord points
+                                // to next via *plVar. Limit to 8 records to
+                                // avoid runaway loops.
+                                var cur = head;
+                                for (var i = 0; i < 8 && !cur.isNull(); i++) {
+                                    try {
+                                        var ch = cur.add(0x18).readU8();
+                                        var size = cur.add(0x28).readU16();
+                                        var seq = cur.add(0x1c).readU16();
+                                        var relSeq = cur.add(0x1e).readU16();
+                                        var reliable = cur.add(0x14).readU32();
+                                        var payloadPtr = cur.add(0x20).readPointer();
+                                        var bodyHex = "";
+                                        if (!payloadPtr.isNull() && size > 0 && size <= 256) {
+                                            try {
+                                                var raw = payloadPtr.readByteArray(size);
+                                                var u8 = new Uint8Array(raw);
+                                                bodyHex = Array.prototype.map.call(u8, function (b) {
+                                                    return ("0" + b.toString(16)).slice(-2);
+                                                }).join("");
+                                            } catch (_) { bodyHex = "<unreadable>"; }
+                                        }
+                                        log("[carrier-write]   rec[" + pri + "/" + i + "] ch=" + ch +
+                                            " sz=" + size + " seq=" + seq + " relSeq=" + relSeq +
+                                            " reliable=" + reliable + " body=" + bodyHex);
+                                        // Linked-list next pointer at offset 0
+                                        cur = cur.readPointer();
+                                    } catch (e) {
+                                        log("[carrier-write]   rec walk err: " + e);
+                                        break;
+                                    }
+                                }
+                            } catch (e) {
+                                // Queue probe failed (offset wrong?) — log once
+                                if (pri === 0) {
+                                    log("[carrier-write] queue probe err: " + e);
+                                }
+                            }
+                        }
+                        if (!internalRepBacktraceLogged.carrierWriteMessages) {
+                            internalRepBacktraceLogged.carrierWriteMessages = true;
+                            try {
+                                var frames = Thread.backtrace(this.context, Backtracer.ACCURATE).slice(0, 12);
+                                log("[carrier-write] bt " + formatBacktrace(frames));
+                            } catch (_) {}
+                        }
+                    }
+                });
+                hookStatus("internal_carrier_write_messages", "success");
+                markHook("internal_carrier_write_messages");
+            } catch (e) {
+                hookStatus("internal_carrier_write_messages", "error: " + e);
+            }
+        }
 
         var repReadyReset = base.add(INTERNAL_RVA_REP_READY_RESET);
         if (!isHooked("internal_rep_ready_reset")) {
