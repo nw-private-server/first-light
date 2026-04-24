@@ -2161,3 +2161,41 @@ The probe at `151655` **captured a complete encrypted Javelin record** post-hand
 4. The first decrypted block is the client's first Javelin message. Feed its bytes into `server/javelin/frame.py:parse_datagram()` to identify the message type and fields.
 5. From the parsed record, build the minimum server-side response the client expects (probably the auth/welcome message handled by `FUN_146b6f190` — that handler sets `repObj+0x601 = 1` when the right message arrives, per prior RE notes).
 6. Start a new module `server/rep_responder.py` that terminates DTLS (self-signed cert) and speaks Javelin to the client. Initially just echoes the parsed bytes; iteratively add the handshake/auth response.
+
+## 2026-04-23 (later): First decrypted Javelin records, Carrier envelope decoded
+
+Major progress: the DTLS probe now captures clean post-handshake plaintext, the Javelin parser was patched to handle the real on-wire envelope, and we identified exactly what the client is asking for (and not getting).
+
+### What worked
+
+- **Probe wrapper rebuilt.** `tools/dtls_probe.py` now spawns `openssl s_server` with `stdin=None` (inherits parent console handle from PowerShell). DEVNULL/synthetic-pipe stdins all triggered immediate `s_server` exit on Git-for-Windows openssl 1.1 — confirmed it requires a real console handle. `-ign_eof` did not help. Captured stdout via `subprocess.PIPE` to preserve raw bytes; PowerShell's `*>` redirect was destroying ~half the bytes by re-encoding them through the OEM codepage.
+- **Plaintext extracted.** `tools/extract_probe_plaintext.py` finds every decrypted application_data record in the log. `s_server -msg` does NOT fire `content_type=23` callbacks — instead it writes decrypted bytes raw to stdout between debug lines. The extractor walks the file, locates record-header callbacks, and slices the bytes immediately following each one. 149 plaintext chunks recovered from a single 30-second session.
+- **Carrier envelope decoded.** Decompiled `Javelin_Carrier_ParseMessages @ 0x140f77eb0` and its caller `FUN_140f898e0`. Each post-DTLS datagram has a 4-byte Carrier envelope before the inner record stream:
+  ```
+  type   : u8       0x80 = plaintext records, 0x81 = encrypted/compressed
+                    (high bit set, bits 1-6 must be 0)
+  proto  : u8       must be 0x01
+  seq    : u16 BE   per-datagram sequence
+  ```
+  Bit 0 of `type` (i.e. `type == 0x81`) routes the body through `param_1[5]` (cipher/compressor); `0x80` passes the body straight to `parse_datagram()`. Added `parse_envelope()` to `server/javelin/frame.py`.
+- **Inner record parser confirmed correct.** With the envelope stripped, `parse_datagram()` parses **all 149 captured datagrams with zero trailing bits.** The original parser was right about the per-record encoding (8-bit flags, BE u16 size in bytes, conditional channel/numChunks/sequence/relSeq, then size bytes of payload). Just nobody had ever fed it real wire bytes.
+- **Identified the message the client wants.** Every datagram is on channel 3 (system) with `MF_CONNECTING`. Each datagram is `1..N × SM_CONNECT_REQUEST` (msgId=1) followed by `1 × SM_CT_ACKS` (msgId=6). The client is sending these on a tight retry loop, waiting for an `SM_CONNECT_ACK` (msgId=2) we never reply with. SM_CONNECT_REQUEST body is `00 00 00 05 01` on first send, growing by one `01` byte per retry. SM_CT_ACKS body is constant `20 06`. After ~3 seconds of unanswered retries the REP state machine (state 10 with `repObj+0x601 = 0`) gives up and the client process terminates — same CTD pattern as before.
+
+### Where we are right now
+
+REP state 10 stalls. The handshake-then-CTD cycle is fully understood. The blocker is **we have no way to send back into the DTLS connection** — `openssl s_server` is a sink, not a server we can drive. The next step is to replace it with something we control end-to-end.
+
+### Next action
+
+1. **Build `server/rep_responder.py`.** A real DTLS server in Python. Three reasonable paths:
+   - **A.** Pure-Python with `pyOpenSSL` or the `Dtls` PyPI package. Most flexibility, longest setup. Requires verifying DTLS 1.2 server mode actually works on Windows.
+   - **B.** Wrap `s_server` with bidirectional pipes. Spawn it from Python with `stdin=PIPE` and write replies into stdin (s_server encrypts and sends). Read decrypted client bytes from stdout. Hacky but reuses the working crypto.
+   - **C.** Frida-side test: inject a synthesized SM_CONNECT_ACK directly into the client's receive path to validate the message contents before committing to a real server.
+2. **Identify SM_CONNECT_ACK contents.** The client's connect-handshake state machine handler is unidentified; search downstream of `FUN_140f66430` (the queue dispatcher called by ParseMessages for msgId<6) or look for the SM_CONNECT_REQUEST builder/serializer to mirror its structure. A blank ACK body might suffice; if not, we'll need the binary's expected fields.
+3. **Wire envelope on send.** Marshal records via existing `marshal_datagram()`, prepend `b'\x80\x01' + struct.pack('>H', seq_out)`. Per-datagram sequence is independent of inner record sequences.
+
+### Important notes
+
+- `tools/dtls_probe.py` capture file: `capture/dtls_probe_20260423_164554.log` is the canonical "all 149 records" snapshot. Keep it for offline parser/responder development — no need to re-run the game on every iteration.
+- PowerShell redirect (`*>`/`>`) is byte-destructive for raw streams. Always either let Python capture via `subprocess.PIPE` or wrap commands in `cmd /c "... > file 2>&1"` (cmd.exe `>` is byte-faithful).
+- The encrypted/compressed envelope path (`type == 0x81`) is unimplemented and currently un-triggered — the client doesn't seem to use it during connect. If it shows up later, we'll need to find which cipher/compressor the binary is using.

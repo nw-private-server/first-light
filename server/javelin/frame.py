@@ -3,8 +3,16 @@ Javelin per-message framing — mirrors `Javelin_Carrier_ParseMessages`
 (read side, NewWorld.exe @ 0x140f77eb0) and `Javelin_Carrier_WriteMessages`
 (write side, @ 0x140f65b20).
 
-Every datagram (after DTLS decrypt) is a stream of 1..N message records.
-Each record is framed via a compact, bit-packed header:
+Each post-DTLS datagram has a 4-byte Carrier envelope:
+
+    type   : u8       0x80 = plaintext records, 0x81 = encrypted/compressed
+                      (bit 0 selects cipher/compressor path; bits 1-6 must be 0;
+                       high bit must be set — verified at FUN_140f898e0+0x4a3)
+    proto  : u8       must be 0x01 (verified at FUN_140f898e0+0x4f0)
+    seq    : u16 BE   per-datagram sequence number
+
+After the envelope (and after optional cipher/decompress) is a stream of
+1..N MessageRecords. Each record is framed via a compact bit-packed header:
 
     flags    : u8  bit-packed  (see MessageFlags)
     size     : u16 big-endian  (payload size in bytes)
@@ -93,8 +101,38 @@ class ParseResult:
     trailing_bits: int = 0
 
 
+@dataclass
+class CarrierEnvelope:
+    type_byte: int
+    proto: int
+    sequence: int
+
+    @property
+    def is_encrypted(self) -> bool:
+        return bool(self.type_byte & 1)
+
+
+def parse_envelope(data: bytes) -> tuple[CarrierEnvelope, bytes]:
+    """Strip and return the 4-byte Carrier envelope; returns (envelope, body).
+    Raises ValueError if the envelope doesn't match the expected magic."""
+    if len(data) < 4:
+        raise ValueError(f"datagram too short ({len(data)} bytes) for envelope")
+    type_byte = data[0]
+    proto = data[1]
+    if not (type_byte & 0x80) or (type_byte & 0x7e):
+        raise ValueError(f"bad envelope type byte 0x{type_byte:02x}")
+    if proto != 0x01:
+        raise ValueError(f"bad envelope proto byte 0x{proto:02x} (expected 0x01)")
+    seq = (data[2] << 8) | data[3]
+    return CarrierEnvelope(type_byte=type_byte, proto=proto, sequence=seq), data[4:]
+
+
 def parse_datagram(data: bytes, *, start_bit: int = 0) -> ParseResult:
-    """Parse a decrypted Javelin datagram payload into MessageRecords."""
+    """Parse a decrypted Javelin datagram payload into MessageRecords.
+
+    Note: pass the body AFTER `parse_envelope` has stripped the 4-byte
+    Carrier header. This function only handles the inner record stream.
+    """
     stream = BitStream(data, start_bit=start_bit)
     result = ParseResult()
 

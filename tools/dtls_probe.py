@@ -95,13 +95,23 @@ def main() -> None:
     print("Ctrl-C when done.")
     print("=" * 60)
 
+    # s_server exits the instant it sees stdin EOF. DEVNULL EOFs immediately
+    # and a synthetic Python pipe (even one held open by a sleeper subprocess)
+    # also gets treated as EOF by Git-for-Windows openssl 1.1 — it likely
+    # checks _isatty(0) and bails when stdin isn't a console. The flag
+    # -ign_eof doesn't help. Manual `openssl s_server` runs from a PowerShell
+    # window work because the PS terminal hands openssl a real console
+    # handle, so we mimic that by inheriting the parent's stdin (which IS
+    # a console when this script is launched from PowerShell/cmd).
+    #
+    # We still capture stdout via PIPE so we can write raw bytes — using a
+    # PowerShell `*>` redirect would re-encode via the OEM codepage and
+    # replace every byte >=0x80 with literal '?', destroying ciphertext
+    # AND the plaintext openssl echoes after decrypting.
     with open(log_path, "wb") as fh:
-        # DEVNULL is fine here because -rev implies -ign_eof, so s_server
-        # stays alive past the stdin EOF. Using a PIPE on Windows hangs
-        # openssl on a blocking stdin read and starves the UDP accept loop.
         proc = subprocess.Popen(
             cmd,
-            stdin=subprocess.DEVNULL,
+            stdin=None,  # inherit parent's console handle
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             bufsize=0,
@@ -114,7 +124,6 @@ def main() -> None:
                     break
                 fh.write(chunk)
                 fh.flush()
-                # Echo to console too -- helpful to see handshake live.
                 try:
                     sys.stdout.buffer.write(chunk)
                     sys.stdout.flush()
