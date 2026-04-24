@@ -2265,6 +2265,22 @@ The Frida-hook-everything approach has hit diminishing returns. Better paths fro
 
 Per `feedback_character_select_unreliable` (~10 min wall-clock per attempt), the value-per-iteration calculus increasingly favors deeper static analysis over more runtime A/B/C cycles.
 
+## 2026-04-23 (FINAL): Carrier path is bypassed; pivot needed
+
+Hooked the absolute-final serializer `FUN_140f65b20` (Carrier_WriteMessages) at the entry point. EVERY outbound MessageRecord on a standard Javelin Carrier channel should pass through this. Run with character creation completed and 22 SM_CONNECT_REQUEST datagrams received by responder — `[carrier-write] enter` **never logged**.
+
+This is the seventh carrier-layer function we've hooked that doesn't fire. RVA validator confirmed all addresses correct. The conclusion is final: **the REP DTLS connection's transmission path completely bypasses the standard Javelin Carrier code in this binary.** Whatever sends SM_CONNECT_REQUEST is either a REP-specific mini-carrier (embedded in the transport struct — possibly the `transport+0x68+0x48` subobject pattern we observe cycling vtables in our session logs) or direct byte-construction passed straight to SSL_write/BIO_write without going through the Carrier framework at all.
+
+### Pivot — better attack vectors
+
+The carrier-path search has run its course. Three productive directions:
+
+1. **Hook `SSL_write` / `BIO_write` (currently `not_found` via export scan).** OpenSSL is statically linked. A signature-based search for the SSL_write prologue would let us hook every plaintext byte just before encryption — independent of what Carrier code is in use. Backtrace from the hook would name the actual sender.
+2. **Hook the SM_CONNECT_ACK *receive* path instead of looking for the sender.** We know our ACK reaches the binary (the responder logs show carrier-level acks). Whatever processes inbound msgId=2 reads the body fields the connect handler expects. Finding that gives us the same answer (what fields SM_CONNECT_ACK needs) as finding the sender, from the opposite direction.
+3. **Manual Ghidra UI exploration.** MCP can't see unidentified-function regions in the binary, and there are clearly many of them. Tracing forward from the REP transport ctor `FUN_146b6a270` and following the `transport+0x68+0x48` subobject cycling pattern (which we see actively running in every Frida session) is where the REP-specific code lives. Human-driven UI navigation will be much faster than continued MCP/Frida iteration.
+
+Tonight's net: durable infrastructure is built (DTLS responder, parser, envelope, ack-iteration scaffold), and we've definitively ruled out 7 candidate functions. We know the search space is NOT the standard Carrier — the answer lies in REP-specific code or below the Carrier layer at the SSL boundary. That's a meaningful narrowing even if the gate isn't open yet.
+
 ## 2026-04-23 (responder bring-up + payload iterations)
 
 `server/rep_responder.py` shipped using pyOpenSSL `DTLS_SERVER_METHOD` with memory BIOs. First run: DTLS handshake passed, parsed inbound, sent SM_CONNECT_ACK with body `00 00 00 05 02` (mirror of client's `00 00 00 05 01`), client carrier-acked our outbound seq=0 explicitly, but never advanced state. Game lived 1m40s vs 3s baseline. Confirmed the responder is working at the carrier layer; the application-level connect-handler in the channel struct is rejecting our payload content.
