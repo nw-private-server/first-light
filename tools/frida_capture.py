@@ -232,7 +232,8 @@ def _load_script(session, script_path: Path, writer: SessionWriter, label: str):
     return script
 
 
-def spawn_and_attach(writer: SessionWriter, patch_trust: bool = True) -> tuple:
+def spawn_and_attach(writer: SessionWriter, patch_trust: bool = True,
+                     extra_args: list[str] | None = None) -> tuple:
     """Spawn NewWorld.exe suspended, attach Frida, then resume.
 
     Returns (session, [scripts], pid).
@@ -252,9 +253,10 @@ def spawn_and_attach(writer: SessionWriter, patch_trust: bool = True) -> tuple:
     except Exception as e:
         writer.log(f"[!] Failed to write steam_appid.txt: {e}")
 
-    writer.log(f"[*] Spawning: {GAME_EXE}")
+    spawn_argv = [str(GAME_EXE)] + (extra_args or [])
+    writer.log(f"[*] Spawning: {' '.join(spawn_argv)}")
     device = frida.get_local_device()
-    pid = device.spawn([str(GAME_EXE)])
+    pid = device.spawn(spawn_argv)
     writer.log(f"[+] Spawned PID: {pid} (suspended)")
 
     session = device.attach(pid)
@@ -335,6 +337,11 @@ def main():
         help="Skip the DTLS trust-bypass byte patch (frida_dtls_trust_patch.js)"
     )
     parser.set_defaults(patch_trust=True)
+    parser.add_argument(
+        "--exe-arg", action="append", default=[],
+        help="Extra argument to pass to NewWorld.exe (repeatable). "
+             "E.g. --exe-arg=--GatewayMode=stubbed --exe-arg=--AuthMode=stubbed"
+    )
     args = parser.parse_args()
 
     global GAME_EXE
@@ -366,7 +373,9 @@ def main():
                 writer, args.pid, args.process_name, patch_trust=args.patch_trust
             )
         else:
-            session, scripts, pid = spawn_and_attach(writer, patch_trust=args.patch_trust)
+            session, scripts, pid = spawn_and_attach(
+                writer, patch_trust=args.patch_trust, extra_args=args.exe_arg
+            )
     except frida.ProcessNotFoundError:
         writer.log("[!] Process not found. Is the game running?")
         writer.close()
