@@ -66,10 +66,17 @@ def is_admin() -> bool:
         return False
 
 
-def build_block(target_ip: str) -> str:
+def build_block(target_ip: str, target_ip6: str = "::1") -> str:
     lines = [BLOCK_BEGIN, f"# Added {datetime.now().isoformat(timespec='seconds')}"]
     for h in REDIRECT_HOSTS:
         lines.append(f"{target_ip}\t{h}")
+    if target_ip6:
+        # Stubbed-mode gateway client may prefer IPv6 (AF_INET6 sockets seen in
+        # Frida traces 2026-04-26). Add ::1 entries so the AAAA record also
+        # resolves to localhost; otherwise the resolver returns the real
+        # cloudfront IPv6 addr and our hosts redirect is bypassed.
+        for h in REDIRECT_HOSTS:
+            lines.append(f"{target_ip6}\t{h}")
     lines.append(BLOCK_END)
     return "\n".join(lines) + "\n"
 

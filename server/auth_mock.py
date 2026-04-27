@@ -52,6 +52,7 @@ import atexit
 import argparse
 import base64
 import json
+import socket
 import socketserver
 import ssl
 import sys
@@ -1499,12 +1500,24 @@ class AuthHandler(BaseHTTPRequestHandler):
 class ThreadedHTTPSServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True
     allow_reuse_address = True
+    # Bind on IPv6 with IPV6_V6ONLY=0 so the same socket accepts both v4 and v6
+    # connections (Windows dual-stack). The hosts file maps cloudfront names to
+    # both 127.0.0.1 and ::1, and stubbed-mode prefers IPv6 — without dual-stack
+    # those v6-resolved HTTP requests would hit nothing and time out.
+    address_family = socket.AF_INET6
 
     def __init__(self, server_address, RequestHandlerClass, ctx: Ctx,
                  ssl_ctx: ssl.SSLContext):
         super().__init__(server_address, RequestHandlerClass)
         self.ctx = ctx
         self.ssl_ctx = ssl_ctx
+
+    def server_bind(self):
+        try:
+            self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        except OSError as e:
+            log(f"[!] couldn't disable IPV6_V6ONLY: {e}")
+        super().server_bind()
 
     def get_request(self):
         sock, addr = super().get_request()
@@ -1530,7 +1543,8 @@ def build_ssl_context(cert: Path, key: Path) -> ssl.SSLContext:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="New World HTTPS auth mock")
-    ap.add_argument("--host", default="0.0.0.0")
+    ap.add_argument("--host", default="::",
+                    help="Bind address; '::' (default) gives dual-stack v4+v6")
     ap.add_argument("--port", type=int, default=443)
     ap.add_argument("--cert", default=str(CERTS_DIR / "auth.crt"))
     ap.add_argument("--key", default=str(CERTS_DIR / "auth.key"))
