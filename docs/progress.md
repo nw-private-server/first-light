@@ -2574,3 +2574,85 @@ Locating that writer will reveal exactly what the `00 00 00 05` body bytes mean 
 - `capture/responder_<timestamp>.log` — every run writes here (no need to ask for terminal scrollback)
 - `capture/<timestamp>_<name>/session.log` — Frida session log (existing convention)
 - `capture/<timestamp>_<name>/hooks.log` — Frida hook resolution status
+
+---
+
+## 2026-04-26 (very late) — REP DTLS bypass via byte-patch (MODE_STUBBED / MODE_DUMMY)
+
+**Headline:** the unsolvable REP DTLS state-10 wall is bypassable. ConfigureLogin (`FUN_146425000`, RVA `0x06425000`) has three branches selected by `client-connection.client-gateway.mode` — `gateway` (default), `stubbed`, `dummy`. Forcing either non-default branch via byte patch makes the binary skip REP DTLS entirely. Confirmed in two iterations by Game.log emitting `ConfigureLogin MODE_STUBBED` / `MODE_DUMMY` instead of `MODE_GATEWAY`, with zero `[rep-wrapper]` activity in the Frida session log afterward.
+
+Both bypasses produced new failure modes downstream, **but neither is the same wall as state 10** — they're tractable problems further along the flow.
+
+### Why the CLI flag and config file approach failed
+
+- `--GatewayMode=stubbed` was silently ignored. CLI parser at `FUN_14645b520` reads bare keys (no `--` prefix) via a generic args registry; the actual CLI syntax for that registry is unknown.
+- `@assets@/ClientOverride.json` is checked at startup but `@assets@` resolves through AZCore's pak-only namespace — placing a loose JSON at any disk location (`assets/`, `assets/pc/`, `Cache/Assets/pc/`, game root, Bin64) all failed; the FS only walks pak-file directories for that alias and short-circuits. No Win32 file APIs ever got hit for ClientOverride.json — confirmed by a Frida findoverride trace.
+- Cleaner solution: byte patch.
+
+### The byte patches (added to `tools/frida_dtls_hook.js`, default off)
+
+Two flags, mutually exclusive, both default false now:
+
+```js
+var EXPERIMENT_FORCE_STUBBED_MODE = false;
+var EXPERIMENT_FORCE_DUMMY_MODE   = false;
+```
+
+Patches applied when either flag is true:
+
+| RVA | Original | Patched | Purpose |
+|---|---|---|---|
+| `0x06b6df50` | `48 89 5c` (prologue) | `B0 01 C3` (MOV AL,1; RET) | `FUN_146b6df50 IsClientGatewayStubbedOrDummy` → always true |
+| `0x06445f30` | `48 89 5c` (prologue) | `B0 01 C3` | `FUN_146445f30 IsClientGatewayStubbedOrDummy` (other site) → always true |
+| `0x06425357` | `0F 85 62 03 00 00` (JNZ rel32) | `90 90 90 90 90 90` | ConfigureLogin JNZ-to-gateway → NOP, forces STUBBED branch |
+| `0x064252e9` | `75 20` (JNZ rel8) | `90 90` | ConfigureLogin JNZ-past-DUMMY → NOP, forces DUMMY branch (alternative to above) |
+
+Patch applies in `hookInternalRepFunctions()` so it lands before any game code runs that reads the mode. Also installs an `Interceptor` on `FUN_146425000` to log which vtable was installed at `gameConn+0x118` (stub vtable = `PTR_FUN_1484fdfa0` at RVA `0x84fdfa0`).
+
+### MODE_STUBBED outcome (capture `20260426_225029_force_stubbed_v6`)
+
+ConfigureLogin took the stubbed branch — `gameConn+0x118` got the stub gateway vtable. **Zero state-10 wrapper activity.** REP DTLS was never attempted.
+
+The stub gateway is essentially the **internal Amazon dev environment**: it talks to AWS services directly via AWS SDK (HTTPS+JSON/XML), not via the live REP gateway. Observed during character-select arrival:
+
+- `dynamodb.<region>.amazonaws.com:80/ping` × 5 regions — succeed against real AWS
+- `tokenservice.amazongames.com:443/games/new-world/tokens` — auth_mock 200 OK
+- `d3bj4csovi1fe8.cloudfront.net:443/prod/credentials/omni` — auth_mock 200 OK
+- `ags-javelin-remote-config.s3.amazonaws.com:443/...` × 12 config fetches — auth_mock 200 OK
+- **`sts.us-east-1.amazonaws.com:443/` POST** — real AWS, **403 Forbidden** (rejects our credentials)
+- `client.entitlementservice.amazongames.com:443/...` — auth_mock 200 OK
+- **`kinesis.us-west-2.amazonaws.com:443/` POST** — real AWS, **400** (rejects malformed/unauthenticated request)
+
+Then "Connection Failed: Login services are unavailable" auto-fired on character-select arrival.
+
+The `:5999` in `ConfigureLogin MODE_STUBBED: endpoint=d3bj4csovi1fe8.cloudfront.net:5999` is just a **default port set by ConfigureLogin if the URL has no port** — the stub never connects to it. All actual traffic is HTTPS:443 plus a few HTTP:80 dynamodb pings.
+
+### MODE_DUMMY outcome (capture `20260426_225941_force_dummy_test`)
+
+DUMMY branch sets `gameConn+0x128 = 1` and jumps to cleanup without constructing any gateway client. `gameConn+0x118` stays `0x0`. No AWS calls, no STS, no Kinesis — totally clean HTTP layer (every response 200).
+
+Same dialog auto-fires on character-select arrival. The state machine sees null gateway client and immediately fails — user cannot click "Create Character" or anything else; the dialog blocks interaction.
+
+### What this changes
+
+The strategic landscape is now clearer:
+
+1. **REP DTLS is no longer the wall.** Byte patches give a clean bypass.
+2. **The wall is the gameConn state machine's "is gateway healthy" check** — fires on character-select arrival regardless of mode, before the user can even click "Create Character".
+3. **MODE_GATEWAY (default) is still the best baseline** for further work because auth_mock already supports the full character-create / name-reservation flow. The character-select screen's auto-failure in STUBBED/DUMMY shows the gateway client itself participates in early state transitions; replacing it (DUMMY) or swapping it for a non-functional one (STUBBED without AWS mocks) breaks the screen.
+
+### Discarded paths
+
+- ❌ Mock the AWS services (STS / Kinesis / DynamoDB) — significant work to emulate a large chunk of AWS, and the dev-env path is not a guarantee of better progress than the production REP path.
+- ❌ MODE_DUMMY as long-term solution — too aggressive; character select itself fails.
+
+### Next move (per user direction 2026-04-26)
+
+Both flags reverted to false → back to MODE_GATEWAY baseline. Next session should focus on the **unanalyzed code at `0x146b6e190–0x146b6e7c0`** — specifically the call to `FUN_146b6df50` at `0x146b6e2ab` and what gates the wrapper's state-10 → state-11 transition. Per memory `project_gridmate_carrier_breakthrough.md`, this region is what actually validates the REP handshake, and Ghidra MCP can't see it without manual define-as-function in the UI.
+
+### Side fixes shipped this session (still useful regardless of mode)
+
+- `tools/frida_dtls_hook.js` `formatSockaddr` now handles AF_INET6 (was IPv4-only). All IPv6 connect targets in session.log now show `[ipv6addr]:port` instead of `unknown`.
+- `server/auth_mock.py` is now dual-stack v4/v6 (binds `[::]` with `IPV6_V6ONLY=0`). Required because the stubbed gateway used AF_INET6 sockets and our hosts file now resolves to both 127.0.0.1 and ::1.
+- `tools/setup_hosts.py` adds both v4 and v6 entries for every redirect host (default `--target=127.0.0.1`, additional `::1` block appended).
+- `server/stub_tcp_probe.py` — small dual-stack TCP listener on port 5999 for capturing whatever the stub gateway sends. Stub never actually connected to 5999 in practice (it uses HTTPS:443), so the probe is unused; kept for future diagnostics.

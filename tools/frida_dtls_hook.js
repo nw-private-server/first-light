@@ -101,6 +101,36 @@ var INTERNAL_RVA_CARRIER_PARSE_MESSAGES = 0x00f77eb0; // FUN_140f77eb0
 var EXPERIMENT_FORCE_REP_READY = false;
 var experimentForceReadyHits = 0;     // how many times we've forced 601=1
 var experimentForceReadyLogged = false;  // throttle log spam after first set
+
+// EXPERIMENT (2026-04-26): force ConfigureLogin into a non-default mode via
+// byte patches. Two mutually exclusive modes:
+//
+//   STUBBED -- builds a stub gateway client (vtable PTR_FUN_1484fdfa0). Bypasses
+//              REP DTLS but the stub still talks to real AWS services (STS,
+//              Kinesis, DynamoDB) which reject our requests with 403/400.
+//
+//   DUMMY   -- ConfigureLogin sets gameConn+0x128 = 1 then jumps directly to
+//              cleanup. NO gateway client is constructed (gameConn+0x118 = 0).
+//              Worth trying as an even simpler bypass; depends on whether
+//              downstream code null-checks the gateway client.
+//
+// Both modes also patch the IsClientGatewayStubbedOrDummy() predicates
+// (FUN_146b6df50 / FUN_146445f30) to return 1, so any code gating on
+// "is mode stubbed/dummy" sees true.
+//
+// ConfigureLogin runs from CGame::OnCampfireLoginComplete (post-OmniSDK auth)
+// so the real test is a full character-creation iteration. Not a splash run.
+// If either flag is true, also installs an Interceptor on FUN_146425000 to log
+// which vtable it installed at gameConn+0x118.
+// Both default false now -- experiments concluded 2026-04-26. STUBBED bypassed
+// REP DTLS but stub gateway tries real AWS services (STS 403, Kinesis 400);
+// DUMMY left gameConn+0x118 = 0 and the state machine immediately fired
+// "Login services are unavailable" on character-select arrival (auto-fired,
+// not user-clicked). Both confirmed REP DTLS can be bypassed by byte patch,
+// but neither produces a usable session without further mocking. Flip true to
+// re-test; see comment block above for the full layout.
+var EXPERIMENT_FORCE_STUBBED_MODE = false;
+var EXPERIMENT_FORCE_DUMMY_MODE   = false;
 var INTERNAL_RVA_REP_GETTER_OWNER = 0x05012f0;  // FUN_1405012f0
 var internalRepBacktraceLogged = {
     transportCtor: false,
@@ -1521,6 +1551,17 @@ function hookWinsock() {
                          sockaddr.add(7).readU8();
                 return ip + ":" + port;
             }
+            if (family === 23) { // AF_INET6
+                var port6 = (sockaddr.add(2).readU8() << 8) | sockaddr.add(3).readU8();
+                // 16-byte address starts at offset 8 (after family+port+flowinfo)
+                var groups = [];
+                for (var i = 0; i < 8; i++) {
+                    var hi = sockaddr.add(8 + i * 2).readU8();
+                    var lo = sockaddr.add(8 + i * 2 + 1).readU8();
+                    groups.push(((hi << 8) | lo).toString(16));
+                }
+                return "[" + groups.join(":") + "]:" + port6;
+            }
         } catch (_) {}
         return null;
     }
@@ -2313,6 +2354,83 @@ function hookWinsockProviderSpi() {
 function hookInternalRepFunctions() {
     try {
         var base = getMainModule().base;
+
+        // EXPERIMENT_FORCE_STUBBED_MODE / EXPERIMENT_FORCE_DUMMY_MODE: byte-patch
+        // ConfigureLogin and the two IsClientGatewayStubbedOrDummy() predicates
+        // so the binary takes the chosen mode regardless of config. See the
+        // comment block at top of file for rationale.
+        if (EXPERIMENT_FORCE_STUBBED_MODE || EXPERIMENT_FORCE_DUMMY_MODE) {
+            var modeTag = EXPERIMENT_FORCE_DUMMY_MODE ? "force-dummy" : "force-stubbed";
+            function patchBytes(rva, bytes, label) {
+                try {
+                    var addr = base.add(rva);
+                    var prev = addr.readByteArray(bytes.length);
+                    var oldHex = Array.prototype.map.call(new Uint8Array(prev), function (b) {
+                        return ("0" + b.toString(16)).slice(-2);
+                    }).join(" ");
+                    Memory.protect(addr, bytes.length, "rwx");
+                    addr.writeByteArray(bytes);
+                    var newHex = Array.prototype.map.call(new Uint8Array(bytes), function (b) {
+                        return ("0" + b.toString(16)).slice(-2);
+                    }).join(" ");
+                    log("[" + modeTag + "] " + label + " @ " + addr +
+                        " : " + oldHex + " -> " + newHex);
+                } catch (e) {
+                    log("[" + modeTag + "] PATCH FAILED " + label + ": " + e);
+                }
+            }
+            // Predicates: MOV AL,1 ; RET (used regardless of mode)
+            patchBytes(0x06b6df50, [0xB0, 0x01, 0xC3],
+                       "FUN_146b6df50 IsClientGatewayStubbedOrDummy -> ret 1");
+            patchBytes(0x06445f30, [0xB0, 0x01, 0xC3],
+                       "FUN_146445f30 IsClientGatewayStubbedOrDummy -> ret 1");
+            if (EXPERIMENT_FORCE_DUMMY_MODE) {
+                // JNZ rel8 at ConfigureLogin RVA 0x064252e9 jumps past the DUMMY
+                // branch to the stubbed/gateway test when the parsed mode-string
+                // doesn't equal "dummy". NOP the 2-byte JNZ so the dummy branch
+                // always runs (sets gameConn+0x128 = 1, jumps to cleanup, leaves
+                // gameConn+0x118 = 0 / no gateway client).
+                patchBytes(0x064252e9, [0x90, 0x90],
+                           "ConfigureLogin JNZ-past-DUMMY -> NOP (force MODE_DUMMY branch)");
+            } else {
+                // ConfigureLogin JNZ-to-gateway -> 6 NOPs (force STUBBED branch)
+                patchBytes(0x06425357, [0x90, 0x90, 0x90, 0x90, 0x90, 0x90],
+                           "ConfigureLogin JNZ-to-gateway -> NOP (force MODE_STUBBED branch)");
+            }
+            // Observe ConfigureLogin to confirm which vtable it installed.
+            try {
+                Interceptor.attach(base.add(0x06425000), {
+                    onEnter: function (args) { this.gameConn = args[0]; },
+                    onLeave: function () {
+                        try {
+                            var clientPtr = this.gameConn.add(0x118).readPointer();
+                            var dummyFlag = this.gameConn.add(0x128).readU8();
+                            var vtable = clientPtr.isNull()
+                                ? ptr("0") : clientPtr.readPointer();
+                            var stubVtab = base.add(0x84fdfa0);
+                            var match;
+                            if (clientPtr.isNull()) {
+                                match = "DUMMY (no client)";
+                            } else if (!vtable.isNull() && vtable.equals(stubVtab)) {
+                                match = "STUB";
+                            } else {
+                                match = "OTHER";
+                            }
+                            log("[" + modeTag + "] ConfigureLogin returned." +
+                                " gameConn+0x118=" + clientPtr +
+                                " gameConn+0x128(dummyFlag)=" + dummyFlag +
+                                " vtable=" + vtable +
+                                " (" + match + ")");
+                        } catch (e) {
+                            log("[" + modeTag + "] ConfigureLogin onLeave inspect failed: " + e);
+                        }
+                    }
+                });
+                log("[" + modeTag + "] ConfigureLogin observer installed");
+            } catch (e) {
+                log("[" + modeTag + "] ConfigureLogin observer install failed: " + e);
+            }
+        }
 
         // RVA validator: print first 16 bytes at each candidate sender so we
         // can confirm the addresses point at real function prologues vs.
