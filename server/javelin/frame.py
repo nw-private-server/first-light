@@ -257,13 +257,13 @@ def marshal_record(
         and rec.reliable
         and ((state.last_rel_seq[c] + 1) & 0xFFFF) == rec.reliable_sequence
     )
-    # Note: if the message isn't reliable, the writer STILL writes the
-    # reliable seq field unless MF_SEQUENTIAL_REL_ID is set. We can set
-    # the flag to 'skip' for non-reliable messages to save bytes — it
-    # works because the reader only ever uses reliable_sequence when
-    # reliable=true. This matches the binary's logic.
-    if not rec.reliable:
-        is_relseq_sequential = True  # always "inherit" for non-reliable
+    # 2026-05-04: Mixed Nuts confirmed correct flag byte for our outgoing
+    # post-DTLS records is 0x20 (MF_DATA_CHANNEL only). Previously we
+    # auto-set MF_SEQUENTIAL_REL_ID for non-reliable records to save the
+    # rel_seq u16. That made our flag byte 0xb0 (with MF_CONNECTING). The
+    # canonical writer ALWAYS writes the rel_seq field, even for non-reliable
+    # records (the reader ignores it when reliable=false). Remove the
+    # bandwidth optimization so our flag matches the wire-correct 0x20.
 
     channel_changed = (state.prev_channel != c)
 

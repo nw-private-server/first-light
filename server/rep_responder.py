@@ -203,6 +203,14 @@ class PeerSession:
         self.out_seq = (self.out_seq + 1) & 0xFFFF
         return ENVELOPE_HEAD + struct.pack(">H", seq) + body
 
+    def wrap_envelope_echo(self, body: bytes, echo_seq: int) -> bytes:
+        # 2026-05-04: Mixed Nuts noted "you're not handling the sequence
+        # number 80 01 0000". Strong reading: our envelope seq should track
+        # / acknowledge the client's incoming seq, not start at 0 and walk
+        # independently. This variant echoes the client's seq for the
+        # datagram we're replying to.
+        return ENVELOPE_HEAD + struct.pack(">H", echo_seq & 0xFFFF) + body
+
     def handle_decrypted_datagram(self, raw: bytes) -> None:
         try:
             env, body = parse_envelope(raw)
@@ -213,6 +221,11 @@ class PeerSession:
         if result.error:
             self.log.warning(f"parse error: {result.error} body={body.hex()}")
             return
+        # 2026-05-04: Track the latest inbound envelope seq so we can echo
+        # it on the reply (Mixed Nuts: "you're not handling the sequence
+        # number 80 01 0000"). Strong hypothesis is the server's reply seq
+        # should mirror the client's, not walk independently.
+        self.last_inbound_env_seq = env.sequence
         self.log.info(
             f"<< env_seq={env.sequence} msgs={len(result.messages)} "
             + " ".join(
@@ -263,7 +276,11 @@ class PeerSession:
         else:
             ack_payload = self.ack_payload
 
-        # Build both records with proper per-channel sequencing.
+        # 2026-05-04: Mixed Nuts — flag should be 0x20 (MF_DATA_CHANNEL only),
+        # not 0xb0 (which has MF_CONNECTING + MF_SEQUENTIAL_REL_ID set). Drop
+        # connecting=True. The MF_SEQUENTIAL_REL_ID auto-set in marshal_record
+        # was also removed in the same commit so the rel_seq u16 is now
+        # explicitly written even for non-reliable records.
         sync_seq, sync_rel = self._next_seq(3, reliable=False)  # CLOCK_SYNC: not reliable
         sync_rec = MessageRecord(
             channel=3,
@@ -271,7 +288,7 @@ class PeerSession:
             sequence=sync_seq,
             reliable_sequence=sync_rel,
             reliable=False,
-            connecting=True,
+            connecting=False,
             num_chunks=1,
         )
         ack_seq, ack_rel = self._next_seq(3, reliable=True)  # CONNECT_ACK: reliable
@@ -281,12 +298,18 @@ class PeerSession:
             sequence=ack_seq,
             reliable_sequence=ack_rel,
             reliable=True,
-            connecting=True,
+            connecting=False,
             num_chunks=1,
         )
 
         body = marshal_datagram([sync_rec, ack_rec])
-        datagram = self.wrap_envelope(body)
+        # 2026-05-04: Echo the client's last inbound envelope seq, per Mixed
+        # Nuts feedback. Falls back to independent counter if we somehow
+        # haven't seen any inbound yet.
+        if getattr(self, "last_inbound_env_seq", None) is not None:
+            datagram = self.wrap_envelope_echo(body, self.last_inbound_env_seq)
+        else:
+            datagram = self.wrap_envelope(body)
         self.send_app(datagram)
         self.connect_ack_count += 1
         self.log.info(
