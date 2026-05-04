@@ -249,6 +249,75 @@ class PeerSession:
                 self.send_connect_ack()
                 break
 
+        # 2026-05-04: detect data-channel records (the V3 RegistrationRequest).
+        # Per analysis/v3_request/HEADER_DECODE.md, the V3 request lands as a
+        # single record with flags & MF_NO_LENGTH (0x40). Log it loud + handle.
+        for m in result.messages:
+            if m.flags & 0x40:
+                self._handle_v3_data_record(m)
+                break
+
+    def _handle_v3_data_record(self, m) -> None:
+        """Log + reply to an inbound V3 RegistrationRequest record."""
+        from javelin.v3_response import V3RegistrationResponse, encode
+        # Save a copy to disk so we can RE without needing another live run
+        self.v3_request_count = getattr(self, "v3_request_count", 0) + 1
+        try:
+            outdir = Path(self.log.handlers[0].baseFilename).parent / (
+                Path(self.log.handlers[0].baseFilename).stem + "_v3"
+            )
+            outdir.mkdir(exist_ok=True)
+            (outdir / f"v3_req_{self.v3_request_count:03d}.bin").write_bytes(m.payload)
+        except Exception as e:
+            self.log.debug(f"v3 dump failed: {e}")
+        self.log.info(
+            f"!! V3 RegistrationRequest #{self.v3_request_count} received: "
+            f"ch={m.channel} flags=0x{m.flags:02x} seq={m.sequence} "
+            f"rel_seq={m.reliable_sequence} payload_len={len(m.payload)}"
+        )
+
+        # Don't spam — only respond to the first one (later retries should
+        # stop once the client accepts our reply, but in case it doesn't,
+        # rate-limit to one response per second).
+        now_ms = time.monotonic_ns() // 1_000_000
+        last_sent = getattr(self, "_v3_response_last_ms", 0)
+        if now_ms - last_sent < 1000 and last_sent != 0:
+            return
+        self._v3_response_last_ms = now_ms
+
+        # Build a stub RegistrationResponseMsg. GUESSED FIELDS — likely needs
+        # iteration. The 0x60-byte in-memory layout requires error_code=0
+        # at +0x08 and eos_flag=0 at +0x5b for the success path. See
+        # javelin/v3_response.py for the field-by-field guesses.
+        resp = V3RegistrationResponse(session_token=f"sess-{self.v3_request_count:08x}")
+        resp_body = encode(resp)
+
+        # Wrap in a data-channel record matching the MF_NO_LENGTH format the
+        # client uses (per analysis/v3_request/HEADER_DECODE.md). 3-byte
+        # opaque sub-header (we write zeros — semantics unknown), then
+        # channel/seq/rel_seq, then the response body extending to end.
+        # Mirror the request's channel (the data channel the V3 came in on).
+        out_seq = self.v3_request_count - 1  # GUESS: simple counter on this channel
+        flags = 0x60  # MF_NO_LENGTH | MF_DATA_CHANNEL (no MF_CONNECTING — past handshake)
+        record = (
+            bytes([flags]) +
+            b"\x00\x00\x00" +  # GUESS: opaque sub-header (client uses 20 00 02)
+            bytes([m.channel & 0xFF]) +
+            struct.pack(">H", out_seq & 0xFFFF) +
+            struct.pack(">H", 0xFFFF) +  # rel_seq sentinel
+            resp_body
+        )
+        if getattr(self, "last_inbound_env_seq", None) is not None:
+            datagram = self.wrap_envelope_echo(record, self.last_inbound_env_seq)
+        else:
+            datagram = self.wrap_envelope(record)
+        self.send_app(datagram)
+        self.log.info(
+            f">> V3RegistrationResponse stub session={resp.session_token!r} "
+            f"resp_body_len={len(resp_body)} datagram_len={len(datagram)}"
+        )
+        self.drain_outbound()
+
     def _next_seq(self, channel: int, reliable: bool) -> tuple[int, int]:
         """Allocate (seq, rel_seq) for a new outbound record on `channel`."""
         seq = self.out_msg_seq[channel]
