@@ -226,6 +226,12 @@ class PeerSession:
         # number 80 01 0000"). Strong hypothesis is the server's reply seq
         # should mirror the client's, not walk independently.
         self.last_inbound_env_seq = env.sequence
+        # Track the inbound env_seq range so the piggyback ACK record can
+        # acknowledge the right span (matches demo: "Last To ACK", "First
+        # To ACK"). First-seen seq is the lower bound; latest seq is upper.
+        if not hasattr(self, "_inbound_env_first") or self._inbound_env_first is None:
+            self._inbound_env_first = env.sequence
+        self._inbound_env_last = env.sequence
         self.log.info(
             f"<< env_seq={env.sequence} msgs={len(result.messages)} "
             + " ".join(
@@ -257,55 +263,59 @@ class PeerSession:
         return seq, rel
 
     def send_connect_ack(self) -> None:
-        # GridMate's Carrier.cpp on receiving a valid SM_CONNECT_REQUEST does:
-        #     SendSyncTime();        // ← SM_CLOCK_SYNC first
-        #     SendSystemMessage(SM_CONNECT_ACK, wb, conn, SEND_RELIABLE);
-        # Both messages on channel 3 (system). SM_CONNECT_ACK is RELIABLE.
-        # We batch them in a single Carrier datagram (the wire allows multi-record
-        # datagrams; the client's transmission tick does the same).
+        # 2026-05-04: rewritten to match Mixed Nuts' Wireshark dissector
+        # capture (analysis docs in the repo). Server reply to client's
+        # SM_CONNECT_REQUEST is a SINGLE Carrier datagram with TWO records:
         #
-        # SM_CLOCK_SYNC body: u32 BE millisecond timestamp (per FUN_140f80440
-        # decompile — vcall returns uint, byte-swapped to BE, written as 32 bits).
-        elapsed_ms = (time.monotonic_ns() // 1_000_000 - self.start_ms) & 0xFFFFFFFF
-        sync_body = struct.pack(">I", elapsed_ms) + b"\x04"  # +msgId=SM_CLOCK_SYNC
+        #   1. SM_CONNECT_ACK on channel 3 — flag 0x21 (MF_RELIABLE +
+        #      MF_DATA_CHANNEL), len=5, seq=0, rel_seq=0, payload
+        #      `00 00 00 05 02` (4-byte version echo + msgid 0x02).
+        #
+        #   2. Piggyback SM_CT_ACKS on channel 3 — flag 0x18
+        #      (MF_SEQUENTIAL_ID + MF_SEQUENTIAL_REL_ID; channel inherits),
+        #      len=6, payload `40 [Last_BE_u16] [First_BE_u16] 06` where
+        #      Last/First mark the inbound env_seq range we are acknowledging.
+        #
+        # Neither MF_CONNECTING nor SM_CLOCK_SYNC. (The previous SM_CLOCK_SYNC
+        # we were sending was a guess; the canonical reply is just these two.)
+        # Envelope sequence echoes the client's incoming env_seq.
+        ack_payload = b"\x00\x00\x00\x05\x02"  # 4-byte version echo + msgid
 
-        # SM_CONNECT_ACK body chosen by --ack-variant flag. The msgId (0x02)
-        # goes LAST per the channel-3 system-message convention.
-        if self.ack_payload == b"":  # dynamic mode marker
-            ack_payload = self.last_request_body + b"\x02"
-        else:
-            ack_payload = self.ack_payload
-
-        # 2026-05-04: Mixed Nuts — flag should be 0x20 (MF_DATA_CHANNEL only),
-        # not 0xb0 (which has MF_CONNECTING + MF_SEQUENTIAL_REL_ID set). Drop
-        # connecting=True. The MF_SEQUENTIAL_REL_ID auto-set in marshal_record
-        # was also removed in the same commit so the rel_seq u16 is now
-        # explicitly written even for non-reliable records.
-        sync_seq, sync_rel = self._next_seq(3, reliable=False)  # CLOCK_SYNC: not reliable
-        sync_rec = MessageRecord(
-            channel=3,
-            payload=sync_body,
-            sequence=sync_seq,
-            reliable_sequence=sync_rel,
-            reliable=False,
-            connecting=False,
-            num_chunks=1,
-        )
-        ack_seq, ack_rel = self._next_seq(3, reliable=True)  # CONNECT_ACK: reliable
-        ack_rec = MessageRecord(
+        connect_ack = MessageRecord(
             channel=3,
             payload=ack_payload,
-            sequence=ack_seq,
-            reliable_sequence=ack_rel,
+            sequence=0,
+            reliable_sequence=0,
             reliable=True,
             connecting=False,
             num_chunks=1,
+            flags_override=0x21,  # MF_RELIABLE | MF_DATA_CHANNEL
+        )
+        # Build the inline ACK record, range First..Last of inbound env_seqs.
+        # Inbound seqs we've seen so far: track via _inbound_env_first /
+        # _inbound_env_last. If we haven't seen any (shouldn't happen in
+        # this code path), fall back to (current, current).
+        first = getattr(self, "_inbound_env_first", self.last_inbound_env_seq)
+        last = getattr(self, "_inbound_env_last", self.last_inbound_env_seq)
+        ack_inline_payload = (
+            b"\x40" + struct.pack(">H", last & 0xFFFF) +
+            struct.pack(">H", first & 0xFFFF) + b"\x06"
+        )
+        ack_inline = MessageRecord(
+            channel=3,
+            payload=ack_inline_payload,
+            sequence=1,
+            reliable_sequence=0,
+            reliable=False,
+            connecting=False,
+            num_chunks=1,
+            # 0x18 = MF_SEQUENTIAL_ID | MF_SEQUENTIAL_REL_ID. Forces the
+            # writer to skip both the seq AND rel_seq u16 fields (they'll
+            # be inherited from the previous record on this channel).
+            flags_override=0x18,
         )
 
-        body = marshal_datagram([sync_rec, ack_rec])
-        # 2026-05-04: Echo the client's last inbound envelope seq, per Mixed
-        # Nuts feedback. Falls back to independent counter if we somehow
-        # haven't seen any inbound yet.
+        body = marshal_datagram([connect_ack, ack_inline])
         if getattr(self, "last_inbound_env_seq", None) is not None:
             datagram = self.wrap_envelope_echo(body, self.last_inbound_env_seq)
         else:
@@ -313,8 +323,8 @@ class PeerSession:
         self.send_app(datagram)
         self.connect_ack_count += 1
         self.log.info(
-            f">> SM_CLOCK_SYNC+SM_CONNECT_ACK #{self.connect_ack_count} "
-            f"sync_ms={elapsed_ms} datagram={datagram.hex()}"
+            f">> SM_CONNECT_ACK+ACK #{self.connect_ack_count} "
+            f"first={first} last={last} datagram={datagram.hex()}"
         )
         self.drain_outbound()
 
