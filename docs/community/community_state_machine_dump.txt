@@ -1,0 +1,86 @@
+ === DTLS LAYER ===
+  - DTLS 1.2 server on UDP 24083
+  - Standard 6-flight handshake: ClientHello -> HelloVerifyRequest(cookie) -> ClientHello+cookie -> ServerHello+Cert+SKE+Done -> CKE+CCS+Finished ->
+  ServerCCS+Finished
+
+  === GRIDMATE CARRIER (over DTLS Application Data) ===
+  Datagram framing:
+    [prefix:u16BE] [dgramSeq:u16BE] [message1] [message2?] ...
+  - Prefix: 0x8001 uncompressed, 0x8101 LZ4 body
+  - S->C we use 0x8001 for everything; dgramSeq starts at 2
+
+  Message header flag bits:
+    0x01 MF_RELIABLE          requires ACK; relSeq present
+    0x04 MF_CHUNKS            chunks-countdown u16BE present
+    0x08 MF_SEQUENTIAL_ID     seq implied prev+1
+    0x10 MF_SEQUENTIAL_REL_ID relSeq implied prev+1
+    0x20 MF_DATA_CHANNEL      channel u8 follows
+    0x80 MF_CONNECTING        handshake-phase
+
+  Our SM_CONNECT_ACK (test-39 format; 0x21/relSeq=0 like real server instant-disconnects our path):
+    [0x8001][dgramSeq]
+      MSG1: flags=0xa0 ds=5 ch=3 seq:u16 relSeq=0xffff   payload=[u32BE version][SM_CONNECT_ACK=0x02]
+      MSG2: flags=0x88 ds=6           relSeq=0xffff      payload=[ackPayload]
+
+  Standalone keepalive ACK (ch=3):
+    flags=0x20 ds ch=3 seq relSeq=0  [0x40][lastDgramSeq:u16BE][firstDgramSeq:u16BE][SM_CT_ACKS=0x06]
+
+  Per-channel independent seq + relSeq counters (ch0/ch1/ch3/ch4).
+
+  === NW PROTOCOL WRAPPER (inside ch0/ch1 carrier payloads) ===
+    [PackedSize_LE(innerLen)] [0x00] [0x01] [type:u8] [data...]
+  PackedSize_LE = LE VLQ (0xxxxxxx=1B, 10xxxxxx=2B, ...). 0x00 0x01 marker is constant.
+
+  === CONSTRUCTED CONNECTION SEQUENCE (22 phases) ===
+  Phase  Delay     Message                                                       Size
+  1      +0ms      VERSION (0x03)                                                89B
+  2      +50ms     HEARTBEAT 0x9d                                                13B
+  3      +80ms     INIT 0x8a + 0xbe (grouped, 1 carrier msg)                     154B
+  4      +140ms    WORLD DATA 0x9c (chunked, 12 segments ~1115B each)            12,708B
+  5      +200ms    INIT 0x91(0x19) + small A4 (now bundled into Phase 4 tail)    21B
+  6      +220ms    SESSION A4 large                                              75B (or 195B retail-shape)
+  7      +250ms    HEARTBEAT 0x8f                                                13B
+  8      +280ms    A6 + 0x88 x2 grouped                                          ~120B
+  9      +300ms    0x88 + small A4 grouped                                       ~60B
+  9b     +310ms    SelfIdentification 0x91(0x17)                                 4B
+  10     +320ms    0x88 x20 in ONE carrier datagram                              ~840B
+  11     +400ms    SESSION AA (0xaa)                                             29B
+  11a    +420ms    A4 + WORLD SPAWN A3 + HB 0x8f grouped (after AA, retail dseq=26) ~130B
+  11b    +460ms    CH1 burst, 47 units, paced 3/batch with 300ms gaps            285,163B
+  12     +1500ms   SESSION AE (trail=0x02)                                       22B
+  13     +3000ms   SESSION AE (trail=0x00)                                       22B
+  14     +450ms    ENTITY DEFS 0x95 + 0x9d-large + small 0xa0                    ~2.5KB
+  15     +800ms    GAME DATA 0xb3 + VIVOX URL 0xa7                               ~3KB
+  16     +1200ms   SPAWN 0x96 + 0x97                                             ~160B
+  17     +1400ms   continuous 0x08 entity-state stream (~30/s)                   varies
+  18     +2000ms   Player data 0xa0 burst #1 (paced, 210 segments)               233,568B
+  19     +800ms    Player data 0xa0 burst #2 (paced, 154 segments)               171,117B
+  20     +7000ms   Entity 0xac chunked                                           2,635B
+  21     continuous Heartbeats 0x8f/0x9d alternating @ 500ms                     13B
+  22     +10s      Continuous ch0 loop 0x94/0xa5/0xac/0x9a                       varies
+
+  === KEY WIRE-FORMAT GOTCHAS WE HIT ===
+  - NO "post-connect extra byte" in carrier messages. Adding any byte after [ch:u8] shifts NW payload by 1 -> "server data error" disconnect.
+  - flags=0x88 (MF_CONNECTING|MF_SEQUENTIAL_ID) does NOT set MF_SEQUENTIAL_REL_ID, so relSeq MUST be written. Missing -> BAD_PACKETS.
+  - Real-server SM_CONNECT_ACK shape (0x21/relSeq=0) instant-disconnects on our path; only the test-39 form above (0xa0/relSeq=0xffff) works.
+  - 0xa3 WorldSpawn map path must be exact "coatlicue/NewWorld_VitaeEterna"; truncation -> infinite loading circle.
+  - 0x8001 prefix is safe S->C (real server uses 0x8101 LZ4 for ~59%, but uncompressed works fine).
+  - CH1 unit[0] (~47KB init burst) is mandatory -- without it client freezes at loading circle. NW_HYBRID_INIT bisection: 67 -> loading, 68 -> black screen
+  (game world).
+
+  === C->S AFTER HANDSHAKE ===
+  LZ4-compressed 0x8101 datagrams:
+    [crc32:4B][size:4B][session:8B][peer:8B][0x0001:2B][type:1B][data...]
+    Inner: [prefix:1B][entity_hash:8B][session_id:8B][...]
+
+  Server echoes entity_hash + session_id in template responses (14 type mappings).
+  Fire-and-forget C->S types: 0x82 0x83 0x9a 0x9d 0x94 0xa6 0xb0 0xb4 0xb9 0xbd 0xbf
+
+  === POST-HANDSHAKE GATE WE HIT (similar to your BRANCH-A stall) ===
+  On our path the equivalent is GCW state 13 (WaitingForPlayerSpawn). Gate is:
+    SelfIdentification 0x91(0x17) -> handler sub_1464537E0 -> StackConfig
+    "javelin.NWLDebug-virtual-slice-mode" -> CreateVirtualSlicesFromStream (sub_1416A14E0)
+
+  isMasterPlayer=0 from dispatch context sub_145A85940 case 0 blocks the spawn.
+  We bypass it with a DLL patch that forces isMasterPlayer=1 + a predicate-vtable patch
+  on the bundle handler at 0x1717fc0. That gets us past state 13 and into real movement.
