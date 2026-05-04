@@ -110,7 +110,8 @@ class PeerSession:
     """Per-peer DTLS+Javelin state."""
 
     def __init__(self, ctx: SSL.Context, peer: tuple, sock: socket.socket,
-                 log: logging.Logger, ack_payload: bytes, ack_form: str = "mn"):
+                 log: logging.Logger, ack_payload: bytes, ack_form: str = "mn",
+                 v3_resp_flag: int = 0x21, v3_resp_channel=None):
         self.peer = peer
         self.sock = sock
         self.log = log
@@ -119,6 +120,10 @@ class PeerSession:
         # real-server form). "alt" = community dump's form (flag 0xa0,
         # rel_seq=0xFFFF). See project_22_phase_post_registration.md.
         self.ack_form = ack_form
+        # V3 RegistrationResponse wrap parameters. Settable via CLI for
+        # rapid iteration without code changes.
+        self.v3_resp_flag = v3_resp_flag
+        self.v3_resp_channel = v3_resp_channel
         self.handshake_done = False
         self.out_seq = 0  # outbound Carrier-envelope sequence number
         # Per-channel outbound sequence + reliable-sequence counters. GridMate
@@ -314,25 +319,39 @@ class PeerSession:
         resp = V3RegistrationResponse(session_token=make_session_token())
         resp_body = encode(resp)
 
-        # 2026-05-04 round 2: previous attempt with flag 0x21 was acked at the
-        # Carrier layer but the client kept retrying V3 (15 retries, then
-        # timeout SM_DISCONNECT reason=0x00). Reason wasn't BAD_PACKETS, so
-        # the wire wasn't malformed, but the client didn't recognize the
-        # response as valid for this message family. Mirror the client's
-        # request shape: flag 0xe0 (MF_CONNECTING | MF_NO_LENGTH |
-        # MF_DATA_CHANNEL), 3-byte zero sub-header, channel 3, our seq, no
-        # rel_seq field (since MF_NO_LENGTH means length is implicit).
+        # 2026-05-04 round 3: response wrap iteration via --v3-resp-flag /
+        # --v3-resp-channel CLI flags. Empirical results so far:
+        #   - flag 0x21 + ch=3 + length-field: 15 retries -> TIMEOUT (0x00)
+        #   - flag 0xe0 + ch=3 + no-length:    immediate BAD_PACKETS (0x02)
+        # Flag 0x21 is the default (less bad). Untried options to iterate
+        # via CLI: 0x60 (MF_NO_LENGTH alone, no CONNECTING), 0xa0
+        # (CONNECTING + DATA_CHANNEL with length field), channel 0/1/2.
         out_seq = getattr(self, "_v3_response_seq", 0)
         self._v3_response_seq = (out_seq + 1) & 0xFFFF
-        flags = 0xe0  # MF_CONNECTING | MF_NO_LENGTH | MF_DATA_CHANNEL
-        record = (
-            bytes([flags]) +
-            b"\x00\x00\x00" +                   # 3-byte opaque sub-header
-            bytes([m.channel & 0xFF]) +
-            struct.pack(">H", out_seq & 0xFFFF) +
-            struct.pack(">H", 0xFFFF) +         # rel_seq sentinel like client
-            resp_body
-        )
+        flags = self.v3_resp_flag
+        ch = self.v3_resp_channel if self.v3_resp_channel is not None else m.channel
+        no_length = bool(flags & 0x40)
+        if no_length:
+            # MF_NO_LENGTH form: 3-byte opaque sub-header (zeros), no length
+            # u16, payload extends to end of datagram.
+            record = (
+                bytes([flags]) +
+                b"\x00\x00\x00" +
+                bytes([ch & 0xFF]) +
+                struct.pack(">H", out_seq & 0xFFFF) +
+                struct.pack(">H", 0xFFFF) +     # rel_seq sentinel like client
+                resp_body
+            )
+        else:
+            # Standard form: u16 length right after flag.
+            record = (
+                bytes([flags]) +
+                struct.pack(">H", len(resp_body)) +
+                bytes([ch & 0xFF]) +
+                struct.pack(">H", out_seq & 0xFFFF) +
+                struct.pack(">H", 0) +          # rel_seq starts at 0 for reliable
+                resp_body
+            )
         if getattr(self, "last_inbound_env_seq", None) is not None:
             datagram = self.wrap_envelope_echo(record, self.last_inbound_env_seq)
         else:
@@ -445,6 +464,15 @@ def main() -> int:
                          "community fallback (flag 0xa0, rel_seq=0xFFFF). "
                          "Try 'mn' first; fall back to 'alt' if the client "
                          "instant-disconnects after Connect ACK.")
+    ap.add_argument("--v3-resp-flag", default="0x21",
+                    help="V3 RegistrationResponse Carrier record flag (hex). "
+                         "0x21=MF_RELIABLE|MF_DATA_CHANNEL (length field). "
+                         "0x60=MF_NO_LENGTH|MF_DATA_CHANNEL. "
+                         "0xa0=MF_CONNECTING|MF_DATA_CHANNEL. "
+                         "0xe0=MF_CONNECTING|MF_NO_LENGTH|MF_DATA_CHANNEL.")
+    ap.add_argument("--v3-resp-channel", type=int, default=None,
+                    help="Carrier channel for V3 response (0-3). Default: "
+                         "mirror request's channel (typically 3).")
     args = ap.parse_args()
     ack_payload = ACK_VARIANTS[args.ack_variant]
 
@@ -475,6 +503,7 @@ def main() -> int:
     log.info(f"cert: {CERT_PATH}")
     log.info(f"ack variant: {args.ack_variant} payload={ack_payload.hex()}")
     log.info(f"ack form: {args.ack_form} (mn=0x21/rel_seq=0, alt=0xa0/rel_seq=0xFFFF)")
+    log.info(f"V3 response wrap: flag={args.v3_resp_flag} channel={args.v3_resp_channel or 'mirror-request'}")
 
     sessions: dict[tuple, PeerSession] = {}
 
@@ -494,7 +523,10 @@ def main() -> int:
             sess = sessions.get(peer)
             if sess is None:
                 log.info(f"new peer {peer}")
-                sess = PeerSession(ctx, peer, sock, log, ack_payload, ack_form=args.ack_form)
+                sess = PeerSession(ctx, peer, sock, log, ack_payload,
+                                   ack_form=args.ack_form,
+                                   v3_resp_flag=int(args.v3_resp_flag, 16),
+                                   v3_resp_channel=args.v3_resp_channel)
                 sessions[peer] = sess
 
             sess.feed(data)
