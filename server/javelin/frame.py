@@ -169,16 +169,20 @@ def parse_datagram(data: bytes, *, start_bit: int = 0) -> ParseResult:
     while stream.remaining() > 0:
         try:
             flags = stream.read_u8()
-            # 2026-05-04: when MF_NO_LENGTH is set the 2-byte field at
-            # bytes 1-2 is OPAQUE (not the message length) AND there is one
-            # additional opaque byte at position 3 before the ChannelID.
-            # The payload then extends to the end of the datagram. Per
-            # analysis/v3_request/HEADER_DECODE.md the layout becomes:
+            # 2026-05-04: MF_NO_LENGTH (0x40) records use a different layout:
             #   [flags][3-byte sub-header][channel][seq][rel_seq][payload..end]
-            # Sub-header semantics still unknown.
+            # When the 0x10 bit is ALSO set (first-attempt connect form, flag
+            # 0xf0), the sub-header is 4 bytes and there is an extra 5-byte
+            # CONNECT-INIT blob between rel_seq and the payload. Per
+            # analysis/v3_request/HEADER_DECODE.md.
             size = stream.read_u16_be()
             no_length = bool(flags & MessageFlags.MF_NO_LENGTH)
-            sub_header_extra = stream.read_u8() if no_length else None
+            first_attempt = no_length and bool(flags & MessageFlags.MF_SEQUENTIAL_REL_ID)
+            if no_length:
+                # 3-byte sub-header normally, 4-byte for first-attempt form.
+                stream.read_u8()
+                if first_attempt:
+                    stream.read_u8()
 
             reliable = bool(flags & MessageFlags.MF_RELIABLE)
             connecting = bool(flags & MessageFlags.MF_CONNECTING)
