@@ -2656,3 +2656,69 @@ Both flags reverted to false → back to MODE_GATEWAY baseline. Next session sho
 - `server/auth_mock.py` is now dual-stack v4/v6 (binds `[::]` with `IPV6_V6ONLY=0`). Required because the stubbed gateway used AF_INET6 sockets and our hosts file now resolves to both 127.0.0.1 and ::1.
 - `tools/setup_hosts.py` adds both v4 and v6 entries for every redirect host (default `--target=127.0.0.1`, additional `::1` block appended).
 - `server/stub_tcp_probe.py` — small dual-stack TCP listener on port 5999 for capturing whatever the stub gateway sends. Stub never actually connected to 5999 in practice (it uses HTTPS:443), so the probe is unused; kept for future diagnostics.
+
+
+## 2026-05-04 — REP_state10_dispatcher decoded; the captured `00 00 00 05 01` is a SystemMessage, not a registration request
+
+### How we got here
+
+Installed `akiselev/ghidra-cli` (Rust CLI bridge to Ghidra headless). Two patches applied to make it work with our Ghidra 11.3 install — see memory `feedback_ghidra_cli_setup.md`. Used it to **define-as-function** the gap entry at `0x146b6e190` (which Ghidra MCP could not see because it is only reached via vtable dispatch + tail-call thunk), then decompiled.
+
+### What `REP_state10_dispatcher` actually does
+
+```c
+void REP_state10_dispatcher(wrapper) {
+  if (gateway[0x160] == 0) {
+    // BRANCH A — small SystemMessage, msgcode chosen by gateway[0x164]
+    msgcode = (gateway[0x164]==1) ? 6
+            : (gateway[0x164]==2) ? 7
+            : (gateway[0x164]==3) ? 0xe
+            :                       5;   // <-- DEFAULT FALLBACK
+    FUN_146b6c500(wrapper, msgcode, 0, &emptyStr);
+  } else {
+    // BRANCH B — RegistrationRequest (V2 or V3)
+    if (DAT_149f80d34==0 || stubbed_or_dummy()) {
+      // Logs "Client connection using V2 registration message type"
+      FUN_146b66a60(buf, ..., wrapper+0x27, +0x39, +0x3d, +0xa2, +0xb2);
+    } else {
+      // Logs "Client connection using authtoken V3 registration message type"
+      FUN_146b67c70(wrapper+0xed, &cb);   // attach callback
+      FUN_146b66820(buf, ..., wrapper+0x27, +0x39, +0x3d, +0x7e, +0xa2, +0xb2);
+    }
+    enqueue via wrapper.vtable[0x30];
+    wrapper[0x600] = 0;   // clear send-pending
+  }
+}
+```
+
+### Three findings that change earlier conclusions
+
+1. **The captured `00 00 00 05 01` body is BRANCH A, not a registration request.** The `5` is `msgcode 5` — the default fallback when `gateway[0x164]` is not 1/2/3. The trailing `01` is a 1-byte field appended by `FUN_146b6c500`’s enqueue path, not a `msgId`. **This invalidates the "magic value 5 = length prefix" hypothesis** in `project_gridmate_carrier_breakthrough.md`.
+
+2. **Registration is gated on `gateway[0x160] != 0`.** While this byte stays 0, the dispatcher only ever sends BRANCH A SystemMessages. That explains why every RegistrationRequest builder we hooked over the past ten days was silent — they were never being called.
+
+3. **`DAT_149f80d34` is the V2/V3 selector global** in normal mode. We did not previously know what chose between V2 and V3 registration.
+
+### Newly-named symbols (saved into the Ghidra project)
+
+| Address | Old | New | Purpose |
+|---|---|---|---|
+| `0x146b6e190` | (unanalyzed) | `REP_state10_dispatcher` | The gap function that gates state-10. Branches on `gateway[0x160]`. |
+| `0x146b66820` | `FUN_146b66820` | (unrenamed) | RegistrationRequestV3Msg constructor — 0x470 bytes. |
+| `0x146b66a60` | `FUN_146b66a60` | (unrenamed) | RegistrationRequestMsg (V2) constructor — 0x360 bytes. |
+| `0x146b6c500` | `FUN_146b6c500` | (unrenamed) | SystemMessage sender — SRW-locked queue append at `wrapper[0xc4]`. Wraps `FUN_146b69e80` for serialization. |
+
+Decompilations saved to `analysis/decomp_v3_builder.txt`, `decomp_v2_builder.txt`, `decomp_branchA_sender.txt`.
+
+### Next move
+
+Primary lead: **find what writes `gateway[0x160]`**. While that byte stays 0, registration never fires. Two angles:
+- Static: search xrefs to `gateway+0x160` writes in Ghidra. Should be a small number of write sites; one of them is the "DTLS-handshake-success" path.
+- Dynamic: hook the wrapper init in Frida and watch `gateway+0x160` byte writes during connect attempts.
+
+Secondary lead: decompile `FUN_146b69e80` and `FUN_146b687e0` (called by `FUN_146b6c500`) to recover the SystemMessage wire format for codes 5/6/7/14 and confirm the `00 00 00 05 01` reading.
+
+### Tooling shipped this session
+
+- `ghidra-cli` (third-party) installed and patched at `C:\Tools\ghidra-cli`. Two patches: scripts_dir relocation (Bnd hidden-dir filter on `%APPDATA%`) and `handleCreateFunction` flow-analysis fallback. Daily-use commands documented in memory `feedback_ghidra_cli_setup.md`.
+- Three decompile dumps under `analysis/decomp_*.txt`.
