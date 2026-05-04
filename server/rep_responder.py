@@ -110,11 +110,15 @@ class PeerSession:
     """Per-peer DTLS+Javelin state."""
 
     def __init__(self, ctx: SSL.Context, peer: tuple, sock: socket.socket,
-                 log: logging.Logger, ack_payload: bytes):
+                 log: logging.Logger, ack_payload: bytes, ack_form: str = "mn"):
         self.peer = peer
         self.sock = sock
         self.log = log
         self.ack_payload = ack_payload
+        # Connect-ACK form selector. "mn" = Mixed Nuts (flag 0x21, rel_seq=0,
+        # real-server form). "alt" = community dump's form (flag 0xa0,
+        # rel_seq=0xFFFF). See project_22_phase_post_registration.md.
+        self.ack_form = ack_form
         self.handshake_done = False
         self.out_seq = 0  # outbound Carrier-envelope sequence number
         # Per-channel outbound sequence + reliable-sequence counters. GridMate
@@ -260,6 +264,7 @@ class PeerSession:
     def _handle_v3_data_record(self, m) -> None:
         """Log + reply to an inbound V3 RegistrationRequest record."""
         from javelin.v3_response import V3RegistrationResponse, encode
+        from javelin.v3_request import parse_v3_request
         # Save a copy to disk so we can RE without needing another live run
         self.v3_request_count = getattr(self, "v3_request_count", 0) + 1
         try:
@@ -275,6 +280,21 @@ class PeerSession:
             f"ch={m.channel} flags=0x{m.flags:02x} seq={m.sequence} "
             f"rel_seq={m.reliable_sequence} payload_len={len(m.payload)}"
         )
+        # Decode and log the visible fields so we can compare against
+        # what the game sends each retry. Only log on the first retry
+        # to keep noise down.
+        if self.v3_request_count == 1:
+            try:
+                req = parse_v3_request(m.payload)
+                # Print just the readable string fields (skip large bytes blobs)
+                summary = {
+                    f.name: getattr(req, f.name)
+                    for f in req.__dataclass_fields__.values()
+                    if isinstance(getattr(req, f.name), str)
+                }
+                self.log.info(f"   V3 fields: {summary}")
+            except Exception as e:
+                self.log.warning(f"   V3 decode failed: {e!r}")
 
         # Don't spam — only respond to the first one (later retries should
         # stop once the client accepts our reply, but in case it doesn't,
@@ -332,34 +352,42 @@ class PeerSession:
         return seq, rel
 
     def send_connect_ack(self) -> None:
-        # 2026-05-04: rewritten to match Mixed Nuts' Wireshark dissector
-        # capture (analysis docs in the repo). Server reply to client's
-        # SM_CONNECT_REQUEST is a SINGLE Carrier datagram with TWO records:
-        #
-        #   1. SM_CONNECT_ACK on channel 3 — flag 0x21 (MF_RELIABLE +
-        #      MF_DATA_CHANNEL), len=5, seq=0, rel_seq=0, payload
-        #      `00 00 00 05 02` (4-byte version echo + msgid 0x02).
-        #
-        #   2. Piggyback SM_CT_ACKS on channel 3 — flag 0x18
-        #      (MF_SEQUENTIAL_ID + MF_SEQUENTIAL_REL_ID; channel inherits),
-        #      len=6, payload `40 [Last_BE_u16] [First_BE_u16] 06` where
-        #      Last/First mark the inbound env_seq range we are acknowledging.
-        #
-        # Neither MF_CONNECTING nor SM_CLOCK_SYNC. (The previous SM_CLOCK_SYNC
-        # we were sending was a guess; the canonical reply is just these two.)
-        # Envelope sequence echoes the client's incoming env_seq.
+        # 2026-05-04: two known-working forms for the Connect ACK record:
+        #   - "mn" (Mixed Nuts): flag 0x21 (MF_RELIABLE | MF_DATA_CHANNEL),
+        #     seq=0, rel_seq=0. Real-server form. Confirmed byte-identical to
+        #     Mixed Nuts' Wireshark dissector capture.
+        #   - "alt" (community dump): flag 0xa0 (MF_CONNECTING | MF_DATA_CHANNEL),
+        #     seq=current, rel_seq=0xFFFF. Other reverser explicitly says the
+        #     0x21/0 form instant-disconnects on their path.
+        # Both forms ship the SAME piggyback ACK record (flag 0x18) afterwards.
+        # Selectable via --ack-form CLI flag.
         ack_payload = b"\x00\x00\x00\x05\x02"  # 4-byte version echo + msgid
 
-        connect_ack = MessageRecord(
-            channel=3,
-            payload=ack_payload,
-            sequence=0,
-            reliable_sequence=0,
-            reliable=True,
-            connecting=False,
-            num_chunks=1,
-            flags_override=0x21,  # MF_RELIABLE | MF_DATA_CHANNEL
-        )
+        if self.ack_form == "alt":
+            # Other reverser's form
+            connect_ack = MessageRecord(
+                channel=3,
+                payload=ack_payload,
+                sequence=self.out_msg_seq[3],
+                reliable_sequence=0xFFFF,
+                reliable=False,
+                connecting=True,
+                num_chunks=1,
+                flags_override=0xa0,  # MF_CONNECTING | MF_DATA_CHANNEL
+            )
+            self.out_msg_seq[3] = (self.out_msg_seq[3] + 1) & 0xFFFF
+        else:
+            # Mixed Nuts' form (default)
+            connect_ack = MessageRecord(
+                channel=3,
+                payload=ack_payload,
+                sequence=0,
+                reliable_sequence=0,
+                reliable=True,
+                connecting=False,
+                num_chunks=1,
+                flags_override=0x21,  # MF_RELIABLE | MF_DATA_CHANNEL
+            )
         # Build the inline ACK record, range First..Last of inbound env_seqs.
         # Inbound seqs we've seen so far: track via _inbound_env_first /
         # _inbound_env_last. If we haven't seen any (shouldn't happen in
@@ -404,7 +432,13 @@ def main() -> int:
     ap.add_argument("--bind-port", type=int, default=DEFAULT_BIND[1])
     ap.add_argument("--verbose", "-v", action="count", default=0)
     ap.add_argument("--ack-variant", default="mirror", choices=sorted(ACK_VARIANTS),
-                    help="which SM_CONNECT_ACK payload to send")
+                    help="which SM_CONNECT_ACK payload to send (legacy)")
+    ap.add_argument("--ack-form", default="mn", choices=("mn", "alt"),
+                    help="Connect ACK record form. 'mn' = Mixed Nuts shape "
+                         "(flag 0x21, rel_seq=0, real-server form). 'alt' = "
+                         "community fallback (flag 0xa0, rel_seq=0xFFFF). "
+                         "Try 'mn' first; fall back to 'alt' if the client "
+                         "instant-disconnects after Connect ACK.")
     args = ap.parse_args()
     ack_payload = ACK_VARIANTS[args.ack_variant]
 
@@ -434,6 +468,7 @@ def main() -> int:
     log.info(f"listening DTLS 1.2 on udp/{args.bind_host}:{args.bind_port}")
     log.info(f"cert: {CERT_PATH}")
     log.info(f"ack variant: {args.ack_variant} payload={ack_payload.hex()}")
+    log.info(f"ack form: {args.ack_form} (mn=0x21/rel_seq=0, alt=0xa0/rel_seq=0xFFFF)")
 
     sessions: dict[tuple, PeerSession] = {}
 
@@ -453,7 +488,7 @@ def main() -> int:
             sess = sessions.get(peer)
             if sess is None:
                 log.info(f"new peer {peer}")
-                sess = PeerSession(ctx, peer, sock, log, ack_payload)
+                sess = PeerSession(ctx, peer, sock, log, ack_payload, ack_form=args.ack_form)
                 sessions[peer] = sess
 
             sess.feed(data)
