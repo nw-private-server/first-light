@@ -1,0 +1,181 @@
+177 of 18033 captures match
+
+seq       kind  src  type                           size  metadata                            filename
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+0x0       msg   W    0x13    (RegistrationRequestV3Msg)   2750                                      0x0_T0x13_W.bin
+0x1       msg   R    0x3     (RegistrationResponseMsg)     88                                      0x1_T0x3_R.bin
+0x2       msg   R    0x15d   (PingMsg)                12                                      0x2_T0x15d_R.bin
+0x3       msg   W    0x15d   (PingMsg)                36                                      0x3_T0x15d_W.bin
+0x4       msg   R    0x40a                            76                                      0x4_T0x40a_R.bin
+0x5       msg   R    0x1be                            76                                      0x5_T0x1be_R.bin
+0x6       msg   R    0x65c                         12706                                      0x6_T0x65c_R.bin
+0x7       msg   R    0x651                             4                                      0x7_T0x651_R.bin
+0x8       msg   R    0xa4    (ClientAddEntryMsg)      20                                      0x8_T0xa4_R.bin
+0x9       msg   R    0xca4                           102                                      0x9_T0xca4_R.bin
+0xa       msg   R    0x14f   (TimeSynchMsg)           12                                      0xa_T0x14f_R.bin
+0xb       msg   R    0x18a6                           40                                      0xb_T0x18a6_R.bin
+0xc       msg   R    0x1b88                           42                                      0xc_T0x1b88_R.bin
+0xd       msg   R    0x1b88                           42                                      0xd_T0x1b88_R.bin
+0xe       msg   R    0x1b88                           42                                      0xe_T0x1b88_R.bin
+0xf       msg   R    0xa4    (ClientAddEntryMsg)      20                                      0xf_T0xa4_R.bin
+0x10      msg   R    0x663                           110                                      0x10_T0x663_R.bin
+0x11      msg   R    0x1b88                           42                                      0x11_T0x1b88_R.bin
+0x12      msg   R    0x1b88                           42                                      0x12_T0x1b88_R.bin
+0x13      msg   R    0x1b88                           42                                      0x13_T0x1b88_R.bin
+0x14      msg   R    0x1b88                           42                                      0x14_T0x1b88_R.bin
+0x15      msg   R    0x1b88                           42                                      0x15_T0x1b88_R.bin
+0x16      msg   R    0x1b88                           42                                      0x16_T0x1b88_R.bin
+0x17      msg   R    0x1b88                           42                                      0x17_T0x1b88_R.bin
+0x18      msg   R    0x1b88                           42                                      0x18_T0x1b88_R.bin
+0x19      msg   R    0x1b88                           42                                      0x19_T0x1b88_R.bin
+0x1a      msg   R    0x1b88                           42                                      0x1a_T0x1b88_R.bin
+0x1b      msg   R    0x1b88                           42                                      0x1b_T0x1b88_R.bin
+0x1c      msg   R    0x1b88                           42                                      0x1c_T0x1b88_R.bin
+0x1d      msg   R    0x1b88                           42                                      0x1d_T0x1b88_R.bin
+0x1e      msg   R    0x1b88                           42                                      0x1e_T0x1b88_R.bin
+0x1f      msg   R    0x1b88                           42                                      0x1f_T0x1b88_R.bin
+0x20      msg   R    0x1b88                           42                                      0x20_T0x1b88_R.bin
+0x21      msg   R    0x1b88                           42                                      0x21_T0x1b88_R.bin
+0x22      msg   R    0x1b88                           42                                      0x22_T0x1b88_R.bin
+0x23      msg   R    0x1b88                           42                                      0x23_T0x1b88_R.bin
+0x24      msg   R    0x1b88                           42                                      0x24_T0x1b88_R.bin
+0x25      msg   R    0x8                           46423                                      0x25_T0x8_R.bin
+0x26      msg   R    0x136a                           28                                      0x26_T0x136a_R.bin
+0x27      msg   R    0x14f   (TimeSynchMsg)           12                                      0x27_T0x14f_R.bin
+0x28      msg   R    0x16a0                          153                                      0x28_T0x16a0_R.bin
+0x29      msg   R    0x16a0                        99819                                      0x29_T0x16a0_R.bin
+0x2a      msg   R    0x8                           46407                                      0x2a_T0x8_R.bin
+0x2b      msg   R    0x8                           46407                                      0x2b_T0x8_R.bin
+0x2c      msg   R    0x15d   (PingMsg)                12                                      0x2c_T0x15d_R.bin
+0x2d      msg   W    0x15d   (PingMsg)                36                                      0x2d_T0x15d_W.bin
+0x2e      msg   R    0x8                           46407                                      0x2e_T0x8_R.bin
+0x2f      msg   R    0x8                           46407                                      0x2f_T0x8_R.bin
+0x30      msg   R    0x8                           46407                                      0x30_T0x8_R.bin
+0x31      msg   R    0x15d   (PingMsg)                12                                      0x31_T0x15d_R.bin
+0x32      msg   W    0x15d   (PingMsg)                36                                      0x32_T0x15d_W.bin
+0x33      msg   R    0x8                           46407                                      0x33_T0x8_R.bin
+0x34      msg   R    0x8                           46407                                      0x34_T0x8_R.bin
+0x35      msg   R    0x8                           46407                                      0x35_T0x8_R.bin
+0x36      msg   R    0x15d   (PingMsg)                12                                      0x36_T0x15d_R.bin
+0x37      msg   W    0x15d   (PingMsg)                36                                      0x37_T0x15d_W.bin
+0x38      msg   R    0x18a6                           40                                      0x38_T0x18a6_R.bin
+0x39      msg   W    0x1098                           44                                      0x39_T0x1098_W.bin
+0x3a      msg   W    0x9d3                            48                                      0x3a_T0x9d3_W.bin
+0x3b      msg   W    0x9fc                           102                                      0x3b_T0x9fc_W.bin
+0x3c      msg   R    0x14f   (TimeSynchMsg)           12                                      0x3c_T0x14f_R.bin
+0x3d      msg   W    0xa95                            81                                      0x3d_T0xa95_W.bin
+0x3e      msg   W    0x10b0                           45                                      0x3e_T0x10b0_W.bin
+0x3f      msg   W    0x101a                           45                                      0x3f_T0x101a_W.bin
+0x40      msg   W    0x187c                           45                                      0x40_T0x187c_W.bin
+0x41      msg   W    0x187f                           45                                      0x41_T0x187f_W.bin
+0x42      msg   R    0x8                           46407                                      0x42_T0x8_R.bin
+0x43      msg   R    0x8e6                            42                                      0x43_T0x8e6_R.bin
+0x44      msg   R    0x8                           46407                                      0x44_T0x8_R.bin
+0x45      msg   R    0x15d   (PingMsg)                12                                      0x45_T0x15d_R.bin
+0x46      msg   W    0x15d   (PingMsg)                36                                      0x46_T0x15d_W.bin
+0x47      msg   R    0x8                           46407                                      0x47_T0x8_R.bin
+0x48      msg   R    0x8                           46407                                      0x48_T0x8_R.bin
+0x49      msg   R    0x8                           46407                                      0x49_T0x8_R.bin
+0x4a      msg   R    0x15d   (PingMsg)                12                                      0x4a_T0x15d_R.bin
+0x4b      msg   W    0x15d   (PingMsg)                36                                      0x4b_T0x15d_W.bin
+0x4c      msg   R    0x8                           46407                                      0x4c_T0x8_R.bin
+0x4d      msg   R    0x663                           110                                      0x4d_T0x663_R.bin
+0x4e      msg   R    0x8                           46407                                      0x4e_T0x8_R.bin
+0x4f      msg   R    0x8                           46407                                      0x4f_T0x8_R.bin
+0x50      msg   R    0x15d   (PingMsg)                12                                      0x50_T0x15d_R.bin
+0x51      msg   W    0x15d   (PingMsg)                36                                      0x51_T0x15d_W.bin
+0x52      msg   R    0x8                           46407                                      0x52_T0x8_R.bin
+0x53      msg   R    0x18a6                           40                                      0x53_T0x18a6_R.bin
+0x54      msg   R    0x14f   (TimeSynchMsg)           12                                      0x54_T0x14f_R.bin
+0x55      msg   R    0x8                           46407                                      0x55_T0x8_R.bin
+0x56      msg   R    0x8                           46407                                      0x56_T0x8_R.bin
+0x57      msg   R    0x15d   (PingMsg)                12                                      0x57_T0x15d_R.bin
+0x58      msg   W    0x15d   (PingMsg)                36                                      0x58_T0x15d_W.bin
+0x59      msg   R    0x8                           46407                                      0x59_T0x8_R.bin
+0x5a      msg   R    0x8                           46407                                      0x5a_T0x8_R.bin
+0x5b      msg   R    0x8                           46407                                      0x5b_T0x8_R.bin
+0x5c      msg   R    0x15d   (PingMsg)                12                                      0x5c_T0x15d_R.bin
+0x5d      msg   W    0x15d   (PingMsg)                36                                      0x5d_T0x15d_W.bin
+0x5e      msg   W    0x102e                           46                                      0x5e_T0x102e_W.bin
+0x5f      msg   W    0x102f                           44                                      0x5f_T0x102f_W.bin
+0x60      msg   W    0x192c                           54                                      0x60_T0x192c_W.bin
+0x61      msg   W    0x101d                           45                                      0x61_T0x101d_W.bin
+0x62      msg   R    0x1033                          498                                      0x62_T0x1033_R.bin
+0x63      msg   W    0xf7f                            45                                      0x63_T0xf7f_W.bin
+0x64      msg   W    0x66b                            44                                      0x64_T0x66b_W.bin
+0x65      msg   R    0x1067                           86                                      0x65_T0x1067_R.bin
+0x66      msg   R    0x8                           46407                                      0x66_T0x8_R.bin
+0x67      msg   W    0x143d                           45                                      0x67_T0x143d_W.bin
+0x68      msg   R    0x18a6                           40                                      0x68_T0x18a6_R.bin
+0x69      msg   W    0x1a59                           45                                      0x69_T0x1a59_W.bin
+0x6a      msg   W    0x1a59                           45                                      0x6a_T0x1a59_W.bin
+0x6b      msg   W    0x12f6                          299                                      0x6b_T0x12f6_W.bin
+0x6c      msg   R    0x8                           46407                                      0x6c_T0x8_R.bin
+0x6d      msg   W    0x1a59                           45                                      0x6d_T0x1a59_W.bin
+0x6e      msg   W    0x635                            93                                      0x6e_T0x635_W.bin
+0x6f      msg   W    0x635                           108                                      0x6f_T0x635_W.bin
+0x70      msg   W    0x635                           123                                      0x70_T0x635_W.bin
+0x71      msg   W    0x635                           138                                      0x71_T0x635_W.bin
+0x72      msg   W    0x635                           153                                      0x72_T0x635_W.bin
+0x73      msg   R    0x8                            7166                                      0x73_T0x8_R.bin
+0x74      msg   R    0x8                             989                                      0x74_T0x8_R.bin
+0x75      msg   R    0x1096                           80                                      0x75_T0x1096_R.bin
+0x76      msg   R    0x1097                           24                                      0x76_T0x1097_R.bin
+0x77      msg   R    0x8                            1003                                      0x77_T0x8_R.bin
+0x78      msg   R    0x8                             988                                      0x78_T0x8_R.bin
+0x79      msg   R    0x8                            1010                                      0x79_T0x8_R.bin
+0x7a      msg   R    0x8                             427                                      0x7a_T0x8_R.bin
+0x7b      msg   R    0x8                            1013                                      0x7b_T0x8_R.bin
+0x7c      msg   R    0x8                            1314                                      0x7c_T0x8_R.bin
+0x7d      msg   R    0x8                            1800                                      0x7d_T0x8_R.bin
+0x7e      msg   R    0x8                            1591                                      0x7e_T0x8_R.bin
+0x7f      msg   R    0x8                             992                                      0x7f_T0x8_R.bin
+0x80      msg   R    0x8                             979                                      0x80_T0x8_R.bin
+0x81      msg   R    0x8                             992                                      0x81_T0x8_R.bin
+0x82      msg   R    0x8                             985                                      0x82_T0x8_R.bin
+0x83      msg   R    0x8                             730                                      0x83_T0x8_R.bin
+0x84      msg   R    0x8                             774                                      0x84_T0x8_R.bin
+0x85      msg   R    0x8                            1591                                      0x85_T0x8_R.bin
+0x86      msg   R    0x8                             706                                      0x86_T0x8_R.bin
+0x87      msg   R    0x8                             830                                      0x87_T0x8_R.bin
+0x88      msg   R    0x8                            3111                                      0x88_T0x8_R.bin
+0x89      msg   R    0x8                             356                                      0x89_T0x8_R.bin
+0x8a      msg   R    0x8                             678                                      0x8a_T0x8_R.bin
+0x8b      msg   R    0x8                             916                                      0x8b_T0x8_R.bin
+0x8c      msg   R    0x8                             728                                      0x8c_T0x8_R.bin
+0x8d      msg   R    0x8                            2713                                      0x8d_T0x8_R.bin
+0x8e      msg   R    0x15d   (PingMsg)                12                                      0x8e_T0x15d_R.bin
+0x8f      msg   W    0x15d   (PingMsg)                36                                      0x8f_T0x15d_W.bin
+0x90      msg   R    0x8                             916                                      0x90_T0x8_R.bin
+0x91      msg   R    0x8                             717                                      0x91_T0x8_R.bin
+0x92      msg   W    0x5b2                            45                                      0x92_T0x5b2_W.bin
+0x93      msg   R    0x8                             739                                      0x93_T0x8_R.bin
+0x94      msg   R    0x8                            9978                                      0x94_T0x8_R.bin
+0x95      msg   R    0x8                            2858                                      0x95_T0x8_R.bin
+0x96      msg   R    0x8                            2579                                      0x96_T0x8_R.bin
+0x97      msg   R    0x8                             588                                      0x97_T0x8_R.bin
+0x98      msg   R    0x8                            7167                                      0x98_T0x8_R.bin
+0x99      msg   W    0x5b2                            45                                      0x99_T0x5b2_W.bin
+0x9a      msg   R    0x8                            7167                                      0x9a_T0x8_R.bin
+0x9b      msg   W    0x5b2                            45                                      0x9b_T0x5b2_W.bin
+0x9c      msg   R    0x8                            7167                                      0x9c_T0x8_R.bin
+0x9d      msg   R    0x8                             126                                      0x9d_T0x8_R.bin
+0x9e      msg   R    0x8                            7167                                      0x9e_T0x8_R.bin
+0x9f      msg   W    0x5b2                            93                                      0x9f_T0x5b2_W.bin
+0xa0      msg   R    0x8                             705                                      0xa0_T0x8_R.bin
+0xa1      msg   R    0x8                            1007                                      0xa1_T0x8_R.bin
+0xa2      msg   R    0x8                             459                                      0xa2_T0x8_R.bin
+0xa3      msg   R    0x8                             958                                      0xa3_T0x8_R.bin
+0xa4      msg   R    0x8                            1006                                      0xa4_T0x8_R.bin
+0xa5      msg   R    0x8                            1001                                      0xa5_T0x8_R.bin
+0xa6      msg   R    0x8                            1006                                      0xa6_T0x8_R.bin
+0xa7      msg   R    0x8                             158                                      0xa7_T0x8_R.bin
+0xa8      msg   R    0x8                             989                                      0xa8_T0x8_R.bin
+0xa9      msg   R    0x8                             106                                      0xa9_T0x8_R.bin
+0xaa      msg   R    0x8                             983                                      0xaa_T0x8_R.bin
+0xab      msg   R    0x8                              78                                      0xab_T0x8_R.bin
+0xac      msg   R    0x8                             975                                      0xac_T0x8_R.bin
+0xad      msg   R    0x8                             215                                      0xad_T0x8_R.bin
+0xae      msg   R    0x8                             991                                      0xae_T0x8_R.bin
+0xaf      msg   R    0x8                             988                                      0xaf_T0x8_R.bin
+0xb0      msg   R    0x8                             175                                      0xb0_T0x8_R.bin

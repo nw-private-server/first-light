@@ -305,26 +305,28 @@ class PeerSession:
             return
         self._v3_response_last_ms = now_ms
 
-        # Build a stub RegistrationResponseMsg. GUESSED FIELDS — likely needs
-        # iteration. The 0x60-byte in-memory layout requires error_code=0
-        # at +0x08 and eos_flag=0 at +0x5b for the success path. See
-        # javelin/v3_response.py for the field-by-field guesses.
-        resp = V3RegistrationResponse(session_token=f"sess-{self.v3_request_count:08x}")
+        # 2026-05-04: Build the RegistrationResponseMsg using bytes captured
+        # from a real successful login (Mixed Nuts shared docs/community/
+        # nw-login-safe/messages-redacted.txt seq 0x1). 88-byte body:
+        #   00 01 03 [4B error] [8B mystery] 20 [32B session] 23 [35B ver] 01 00 00 01
+        # See javelin/v3_response.py for the exact template.
+        from javelin.v3_response import make_session_token
+        resp = V3RegistrationResponse(session_token=make_session_token())
         resp_body = encode(resp)
 
-        # Wrap in a data-channel record matching the MF_NO_LENGTH format the
-        # client uses (per analysis/v3_request/HEADER_DECODE.md). 3-byte
-        # opaque sub-header (we write zeros — semantics unknown), then
-        # channel/seq/rel_seq, then the response body extending to end.
-        # Mirror the request's channel (the data channel the V3 came in on).
-        out_seq = self.v3_request_count - 1  # GUESS: simple counter on this channel
-        flags = 0x60  # MF_NO_LENGTH | MF_DATA_CHANNEL (no MF_CONNECTING — past handshake)
+        # Wrap in a Carrier data-channel record. Use flag 0x21 (MF_RELIABLE
+        # | MF_DATA_CHANNEL) matching the demo Connect ACK shape — the
+        # response is a known-size message so a length field is appropriate
+        # (no MF_NO_LENGTH / 0x40). Channel mirrors the request.
+        out_seq = getattr(self, "_v3_response_seq", 0)
+        self._v3_response_seq = (out_seq + 1) & 0xFFFF
+        flags = 0x21  # MF_RELIABLE | MF_DATA_CHANNEL
         record = (
             bytes([flags]) +
-            b"\x00\x00\x00" +  # GUESS: opaque sub-header (client uses 20 00 02)
+            struct.pack(">H", len(resp_body)) +
             bytes([m.channel & 0xFF]) +
             struct.pack(">H", out_seq & 0xFFFF) +
-            struct.pack(">H", 0xFFFF) +  # rel_seq sentinel
+            struct.pack(">H", 0) +              # rel_seq starts at 0 for reliable
             resp_body
         )
         if getattr(self, "last_inbound_env_seq", None) is not None:
@@ -333,7 +335,7 @@ class PeerSession:
             datagram = self.wrap_envelope(record)
         self.send_app(datagram)
         self.log.info(
-            f">> V3RegistrationResponse stub session={resp.session_token!r} "
+            f">> V3RegistrationResponse session={resp.session_token!r} "
             f"resp_body_len={len(resp_body)} datagram_len={len(datagram)}"
         )
         self.drain_outbound()
