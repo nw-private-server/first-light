@@ -2766,3 +2766,33 @@ Reserved bit `0x40` is set in both flag bytes — `frame.py` enum is wrong about
 - The "magic value 5 length prefix" hypothesis (in `project_gridmate_carrier_breakthrough.md`) was wrong. Confirmed by `project_rep_state10_dispatcher_decoded.md` and now confirmed AGAIN by the actual wire bytes.
 - The "we need to find a special message that flips gateway[0x160]" lead is resolved — wasn't a special message, just a malformed reply to the SystemMessage that was already there.
 - The "ClientConnectionMsg unsolicited from server" hypothesis was wrong. Per `0x14a134910` C++ symbol it's client->server, and we now see the client never even sends it during this flow.
+
+
+## 2026-05-04 (later still) - Two protocol dumps merged + V3 round-trip wired
+
+### What landed since last entry
+
+1. **Mixed Nuts (working server impl) shared a Wireshark trace** with custom dissector at `docs/handoff_state10_question.md` reply path. Decoded the canonical Connect ACK shape (flag 0x21 + 0x18 piggyback). Our reply now matches his demo BYTE-FOR-BYTE.
+2. **A second reverser shared their full 22-phase post-registration roadmap** at `docs/community/community_state_machine_dump.txt`. Different code path from Mixed Nuts, includes wire-format gotchas, NW Protocol Wrapper for ch0/ch1, C->S after-handshake format, and binary patches needed for actual play.
+3. **Two agents in parallel** decoded the V3 RegistrationRequest body (`server/javelin/v3_request.py` round-trips byte-perfect on all 10 captured retries) and drafted the response encoder (`server/javelin/v3_response.py`).
+4. **Parser fix** for MF_NO_LENGTH (0x40) data-channel records and the 0x10 first-attempt connect form. `analysis/v3_request/HEADER_DECODE.md` has the layout.
+5. **Compression confirmed LZ4 raw block** (verified by round-trip). Client accepts uncompressed (envelope 0x80) — no need to LZ4 our replies for now.
+6. **rep_responder._handle_v3_data_record** now: (a) dumps raw V3 bytes to `capture/responder_*_v3/v3_req_NNN.bin`, (b) builds a stub V3RegistrationResponse with our encoder, (c) wraps in MF_NO_LENGTH data-channel record (flag 0x60), (d) sends via wrap_envelope_echo. Rate-limited to 1/sec.
+
+### Key conflicting data point
+
+The two reversers DISAGREE on Connect ACK shape:
+- Mixed Nuts: flag `0x21`, relSeq=0 (real-server form)
+- Other reverser: flag `0xa0`, relSeq=0xffff -- explicitly says `0x21/0` "instant-disconnects on our path"
+
+We currently use Mixed Nuts's form because his fix made our client send the V3 request (proven progress). If the next attempt regresses, falling back to `0xa0/0xffff` is the obvious next experiment.
+
+### Next milestone
+
+User tests with the new responder. Three possible outcomes:
+
+1. **Client accepts the stub response** (state-10 -> state-11): we have ~100ms to start pushing the 22-phase post-registration script. We are NOT ready for that yet -- it's 700KB of state and the binary needs two patches we don't have. Game will probably show a different error (loading-circle freeze or similar).
+2. **Client SM_DISCONNECTs with a specific reason byte**: tells us exactly which response field is wrong. Iterate.
+3. **Client just keeps retrying**: our response wasn't formatted correctly to be parsed. Compare against the V3 request format we just decoded.
+
+Either way, this is the first time we'll see signal from the post-V3 layer.
