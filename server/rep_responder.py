@@ -314,19 +314,23 @@ class PeerSession:
         resp = V3RegistrationResponse(session_token=make_session_token())
         resp_body = encode(resp)
 
-        # Wrap in a Carrier data-channel record. Use flag 0x21 (MF_RELIABLE
-        # | MF_DATA_CHANNEL) matching the demo Connect ACK shape — the
-        # response is a known-size message so a length field is appropriate
-        # (no MF_NO_LENGTH / 0x40). Channel mirrors the request.
+        # 2026-05-04 round 2: previous attempt with flag 0x21 was acked at the
+        # Carrier layer but the client kept retrying V3 (15 retries, then
+        # timeout SM_DISCONNECT reason=0x00). Reason wasn't BAD_PACKETS, so
+        # the wire wasn't malformed, but the client didn't recognize the
+        # response as valid for this message family. Mirror the client's
+        # request shape: flag 0xe0 (MF_CONNECTING | MF_NO_LENGTH |
+        # MF_DATA_CHANNEL), 3-byte zero sub-header, channel 3, our seq, no
+        # rel_seq field (since MF_NO_LENGTH means length is implicit).
         out_seq = getattr(self, "_v3_response_seq", 0)
         self._v3_response_seq = (out_seq + 1) & 0xFFFF
-        flags = 0x21  # MF_RELIABLE | MF_DATA_CHANNEL
+        flags = 0xe0  # MF_CONNECTING | MF_NO_LENGTH | MF_DATA_CHANNEL
         record = (
             bytes([flags]) +
-            struct.pack(">H", len(resp_body)) +
+            b"\x00\x00\x00" +                   # 3-byte opaque sub-header
             bytes([m.channel & 0xFF]) +
             struct.pack(">H", out_seq & 0xFFFF) +
-            struct.pack(">H", 0) +              # rel_seq starts at 0 for reliable
+            struct.pack(">H", 0xFFFF) +         # rel_seq sentinel like client
             resp_body
         )
         if getattr(self, "last_inbound_env_seq", None) is not None:
