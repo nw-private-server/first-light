@@ -44,7 +44,11 @@ class MessageFlags(enum.IntFlag):
     MF_SEQUENTIAL_ID = 0x08
     MF_SEQUENTIAL_REL_ID = 0x10
     MF_DATA_CHANNEL = 0x20
-    # 0x40 reserved / unused in Javelin
+    # 2026-05-04: Originally thought reserved/unused. Per the captured V3
+    # RegistrationRequest record (analysis/v3_request/HEADER_DECODE.md), bit
+    # 0x40 means "no message-length field — payload extends to end of
+    # datagram". Set on the V3 data-channel record (flag=0xe0/0xf0).
+    MF_NO_LENGTH = 0x40
     MF_CONNECTING = 0x80
 
 
@@ -73,6 +77,11 @@ class MessageRecord:
     num_chunks: int = 1
     # Filled by the parser; ignored by the writer.
     flags: int = 0
+    # Optional: override the writer's computed flag byte with this value.
+    # Use only when the canonical wire flag differs from what the auto-computer
+    # would derive (e.g. piggyback ACK records that need MF_SEQUENTIAL_REL_ID
+    # set even for non-reliable).
+    flags_override: Optional[int] = None
 
     @property
     def size(self) -> int:
@@ -103,22 +112,39 @@ class ParseResult:
 
 @dataclass
 class CarrierEnvelope:
+    # Per Mixed Nuts' Wireshark dissector: byte 0 is the "Compression Flag".
+    # Bit 7 (0x80) is the always-on Carrier protocol marker. Bit 0 (0x01)
+    # signals the body is LZ4-compressed. (We previously assumed bit 0 was
+    # an encryption marker — wrong; encryption is implicit DTLS-layer.)
     type_byte: int
     proto: int
     sequence: int
 
     @property
-    def is_encrypted(self) -> bool:
+    def is_compressed(self) -> bool:
         return bool(self.type_byte & 1)
+
+    # Back-compat alias so existing callers don't break. The semantic is wrong
+    # (it's compression, not encryption) but the wire bit is the same.
+    @property
+    def is_encrypted(self) -> bool:
+        return self.is_compressed
 
 
 def parse_envelope(data: bytes) -> tuple[CarrierEnvelope, bytes]:
     """Strip and return the 4-byte Carrier envelope; returns (envelope, body).
-    Raises ValueError if the envelope doesn't match the expected magic."""
+    Raises ValueError if the envelope doesn't match the expected magic.
+
+    Envelope (4 bytes):
+      byte 0: Compression Flag — 0x80 (uncompressed) or 0x81 (LZ4 compressed)
+      byte 1: Protocol ID — always 0x01
+      bytes 2-3: Datagram Sequence (BE u16)
+    """
     if len(data) < 4:
         raise ValueError(f"datagram too short ({len(data)} bytes) for envelope")
     type_byte = data[0]
     proto = data[1]
+    # Bit 7 always set; only bit 0 (compression) varies. Other bits unused.
     if not (type_byte & 0x80) or (type_byte & 0x7e):
         raise ValueError(f"bad envelope type byte 0x{type_byte:02x}")
     if proto != 0x01:
@@ -143,7 +169,16 @@ def parse_datagram(data: bytes, *, start_bit: int = 0) -> ParseResult:
     while stream.remaining() > 0:
         try:
             flags = stream.read_u8()
+            # 2026-05-04: when MF_NO_LENGTH is set the 2-byte field at
+            # bytes 1-2 is OPAQUE (not the message length) AND there is one
+            # additional opaque byte at position 3 before the ChannelID.
+            # The payload then extends to the end of the datagram. Per
+            # analysis/v3_request/HEADER_DECODE.md the layout becomes:
+            #   [flags][3-byte sub-header][channel][seq][rel_seq][payload..end]
+            # Sub-header semantics still unknown.
             size = stream.read_u16_be()
+            no_length = bool(flags & MessageFlags.MF_NO_LENGTH)
+            sub_header_extra = stream.read_u8() if no_length else None
 
             reliable = bool(flags & MessageFlags.MF_RELIABLE)
             connecting = bool(flags & MessageFlags.MF_CONNECTING)
@@ -178,13 +213,18 @@ def parse_datagram(data: bytes, *, start_bit: int = 0) -> ParseResult:
             else:
                 rel_seq = per_channel_rel_seq[channel]
 
-            n_payload_bits = size * 8
-            if n_payload_bits > stream.remaining():
-                result.error = (
-                    f"payload truncated: need {n_payload_bits} bits, "
-                    f"have {stream.remaining()}"
-                )
-                return result
+            if no_length:
+                # MF_NO_LENGTH: payload runs to end of datagram. Single
+                # such record per datagram in practice.
+                n_payload_bits = stream.remaining()
+            else:
+                n_payload_bits = size * 8
+                if n_payload_bits > stream.remaining():
+                    result.error = (
+                        f"payload truncated: need {n_payload_bits} bits, "
+                        f"have {stream.remaining()}"
+                    )
+                    return result
 
             payload = stream.read_bits(n_payload_bits)
 
@@ -267,20 +307,28 @@ def marshal_record(
 
     channel_changed = (state.prev_channel != c)
 
-    # Build flag byte.
-    flags = 0
-    if rec.reliable:
-        flags |= MessageFlags.MF_RELIABLE
-    if rec.num_chunks > 1:
-        flags |= MessageFlags.MF_CHUNKS
-    if is_seq_sequential:
-        flags |= MessageFlags.MF_SEQUENTIAL_ID
-    if is_relseq_sequential:
-        flags |= MessageFlags.MF_SEQUENTIAL_REL_ID
-    if channel_changed:
-        flags |= MessageFlags.MF_DATA_CHANNEL
-    if rec.connecting:
-        flags |= MessageFlags.MF_CONNECTING
+    # Build flag byte (or honour an explicit override).
+    if rec.flags_override is not None:
+        flags = rec.flags_override
+        # Re-derive the booleans from the override so emit decisions stay
+        # consistent with the actual flag value on the wire.
+        is_seq_sequential = bool(flags & MessageFlags.MF_SEQUENTIAL_ID)
+        is_relseq_sequential = bool(flags & MessageFlags.MF_SEQUENTIAL_REL_ID)
+        channel_changed = bool(flags & MessageFlags.MF_DATA_CHANNEL)
+    else:
+        flags = 0
+        if rec.reliable:
+            flags |= MessageFlags.MF_RELIABLE
+        if rec.num_chunks > 1:
+            flags |= MessageFlags.MF_CHUNKS
+        if is_seq_sequential:
+            flags |= MessageFlags.MF_SEQUENTIAL_ID
+        if is_relseq_sequential:
+            flags |= MessageFlags.MF_SEQUENTIAL_REL_ID
+        if channel_changed:
+            flags |= MessageFlags.MF_DATA_CHANNEL
+        if rec.connecting:
+            flags |= MessageFlags.MF_CONNECTING
 
     # Emit fields in the canonical order.
     writer.write_u8(flags)
