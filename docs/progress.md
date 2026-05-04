@@ -2722,3 +2722,47 @@ Secondary lead: decompile `FUN_146b69e80` and `FUN_146b687e0` (called by `FUN_14
 
 - `ghidra-cli` (third-party) installed and patched at `C:\Tools\ghidra-cli`. Two patches: scripts_dir relocation (Bnd hidden-dir filter on `%APPDATA%`) and `handleCreateFunction` flow-analysis fallback. Daily-use commands documented in memory `feedback_ghidra_cli_setup.md`.
 - Three decompile dumps under `analysis/decomp_*.txt`.
+
+
+## 2026-05-04 (later) — Mixed Nuts wire fix landed; V3 RegistrationRequest captured
+
+### What happened
+
+Applied Mixed Nuts wire fixes (commit `5712ed1`): outgoing record flag `0xb0` -> `0x20`, drop `MF_CONNECTING`/`MF_SEQUENTIAL_REL_ID` auto-set, write `rel_seq` u16 explicitly, and echo client's inbound envelope seq onto the reply.
+
+User ran the next attempt. Outcome:
+
+- DTLS handshake completed.
+- Client sent its usual `[ch=3 sysmsg=1 payload=0000000501..]` BRANCH-A SystemMessages (env_seq=2, 3).
+- Our reply went out with the corrected `0x20` flag.
+- **Client transitioned to BRANCH B** of `REP_state10_dispatcher` and sent `RegistrationRequestV3Msg` at `env_seq=4` — confirmed by visible AzCore strings in the body: JWT, Steam ticket, world UUID, persona ID, signature, gateway endpoint, build version `6031`, `[RETAIL]` tag, etc.
+- Our parser couldn't decode the new data-channel record format (`flag=0xf0`/`0xe0`, reserved bit `0x40` set, `size` field reads as 800/8192 which exceeds available bytes).
+- No reply -> client retried 10 times over ~10 seconds, then sent `SM_DISCONNECT` (`[ch=3 sysmsg=3 payload=0103]`, reason=0x01 = TIMEOUT).
+- Game showed in-game "Connection Error - Unable to connect to the server".
+
+### Why this is a breakthrough
+
+For the past two weeks every Carrier sender hook we'd installed for the V3 builder stayed silent. Per `project_rep_state10_dispatcher_decoded.md`, that's because `gw[0x160]==0` kept the dispatcher in BRANCH A indefinitely. We later identified `FUN_146b713e0` as the setter (`project_gw160_setter_found.md`) but didn't know which message-type triggered it. **Mixed Nuts' fix accidentally answered the question by working** — our reply, with the correct `0x20` flag and explicit rel_seq, satisfies whatever predicate `FUN_146b713e0`'s `vtable[0x8]` invoked. So the missing trigger was never an exotic message-type we hadn't sent — it was just a malformed reply to one we already had.
+
+### What we have on disk
+
+- `analysis/v3_request/env_seq4_first_attempt.hex` — the very first V3 request bytes (848 bytes, 5-byte longer header than retries).
+- `analysis/v3_request/all_v3_request_retries.hex` — 10 retries (one per line, 843 bytes each). Identical except for one byte at offset 6 (the inbound-ack counter).
+
+Wire-record header for the data-channel format (different from sysmsg records):
+- First-attempt: `f0 03 20 00 06 03 00 05 ff ff 40 00 03 00 02 06 [payload starts at offset 0x10]`
+- Retry:        `e0 20 00 02 03 00 XX ff ff 20 06 [payload starts at offset 0x0b]`
+
+Reserved bit `0x40` is set in both flag bytes — `frame.py` enum is wrong about it being unused; it has meaning, possibly a layout marker for non-system records.
+
+### What unblocks next
+
+1. **Decode the data-channel size encoding.** Once we can correctly parse the V3 record, we can extract its payload. Most likely: variable-length size, OR size in bits (varint?), OR completely different layout for non-system records.
+2. **Send a `RegistrationResponseMsg`** in reply. Per `project_rep_state10_dispatcher_decoded.md` the response must validate `error_code==0` (msg+0x08) and `eos_flag==0` (msg+0x5b), include a session token (AZStd::string at +0x18), and have 3 status bytes (+0x58/+0x59/+0x5a). The on-wire size is 0x60 bytes per the typeregistry.
+3. **Mixed Nuts may already have the parser + responder** in his refactored impl — best to ask before reinventing. The capture (full body hex) is a clean test vector for him.
+
+### What this changes about prior conclusions
+
+- The "magic value 5 length prefix" hypothesis (in `project_gridmate_carrier_breakthrough.md`) was wrong. Confirmed by `project_rep_state10_dispatcher_decoded.md` and now confirmed AGAIN by the actual wire bytes.
+- The "we need to find a special message that flips gateway[0x160]" lead is resolved — wasn't a special message, just a malformed reply to the SystemMessage that was already there.
+- The "ClientConnectionMsg unsolicited from server" hypothesis was wrong. Per `0x14a134910` C++ symbol it's client->server, and we now see the client never even sends it during this flow.
