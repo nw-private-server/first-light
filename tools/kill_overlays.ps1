@@ -1,13 +1,15 @@
-# Kill third-party overlay/recorder processes that conflict with Frida instrumentation
-# of NewWorld.exe. Run this BEFORE launching the game to avoid CTDs.
+# Kill third-party overlay/recorder processes that hook into NewWorld.exe.
 #
-# Background: 4/4 NewWorld CTDs on 2026-05-04 were access violations at
-# NewWorld.exe+0x3007ec3, with Medal, RTSS, ShadowPlay, Steam overlay, and
-# NVIDIA Streamline all loaded. See analysis/ctd_investigation.md.
+# IMPORTANT (2026-05-04): the deterministic CTD at NewWorld.exe+0x3007ec3 was
+# NOT caused by these overlays — it was caused by auth_mock not emitting an
+# ETag response header (the game strlens it on every CMS HTTP load). Fixed
+# in auth_mock._respond. See analysis/decomp_crash_site.txt.
 #
-# Discord can stay running (its overlay didn't show in the crash dump module
-# list). Disable in-game overlays for NW manually in Steam settings + NVIDIA
-# App settings if you keep crashing.
+# This helper is now an OPTIONAL "if you still see crashes after the ETag
+# fix, try killing third-party hooks too" fallback. Cross-session analysis
+# in analysis/ctd_correlations.md shows Medal in BOTH CTD and successful
+# sessions, so it's not the primary culprit — but Medal/RTSS/ShadowPlay
+# all hook the D3D pipeline and CAN cause indirect issues.
 
 $names = @(
     "Medal",                # Medal.tv main process

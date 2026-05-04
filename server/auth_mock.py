@@ -1448,6 +1448,16 @@ class AuthHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Connection", "close")
+        # 2026-05-04: NewWorld.exe's CMS-loader unconditionally reads the
+        # `ETag` response header on every 200, then strlen()s it for use as
+        # an If-None-Match value on the next request. If the header is
+        # missing the SSO string is uninitialized and the strlen runs off
+        # into unmapped memory -> access violation at NewWorld.exe+0x3007ec3.
+        # See analysis/ctd_investigation.md + analysis/decomp_crash_site.txt.
+        # Always emit a deterministic ETag (so cache short-circuits work).
+        import hashlib as _hashlib
+        etag = '"%s"' % _hashlib.md5(body).hexdigest()
+        self.send_header("ETag", etag)
         self.end_headers()
         self.wfile.write(body)
         try:
