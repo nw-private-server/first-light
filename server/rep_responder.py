@@ -289,8 +289,18 @@ class PeerSession:
 
     def _handle_v3_data_record(self, m) -> None:
         """Log + reply to an inbound V3 RegistrationRequest record."""
-        from javelin.v3_response import V3RegistrationResponse, encode
-        from javelin.v3_request import parse_v3_request
+        try:
+            self._handle_v3_data_record_inner(m)
+        except Exception:
+            import traceback
+            self.log.error(
+                "V3 handler crashed:\n" + traceback.format_exc()
+            )
+            raise
+
+    def _handle_v3_data_record_inner(self, m) -> None:
+        from server.javelin.v3_response import V3RegistrationResponse, encode
+        from server.javelin.v3_request import parse_v3_request
         # Save a copy to disk so we can RE without needing another live run
         self.v3_request_count = getattr(self, "v3_request_count", 0) + 1
         try:
@@ -311,7 +321,7 @@ class PeerSession:
         # to keep noise down.
         if self.v3_request_count == 1:
             try:
-                req = parse_v3_request(m.payload)
+                req = parse_v3_request(m.payload)  # noqa: F811
                 # Print just the readable string fields (skip large bytes blobs)
                 summary = {
                     f.name: getattr(req, f.name)
@@ -336,13 +346,12 @@ class PeerSession:
         # nw-login-safe/messages-redacted.txt seq 0x1). 88-byte body:
         #   00 01 03 [4B error] [8B mystery] 20 [32B session] 23 [35B ver] 01 00 00 01
         # See javelin/v3_response.py for the exact template.
-        from javelin.v3_response import make_session_token
+        from server.javelin.v3_response import make_session_token
         # Try echoing the request's session_uuid (after stripping dashes) as
         # the response session_token. Both are 32 hex chars = 32 bytes.
         # If not echoable from request, fall back to random.
         token = make_session_token()
         try:
-            from javelin.v3_request import parse_v3_request
             req = parse_v3_request(m.payload)
             sess_uuid_no_dashes = req.session_uuid.replace("-", "")
             if len(sess_uuid_no_dashes) == 32:
@@ -664,7 +673,8 @@ def main() -> int:
     sessions: dict[tuple, PeerSession] = {}
 
     try:
-        while True:
+      while True:
+        try:
             try:
                 data, peer = sock.recvfrom(65535)
             except socket.timeout:
@@ -701,6 +711,11 @@ def main() -> int:
                         break
                     sess.handle_decrypted_datagram(plaintext)
                 sess.drain_outbound()
+        except KeyboardInterrupt:
+            raise
+        except Exception:
+            import traceback
+            log.error("main loop iteration crashed:\n" + traceback.format_exc())
     except KeyboardInterrupt:
         log.info("shutting down")
     finally:
