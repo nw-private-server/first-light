@@ -11,10 +11,16 @@ __pycache__/
 *.pyc
 .venv/
 venv/
-tools/d3d11_proxy/build/
-tools/d3d11_proxy/*.obj
-tools/d3d11_proxy/*.lib
-tools/d3d11_proxy/*.exp
+tools/client-hooks/d3d11_proxy/build/
+tools/client-hooks/d3d11_proxy/*.obj
+tools/client-hooks/d3d11_proxy/*.lib
+tools/client-hooks/d3d11_proxy/*.exp
+
+# Captures — review before committing; never commit unredacted sessions
+*.pcap
+*.pcapng
+info/*/messages.txt
+info/*/messages-raw.txt
 
 # IDE
 .vscode/

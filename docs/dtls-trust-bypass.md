@@ -90,8 +90,8 @@ target, skipping CA-bundle validation and always using the permissive callback.
 
 ## Tooling in this repo
 
-- `tools/frida_dtls_trust_patch.js`
-- `tools/frida_dtls_trust_patch.py`
+- `tools/client-hooks/frida_dtls_trust_patch.js`
+- `tools/client-hooks/frida_dtls_trust_patch.py`
 
 Use the Python wrapper to attach to a running `NewWorld.exe` and apply the
 in-memory patch after EAC init but before clicking `Play`.

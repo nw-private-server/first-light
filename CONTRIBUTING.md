@@ -35,7 +35,7 @@ If you do RE work, add findings as a dated entry in [docs/progress.md](docs/prog
 
 Tools already set up:
 - Ghidra scripts: `tools/ghidra_scripts/JavelinHunt.py`, `tools/ghidra_scripts/FindChunkRegistrations.py`
-- Frida hooks: `tools/frida_dtls_hook.js` (currently active hooks documented in [docs/next-session.md](docs/next-session.md))
+- Frida hooks: `tools/client-hooks/frida_dtls_hook.js` (currently active hooks documented in [docs/next-session.md](docs/next-session.md))
 
 ### 3. Python / server implementation
 
