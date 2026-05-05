@@ -53,7 +53,7 @@ class V3RegistrationResponse:
     # The 32-byte session token at offset 0x10. Mixed Nuts redacted his —
     # default to a deterministic stub. Caller can supply real bytes once
     # we wire up a session-allocator.
-    session_token: bytes = b"NWP-stub-session-token--3232bytes"  # 32 ASCII bytes
+    session_token: bytes = b"NWP-stub-session-token-3232bytes"  # 32 ASCII bytes
 
     # The 35-char server-version string at offset 0x31.
     server_version: str = DEFAULT_SERVER_VERSION

@@ -165,19 +165,20 @@ def test_marshal_single():
         connecting=False,
     )
     data = marshal_datagram([rec])
-    # First message on this channel -> channel must be written (DATA_CHANNEL set),
-    # seq must be written (not sequential since no prev). Non-reliable so relseq
-    # can be skipped (SEQUENTIAL_REL_ID set).
-    # Expected flags: MF_DATA_CHANNEL | MF_SEQUENTIAL_REL_ID = 0x20 | 0x10 = 0x30
-    assert data[0] == 0x30, f"flag byte should be 0x30, got 0x{data[0]:02x}"
+    # 2026-05-04: canonical writer always emits rel_seq even for non-reliable
+    # records (the reader ignores it). MF_SEQUENTIAL_REL_ID is therefore NOT
+    # set; flag byte is MF_DATA_CHANNEL (0x20) only.
+    assert data[0] == 0x20, f"flag byte should be 0x20, got 0x{data[0]:02x}"
     # size = 6 big-endian
     assert data[1] == 0x00 and data[2] == 0x06
     # channel byte
     assert data[3] == 0x01
     # seq 42 big-endian
     assert data[4] == 0x00 and data[5] == 0x2A
+    # rel_seq 0 big-endian (always written)
+    assert data[6] == 0x00 and data[7] == 0x00
     # payload
-    assert data[6:12] == b"hello!"
+    assert data[8:14] == b"hello!"
     print("[+] test_marshal_single")
 
 
