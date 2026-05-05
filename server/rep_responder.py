@@ -111,7 +111,8 @@ class PeerSession:
 
     def __init__(self, ctx: SSL.Context, peer: tuple, sock: socket.socket,
                  log: logging.Logger, ack_payload: bytes, ack_form: str = "mn",
-                 v3_resp_flag: int = 0x21, v3_resp_channel=None):
+                 v3_resp_flag: int = 0x21, v3_resp_channel=None,
+                 v3_resp_subheader: str = "000000"):
         self.peer = peer
         self.sock = sock
         self.log = log
@@ -124,6 +125,10 @@ class PeerSession:
         # rapid iteration without code changes.
         self.v3_resp_flag = v3_resp_flag
         self.v3_resp_channel = v3_resp_channel
+        # 3-byte hex string for the data-channel sub-header (only used
+        # when the V3 response flag has MF_NO_LENGTH set). Client uses
+        # "200002" for V3 retries — mirroring may help.
+        self.v3_resp_subheader = v3_resp_subheader
         self.handshake_done = False
         self.out_seq = 0  # outbound Carrier-envelope sequence number
         # Per-channel outbound sequence + reliable-sequence counters. GridMate
@@ -332,11 +337,15 @@ class PeerSession:
         ch = self.v3_resp_channel if self.v3_resp_channel is not None else m.channel
         no_length = bool(flags & 0x40)
         if no_length:
-            # MF_NO_LENGTH form: 3-byte opaque sub-header (zeros), no length
-            # u16, payload extends to end of datagram.
+            # MF_NO_LENGTH form: 3-byte sub-header, no length u16, payload
+            # extends to end of datagram. The captured client V3 retries
+            # use sub-header `20 00 02` consistently — try mirroring those
+            # bytes (see --v3-resp-subheader CLI flag).
+            sub = bytes.fromhex(self.v3_resp_subheader.replace("0x", ""))
+            assert len(sub) == 3, f"v3-resp-subheader must be 3 bytes, got {len(sub)}"
             record = (
                 bytes([flags]) +
-                b"\x00\x00\x00" +
+                sub +
                 bytes([ch & 0xFF]) +
                 struct.pack(">H", out_seq & 0xFFFF) +
                 struct.pack(">H", 0xFFFF) +     # rel_seq sentinel like client
@@ -471,8 +480,13 @@ def main() -> int:
                          "0xa0=MF_CONNECTING|MF_DATA_CHANNEL. "
                          "0xe0=MF_CONNECTING|MF_NO_LENGTH|MF_DATA_CHANNEL.")
     ap.add_argument("--v3-resp-channel", type=int, default=None,
-                    help="Carrier channel for V3 response (0-3). Default: "
+                    help="Carrier channel for V3 response (0-4). Default: "
                          "mirror request's channel (typically 3).")
+    ap.add_argument("--v3-resp-subheader", default="000000",
+                    help="3-byte hex sub-header for MF_NO_LENGTH V3 response "
+                         "(only used when --v3-resp-flag has 0x40 set). "
+                         "Client uses '200002' for V3 retries; try that to "
+                         "mirror.")
     args = ap.parse_args()
     ack_payload = ACK_VARIANTS[args.ack_variant]
 
@@ -526,7 +540,8 @@ def main() -> int:
                 sess = PeerSession(ctx, peer, sock, log, ack_payload,
                                    ack_form=args.ack_form,
                                    v3_resp_flag=int(args.v3_resp_flag, 16),
-                                   v3_resp_channel=args.v3_resp_channel)
+                                   v3_resp_channel=args.v3_resp_channel,
+                                   v3_resp_subheader=args.v3_resp_subheader)
                 sessions[peer] = sess
 
             sess.feed(data)
