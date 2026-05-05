@@ -321,7 +321,19 @@ class PeerSession:
         #   00 01 03 [4B error] [8B mystery] 20 [32B session] 23 [35B ver] 01 00 00 01
         # See javelin/v3_response.py for the exact template.
         from javelin.v3_response import make_session_token
-        resp = V3RegistrationResponse(session_token=make_session_token())
+        # Try echoing the request's session_uuid (after stripping dashes) as
+        # the response session_token. Both are 32 hex chars = 32 bytes.
+        # If not echoable from request, fall back to random.
+        token = make_session_token()
+        try:
+            from javelin.v3_request import parse_v3_request
+            req = parse_v3_request(m.payload)
+            sess_uuid_no_dashes = req.session_uuid.replace("-", "")
+            if len(sess_uuid_no_dashes) == 32:
+                token = sess_uuid_no_dashes.encode("ascii")
+        except Exception as e:
+            self.log.debug(f"v3 session_uuid echo failed: {e!r}")
+        resp = V3RegistrationResponse(session_token=token)
         resp_body = encode(resp)
 
         # 2026-05-04 round 3: response wrap iteration via --v3-resp-flag /
