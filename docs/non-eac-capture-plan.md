@@ -19,7 +19,7 @@ registration/bootstrap window we already isolated offline:
 Status: highest-value remaining route
 
 Why:
-- `tools/frida_capture.py` is the only in-repo path designed to capture
+- `tools/client-hooks/frida_capture.py` is the only in-repo path designed to capture
   decrypted TLS/DTLS bytes directly from the process.
 - The live path failed because of EAC and one older stored hook attempt failed
   because `SSL_read` was not found.
@@ -27,20 +27,20 @@ Why:
   runtime protection first.
 
 What changed to support this:
-- `tools/frida_capture.py` now accepts:
+- `tools/client-hooks/frida_capture.py` now accepts:
   - `--exe`
   - `--process-name`
 
 Suggested usage:
 
 ```powershell
-python tools\frida_capture.py --exe "G:\Path\To\Archived\NewWorld.exe" --name archived_frida
+python tools\client-hooks\frida_capture.py --exe "G:\Path\To\Archived\NewWorld.exe" --name archived_frida
 ```
 
 or, if you must attach instead of spawn:
 
 ```powershell
-python tools\frida_capture.py --attach --process-name ArchivedNewWorld.exe --name archived_attach
+python tools\client-hooks\frida_capture.py --attach --process-name ArchivedNewWorld.exe --name archived_attach
 ```
 
 Success criteria:
@@ -60,7 +60,7 @@ Archived-binary note:
     `NewWorld.exe`
   - then retry the Frida spawn path
 - This is still lower-risk than going back to the live EAC client.
-- `tools/frida_capture.py` now recreates `steam_appid.txt` automatically on
+- `tools/client-hooks/frida_capture.py` now recreates `steam_appid.txt` automatically on
   every spawn attempt so this no longer has to be done by hand.
 
 ### 2. Archived / non-EAC-friendly binary + SSLKEYLOGFILE capture

@@ -45,6 +45,7 @@ server/          Core server implementation
     replay_store.py  Loads captured message dumps for replay
 
 tools/           Standalone utilities (capture, analysis, RE helpers)
+  client-hooks/    Game-binary-interacting tools (Frida, d3d11 proxy) — kept separate from the server code
 docs/            Protocol documentation and session notes
 analysis/        Ghidra findings, decompilation artifacts, hex decode notes
 capture/         Local session logs (not committed — see .gitignore)
@@ -72,7 +73,7 @@ python -m server.auth_mock --port 443
 python -m server.rep_responder
 
 # Terminal 3 — game client with Frida trust bypass
-python tools\frida_capture.py --exe "path\to\NewWorld.exe" --name session1
+python tools\client-hooks\frida_capture.py --exe "path\to\NewWorld.exe" --name session1
 ```
 
 Edit your `hosts` file to redirect auth hostnames to 127.0.0.1. See [docs/capture-routes.md](docs/capture-routes.md) for the full list.
@@ -92,6 +93,31 @@ python -m server.test_loopback
 - [docs/gridmate-reference.md](docs/gridmate-reference.md) — Deep-read of Lumberyard GridMate source; this is the Javelin wire-format reference
 - [analysis/v3_request/BODY_DECODE.md](analysis/v3_request/BODY_DECODE.md) — Registration request body field map
 - [docs/dtls-trust-bypass.md](docs/dtls-trust-bypass.md) — How to bypass the client's certificate pinning
+
+---
+
+## Mirrors and resilience
+
+This repository is the primary home for the project, but the code should outlive any single hosting platform. If you want to keep a mirror:
+
+**Codeberg** (EU non-profit, recommended):
+```bash
+git remote add codeberg https://codeberg.org/<your-org>/NWPrivateServer.git
+git push codeberg main
+```
+
+**Self-hosted Forgejo/Gitea:**
+```bash
+git remote add self https://<your-host>/NWPrivateServer.git
+git push self main
+```
+
+You can push to multiple remotes at once by adding them all to the `origin` push URL:
+```bash
+git remote set-url --add --push origin https://codeberg.org/<your-org>/NWPrivateServer.git
+```
+
+If you maintain a mirror, please keep the `info/` captures synced — that data is the hardest to reconstruct after shutdown.
 
 ---
 

@@ -84,7 +84,7 @@ Concrete experiment: Frida hook on writes to the byte at offset 0xfd of the conn
 
 ## Frida hooks currently active
 
-All in `tools/frida_dtls_hook.js`:
+All in `tools/client-hooks/frida_dtls_hook.js`:
 
 - `internal_response_unmarshal` (0x007cd040): logs `[v3-resp-unmarshal] enter ... bytes=...` and `leave errCode=N successFlag=N` for the RegistrationResponseMsg deserializer
 - `internal_response_receive` (0x064755e0): logs `[v3-resp-receive] !! HANDLER FIRED` when the GameConnectionWrapper receive handler runs
