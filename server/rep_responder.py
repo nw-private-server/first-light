@@ -46,6 +46,7 @@ from server.javelin.frame import (  # noqa: E402
     parse_datagram,
     marshal_datagram,
 )
+from server.javelin.replay_store import ReplayStore, ReplayMessage  # noqa: E402
 
 
 CERT_PATH = PROJECT / "server" / "certs" / "server.crt"
@@ -112,7 +113,10 @@ class PeerSession:
     def __init__(self, ctx: SSL.Context, peer: tuple, sock: socket.socket,
                  log: logging.Logger, ack_payload: bytes, ack_form: str = "mn",
                  v3_resp_flag: int = 0x21, v3_resp_channel=None,
-                 v3_resp_subheader: str = "000000"):
+                 v3_resp_subheader: str = "000000",
+                 replay_store: ReplayStore | None = None,
+                 replay_max_seq: int = 0x24,
+                 replay_interval_ms: int = 50):
         self.peer = peer
         self.sock = sock
         self.log = log
@@ -150,6 +154,18 @@ class PeerSession:
         # milliseconds since some local epoch (matches the BE u32 we saw the
         # SM_CLOCK_SYNC sender FUN_140f80440 byte-swap before writing).
         self.start_ms = time.monotonic_ns() // 1_000_000
+        # 2026-05-04: Post-V3 replay state. After our V3 RegistrationResponse
+        # is sent and the deserializer accepts it (Frida-confirmed), we replay
+        # the captured 0x2..max_seq R-direction messages from Mixed Nuts'
+        # working login dump. Tests the hypothesis that the use-after-free at
+        # NewWorld+0x61ae9b5 is downstream of "client stuck waiting for the
+        # post-registration init burst".
+        self.replay_store = replay_store
+        self.replay_max_seq = replay_max_seq
+        self.replay_interval_s = replay_interval_ms / 1000.0
+        self.replay_queue: list[ReplayMessage] = []
+        self.replay_started = False
+        self._next_replay_at: float = 0.0
 
     # ---------- BIO bridging ----------
 
@@ -402,6 +418,69 @@ class PeerSession:
             f"datagram_first48={datagram[:48].hex()}"
         )
         self.drain_outbound()
+        self._start_replay()
+
+    def _start_replay(self) -> None:
+        """Queue post-V3 captured messages for paced replay."""
+        if self.replay_started or self.replay_store is None:
+            return
+        self.replay_started = True
+        self.replay_queue = self.replay_store.replay_messages_after_v3(
+            self.replay_max_seq
+        )
+        self._next_replay_at = time.monotonic()
+        self.log.info(
+            f">> replay queue armed: {len(self.replay_queue)} R-msgs "
+            f"(seq 0x2..0x{self.replay_max_seq:x}), "
+            f"interval={int(self.replay_interval_s * 1000)}ms"
+        )
+
+    def _pump_replay(self) -> None:
+        """Send the next queued replay message if its delay has elapsed."""
+        if not self.replay_queue:
+            return
+        now = time.monotonic()
+        if now < self._next_replay_at:
+            return
+        msg = self.replay_queue.pop(0)
+        self._send_replay_message(msg)
+        self._next_replay_at = now + self.replay_interval_s
+
+    def _send_replay_message(self, msg: ReplayMessage) -> None:
+        """Wrap a captured typed-stream body in a Carrier record + envelope.
+
+        Mirrors the V3 RegistrationResponse wrap (ch=0, flag=0x21, VLQ32
+        length-prefixed body) which we know the deserializer accepts. The
+        replay body already contains the [00 01 <type-encoded>] preamble
+        from the dump, so we forward it verbatim.
+        """
+        ch = 0
+        flags = 0x21  # MF_RELIABLE | MF_DATA_CHANNEL
+        out_seq, _rel = self._next_seq(ch, reliable=True)
+        msg_size = len(msg.body)
+        if msg_size < 128:
+            vlq32 = bytes([msg_size])
+        elif msg_size < 16384:
+            vlq32 = bytes([0x80 | (msg_size & 0x7F), (msg_size >> 7) & 0x7F])
+        else:
+            raise ValueError(f"replay body too big for naive VLQ32: {msg_size}")
+        envelope_body = vlq32 + msg.body
+        record = (
+            bytes([flags]) +
+            struct.pack(">H", len(envelope_body)) +
+            bytes([ch & 0xFF]) +
+            struct.pack(">H", out_seq & 0xFFFF) +
+            struct.pack(">H", 0) +
+            envelope_body
+        )
+        datagram = self.wrap_envelope(record)
+        self.send_app(datagram)
+        self.log.info(
+            f">> replay seq=0x{msg.seq:x} type=0x{msg.type_id:x} "
+            f"body_len={len(msg.body)} dgram_len={len(datagram)} "
+            f"remaining={len(self.replay_queue)}"
+        )
+        self.drain_outbound()
 
     def _next_seq(self, channel: int, reliable: bool) -> tuple[int, int]:
         """Allocate (seq, rel_seq) for a new outbound record on `channel`."""
@@ -518,6 +597,24 @@ def main() -> int:
                          "(only used when --v3-resp-flag has 0x40 set). "
                          "Client uses '200002' for V3 retries; try that to "
                          "mirror.")
+    ap.add_argument("--replay-after-v3", action="store_true",
+                    help="After V3 response is sent, replay the captured "
+                         "post-registration R-direction messages from the "
+                         "Mixed Nuts dump. Tests whether post-V3 silence "
+                         "is what causes the use-after-free CTD downstream.")
+    ap.add_argument("--replay-dump",
+                    default=str(PROJECT / "info" /
+                                "nw-login-safe-20260502-153840" /
+                                "messages-redacted.txt"),
+                    help="Path to the redacted login dump for replay mode.")
+    ap.add_argument("--replay-max-seq", default="0x24",
+                    help="Highest captured seq to replay (hex). Defaults to "
+                         "0x24 - covers the early ping/control burst before "
+                         "the first big StateBundle at 0x25.")
+    ap.add_argument("--replay-interval-ms", type=int, default=50,
+                    help="Delay between replay messages in milliseconds. "
+                         "Real captures fire close together - start small, "
+                         "increase if the client struggles to keep up.")
     args = ap.parse_args()
     ack_payload = ACK_VARIANTS[args.ack_variant]
 
@@ -550,6 +647,20 @@ def main() -> int:
     log.info(f"ack form: {args.ack_form} (mn=0x21/rel_seq=0, alt=0xa0/rel_seq=0xFFFF)")
     log.info(f"V3 response wrap: flag={args.v3_resp_flag} channel={args.v3_resp_channel or 'mirror-request'}")
 
+    replay_store: ReplayStore | None = None
+    if args.replay_after_v3:
+        dump_path = Path(args.replay_dump)
+        if not dump_path.is_file():
+            log.error(f"replay dump not found: {dump_path}")
+            return 1
+        replay_store = ReplayStore(dump_path)
+        log.info(
+            f"replay armed: dump={dump_path.name} "
+            f"max_seq={args.replay_max_seq} "
+            f"interval={args.replay_interval_ms}ms "
+            f"({len(replay_store.replay_messages_after_v3(int(args.replay_max_seq, 16)))} clean R-msgs queued)"
+        )
+
     sessions: dict[tuple, PeerSession] = {}
 
     try:
@@ -559,6 +670,7 @@ def main() -> int:
             except socket.timeout:
                 # Drive periodic work for every active session.
                 for sess in list(sessions.values()):
+                    sess._pump_replay()
                     sess.drain_outbound()
                 continue
             except OSError as e:
@@ -572,7 +684,10 @@ def main() -> int:
                                    ack_form=args.ack_form,
                                    v3_resp_flag=int(args.v3_resp_flag, 16),
                                    v3_resp_channel=args.v3_resp_channel,
-                                   v3_resp_subheader=args.v3_resp_subheader)
+                                   v3_resp_subheader=args.v3_resp_subheader,
+                                   replay_store=replay_store,
+                                   replay_max_seq=int(args.replay_max_seq, 16),
+                                   replay_interval_ms=args.replay_interval_ms)
                 sessions[peer] = sess
 
             sess.feed(data)
