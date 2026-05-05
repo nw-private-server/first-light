@@ -343,16 +343,31 @@ class PeerSession:
         # Flag 0x21 is the default (less bad). Untried options to iterate
         # via CLI: 0x60 (MF_NO_LENGTH alone, no CONNECTING), 0xa0
         # (CONNECTING + DATA_CHANNEL with length field), channel 0/1/2.
+        # 2026-05-04 Mixed Nuts confirmed S->C format:
+        #   [Carrier record header][message_size:VLQ32][typed_envelope...]
+        # Channel is 0 (data), NOT 3 (system). Without the VLQ32 size
+        # prefix, the client mis-dispatched the message and silently
+        # ignored it. Prepend the VLQ32 size byte and put the record on
+        # channel 0 by default.
         out_seq = getattr(self, "_v3_response_seq", 0)
         self._v3_response_seq = (out_seq + 1) & 0xFFFF
         flags = self.v3_resp_flag
-        ch = self.v3_resp_channel if self.v3_resp_channel is not None else m.channel
+        ch = self.v3_resp_channel if self.v3_resp_channel is not None else 0
+        # VLQ32: 1-5 byte little-endian variable-length integer. For < 128
+        # values (our 88-byte body) it's a single byte with the top bit
+        # clear. resp_body length is always 88 for the default response.
+        msg_size = len(resp_body)
+        if msg_size < 128:
+            vlq32 = bytes([msg_size])
+        elif msg_size < 16384:
+            vlq32 = bytes([0x80 | (msg_size & 0x7f), (msg_size >> 7) & 0x7f])
+        else:
+            raise ValueError(f"V3 response too big for naive VLQ32: {msg_size}")
+        envelope_body = vlq32 + resp_body
         no_length = bool(flags & 0x40)
         if no_length:
             # MF_NO_LENGTH form: 3-byte sub-header, no length u16, payload
-            # extends to end of datagram. The captured client V3 retries
-            # use sub-header `20 00 02` consistently — try mirroring those
-            # bytes (see --v3-resp-subheader CLI flag).
+            # extends to end of datagram.
             sub = bytes.fromhex(self.v3_resp_subheader.replace("0x", ""))
             assert len(sub) == 3, f"v3-resp-subheader must be 3 bytes, got {len(sub)}"
             record = (
@@ -361,17 +376,19 @@ class PeerSession:
                 bytes([ch & 0xFF]) +
                 struct.pack(">H", out_seq & 0xFFFF) +
                 struct.pack(">H", 0xFFFF) +     # rel_seq sentinel like client
-                resp_body
+                envelope_body
             )
         else:
-            # Standard form: u16 length right after flag.
+            # Standard form: u16 length right after flag. Length covers
+            # the VLQ32 prefix + typed envelope (Mixed Nuts sample
+            # `21 00 59 ...` = size 89 = 1B VLQ + 88B body).
             record = (
                 bytes([flags]) +
-                struct.pack(">H", len(resp_body)) +
+                struct.pack(">H", len(envelope_body)) +
                 bytes([ch & 0xFF]) +
                 struct.pack(">H", out_seq & 0xFFFF) +
                 struct.pack(">H", 0) +          # rel_seq starts at 0 for reliable
-                resp_body
+                envelope_body
             )
         if getattr(self, "last_inbound_env_seq", None) is not None:
             datagram = self.wrap_envelope_echo(record, self.last_inbound_env_seq)
