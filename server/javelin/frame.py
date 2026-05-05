@@ -191,8 +191,11 @@ def parse_datagram(data: bytes, *, start_bit: int = 0) -> ParseResult:
                 channel = stream.read_u8()
             else:
                 channel = prev_channel
-            if channel > 3:
-                result.error = f"invalid channel {channel} (max 3)"
+            if channel > 4:
+                # Per community dump: per-channel counters for ch0/1/3/4
+                # documented (no 2). Max 4. Was max 3 — bumped 2026-05-04
+                # because we may need to send V3 response on ch=4.
+                result.error = f"invalid channel {channel} (max 4)"
                 return result
             prev_channel = channel
 
