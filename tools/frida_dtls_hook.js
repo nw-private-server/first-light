@@ -51,6 +51,12 @@ var INTERNAL_RVA_GAMECONN_STATE = 0x0644a070;   // FUN_14644a070
 var INTERNAL_RVA_GAMECONN_WRAPPER_TICK = 0x0646d460; // FUN_14646d460
 var INTERNAL_RVA_REP_READY_SETTER = 0x06b6f190; // FUN_146b6f190
 var INTERNAL_RVA_REP_READY_RESET = 0x06b6e7c0;  // FUN_146b6e7c0
+// 2026-05-05: object-destroy in GridMate transport layer; the backtrace from
+// rep-ready reset goes through this. Third arg (R8B) is a reason enum:
+// known values 4, 6, 8, 9 across different call sites. Hooking entry to
+// log reason + destroyed-object pointer so we know WHY the connection
+// was torn down.
+var INTERNAL_RVA_GRIDMATE_DESTROY = 0x05dca650;  // FUN_145dca650
 // 2026-05-04: deserializer + receive-handler for RegistrationResponseMsg.
 // Hook these to see if our wire response actually reaches the message
 // layer (Unmarshal) or gets accepted (receiver). Per
@@ -3119,14 +3125,13 @@ function hookInternalRepFunctions() {
                     } catch (_) {}
                     log("[rep-ready] reset enter repObj=" + this.repObj +
                         " readyBefore=" + readyBefore);
-                    if (!internalRepBacktraceLogged.repReadyReset) {
-                        internalRepBacktraceLogged.repReadyReset = true;
-                        try {
-                            var resetFrames = Thread.backtrace(this.context, Backtracer.ACCURATE)
-                                .slice(0, 12);
-                            log("[rep-ready] reset bt " + formatBacktrace(resetFrames));
-                        } catch (_) {}
-                    }
+                    // Always log backtrace (deeper now) — different fire
+                    // points give different stacks.
+                    try {
+                        var resetFrames = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                            .slice(0, 20);
+                        log("[rep-ready] reset bt " + formatBacktrace(resetFrames));
+                    } catch (_) {}
                 },
                 onLeave: function (retval) {
                     var readyAfter = "<?>";
@@ -3139,6 +3144,35 @@ function hookInternalRepFunctions() {
             });
             hookStatus("internal_rep_ready_reset", "success");
             markHook("internal_rep_ready_reset");
+        }
+
+        var gridmateDestroy = base.add(INTERNAL_RVA_GRIDMATE_DESTROY);
+        if (!isHooked("internal_gridmate_destroy")) {
+            try {
+                Interceptor.attach(gridmateDestroy, {
+                    onEnter: function (args) {
+                        this.transport = args[0];
+                        this.targetObj = args[1];
+                        this.reason = args[2].toInt32() & 0xff;
+                        log("[gm-destroy] enter transport=" + this.transport +
+                            " obj=" + this.targetObj +
+                            " reason=0x" + this.reason.toString(16));
+                        try {
+                            var frames = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                                .slice(0, 20);
+                            log("[gm-destroy] bt " + formatBacktrace(frames));
+                        } catch (_) {}
+                    },
+                    onLeave: function (retval) {
+                        log("[gm-destroy] leave reason=0x" + this.reason.toString(16) +
+                            " obj=" + this.targetObj);
+                    }
+                });
+                hookStatus("internal_gridmate_destroy", "success");
+                markHook("internal_gridmate_destroy");
+            } catch (e) {
+                hookStatus("internal_gridmate_destroy", "error: " + e);
+            }
         }
 
         var repGetterOwner = base.add(INTERNAL_RVA_REP_GETTER_OWNER);
