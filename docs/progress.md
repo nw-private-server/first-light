@@ -1,7 +1,18 @@
 # New World Private Server — Progress & Findings
 
 > Living document. Updated as we learn more.
-> Last updated: 2026-04-23 (DTLS trust gate is cleanly bypassed on the archived non-EAC build via a runtime Frida onEnter hook on `FUN_145dce750` that nulls `verifyField` / `param_1[0x51]`. Client now completes the full DTLS 1.2 handshake against our self-signed cert and emits encrypted application data. Current blocker: `openssl s_server` was tearing the connection down immediately after the handshake; fix in place. Next step is reading the first decrypted Javelin record and beginning to speak REP.)
+> Last updated: 2026-05-05. V3 wall is broken — RegistrationResponseMsg
+> deserializes (`successFlag=1`), the receive handler fires, and rep.ready
+> flips 0→1 within milliseconds of our reply. Client then keeps retrying
+> V3 every ~500ms regardless, and ~50s after acceptance the rep state
+> handler `FUN_146b3c250 + 0x58f` calls `FUN_145dca650(transport, -1, reason=0)`
+> which destroys all session items and resets rep.ready to 0. Player has
+> visually progressed past character creation but the world stays black
+> while the client waits for post-registration data we haven't identified.
+> Lenient session_uuid echo deployed, **does not** change retry behavior.
+> Next session: figure out what stops the V3-retry loop client-side, OR
+> find a Frida write-side patch that flips the wrapper-tick "expected
+> state" check to allow ready=1 to persist past the destroy threshold.
 
 ---
 
@@ -2796,3 +2807,75 @@ User tests with the new responder. Three possible outcomes:
 3. **Client just keeps retrying**: our response wasn't formatted correctly to be parsed. Compare against the V3 request format we just decoded.
 
 Either way, this is the first time we'll see signal from the post-V3 layer.
+
+
+## 2026-05-04 (latest) — V3 RegistrationResponse accepted at the deserializer
+
+### What landed
+
+1. Mixed Nuts confirmed S->C wrap: `[Carrier record header][message_size:VLQ32][typed_envelope]`. Channel 0, flag 0x21 (MF_RELIABLE | MF_DATA_CHANNEL). Our `_handle_v3_data_record` now uses this exact shape.
+2. Frida hooks added on `FUN_1407cd040` (RegistrationResponseMsg::Unmarshal) and `FUN_1464755e0` (the GameConnectionWrapper receive handler that fires post-Unmarshal).
+3. Test result: `[v3-resp-unmarshal] leave successFlag=1` confirmed the deserializer accepted our 88-byte body byte-for-byte. `[v3-resp-receive] !! HANDLER FIRED` confirmed the receive handler ran. `[rep-ready] setter readyBefore=0 -> readyAfter=1` confirmed rep.ready flipped 0->1 within ms.
+
+### Why this matters
+
+The V3 wall is broken at the protocol layer. The 88-byte response body in `server/javelin/v3_response.py` (rebuilt from Mixed Nuts' redacted seq 0x1 capture) is byte-correct. Client visually advances past character creation -- not from cached state, the network really did transition.
+
+
+## 2026-05-04 (later) — Replay mode built, executes correctly, doesn't unstick
+
+### What landed
+
+1. `server/javelin/replay_store.py` parses the 177-message Mixed Nuts dump in `info/nw-login-safe-20260502-153840/messages-redacted.txt`. ASCII xxd format with `XX` redactions; produces `ReplayMessage(seq, type_id, direction, body, has_redaction, redacted_spans)`. 33 of the seq 0x2..0x24 R-direction messages are fully un-redacted -- no identity substitution needed for the early control burst.
+2. Discovered the typed-stream marker encoding: `[00 01][(type & 0x3F) | 0x80][type >> 6]` for type >= 0x40. Single-byte-low form for type < 0x40.
+3. `rep_responder.py` gained CLI flags `--replay-after-v3 --replay-dump <path> --replay-max-seq <hex> --replay-interval-ms <int>`. After V3 response is sent, queue is armed and `_pump_replay` ticks 50ms apart from the main loop.
+4. Bug fixed: V3 response uses its own `_v3_response_seq`; replay's `_next_seq(0, reliable=True)` was returning `(0, 0)` and colliding. Fix: bump `out_msg_seq[0]` and `out_rel_seq[0]` to 1 in `_start_replay`.
+5. Bug fixed: lazy `from javelin.x import` style silently failed with `ModuleNotFoundError` when run as `python -m server.rep_responder` from project root. Switched to `from server.javelin.x import` consistently. Added `try/except + log.error(traceback)` around `_handle_v3_data_record` and the main loop body so future crashes land in the responder log instead of disappearing into stderr.
+
+### Test outcome
+
+All 33 replay messages shipped at 50ms cadence on ch=0. Client ACK'd them at the carrier layer (`<< env_seq=N msgs=1 [ch=3 sysmsg=6 payload=00XXXX06]` = SM_CT_ACKS). But:
+- Frida shows Unmarshal fired exactly ONCE (only for the first V3 response). Replay messages are different types (PingMsg, etc.) so they don't hit the v3-resp hook -- but the rep-wrapper tick state stayed at 10 throughout.
+- Client kept retrying V3 RegistrationRequest every ~500ms regardless. Replay didn't change that.
+
+So: the post-V3 silence isn't the gate, OR the wrong messages are being replayed, OR replay messages aren't being received at the application layer (only at the carrier).
+
+
+## 2026-05-05 — destroy hook + lenient session_uuid echo
+
+### What landed
+
+1. **rep-ready reset backtrace decoded.** Backtrace from `[rep-ready] reset` (FUN_146b28640): -> FUN_146b32c60 (event-bus dispatcher) -> FUN_146b3a2a0 (find listener by hashed key) -> FUN_145db4c50 (different module dispatcher) -> FUN_145dca650 (GridMate ConnectionDestroy) -> FUN_146b3c250 + 0x58f (5KB rep state handler) -> thread main. So the reset is part of an OBJECT-DESTROY chain initiated from rep code, not a transport-layer timeout.
+
+2. **`FUN_145dca650`'s `param_3` is a destroy-reason enum.** Different call sites pass different values: 4, 6, 8, 9 in `FUN_145dd6c00`/etc. New Frida hook `internal_gridmate_destroy` captures it.
+
+3. **Captured reason = 0x0** at `FUN_146b3c250 + 0x58f`. Not one of the timeout/error enum values. The destroy is intentionally driven by rep code itself, with `param_2 = -1` (likely "destroy ALL items"). The trigger is a byte at `[R13+0xfd]` -- when it flips non-zero, the destroy loop fires:
+```
+146b3c787: CMP byte ptr [R13 + 0xfd], 0x0
+146b3c78f: JNZ <call destroy>
+```
+Did not yet identify what flips `[R13+0xfd]`. Likely a "we've waited too long for something specific" flag.
+
+4. **Lenient session_uuid echo.** Strict `parse_v3_request` requires exactly 832 B; live retries are 829-838 B. Strict parser was failing on every retry, so we fell back to a random session_token instead of echoing the request's session_uuid. New lenient extractor scans the body for the SECOND UUID (sig is first, session is second, persona is third) preceded by length prefix 0x24. Confirmed working on a 837 B capture.
+
+5. **NEW message type observed.** Interleaved with V3 retries, the client now sends 19+ messages with `flags=0xfc seq=1 rel_seq=0 payload_len=37/38`. Flags 0xfc = MF_CONNECTING|MF_NO_LENGTH|MF_DATA_CHANNEL|MF_SEQUENTIAL_REL_ID|MF_CHUNKS. Our V3 detection (`flags & 0x40`) misclassifies them as V3 RegistrationRequests. One decoded payload: `ffff 0000 0406 210024000001000165c50b2b0000001c000100b001 9d0500036ef6af912d74` -- the trailing 12 bytes are LITERALLY the body of our PingMsg replay (seq 0x2 type 0x15d). Client is bouncing replay messages back somehow; not yet decoded what it means.
+
+### Test outcome (after lenient session_uuid echo)
+
+User tested. `V3 lenient-extracted session_uuid=...` line confirmed the new path runs. But:
+- V3 retry rate unchanged (~500ms apart, lower count this run only because user killed faster)
+- Same `gm-destroy reason=0x0` from the same callsite ~20-50s after rep.ready=1
+- Same backtrace through `FUN_146b3c250 + 0x58f`
+
+So echoing the request's session_uuid was a correctness improvement but is NOT what gates V3-retry-stop.
+
+### Open question: why does the client keep retrying V3?
+
+`FUN_1464755e0` (the receive handler) only:
+- Logs "GameConnectionWrapper: received registration response from REP"
+- Sets a "Server version" property via vtable[0x2d0] of `(DAT_14a7ba0e0 + 0x60) + 0x28`
+- Extracts a string from `*(param_1+8) + 0x1000` via vtable[0x50] and stores it via vtable[0x110]
+
+Neither of these visibly advances the rep-wrapper tick state past 10, and neither stops the V3 retry timer in `REP_state10_dispatcher` (0x146b6e190) which always builds and sends V3 in BRANCH B (when gw[0x160]==1, which it is).
+
+Hypothesis: state advance happens via a separate wrapper-tick poll that checks the gameConnection properties set by the receive handler. The poll's expected value isn't being satisfied -- possibly the property at vtable[0x110] (the message-extracted string) isn't what the wrapper expects.
