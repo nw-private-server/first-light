@@ -437,11 +437,18 @@ class PeerSession:
         self.replay_queue = self.replay_store.replay_messages_after_v3(
             self.replay_max_seq
         )
+        # The V3 response sent on ch=0 with seq=0/rel_seq=0 doesn't go through
+        # _next_seq, so the per-channel counters are still at 0. Bump them so
+        # replay records get seq=1/rel_seq=1 onward instead of colliding with
+        # the V3 response and getting deduped client-side.
+        self.out_msg_seq[0] = 1
+        self.out_rel_seq[0] = 1
         self._next_replay_at = time.monotonic()
         self.log.info(
             f">> replay queue armed: {len(self.replay_queue)} R-msgs "
             f"(seq 0x2..0x{self.replay_max_seq:x}), "
-            f"interval={int(self.replay_interval_s * 1000)}ms"
+            f"interval={int(self.replay_interval_s * 1000)}ms, "
+            f"ch0 counters bumped to seq=1 rel_seq=1"
         )
 
     def _pump_replay(self) -> None:
@@ -465,7 +472,7 @@ class PeerSession:
         """
         ch = 0
         flags = 0x21  # MF_RELIABLE | MF_DATA_CHANNEL
-        out_seq, _rel = self._next_seq(ch, reliable=True)
+        out_seq, rel_seq = self._next_seq(ch, reliable=True)
         msg_size = len(msg.body)
         if msg_size < 128:
             vlq32 = bytes([msg_size])
@@ -479,7 +486,7 @@ class PeerSession:
             struct.pack(">H", len(envelope_body)) +
             bytes([ch & 0xFF]) +
             struct.pack(">H", out_seq & 0xFFFF) +
-            struct.pack(">H", 0) +
+            struct.pack(">H", rel_seq & 0xFFFF) +
             envelope_body
         )
         datagram = self.wrap_envelope(record)
