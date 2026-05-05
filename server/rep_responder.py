@@ -357,7 +357,37 @@ class PeerSession:
             if len(sess_uuid_no_dashes) == 32:
                 token = sess_uuid_no_dashes.encode("ascii")
         except Exception as e:
-            self.log.debug(f"v3 session_uuid echo failed: {e!r}")
+            self.log.debug(f"v3 session_uuid strict-parse failed: {e!r}")
+            # Lenient fallback: scan the body for the second UUID
+            # (sig is first, session is second, persona is third) preceded by
+            # length prefix 0x24. The strict parser fails when body length
+            # diverges from 832 B but the session_uuid is still recoverable
+            # from any retry shape.
+            import re
+            uuids = list(re.finditer(
+                rb'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',
+                m.payload,
+            ))
+            session_match = None
+            for u in uuids:
+                pre = m.payload[max(0, u.start() - 8):u.start()].decode(
+                    "latin-1", errors="replace"
+                )
+                if "sig:" in pre or "naId." in pre:
+                    continue
+                if u.start() > 0 and m.payload[u.start() - 1] == 0x24:
+                    session_match = u
+                    break
+            if session_match is not None:
+                sess_uuid_no_dashes = (
+                    session_match.group(0).decode("ascii").replace("-", "")
+                )
+                if len(sess_uuid_no_dashes) == 32:
+                    token = sess_uuid_no_dashes.encode("ascii")
+                    self.log.info(
+                        f"   V3 lenient-extracted session_uuid="
+                        f"{session_match.group(0).decode()}"
+                    )
         resp = V3RegistrationResponse(session_token=token)
         resp_body = encode(resp)
 
