@@ -1,0 +1,343 @@
+Frame 913: Packet, 114 bytes on wire (912 bits), 114 bytes captured (912 bits) on interface \Device\NPF_{XX}, id 0
+Ethernet II, Src: XX:XX:XX:XX:XX:XX, Dst: XX:XX:XX:XX:XX:XX
+Internet Protocol Version 4, Src: XX.XX.XX.XX, Dst: XX.XX.XX.XX
+User Datagram Protocol, Src Port: XX, Dst Port: XX
+Datagram Transport Layer Security
+    [Stream index: 0]
+    DTLSv1.2 Record Layer: Application Data Protocol: Application Data
+        Content Type: Application Data (23)
+        Version: DTLS 1.2 (0xfefd)
+        Epoch: 1
+        Sequence Number: 1
+        Length: 59
+        Encrypted Application Data
+New World GridMate Carrier
+    Compression Flag: 0x80
+    Compressed: False
+    Protocol ID: 0x01
+    Datagram Sequence: 2
+    Message
+        Message Flags: 0xa0
+        Message Length: 5
+        Channel ID: 3
+        Sequence Number: 0
+        Reliable Sequence Number: 65535
+        System Message: Connect Request
+            System Message ID: 1
+            Handshake Data: 00000005
+    Message
+        Message Flags: 0x88
+        Message Length: 6
+        [Channel ID: 3 (inherited)]
+        Reliable Sequence Number: 65535
+        System Message: Connect Request
+            System Message ID: 1
+            Handshake Data: 0000000501
+    Message
+        Message Flags: 0x88
+        Message Length: 2
+        [Channel ID: 3 (inherited)]
+        Reliable Sequence Number: 65535
+        System Message: ACK (keep alive)
+            System Message ID: 6
+            ACK Flags: 0x20
+0000   80 01 00 02 a0 00 05 03 00 00 ff ff 00 00 00 05   ................
+0010   01 88 00 06 ff ff 00 00 00 05 01 01 88 00 02 ff   ................
+0020   ff 20 06                                          . .
+
+
+Frame 914: Packet, 105 bytes on wire (840 bits), 105 bytes captured (840 bits) on interface \Device\NPF_{XX}, id 0
+Ethernet II, Src: XX:XX:XX:XX:XX:XX, Dst: XX:XX:XX:XX:XX:XX
+Internet Protocol Version 4, Src: XX.XX.XX.XX, Dst: XX.XX.XX.XX
+User Datagram Protocol, Src Port: XX, Dst Port: XX
+Datagram Transport Layer Security
+    [Stream index: 0]
+    DTLSv1.2 Record Layer: Application Data Protocol: Application Data
+        Content Type: Application Data (23)
+        Version: DTLS 1.2 (0xfefd)
+        Epoch: 1
+        Sequence Number: 2
+        Length: 50
+        Encrypted Application Data
+New World GridMate Carrier
+    Compression Flag: 0x80
+    Compressed: False
+    Protocol ID: 0x01
+    Datagram Sequence: 3
+    Message
+        Message Flags: 0xa0
+        Message Length: 7
+        Channel ID: 3
+        Sequence Number: 3
+        Reliable Sequence Number: 65535
+        System Message: Connect Request
+            System Message ID: 1
+            Handshake Data: 000000050101
+    Message
+        Message Flags: 0x88
+        Message Length: 2
+        [Channel ID: 3 (inherited)]
+        Reliable Sequence Number: 65535
+        System Message: ACK (keep alive)
+            System Message ID: 6
+            ACK Flags: 0x20
+0000   80 01 00 03 a0 00 07 03 00 03 ff ff 00 00 00 05   ................
+0010   01 01 01 88 00 02 ff ff 20 06                     ........ .
+
+
+Frame 915: Packet, 106 bytes on wire (848 bits), 106 bytes captured (848 bits) on interface \Device\NPF_{XX}, id 0
+Ethernet II, Src: XX:XX:XX:XX:XX:XX, Dst: XX:XX:XX:XX:XX:XX
+Internet Protocol Version 4, Src: XX.XX.XX.XX, Dst: XX.XX.XX.XX
+User Datagram Protocol, Src Port: XX, Dst Port: XX
+Datagram Transport Layer Security
+    [Stream index: 0]
+    DTLSv1.2 Record Layer: Application Data Protocol: Application Data
+        Content Type: Application Data (23)
+        Version: DTLS 1.2 (0xfefd)
+        Epoch: 1
+        Sequence Number: 3
+        Length: 51
+        Encrypted Application Data
+New World GridMate Carrier
+    Compression Flag: 0x80
+    Compressed: False
+    Protocol ID: 0x01
+    Datagram Sequence: 4
+    Message
+        Message Flags: 0xa0
+        Message Length: 8
+        Channel ID: 3
+        Sequence Number: 5
+        Reliable Sequence Number: 65535
+        System Message: Connect Request
+            System Message ID: 1
+            Handshake Data: 00000005010101
+    Message
+        Message Flags: 0x88
+        Message Length: 2
+        [Channel ID: 3 (inherited)]
+        Reliable Sequence Number: 65535
+        System Message: ACK (keep alive)
+            System Message ID: 6
+            ACK Flags: 0x20
+0000   80 01 00 04 a0 00 08 03 00 05 ff ff 00 00 00 05   ................
+0010   01 01 01 01 88 00 02 ff ff 20 06                  ......... .
+
+
+Frame 916: Packet, 107 bytes on wire (856 bits), 107 bytes captured (856 bits) on interface \Device\NPF_{XX}, id 0
+Ethernet II, Src: XX:XX:XX:XX:XX:XX, Dst: XX:XX:XX:XX:XX:XX
+Internet Protocol Version 4, Src: XX.XX.XX.XX, Dst: XX.XX.XX.XX
+User Datagram Protocol, Src Port: XX, Dst Port: XX
+Datagram Transport Layer Security
+    [Stream index: 0]
+    DTLSv1.2 Record Layer: Application Data Protocol: Application Data
+        Content Type: Application Data (23)
+        Version: DTLS 1.2 (0xfefd)
+        Epoch: 1
+        Sequence Number: 4
+        Length: 52
+        Encrypted Application Data
+New World GridMate Carrier
+    Compression Flag: 0x80
+    Compressed: False
+    Protocol ID: 0x01
+    Datagram Sequence: 5
+    Message
+        Message Flags: 0xa0
+        Message Length: 9
+        Channel ID: 3
+        Sequence Number: 7
+        Reliable Sequence Number: 65535
+        System Message: Connect Request
+            System Message ID: 1
+            Handshake Data: 0000000501010101
+    Message
+        Message Flags: 0x88
+        Message Length: 2
+        [Channel ID: 3 (inherited)]
+        Reliable Sequence Number: 65535
+        System Message: ACK (keep alive)
+            System Message ID: 6
+            ACK Flags: 0x20
+0000   80 01 00 05 a0 00 09 03 00 07 ff ff 00 00 00 05   ................
+0010   01 01 01 01 01 88 00 02 ff ff 20 06               .......... .
+
+
+Frame 917: Packet, 108 bytes on wire (864 bits), 108 bytes captured (864 bits) on interface \Device\NPF_{XX}, id 0
+Ethernet II, Src: XX:XX:XX:XX:XX:XX, Dst: XX:XX:XX:XX:XX:XX
+Internet Protocol Version 4, Src: XX.XX.XX.XX, Dst: XX.XX.XX.XX
+User Datagram Protocol, Src Port: XX, Dst Port: XX
+Datagram Transport Layer Security
+    [Stream index: 0]
+    DTLSv1.2 Record Layer: Application Data Protocol: Application Data
+        Content Type: Application Data (23)
+        Version: DTLS 1.2 (0xfefd)
+        Epoch: 1
+        Sequence Number: 5
+        Length: 53
+        Encrypted Application Data
+New World GridMate Carrier
+    Compression Flag: 0x80
+    Compressed: False
+    Protocol ID: 0x01
+    Datagram Sequence: 6
+    Message
+        Message Flags: 0xa0
+        Message Length: 10
+        Channel ID: 3
+        Sequence Number: 9
+        Reliable Sequence Number: 65535
+        System Message: Connect Request
+            System Message ID: 1
+            Handshake Data: 000000050101010101
+    Message
+        Message Flags: 0x88
+        Message Length: 2
+        [Channel ID: 3 (inherited)]
+        Reliable Sequence Number: 65535
+        System Message: ACK (keep alive)
+            System Message ID: 6
+            ACK Flags: 0x20
+0000   80 01 00 06 a0 00 0a 03 00 09 ff ff 00 00 00 05   ................
+0010   01 01 01 01 01 01 88 00 02 ff ff 20 06            ........... .
+
+
+Frame 918: Packet, 93 bytes on wire (744 bits), 93 bytes captured (744 bits) on interface \Device\NPF_{XX}, id 0
+Ethernet II, Src: XX:XX:XX:XX:XX:XX, Dst: XX:XX:XX:XX:XX:XX
+Internet Protocol Version 4, Src: XX.XX.XX.XX, Dst: XX.XX.XX.XX
+User Datagram Protocol, Src Port: XX, Dst Port: XX
+Datagram Transport Layer Security
+    [Stream index: 0]
+    DTLSv1.2 Record Layer: Application Data Protocol: Application Data
+        Content Type: Application Data (23)
+        Version: DTLS 1.2 (0xfefd)
+        Epoch: 1
+        Sequence Number: 6
+        Length: 38
+        Encrypted Application Data
+New World GridMate Carrier
+    Compression Flag: 0x80
+    Compressed: False
+    Protocol ID: 0x01
+    Datagram Sequence: 7
+    Message
+        Message Flags: 0xa0
+        Message Length: 2
+        Channel ID: 3
+        Sequence Number: 11
+        Reliable Sequence Number: 65535
+        System Message: ACK (keep alive)
+            System Message ID: 6
+            ACK Flags: 0x20
+0000   80 01 00 07 a0 00 02 03 00 0b ff ff 20 06         ............ .
+
+
+Frame 919: Packet, 109 bytes on wire (872 bits), 109 bytes captured (872 bits) on interface \Device\NPF_{XX}, id 0
+Ethernet II, Src: XX:XX:XX:XX:XX:XX, Dst: XX:XX:XX:XX:XX:XX
+Internet Protocol Version 4, Src: XX.XX.XX.XX, Dst: XX.XX.XX.XX
+User Datagram Protocol, Src Port: XX, Dst Port: XX
+Datagram Transport Layer Security
+    [Stream index: 0]
+    DTLSv1.2 Record Layer: Application Data Protocol: Application Data
+        Content Type: Application Data (23)
+        Version: DTLS 1.2 (0xfefd)
+        Epoch: 1
+        Sequence Number: 7
+        Length: 54
+        Encrypted Application Data
+New World GridMate Carrier
+    Compression Flag: 0x80
+    Compressed: False
+    Protocol ID: 0x01
+    Datagram Sequence: 8
+    Message
+        Message Flags: 0xa0
+        Message Length: 11
+        Channel ID: 3
+        Sequence Number: 12
+        Reliable Sequence Number: 65535
+        System Message: Connect Request
+            System Message ID: 1
+            Handshake Data: 00000005010101010101
+    Message
+        Message Flags: 0x88
+        Message Length: 2
+        [Channel ID: 3 (inherited)]
+        Reliable Sequence Number: 65535
+        System Message: ACK (keep alive)
+            System Message ID: 6
+            ACK Flags: 0x20
+0000   80 01 00 08 a0 00 0b 03 00 0c ff ff 00 00 00 05   ................
+0010   01 01 01 01 01 01 01 88 00 02 ff ff 20 06         ............ .
+
+
+Frame 920: Packet, 103 bytes on wire (824 bits), 103 bytes captured (824 bits) on interface \Device\NPF_{XX}, id 0
+Ethernet II, Src: XX:XX:XX:XX:XX:XX, Dst: XX:XX:XX:XX:XX:XX
+Internet Protocol Version 4, Src: XX.XX.XX.XX, Dst: XX.XX.XX.XX
+User Datagram Protocol, Src Port: XX, Dst Port: XX
+Datagram Transport Layer Security
+    [Stream index: 0]
+    DTLSv1.2 Record Layer: Application Data Protocol: Application Data
+        Content Type: Application Data (23)
+        Version: DTLS 1.2 (0xfefd)
+        Epoch: 1
+        Sequence Number: 1
+        Length: 48
+        Encrypted Application Data
+New World GridMate Carrier
+    Compression Flag: 0x81
+    Compressed: True
+    Protocol ID: 0x01
+    Datagram Sequence: 2
+    Message
+        Message Flags: 0x21
+        Message Length: 5
+        Channel ID: 3
+        Sequence Number: 0
+        Reliable Sequence Number: 0
+        System Message: Connect ACK
+            System Message ID: 2
+            Handshake Data: 00000005
+    Message
+        Message Flags: 0x18
+        Message Length: 6
+        [Channel ID: 3 (inherited)]
+        System Message: ACK (continuous)
+            System Message ID: 6
+            ACK Flags: 0x40
+            Last To ACK: 7
+            First To ACK: 2
+0000   81 01 00 02 52 21 00 05 03 00 01 00 b0 05 02 18   ....R!..........
+0010   00 06 40 00 07 00 02 06                           ..@.....
+
+
+Frame 923: Packet, 95 bytes on wire (760 bits), 95 bytes captured (760 bits) on interface \Device\NPF_{XX}, id 0
+Ethernet II, Src: XX:XX:XX:XX:XX:XX, Dst: XX:XX:XX:XX:XX:XX
+Internet Protocol Version 4, Src: XX.XX.XX.XX, Dst: XX.XX.XX.XX
+User Datagram Protocol, Src Port: XX, Dst Port: XX
+Datagram Transport Layer Security
+    [Stream index: 0]
+    DTLSv1.2 Record Layer: Application Data Protocol: Application Data
+        Content Type: Application Data (23)
+        Version: DTLS 1.2 (0xfefd)
+        Epoch: 1
+        Sequence Number: 8
+        Length: 40
+        Encrypted Application Data
+New World GridMate Carrier
+    Compression Flag: 0x80
+    Compressed: False
+    Protocol ID: 0x01
+    Datagram Sequence: 9
+    Message
+        Message Flags: 0x20
+        Message Length: 4
+        Channel ID: 3
+        Sequence Number: 14
+        Reliable Sequence Number: 65535
+        System Message: ACK (single)
+            System Message ID: 6
+            ACK Flags: 0x00
+            Last To ACK: 2
+0000   80 01 00 09 20 00 04 03 00 0e ff ff 00 00 02 06   .... ...........
+

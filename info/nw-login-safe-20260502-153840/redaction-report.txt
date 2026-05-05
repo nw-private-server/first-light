@@ -1,0 +1,14 @@
+mask_token: XX
+masked_bytes: 99959
+derived_sequence_hits: 4937
+literal_hits: 0
+
+regex_hits:
+  amzn_id: 867
+  ip_endpoint: 1
+  long_base64: 4
+  long_decimal_id: 1078
+  long_hex: 2
+  steam_id: 3
+  steam_ticket: 1
+  uuid_text: 877
