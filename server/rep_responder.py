@@ -396,8 +396,10 @@ class PeerSession:
             datagram = self.wrap_envelope(record)
         self.send_app(datagram)
         self.log.info(
-            f">> V3RegistrationResponse session={resp.session_token!r} "
-            f"resp_body_len={len(resp_body)} datagram_len={len(datagram)}"
+            f">> V3RegistrationResponse #{self.v3_request_count} "
+            f"session={resp.session_token!r} "
+            f"resp_body_len={len(resp_body)} datagram_len={len(datagram)} "
+            f"datagram_first48={datagram[:48].hex()}"
         )
         self.drain_outbound()
 

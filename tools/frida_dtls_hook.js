@@ -2746,14 +2746,16 @@ function hookInternalRepFunctions() {
                         " bytes=" + dump);
                 },
                 onLeave: function (retval) {
-                    var resultCode = "<?>";
+                    var errCode = "<?>", successFlag = "<?>";
                     try {
-                        // resultOut[0] = error code (0 = success, non-zero = field-N failure)
-                        resultCode = this.resultOut.readU8();
+                        // *param_2 (resultOut[0]) = error code (only valid when failure)
+                        // param_2[1] (resultOut[1]) = SUCCESS FLAG: 1=success, 0=failure
+                        errCode = this.resultOut.readU8();
+                        successFlag = this.resultOut.add(1).readU8();
                     } catch (_) {}
                     log("[v3-resp-unmarshal] leave ret=" + retval +
-                        " resultCode=" + resultCode +
-                        " (0=success, 1=field2-fail, 3/4=bool-out-of-range)");
+                        " errCode=" + errCode + " successFlag=" + successFlag +
+                        " (success=1+errcode_irrelevant, fail=0+errcode_meaningful)");
                 }
             });
             hookStatus("internal_response_unmarshal", "success");
