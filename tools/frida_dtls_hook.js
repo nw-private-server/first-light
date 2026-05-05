@@ -51,6 +51,14 @@ var INTERNAL_RVA_GAMECONN_STATE = 0x0644a070;   // FUN_14644a070
 var INTERNAL_RVA_GAMECONN_WRAPPER_TICK = 0x0646d460; // FUN_14646d460
 var INTERNAL_RVA_REP_READY_SETTER = 0x06b6f190; // FUN_146b6f190
 var INTERNAL_RVA_REP_READY_RESET = 0x06b6e7c0;  // FUN_146b6e7c0
+// 2026-05-04: deserializer + receive-handler for RegistrationResponseMsg.
+// Hook these to see if our wire response actually reaches the message
+// layer (Unmarshal) or gets accepted (receiver). Per
+// analysis/decomp_response_unmarshal.txt and the FUN_1464755e0 receive
+// handler that logs "GameConnectionWrapper: received registration
+// response from REP".
+var INTERNAL_RVA_RESPONSE_UNMARSHAL = 0x007cd040; // FUN_1407cd040
+var INTERNAL_RVA_RESPONSE_RECEIVE   = 0x064755e0; // FUN_1464755e0
 // Carrier "send system message" public entry — appends msgId byte to bitstream
 // then calls FUN_140f66850 to allocate a record and queue it on channel=3.
 // We hook the entry to capture the msgId and the body bytes (the bitstream
@@ -151,7 +159,8 @@ var internalRepBacktraceLogged = {
     send802e0Candidate: false,
     sendClockSync: false,
     carrierWriteMessages: false,
-    carrierParseMessages: false
+    carrierParseMessages: false,
+    responseReceive: false
 };
 var internalRepDynamicHooks = {}; // hook name -> true
 var internalTransportDynamicHooks = {}; // hook name -> true
@@ -2697,6 +2706,78 @@ function hookInternalRepFunctions() {
             });
             hookStatus("internal_rep_ready_setter", "success");
             markHook("internal_rep_ready_setter");
+        }
+
+        // 2026-05-04: instrumentation for the V3 response round-trip.
+        // We want to see whether our wire response actually reaches the
+        // message-layer deserializer, and whether the deserializer
+        // accepts it. Three hooks:
+        //   1. Unmarshal entry — log the input read context (start/end
+        //      pointers, the bytes about to be deserialized).
+        //   2. Unmarshal exit — log the result code (0 = success).
+        //   3. RegistrationResponse receive handler — fires only if the
+        //      message was deserialized AND dispatched to the wrapper.
+        //      Presence in the log proves end-to-end success.
+        var responseUnmarshal = base.add(INTERNAL_RVA_RESPONSE_UNMARSHAL);
+        if (!isHooked("internal_response_unmarshal")) {
+            Interceptor.attach(responseUnmarshal, {
+                onEnter: function (args) {
+                    this.resultOut = args[1];
+                    this.readCtx = args[3];
+                    var dump = "<read-fail>";
+                    var startPtr = "<?>", endPtr = "<?>", remaining = "<?>";
+                    try {
+                        startPtr = this.readCtx.add(0x10).readPointer();
+                        endPtr = this.readCtx.add(0x08).readPointer();
+                        remaining = endPtr.sub(startPtr).toInt32();
+                        if (remaining > 0 && remaining < 4096) {
+                            var bytes = startPtr.readByteArray(remaining);
+                            dump = Array.prototype.map.call(
+                                new Uint8Array(bytes),
+                                function (b) { return ("0" + b.toString(16)).slice(-2); }
+                            ).join("");
+                        }
+                    } catch (e) { dump = "<error " + e + ">"; }
+                    log("[v3-resp-unmarshal] enter resultOut=" + this.resultOut +
+                        " readCtx=" + this.readCtx +
+                        " start=" + startPtr +
+                        " end=" + endPtr +
+                        " remaining=" + remaining +
+                        " bytes=" + dump);
+                },
+                onLeave: function (retval) {
+                    var resultCode = "<?>";
+                    try {
+                        // resultOut[0] = error code (0 = success, non-zero = field-N failure)
+                        resultCode = this.resultOut.readU8();
+                    } catch (_) {}
+                    log("[v3-resp-unmarshal] leave ret=" + retval +
+                        " resultCode=" + resultCode +
+                        " (0=success, 1=field2-fail, 3/4=bool-out-of-range)");
+                }
+            });
+            hookStatus("internal_response_unmarshal", "success");
+            markHook("internal_response_unmarshal");
+        }
+
+        var responseReceive = base.add(INTERNAL_RVA_RESPONSE_RECEIVE);
+        if (!isHooked("internal_response_receive")) {
+            Interceptor.attach(responseReceive, {
+                onEnter: function (args) {
+                    log("[v3-resp-receive] !! HANDLER FIRED — response was accepted! " +
+                        "param1=" + args[0] + " param2=" + args[1]);
+                    if (!internalRepBacktraceLogged.responseReceive) {
+                        internalRepBacktraceLogged.responseReceive = true;
+                        try {
+                            var frames = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                                .slice(0, 8);
+                            log("[v3-resp-receive] bt " + formatBacktrace(frames));
+                        } catch (_) {}
+                    }
+                }
+            });
+            hookStatus("internal_response_receive", "success");
+            markHook("internal_response_receive");
         }
 
         var carrierSendSysmsg = base.add(INTERNAL_RVA_CARRIER_SEND_SYSMSG);
