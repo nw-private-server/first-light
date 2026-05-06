@@ -96,6 +96,28 @@ ACK_VARIANTS: dict[str, bytes] = {
 }
 
 
+def _chunk_replay_payload(
+    body: bytes, chunk_size: int = 1100,
+) -> list[tuple[int, bytes]]:
+    """Split a body into chunks for MF_CHUNKS transmission.
+
+    Returns a list of (remaining, slice) tuples where the first
+    `remaining` is the total chunk count and each subsequent value
+    decrements to 1 (the countdown convention used by the binary's
+    chunk-reassembly path). Single-chunk fallthrough returns
+    [(1, body)] so the caller can decide whether to even set MF_CHUNKS.
+    """
+    if chunk_size <= 0:
+        raise ValueError(f"chunk_size must be positive, got {chunk_size}")
+    if not body:
+        return [(1, b"")]
+    n = (len(body) + chunk_size - 1) // chunk_size
+    return [
+        (n - i, body[i * chunk_size:(i + 1) * chunk_size])
+        for i in range(n)
+    ]
+
+
 def _encode_vlq32(value: int) -> bytes:
     """AzCore VLQ32: 7 bits per byte, top bit set means more bytes follow.
 
@@ -170,6 +192,10 @@ class PeerSession:
         self.substitution_ctx = None
         self.character_display_name = "NWPrivateTester01"
         self.replay_include_redacted = False
+        # Default chunk-payload size for MF_CHUNKS replay. Matches the
+        # ~1115 B per-chunk size the real server uses for WORLD DATA per
+        # docs/community/community_state_machine_dump.txt.
+        self.replay_chunk_size = 1100
         self.handshake_done = False
         self.out_seq = 0  # outbound Carrier-envelope sequence number
         # Per-channel outbound sequence + reliable-sequence counters. GridMate
@@ -643,31 +669,60 @@ class PeerSession:
         msg_size = len(body_bytes)
         vlq32 = _encode_vlq32(msg_size)
         envelope_body = vlq32 + body_bytes
-        # The Carrier record's size field is u16 — caps at 65535. Bodies
-        # beyond that need MF_CHUNKS reassembly, which is a separate fix.
-        if len(envelope_body) > 0xFFFF:
-            self.log.warning(
-                f"replay seq=0x{msg.seq:x} body_len={msg_size} exceeds "
-                f"u16 record-size limit; chunking not yet implemented; "
-                f"dropping"
+
+        if len(envelope_body) <= 0xFFFF:
+            # Single-record path
+            record = (
+                bytes([flags]) +
+                struct.pack(">H", len(envelope_body)) +
+                bytes([ch & 0xFF]) +
+                struct.pack(">H", out_seq & 0xFFFF) +
+                struct.pack(">H", rel_seq & 0xFFFF) +
+                envelope_body
             )
+            datagram = self.wrap_envelope(record)
+            self.send_app(datagram)
+            self.log.info(
+                f">> replay seq=0x{msg.seq:x} type=0x{msg.type_id:x} "
+                f"body_len={len(msg.body)} dgram_len={len(datagram)} "
+                f"remaining={len(self.replay_queue)}"
+            )
+            self.drain_outbound()
             return
-        record = (
-            bytes([flags]) +
-            struct.pack(">H", len(envelope_body)) +
-            bytes([ch & 0xFF]) +
-            struct.pack(">H", out_seq & 0xFFFF) +
-            struct.pack(">H", rel_seq & 0xFFFF) +
-            envelope_body
-        )
-        datagram = self.wrap_envelope(record)
-        self.send_app(datagram)
+
+        # Chunked path: MF_CHUNKS (0x04) splits the message across N records
+        # on the same channel. numChunks is a countdown — first record has
+        # the total count, subsequent records decrement to 1. The first
+        # chunk carries the VLQ32 size prefix (= total_size); subsequent
+        # chunks ship just their slice. See analysis/replay_chunking_design.md.
+        chunked_flags = flags | 0x04  # add MF_CHUNKS
+        chunks = _chunk_replay_payload(envelope_body, self.replay_chunk_size)
+        # The first chunk's seq/rel_seq are out_seq/rel_seq (already
+        # allocated above). Subsequent chunks get fresh allocations.
+        first_seq, first_rel = out_seq, rel_seq
+        for i, (remaining, payload_slice) in enumerate(chunks):
+            if i == 0:
+                c_seq, c_rel = first_seq, first_rel
+            else:
+                c_seq, c_rel = self._next_seq(ch, reliable=True)
+            record = (
+                bytes([chunked_flags]) +
+                struct.pack(">H", len(payload_slice)) +
+                bytes([ch & 0xFF]) +
+                struct.pack(">H", remaining & 0xFFFF) +
+                struct.pack(">H", c_seq & 0xFFFF) +
+                struct.pack(">H", c_rel & 0xFFFF) +
+                payload_slice
+            )
+            datagram = self.wrap_envelope(record)
+            self.send_app(datagram)
+            self.drain_outbound()
         self.log.info(
             f">> replay seq=0x{msg.seq:x} type=0x{msg.type_id:x} "
-            f"body_len={len(msg.body)} dgram_len={len(datagram)} "
+            f"body_len={len(msg.body)} CHUNKED chunks={len(chunks)} "
+            f"chunk_size={self.replay_chunk_size} "
             f"remaining={len(self.replay_queue)}"
         )
-        self.drain_outbound()
 
     def _next_seq(self, channel: int, reliable: bool) -> tuple[int, int]:
         """Allocate (seq, rel_seq) for a new outbound record on `channel`."""
@@ -801,6 +856,11 @@ def main() -> int:
                          "spans in redacted replay messages. The captured "
                          "spans are 21-23 chars; this is padded/truncated "
                          "to fit each.")
+    ap.add_argument("--replay-chunk-size", type=int, default=1100,
+                    help="Per-chunk payload size for MF_CHUNKS replay "
+                         "messages > 64 KB. Default 1100 matches the "
+                         "real server's WORLD DATA segment size. Range "
+                         "1..65000.")
     ap.add_argument("--replay-after-v3", action="store_true",
                     help="After V3 response is sent, replay the captured "
                          "post-registration R-direction messages from the "
@@ -898,6 +958,7 @@ def main() -> int:
                                    replay_interval_ms=args.replay_interval_ms)
                 sess.replay_include_redacted = args.replay_include_redacted
                 sess.character_display_name = args.character_display_name
+                sess.replay_chunk_size = args.replay_chunk_size
                 sessions[peer] = sess
 
             sess.feed(data)

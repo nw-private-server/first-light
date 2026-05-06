@@ -29,6 +29,7 @@ jobs:
           pytest server/javelin/test_parser.py \
                  server/javelin/test_codecs.py \
                  server/javelin/test_replay_substitution.py \
+                 server/test_chunking.py \
                  server/test_loopback.py \
                  server/test_captures.py \
                  server/test_vlq32.py \
