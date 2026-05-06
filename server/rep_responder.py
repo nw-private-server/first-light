@@ -47,6 +47,7 @@ from server.javelin.frame import (  # noqa: E402
     marshal_datagram,
 )
 from server.javelin.replay_store import ReplayStore, ReplayMessage  # noqa: E402
+from server.javelin.v3_request import V3RegistrationRequest  # noqa: E402
 
 
 CERT_PATH = PROJECT / "server" / "certs" / "server.crt"
@@ -141,6 +142,12 @@ class PeerSession:
         # currently — testing whether this is what makes the client stop
         # retrying V3 (per docs/next-session.md "cheapest first action").
         self.v3_piggyback_ack = v3_piggyback_ack
+        # Replay-substitution: a SubstitutionContext built from the first V3
+        # request, used to fill XX placeholders in captured replay messages
+        # at seq >= 0x25. None until V3 fields are parseable.
+        self.substitution_ctx = None
+        self.character_display_name = "NWPrivateTester01"
+        self.replay_include_redacted = False
         self.handshake_done = False
         self.out_seq = 0  # outbound Carrier-envelope sequence number
         # Per-channel outbound sequence + reliable-sequence counters. GridMate
@@ -359,6 +366,7 @@ class PeerSession:
         # the response session_token. Both are 32 hex chars = 32 bytes.
         # If not echoable from request, fall back to random.
         token = make_session_token()
+        req: V3RegistrationRequest | None = None
         try:
             req = parse_v3_request(m.payload)
             sess_uuid_no_dashes = req.session_uuid.replace("-", "")
@@ -366,38 +374,46 @@ class PeerSession:
                 token = sess_uuid_no_dashes.encode("ascii")
         except Exception as e:
             self.log.debug(f"v3 session_uuid strict-parse failed: {e!r}")
-            # Lenient fallback: scan the body for the second UUID
-            # (sig is first, session is second, persona is third) preceded by
-            # length prefix 0x24. The strict parser fails when body length
-            # diverges from 832 B but the session_uuid is still recoverable
-            # from any retry shape.
-            import re
-            uuids = list(re.finditer(
-                rb'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',
-                m.payload,
-            ))
-            session_match = None
-            for u in uuids:
-                pre = m.payload[max(0, u.start() - 8):u.start()].decode(
-                    "latin-1", errors="replace"
-                )
-                if "sig:" in pre or "naId." in pre:
-                    continue
-                if u.start() > 0 and m.payload[u.start() - 1] == 0x24:
-                    session_match = u
-                    break
-            if session_match is not None:
-                sess_uuid_no_dashes = (
-                    session_match.group(0).decode("ascii").replace("-", "")
-                )
+            # Lenient fallback: scan the body for the session UUID + persona-id.
+            # The strict parser fails when body length diverges from 832 B
+            # (live first-attempt is 835 B, retries are 829-838 B), but the
+            # identity fields are still recoverable by regex.
+            req = self._lenient_v3_extract(m.payload)
+            if req and req.session_uuid:
+                sess_uuid_no_dashes = req.session_uuid.replace("-", "")
                 if len(sess_uuid_no_dashes) == 32:
                     token = sess_uuid_no_dashes.encode("ascii")
                     self.log.info(
-                        f"   V3 lenient-extracted session_uuid="
-                        f"{session_match.group(0).decode()}"
+                        f"   V3 lenient-extracted session_uuid={req.session_uuid}"
                     )
         resp = V3RegistrationResponse(session_token=token)
         resp_body = encode(resp)
+
+        # Build the replay-substitution context once per session, the first
+        # time we successfully parse identity fields from the V3 request.
+        # Subsequent V3 retries (the 0xfc replay-bounce form) won't overwrite
+        # it. Spans in the captured replay messages get filled with these
+        # live values so the post-V3 replay can extend past seq 0x24 without
+        # leaking the captured player's real identity.
+        if req is not None and getattr(self, "substitution_ctx", None) is None:
+            try:
+                from server.javelin.replay_substitution import (
+                    SubstitutionContext, _digest_for_diagnostics,
+                )
+                self.substitution_ctx = SubstitutionContext.from_v3_and_session(
+                    req=req,
+                    session_token=token,
+                    character_display_name=self.character_display_name,
+                )
+                self.log.info(
+                    f"   substitution_ctx armed: "
+                    f"{_digest_for_diagnostics(self.substitution_ctx)}"
+                )
+                for w in self.substitution_ctx.warnings:
+                    self.log.debug(f"   substitution warning: {w}")
+            except Exception as e:
+                self.log.warning(f"   substitution_ctx build failed: {e!r}")
+                self.substitution_ctx = None
 
         # 2026-05-04 round 3: response wrap iteration via --v3-resp-flag /
         # --v3-resp-channel CLI flags. Empirical results so far:
@@ -501,13 +517,55 @@ class PeerSession:
         self.drain_outbound()
         self._start_replay()
 
+    def _lenient_v3_extract(self, payload: bytes) -> "V3RegistrationRequest | None":
+        """Extract session_uuid + persona_id from a V3 payload by regex.
+
+        Used when `parse_v3_request` rejects the body (live first-attempt is
+        835 B, not the strict 832 B). Returns a minimal V3RegistrationRequest
+        with only the identity fields populated, or None if neither could be
+        recovered.
+        """
+        import re
+        uuids = list(re.finditer(
+            rb'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',
+            payload,
+        ))
+        session_uuid = ""
+        for u in uuids:
+            pre = payload[max(0, u.start() - 8):u.start()].decode(
+                "latin-1", errors="replace"
+            )
+            if "sig:" in pre or "naId." in pre:
+                continue
+            if u.start() > 0 and payload[u.start() - 1] == 0x24:
+                session_uuid = u.group(0).decode("ascii")
+                break
+
+        # persona_id is "amzn1.developerPersonaId.<uuid>" (61 chars), preceded
+        # by a length byte 0x3d (61).
+        persona_id = ""
+        m = re.search(
+            rb'amzn1\.developerPersonaId\.[0-9a-f-]{36}',
+            payload,
+        )
+        if m:
+            persona_id = m.group(0).decode("ascii")
+
+        if not session_uuid and not persona_id:
+            return None
+        out = V3RegistrationRequest()
+        out.session_uuid = session_uuid
+        out.persona_id = persona_id
+        return out
+
     def _start_replay(self) -> None:
         """Queue post-V3 captured messages for paced replay."""
         if self.replay_started or self.replay_store is None:
             return
         self.replay_started = True
         self.replay_queue = self.replay_store.replay_messages_after_v3(
-            self.replay_max_seq
+            self.replay_max_seq,
+            include_redacted=self.replay_include_redacted,
         )
         # The V3 response sent on ch=0 with seq=0/rel_seq=0 doesn't go through
         # _next_seq, so the per-channel counters are still at 0. Bump them so
@@ -545,14 +603,34 @@ class PeerSession:
         ch = 0
         flags = 0x21  # MF_RELIABLE | MF_DATA_CHANNEL
         out_seq, rel_seq = self._next_seq(ch, reliable=True)
-        msg_size = len(msg.body)
+
+        # If the captured message has redacted spans, substitute live-session
+        # values via SubstitutionContext. Skip if the context isn't ready yet
+        # (drops the message rather than emitting captured XX zero-fills).
+        if msg.has_redaction:
+            ctx = getattr(self, "substitution_ctx", None)
+            if ctx is None:
+                self.log.warning(
+                    f"replay seq=0x{msg.seq:x} has redaction but no "
+                    f"substitution_ctx; dropping"
+                )
+                return
+            body_bytes = ctx.apply(msg)
+            assert len(body_bytes) == len(msg.body), (
+                f"replay-substitute changed body length: "
+                f"{len(msg.body)} -> {len(body_bytes)}"
+            )
+        else:
+            body_bytes = msg.body
+
+        msg_size = len(body_bytes)
         if msg_size < 128:
             vlq32 = bytes([msg_size])
         elif msg_size < 16384:
             vlq32 = bytes([0x80 | (msg_size & 0x7F), (msg_size >> 7) & 0x7F])
         else:
             raise ValueError(f"replay body too big for naive VLQ32: {msg_size}")
-        envelope_body = vlq32 + msg.body
+        envelope_body = vlq32 + body_bytes
         record = (
             bytes([flags]) +
             struct.pack(">H", len(envelope_body)) +
@@ -691,6 +769,17 @@ def main() -> int:
                          "same envelope. Default: bundled (matches Mixed Nuts' "
                          "working server). Disable to A/B-test whether the "
                          "piggyback ACK is what stops the V3 retry loop.")
+    ap.add_argument("--replay-include-redacted", action="store_true",
+                    help="Include captured replay messages with XX-redacted "
+                         "spans in the queue. Spans are filled at send-time "
+                         "via SubstitutionContext (built from the live V3 "
+                         "RegistrationRequest fields). Required to push "
+                         "replay past seq 0x24 into the StateBundle range.")
+    ap.add_argument("--character-display-name", default="NWPrivateTester01",
+                    help="Display-name string used to fill display-name "
+                         "spans in redacted replay messages. The captured "
+                         "spans are 21-23 chars; this is padded/truncated "
+                         "to fit each.")
     ap.add_argument("--replay-after-v3", action="store_true",
                     help="After V3 response is sent, replay the captured "
                          "post-registration R-direction messages from the "
@@ -741,6 +830,7 @@ def main() -> int:
     log.info(f"ack form: {args.ack_form} (mn=0x21/rel_seq=0, alt=0xa0/rel_seq=0xFFFF)")
     log.info(f"V3 response wrap: flag={args.v3_resp_flag} channel={args.v3_resp_channel or 'mirror-request'}")
     log.info(f"V3 piggyback ACK: {'disabled' if args.no_v3_piggyback_ack else 'enabled (flag 0x20 ch=3)'}")
+    log.info(f"replay redacted: {'INCLUDED (substitution active)' if args.replay_include_redacted else 'filtered out'}")
 
     replay_store: ReplayStore | None = None
     if args.replay_after_v3:
@@ -785,6 +875,8 @@ def main() -> int:
                                    replay_store=replay_store,
                                    replay_max_seq=int(args.replay_max_seq, 16),
                                    replay_interval_ms=args.replay_interval_ms)
+                sess.replay_include_redacted = args.replay_include_redacted
+                sess.character_display_name = args.character_display_name
                 sessions[peer] = sess
 
             sess.feed(data)

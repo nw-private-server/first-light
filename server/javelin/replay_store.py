@@ -116,14 +116,14 @@ class ReplayStore:
         return out
 
     def replay_messages_after_v3(
-        self, max_seq: int = 0x24
+        self, max_seq: int = 0x24, *, include_redacted: bool = False,
     ) -> list[ReplayMessage]:
         return [
             m
             for m in self._messages
             if 0x2 <= m.seq <= max_seq
             and m.direction == "R"
-            and not m.has_redaction
+            and (include_redacted or not m.has_redaction)
         ]
 
     def _parse(self) -> None:
