@@ -298,13 +298,31 @@ class PeerSession:
         if not hasattr(self, "_inbound_env_first") or self._inbound_env_first is None:
             self._inbound_env_first = env.sequence
         self._inbound_env_last = env.sequence
-        self.log.info(
-            f"<< env_seq={env.sequence} msgs={len(result.messages)} "
-            + " ".join(
-                f"[ch={m.channel} sysmsg={m.system_msg_id} payload={m.payload.hex()}]"
-                for m in result.messages
-            )
+        # Suppress repeated bare keepalive-ACK datagrams: when the only
+        # message is sysmsg=6 (SM_CT_ACKS) and the payload matches the
+        # last bare-ack we logged, downgrade to debug level. Anything else
+        # — multi-msg datagrams, sysmsg != 6, payload changes — logs at
+        # info level normally. Helps reduce noise with heartbeats running.
+        is_bare_ack = (
+            len(result.messages) == 1
+            and result.messages[0].channel == 3
+            and result.messages[0].system_msg_id == 6
         )
+        msg_summary = " ".join(
+            f"[ch={m.channel} sysmsg={m.system_msg_id} payload={m.payload.hex()}]"
+            for m in result.messages
+        )
+        line = f"<< env_seq={env.sequence} msgs={len(result.messages)} {msg_summary}"
+        if is_bare_ack and getattr(self, "_last_bare_ack_summary", None) == msg_summary:
+            self._suppressed_bare_acks = getattr(self, "_suppressed_bare_acks", 0) + 1
+            self.log.debug(line)
+        else:
+            suppressed = getattr(self, "_suppressed_bare_acks", 0)
+            if suppressed:
+                self.log.info(f"<< (... {suppressed} repeated bare ACKs suppressed)")
+                self._suppressed_bare_acks = 0
+            self.log.info(line)
+            self._last_bare_ack_summary = msg_summary if is_bare_ack else None
         # ACK every SM_CONNECT_REQUEST we see. While we're iterating on the
         # payload, the client keeps retrying because it hasn't accepted our
         # ACK yet — so we should keep sending too.
@@ -645,16 +663,20 @@ class PeerSession:
             return
         if now < self._next_heartbeat_at:
             return
-        self._send_replay_message(self._heartbeat_msg)
+        self._send_replay_message(self._heartbeat_msg, is_heartbeat=True)
         self._next_heartbeat_at = now + (self.post_replay_heartbeat_ms / 1000.0)
 
-    def _send_replay_message(self, msg: ReplayMessage) -> None:
+    def _send_replay_message(self, msg: ReplayMessage, is_heartbeat: bool = False) -> None:
         """Wrap a captured typed-stream body in a Carrier record + envelope.
 
         Mirrors the V3 RegistrationResponse wrap (ch=0, flag=0x21, VLQ32
         length-prefixed body) which we know the deserializer accepts. The
         replay body already contains the [00 01 <type-encoded>] preamble
         from the dump, so we forward it verbatim.
+
+        `is_heartbeat=True` downgrades the success log line to DEBUG and
+        emits a periodic summary instead, so the post-replay heartbeat
+        loop doesn't flood the console.
         """
         ch = 0
         flags = 0x21  # MF_RELIABLE | MF_DATA_CHANNEL
@@ -704,11 +726,26 @@ class PeerSession:
             )
             datagram = self.wrap_envelope(record)
             self.send_app(datagram)
-            self.log.info(
+            line = (
                 f">> replay seq=0x{msg.seq:x} type=0x{msg.type_id:x} "
                 f"body_len={len(msg.body)} dgram_len={len(datagram)} "
                 f"remaining={len(self.replay_queue)}"
             )
+            if is_heartbeat:
+                self._heartbeat_count = getattr(self, "_heartbeat_count", 0) + 1
+                # First heartbeat at INFO so it's visible; subsequent
+                # at DEBUG; periodic summary at INFO every N heartbeats.
+                if self._heartbeat_count == 1:
+                    self.log.info(f"{line} [HEARTBEAT START]")
+                elif self._heartbeat_count % 60 == 0:
+                    self.log.info(
+                        f">> heartbeat alive: count={self._heartbeat_count} "
+                        f"(every ~{self.post_replay_heartbeat_ms}ms)"
+                    )
+                else:
+                    self.log.debug(line)
+            else:
+                self.log.info(line)
             self.drain_outbound()
             return
 
