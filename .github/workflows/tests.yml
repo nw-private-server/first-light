@@ -28,6 +28,7 @@ jobs:
         run: |
           pytest server/javelin/test_parser.py \
                  server/javelin/test_codecs.py \
+                 server/javelin/test_replay_substitution.py \
                  server/test_loopback.py \
                  server/test_captures.py \
                  -v
