@@ -8,7 +8,7 @@
 #
 # Outputs go to:
 #   - Ghidra's Console (for quick review)
-#   - C:\Users\<username>\Programs\NewWorldPrivate\analysis\ghidra_findings.txt
+#   - <project-root>\analysis\ghidra_findings.txt  (edit OUTPUT_PATH below)
 #
 # @category Analysis.New_World
 # @menupath Tools.Javelin Hunt
@@ -20,7 +20,7 @@ from ghidra.program.model.symbol import RefType  # type: ignore
 from ghidra.program.model.scalar import Scalar  # type: ignore
 
 # Output file
-OUTPUT_PATH = r"C:\Users\<username>\Programs\NewWorldPrivate\analysis\ghidra_findings.txt"
+OUTPUT_PATH = r"analysis\ghidra_findings.txt"  # relative to project root; edit if needed
 
 findings = {
     "anchors": {},

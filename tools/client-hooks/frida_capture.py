@@ -46,12 +46,15 @@ except ImportError:
 #  Paths
 # ---------------------------------------------------------------------------
 
-PROJECT_DIR = Path(r"C:\Users\<username>\Programs\NewWorldPrivate")
+PROJECT_DIR = Path(__file__).resolve().parents[2]  # repo root
 CAPTURE_DIR = PROJECT_DIR / "capture"
-TOOLS_DIR = PROJECT_DIR / "tools"
+TOOLS_DIR = PROJECT_DIR / "tools" / "client-hooks"
 HOOK_SCRIPT = TOOLS_DIR / "frida_dtls_hook.js"
 TRUST_PATCH_SCRIPT = TOOLS_DIR / "frida_dtls_trust_patch.js"
-GAME_EXE = Path(r"<steam-library>\steamapps\common\New World\Bin64\NewWorld.exe")
+GAME_EXE = Path(os.environ.get(
+    "NW_GAME_EXE",
+    r"C:\Program Files (x86)\Steam\steamapps\common\New World\Bin64\NewWorld.exe",
+))
 DEFAULT_STEAM_APP_ID = "1063730"
 
 # ---------------------------------------------------------------------------

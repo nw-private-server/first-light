@@ -13,7 +13,7 @@ Two reproducible CTDs at character-select today (and at least four total). All f
 
 ## Crash artifacts found
 
-- **Minidumps** in `C:\Users\<username>\AppData\Local\CrashDumps\`
+- **Minidumps** in `<crash-dumps>\`
   - `NewWorld.exe.19216.dmp` (96 MB, 13:30)
   - `NewWorld.exe.15540.dmp` (96 MB, 14:35)
   - `NewWorld.exe.37948.dmp`, `NewWorld.exe.33376.dmp` (today's other CTDs)
@@ -26,7 +26,7 @@ Faulting module name:      NewWorld.exe, version: 1.400.6031.40375
 Exception code:  0xc0000005   (access violation)
 Fault offset:    0x0000000003007ec3
 Faulting process id: 0x4B10  (= PID 19216, the 13:30 crash)
-Faulting application path: <archive-root>\GameClient\Bin64\NewWorld.exe
+Faulting application path: <archive-game-exe>
 Bucket: 1843783487914520197 / 9c5bbc985b25fc5649966f503fe02e85
 ```
 
@@ -36,11 +36,11 @@ All four crashes share the **same WER bucket** (1843783487914520197) and **same 
 
 WER LoadedModule list shows the following **non-default** DLLs in-process at crash:
 
-- `C:\Users\<username>\AppData\Local\Medal\HookDLL\MedalHook_19216\medal-hook64.dll` (per-PID hook injected by Medal.tv)
+- `<user-appdata>\Medal\HookDLL\MedalHook_<pid>\medal-hook64.dll` (per-PID hook injected by Medal.tv)
 - `C:\Program Files (x86)\RivaTuner Statistics Server\RTSSHooks64.dll`
 - `C:\Program Files (x86)\Steam\gameoverlayrenderer64.dll`
 - `C:\WINDOWS\system32\nvspcap64.dll` (NVIDIA ShadowPlay capture)
-- `<archive-root>\GameClient\Bin64\sl.interposer.dll` (NVIDIA Streamline / DLSS)
+- `<archive-game-bin>\sl.interposer.dll` (NVIDIA Streamline / DLSS)
 - `C:\Program Files\Bonjour\mdnsNSP.dll`
 - `frida-agent.dll`
 - `EOSSDK-Win64-Shipping.dll` (Easy Anti-Cheat / Epic Online)
@@ -78,6 +78,6 @@ The **Medal "temp d3d window" creation** at T-3.4s is Medal's standard pattern w
 2. If still crashing, kill **RivaTuner Statistics Server** (`RTSS.exe`, `EncoderServer.exe`).
 3. Then kill **NVIDIA ShadowPlay overlay**: `nvcontainer.exe` instances and disable in-game overlay in GeForce Experience.
 4. Disable **Steam in-game overlay** for New World (Steam -> Library -> NW -> Properties -> uncheck "Enable Steam Overlay").
-5. If a clean-environment run still hits 0x143007EC3 deterministically, the bug is real game code (likely tickled by our REP path landing the client somewhere it normally cannot reach). In that case open the dump in WinDbg/Visual Studio: `windbg -z C:\Users\<username>\AppData\Local\CrashDumps\NewWorld.exe.19216.dmp` and run `!analyze -v` to get the function name at +0x3007ec3 - then we know whether to add a Frida bypass for that path.
+5. If a clean-environment run still hits 0x143007EC3 deterministically, the bug is real game code (likely tickled by our REP path landing the client somewhere it normally cannot reach). In that case open the dump in WinDbg/Visual Studio: `windbg -z <crash-dumps>\NewWorld.exe.19216.dmp` and run `!analyze -v` to get the function name at +0x3007ec3 - then we know whether to add a Frida bypass for that path.
 
 The cheapest first try is step 1; do that before any code change.

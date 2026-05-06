@@ -39,7 +39,7 @@ Meaning:
 Open a `x64 Native Tools Command Prompt for VS` and run:
 
 ```bat
-cd C:\Users\<username>\Programs\NewWorldPrivate\tools\d3d11_proxy
+cd <project-root>\tools\client-hooks\d3d11_proxy
 build_proxy.bat
 ```
 
@@ -52,7 +52,7 @@ Copy:
 - `build\d3d11.dll`
 
 To:
-- `<steam-library>\steamapps\common\New World\Bin64\d3d11.dll`
+- `<steam-game-bin>\d3d11.dll`
 
 Do not overwrite the system DLL. This works via normal DLL search order.
 

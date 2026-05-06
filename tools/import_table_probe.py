@@ -9,11 +9,15 @@ Usage:
     python tools/import_table_probe.py
 """
 
+import os
 from pathlib import Path
 from tools.list_pe_imports import parse_imports
 
 
-EXE = Path(r"<archive-root>\GameClient\Bin64\NewWorld.exe")
+EXE = Path(os.environ.get(
+    "NW_ARCHIVE_EXE",
+    r"C:\NewWorldArchive\GameClient\Bin64\NewWorld.exe",
+))
 TARGETS = {
     "steam_api64.dll": {"SteamAPI_Init", "SteamInternal_ContextInit"},
     "WINHTTP.dll": {"WinHttpConnect", "WinHttpOpenRequest", "WinHttpSendRequest"},

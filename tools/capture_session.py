@@ -21,10 +21,11 @@ from pathlib import Path
 from datetime import datetime
 
 # Paths
-PROJECT_DIR = Path(r"C:\Users\<username>\Programs\NewWorldPrivate")
+PROJECT_DIR = Path(__file__).resolve().parent.parent  # repo root
 CAPTURE_DIR = PROJECT_DIR / "capture"
-GAME_LOG = Path(r"C:\Users\<username>\AppData\Local\AGS\New World\Game.log")
-DEFAULT_GAME_LOG = Path(r"C:\Users\<username>\AppData\Local\AGS\New World\Game.log")
+_DEFAULT_GAME_LOG = Path.home() / "AppData" / "Local" / "AGS" / "New World" / "Game.log"
+GAME_LOG = Path(os.environ.get("NW_GAME_LOG", str(_DEFAULT_GAME_LOG)))
+DEFAULT_GAME_LOG = GAME_LOG
 
 def setup_session(name: str) -> Path:
     """Create a timestamped capture session directory."""

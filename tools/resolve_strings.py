@@ -6,11 +6,15 @@ names of the GetLoginInfoLists RPC schema without having to navigate
 every address in Ghidra manually.
 """
 
+import os
 import struct
 import sys
 from pathlib import Path
 
-EXE = Path(r"<steam-library>\steamapps\common\New World\Bin64\NewWorld.exe")
+EXE = Path(os.environ.get(
+    "NW_GAME_EXE",
+    r"C:\Program Files (x86)\Steam\steamapps\common\New World\Bin64\NewWorld.exe",
+))
 
 # Collected from the FUN_144f40780 disassembly slice. Organized by block.
 BLOCKS = {

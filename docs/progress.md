@@ -269,7 +269,7 @@ Things that differ from the initial Perplexity research or are otherwise surpris
     - 2026-04-19 follow-up: persisted `Characters[]` entries were expanded toward the real PascalCase parser shape by adding the date / transfer / published / social placeholder fields the client expects.
     - 2026-04-20 follow-up: seeded-character mode plus the corrected queue/login envelopes now let the client consistently reach `/prod/game/login/queue/v2`, accept a login ticket, fetch world remote-config, and start the REP connection.
     - 2026-04-20 current end state: after `GameConnectionWrapper: start REP connection RepAddress = 127.0.0.1:23971`, the DTLS probe sees a real client handshake. The client rejects our local server certificate with fatal `unknown ca`, then surfaces `@mm_csdkerr_transport_security_error (2)` and returns to menu. Gate 2 is now a **DTLS certificate-trust** problem, not an auth-mock/queue-schema problem.
-    - 2026-04-19 note: moving `C:\Users\<username>\AppData\Roaming\AGS\New World\savedata` aside to a timestamped backup removed one pre-`getlogininfo` failure mode where the game died before ever requesting character-select data.
+    - 2026-04-19 note: moving `<nw-appdata-roaming>\savedata` aside to a timestamped backup removed one pre-`getlogininfo` failure mode where the game died before ever requesting character-select data.
 
 -6. **Entitlement service schemas resolved via URL-first trace (2026-04-18).** Key pivot: instead of grepping for field-name strings, find the URL-builder function for the endpoint and follow the callback descriptor it passes to the shared HTTP helper.
     - `GET /players/{}/games/new-world/platforms/steam/entitlements`: URL builder is `FUN_1474caa10`, response parser is `FUN_1474c2420`. Shape is the generic paginated list wrapper `{hasMoreResults, lineItems[]}` — NOT `{entitlements, status}` as I guessed three times. Per-entry via `FUN_1474bde20` → `FUN_1474c4630`: `{acquisitionPersonaId, acquisitionType, amount (number), createdDate, productId, transactionId, type}`.
@@ -320,16 +320,16 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 ### Archived
 | What | Where | Size |
 |------|-------|------|
-| Game client | `<archive-root>\GameClient\` | 72 GB |
-| Game logs & crash DB | `<archive-root>\AppData_Local\` | 199 MB |
-| Save data & settings | `<archive-root>\AppData_Roaming\` | 121 MB |
-| Live install | `<steam-library>\steamapps\common\New World\` | 72 GB |
+| Game client | `<archive-game-dir>\` | 72 GB |
+| Game logs & crash DB | `<archive-appdata-local>\` | 199 MB |
+| Save data & settings | `<archive-appdata-roaming>\` | 121 MB |
+| Live install | `<steam-game-dir>\` | 72 GB |
 
 ### Source references (sparse clones)
 | Repo | Where | Purpose |
 |------|-------|---------|
-| O3DE (AzNetworking + Multiplayer gem + RTTI) | `C:\Users\<username>\Programs\o3de\` | Conceptual comparison doc only (not a wire-format match) |
-| Lumberyard (GridMate) | `C:\Users\<username>\Programs\lumberyard\` | **Primary protocol reference** — Javelin is a GridMate fork |
+| O3DE (AzNetworking + Multiplayer gem + RTTI) | `<o3de-path>\` | Conceptual comparison doc only (not a wire-format match) |
+| Lumberyard (GridMate) | `<lumberyard-path>\` | **Primary protocol reference** — Javelin is a GridMate fork |
 
 ### Capture Sessions
 | Date | Directory | Notes |
@@ -415,7 +415,7 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 
 ## 2026-04-20 Archived Frida Attempt
 
-- Tried `tools/frida_capture.py --exe "<archive-root>\GameClient\Bin64\NewWorld.exe" --name archived_frida`
+- Tried `tools/frida_capture.py --exe "<archive-game-exe>" --name archived_frida`
 - Important result: Frida spawn/attach **worked** on the archived binary. This is materially better than the live EAC path, where attach failed with `VirtualAllocEx` `ACCESS_DENIED`.
 - Immediate blocker on that archived run:
   - the client surfaced `Steam must be running to play this game`
@@ -431,7 +431,7 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 
 ## 2026-04-20 Archived Frida Attempt #2
 
-- Added `steam_appid.txt` containing `1063730` next to `<archive-root>\GameClient\Bin64\NewWorld.exe`
+- Added `steam_appid.txt` containing `1063730` next to `<archive-game-exe>`
 - Result:
   - the old `Steam must be running` blocker disappeared
   - the archived binary now gets farther, but exits with a generic `Unable to connect to New World: Aeternum servers` error
@@ -454,7 +454,7 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 
 ## 2026-04-20 Archived Frida Attempt #3
 
-- A later archived run regressed to the old Steam blocker. Investigation showed `<archive-root>\GameClient\Bin64\steam_appid.txt` was no longer present at run time.
+- A later archived run regressed to the old Steam blocker. Investigation showed `<archive-game-bin>\steam_appid.txt` was no longer present at run time.
 - The session at `capture/20260420_222214_archived_frida/` confirms the archived process terminated even earlier than the previous run:
   - only `SSL_read` reached `not_found`
   - the process detached before the rest of the hook installation completed
@@ -487,7 +487,7 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 
 - Another archived rerun regressed to the old Steam blocker again.
 - Root cause check:
-  - `<archive-root>\GameClient\Bin64\steam_appid.txt` was missing again at run time
+  - `<archive-game-bin>\steam_appid.txt` was missing again at run time
 - Follow-up change:
   - `tools/frida_capture.py` now recreates `steam_appid.txt` with `1063730` automatically before every spawn attempt
 - Practical implication:
@@ -504,7 +504,7 @@ Things that differ from the initial Perplexity research or are otherwise surpris
 
 ## 2026-04-20 Archived Import Audit
 
-- Ran `tools/list_pe_imports.py` against `<archive-root>\GameClient\Bin64\NewWorld.exe`
+- Ran `tools/list_pe_imports.py` against `<archive-game-exe>`
 - Important result: the archived binary really does import the Windows and Steam APIs we care about, but not necessarily the specific plain-socket names we first guessed.
 - Relevant imports confirmed:
   - `steam_api64.dll`
@@ -2122,7 +2122,7 @@ Disconnected
 
 ### Headline
 
-The archived non-EAC build (`<archive-root>\GameClient\Bin64\NewWorld.exe`) now completes a full DTLS 1.2 handshake against our self-signed cert at `127.0.0.1:23971`. No `unknown ca` alert. Client accepts `CN=New World` server cert, finishes key exchange, writes `Finished`, and immediately sends application data (the first Javelin record). The 4-month cert-trust wall is down.
+The archived non-EAC build (`<archive-game-exe>`) now completes a full DTLS 1.2 handshake against our self-signed cert at `127.0.0.1:23971`. No `unknown ca` alert. Client accepts `CN=New World` server cert, finishes key exchange, writes `Finished`, and immediately sends application data (the first Javelin record). The 4-month cert-trust wall is down.
 
 ### What works
 
@@ -2165,7 +2165,7 @@ The probe at `151655` **captured a complete encrypted Javelin record** post-hand
    ```
    python -m server.auth_mock --port 443
    python tools\dtls_probe.py
-   python tools\frida_capture.py --exe "<archive-root>\GameClient\Bin64\NewWorld.exe" --name archived_probe_running
+   python tools\frida_capture.py --exe "<archive-game-exe>" --name archived_probe_running
    ```
 2. Character-create → enter world. Let it run 15–20 s.
 3. In the probe log, look for `SSL_accept:SSLv3/TLS write finished` followed by **decrypted application-data hex blocks** (no `close notify` in between).
@@ -2446,7 +2446,7 @@ Subagent string-enumeration of NewWorld.exe found the explicit dev/test bypass f
 
 **Test command**:
 ```powershell
-python tools\frida_capture.py --exe "<archive-root>\GameClient\Bin64\NewWorld.exe" --name stubbed_test --exe-arg=--GatewayMode=stubbed
+python tools\frida_capture.py --exe "<archive-game-exe>" --name stubbed_test --exe-arg=--GatewayMode=stubbed
 ```
 
 Other CLI flags worth knowing (each maps to a config key, all from FUN_14645b520):

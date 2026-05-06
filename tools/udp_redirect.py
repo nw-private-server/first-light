@@ -14,6 +14,7 @@ Usage:
 """
 
 import argparse
+import os
 import re
 import signal
 import sys
@@ -33,7 +34,10 @@ AWS_GA_PREFIXES = [
     "52.223.",     # 52.223.16.88
 ]
 
-GAME_LOG = Path(r"C:\Users\<username>\AppData\Local\AGS\New World\Game.log")
+GAME_LOG = Path(os.environ.get(
+    "NW_GAME_LOG",
+    str(Path.home() / "AppData" / "Local" / "AGS" / "New World" / "Game.log"),
+))
 
 
 def detect_server_from_log() -> tuple[str, int] | None:

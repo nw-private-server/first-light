@@ -22,7 +22,7 @@ import json
 from ghidra.program.model.listing import CodeUnit  # type: ignore
 from ghidra.program.model.scalar import Scalar  # type: ignore
 
-OUTPUT_PATH = r"C:\Users\<username>\Programs\NewWorldPrivate\analysis\ghidra_chunks.txt"
+OUTPUT_PATH = r"analysis\ghidra_chunks.txt"  # relative to project root; edit if needed
 
 prog = currentProgram  # noqa: F821
 listing = prog.getListing()

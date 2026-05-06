@@ -2,7 +2,7 @@
 
 > Consolidated targets discovered via static scan. Use these the moment
 > Ghidra auto-analysis completes (and GhidraMCP is enabled). All VAs are
-> for the retail build at `<archive-root>\GameClient\Bin64\NewWorld.exe`.
+> for the retail build at `<archive-game-exe>`.
 >
 > PE image base: `0x0000000140000000`
 > Last updated: 2026-04-17
