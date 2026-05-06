@@ -3,8 +3,8 @@
 [![Tests](https://github.com/nw-private-server/first-light/actions/workflows/tests.yml/badge.svg)](https://github.com/nw-private-server/first-light/actions/workflows/tests.yml)
 
 A community effort to build a private server emulator for New World before Amazon shuts down the live service (~Dec 2026). The goal is to accept the real unmodified client binary, pass auth, and let a player enter a static world. No combat, NPCs, or persistence required for MVP.
+First Light is in reference to the territory "First Light" that was eventually removed from the game. 
 
-The name *First Light* is the goal: be the first community server to come online before the official ones go dark.
 
 ---
 
@@ -23,7 +23,7 @@ Once the official servers go down, all knowledge of the wire protocol becomes mu
 | 3 | World streaming (post-registration server messages) | Not started |
 | 4 | Input / movement / actor replication | Not started |
 
-For background, the running session log is in [docs/progress.md](docs/progress.md) and the latest blocker description is in [docs/next-session.md](docs/next-session.md). These are working notes for the maintainers' Claude Code sessions — read them for context, but don't worry about updating them.
+For background, the running session log is in [docs/progress.md](docs/progress.md) and the latest blocker description is in [docs/next-session.md](docs/next-session.md). These are working notes for the maintainers' working sessions — read them for context, but don't worry about updating them.
 
 ---
 
