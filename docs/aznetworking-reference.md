@@ -1,6 +1,6 @@
 # AzNetworking Protocol Reference
 
-> Deep-read of O3DE source at `C:\Users\<username>\Programs\o3de\`. All citations are
+> Deep-read of O3DE source at `<o3de-path>\`. All citations are
 > against that tree. This is the reference we will use to match Ghidra
 > findings against a known protocol when NewWorld.exe analysis completes.
 >
@@ -916,7 +916,7 @@ In priority order, once auto-analysis completes:
 
 ## Appendix: Source file index
 
-All paths relative to `C:\Users\<username>\Programs\o3de\`.
+All paths relative to `<o3de-path>\`.
 
 | Concern | File |
 |---------|------|

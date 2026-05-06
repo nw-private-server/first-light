@@ -8,10 +8,11 @@ binary vs stripped/replaced.
 
 Usage:
     python tools/scan_binary.py
-    python tools/scan_binary.py --exe <steam-library>\steamapps\common\New World\Bin64\NewWorld.exe
+    python tools/scan_binary.py --exe <steam-game-exe>
 """
 
 import argparse
+import os
 import struct
 import sys
 from pathlib import Path
@@ -19,7 +20,10 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 
 # Default: use the ARCHIVED copy so Steam updates can't invalidate our findings
-DEFAULT_EXE = Path(r"<archive-root>\GameClient\Bin64\NewWorld.exe")
+DEFAULT_EXE = Path(os.environ.get(
+    "NW_ARCHIVE_EXE",
+    r"C:\NewWorldArchive\GameClient\Bin64\NewWorld.exe",
+))
 
 # From docs/aznetworking-reference.md section 7.1
 RTTI_UUIDS = {

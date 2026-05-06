@@ -25,7 +25,10 @@ PROJECT_DIR = Path(__file__).resolve().parent.parent
 TOOLS_DIR = PROJECT_DIR / "tools"
 CAPTURE_DIR = PROJECT_DIR / "capture"
 CERTS_DIR = PROJECT_DIR / "server" / "certs"
-GAME_LOG = Path(r"C:\Users\<username>\AppData\Local\AGS\New World\Game.log")
+GAME_LOG = Path(os.environ.get(
+    "NW_GAME_LOG",
+    str(Path.home() / "AppData" / "Local" / "AGS" / "New World" / "Game.log"),
+))
 
 
 def check_prereqs():

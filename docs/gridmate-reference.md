@@ -1,7 +1,7 @@
 # GridMate Protocol Reference (Javelin Analog)
 
 > Deep-read of Lumberyard `Code/Framework/GridMate/GridMate/` at
-> `C:\Users\<username>\Programs\lumberyard\dev\Code\Framework\GridMate\`
+> `<lumberyard-path>\dev\Code\Framework\GridMate\`
 > (sparse shallow clone of `aws/lumberyard`, MIT-licensed).
 >
 > **Why this doc exists.** A binary scan of NewWorld.exe (see
@@ -969,7 +969,7 @@ Stuff the developers don't rewrite when rebranding:
 
 ## Appendix: Source file index
 
-All paths relative to `C:\Users\<username>\Programs\lumberyard\dev\Code\Framework\GridMate\`.
+All paths relative to `<lumberyard-path>\dev\Code\Framework\GridMate\`.
 
 | Concern | File |
 |---------|------|
