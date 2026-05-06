@@ -22,7 +22,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install pytest
+        run: pip install pytest pyopenssl
 
       - name: Run unit tests
         run: |
@@ -33,4 +33,5 @@ jobs:
                  server/test_loopback.py \
                  server/test_captures.py \
                  server/test_vlq32.py \
+                 server/test_piggyback_ack.py \
                  -v

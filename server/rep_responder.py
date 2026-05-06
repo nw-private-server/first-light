@@ -68,6 +68,50 @@ ENVELOPE_HEAD = b"\x80\x01"
 JAVELIN_CIPHER = "ECDHE-RSA-AES256-GCM-SHA384"
 
 
+def build_sm_ct_acks_record(
+    seq: int,
+    last_inbound_seq: int | None,
+    acked_through_seq: int | None,
+) -> bytes | None:
+    """Build a Carrier-level SM_CT_ACKS record covering the unacked range.
+
+    Pure helper so the encoding can be unit-tested without the SSL stack.
+
+    Layout (matches Mixed Nuts working bundle, see gridmate-reference §3.3):
+        20 00 06 03 [seq:u16 BE] 00 00 40 [lastToAck:u16 BE] [firstToAck:u16 BE] 06
+
+    `seq` is the channel-3 system-channel record sequence allocated by the
+    caller. The reliable-sequence inside the record is 0 (SM_CT_ACKS itself
+    is unreliable). The 0x40 marker is `AHF_CONTINUOUS_ACK`; msgid 0x06 is
+    SM_CT_ACKS.
+
+    Returns None if there is nothing new to acknowledge — i.e. either no
+    inbound seen yet, or we have already acked through `last_inbound_seq`.
+    """
+    if last_inbound_seq is None:
+        return None
+    if acked_through_seq is not None and acked_through_seq >= last_inbound_seq:
+        return None
+    if acked_through_seq is None:
+        first_to_ack = last_inbound_seq
+    else:
+        first_to_ack = (acked_through_seq + 1) & 0xFFFF
+    inline = (
+        b"\x40"
+        + struct.pack(">H", last_inbound_seq & 0xFFFF)
+        + struct.pack(">H", first_to_ack & 0xFFFF)
+        + b"\x06"
+    )
+    return (
+        bytes([0x20])                         # MF_DATA_CHANNEL only (unreliable)
+        + struct.pack(">H", len(inline))      # u16 size = 6
+        + bytes([3])                          # channel 3 (system)
+        + struct.pack(">H", seq & 0xFFFF)
+        + struct.pack(">H", 0)                # rel_seq = 0 (unreliable)
+        + inline
+    )
+
+
 # SM_CONNECT_ACK payload variants to iterate on. Last byte is msgId=0x02
 # (the channel-3 system msgId convention).
 #
@@ -175,6 +219,11 @@ class PeerSession:
         # increments these per outgoing record on each channel.
         self.out_msg_seq = [0, 0, 0, 0]
         self.out_rel_seq = [0, 0, 0, 0]
+        # Cursor for the piggyback SM_CT_ACKS record: highest inbound envelope
+        # sequence we've already acknowledged to the client. None = nothing
+        # acked yet. Advanced inside `_emit_piggyback_ack` whenever a fresh
+        # ACK record is bundled with an outbound datagram.
+        self._acked_through_seq: int | None = None
         self.conn = SSL.Connection(ctx, None)
         self.conn.set_accept_state()
         # Counts how many SM_CONNECT_ACK datagrams we've sent. Don't gate
@@ -264,6 +313,34 @@ class PeerSession:
 
     # ---------- Javelin layer ----------
 
+    def _emit_piggyback_ack(self) -> tuple[bytes, str]:
+        """Build a fresh SM_CT_ACKS record and advance the ack cursor.
+
+        Returns (record_bytes, log_suffix). When there is nothing new to
+        acknowledge, returns (b"", "").
+
+        Should be called once per outbound Carrier datagram so the client
+        sees regular SM_CT_ACKS for the reliable inbound traffic it sent
+        post-V3. Without these, the client retransmits reliable messages
+        up to 3 times and then drops them — the working hypothesis for
+        why state-10 never advances even though the V3 retry wall is gone.
+        """
+        if not self.v3_piggyback_ack:
+            return b"", ""
+        last = getattr(self, "last_inbound_env_seq", None)
+        seq = self.out_msg_seq[3]
+        rec = build_sm_ct_acks_record(seq, last, self._acked_through_seq)
+        if rec is None:
+            return b"", ""
+        self.out_msg_seq[3] = (seq + 1) & 0xFFFF
+        first_to_ack = (
+            last if self._acked_through_seq is None
+            else (self._acked_through_seq + 1) & 0xFFFF
+        )
+        self._acked_through_seq = last
+        log_suffix = f" piggyback_ack=[seq={seq} ack_range=({first_to_ack}..{last})]"
+        return rec, log_suffix
+
     def wrap_envelope(self, body: bytes) -> bytes:
         seq = self.out_seq & 0xFFFF
         self.out_seq = (self.out_seq + 1) & 0xFFFF
@@ -292,12 +369,6 @@ class PeerSession:
         # number 80 01 0000"). Strong hypothesis is the server's reply seq
         # should mirror the client's, not walk independently.
         self.last_inbound_env_seq = env.sequence
-        # Track the inbound env_seq range so the piggyback ACK record can
-        # acknowledge the right span (matches demo: "Last To ACK", "First
-        # To ACK"). First-seen seq is the lower bound; latest seq is upper.
-        if not hasattr(self, "_inbound_env_first") or self._inbound_env_first is None:
-            self._inbound_env_first = env.sequence
-        self._inbound_env_last = env.sequence
         # Suppress repeated bare keepalive-ACK datagrams: when the only
         # message is sysmsg=6 (SM_CT_ACKS) and the payload matches the
         # last bare-ack we logged, downgrade to debug level. Anything else
@@ -503,37 +574,12 @@ class PeerSession:
                 struct.pack(">H", 0) +          # rel_seq starts at 0 for reliable
                 envelope_body
             )
-        # Optionally append a Carrier-level piggyback ACK record (flag 0x20
-        # ch=3 sysmsg) acknowledging the inbound env_seq range we've seen.
-        # Mirrors Mixed Nuts' working bundle byte-for-byte:
-        #   20 00 06 03 [seq] [rel_seq=0] 40 [last_env_be] [first_env_be] 06
-        # The 0x40 marker is AckRange, msgid 0x06 is SM_CT_ACKS. Goal:
-        # confirm to the client that we received its V3 RegistrationRequest
-        # at the carrier layer so it stops retrying every ~500ms.
-        ack_record_bytes = b""
-        ack_log = ""
-        if self.v3_piggyback_ack:
-            first_env = getattr(self, "_inbound_env_first",
-                                getattr(self, "last_inbound_env_seq", 0))
-            last_env = getattr(self, "_inbound_env_last",
-                               getattr(self, "last_inbound_env_seq", 0))
-            ack_seq = self.out_msg_seq[3]
-            self.out_msg_seq[3] = (ack_seq + 1) & 0xFFFF
-            ack_inline_payload = (
-                b"\x40" + struct.pack(">H", last_env & 0xFFFF) +
-                struct.pack(">H", first_env & 0xFFFF) + b"\x06"
-            )
-            ack_record_bytes = (
-                bytes([0x20]) +                                  # MF_DATA_CHANNEL
-                struct.pack(">H", len(ack_inline_payload)) +     # size = 6
-                bytes([3]) +                                     # channel 3
-                struct.pack(">H", ack_seq & 0xFFFF) +
-                struct.pack(">H", 0) +                           # rel_seq = 0
-                ack_inline_payload
-            )
-            ack_log = (
-                f" piggyback_ack=[seq={ack_seq} ack_range=({first_env}..{last_env})]"
-            )
+        # Append a Carrier-level piggyback ACK record (SM_CT_ACKS on ch=3)
+        # for any inbound envelope seqs we haven't yet acknowledged. Mirrors
+        # Mixed Nuts' working V3-reply bundle and is now also emitted on
+        # every replay/heartbeat datagram via the same helper, so reliable
+        # client→server traffic post-V3 keeps getting acked.
+        ack_record_bytes, ack_log = self._emit_piggyback_ack()
         record = record + ack_record_bytes
 
         if getattr(self, "last_inbound_env_seq", None) is not None:
@@ -724,12 +770,13 @@ class PeerSession:
                 struct.pack(">H", rel_seq & 0xFFFF) +
                 envelope_body
             )
-            datagram = self.wrap_envelope(record)
+            ack_record_bytes, ack_log = self._emit_piggyback_ack()
+            datagram = self.wrap_envelope(record + ack_record_bytes)
             self.send_app(datagram)
             line = (
                 f">> replay seq=0x{msg.seq:x} type=0x{msg.type_id:x} "
                 f"body_len={len(msg.body)} dgram_len={len(datagram)} "
-                f"remaining={len(self.replay_queue)}"
+                f"remaining={len(self.replay_queue)}{ack_log}"
             )
             if is_heartbeat:
                 self._heartbeat_count = getattr(self, "_heartbeat_count", 0) + 1
@@ -773,6 +820,13 @@ class PeerSession:
                 struct.pack(">H", c_rel & 0xFFFF) +
                 payload_slice
             )
+            # Bundle the piggyback ACK with the first chunk only. Every
+            # chunk going out re-ACKing the same range is wasteful, and
+            # deferring to the last chunk would lose the ACK if anything
+            # fails mid-stream.
+            if i == 0:
+                ack_record_bytes, _ack_log = self._emit_piggyback_ack()
+                record = record + ack_record_bytes
             datagram = self.wrap_envelope(record)
             self.send_app(datagram)
             self.drain_outbound()
