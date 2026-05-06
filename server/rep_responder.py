@@ -96,6 +96,28 @@ ACK_VARIANTS: dict[str, bytes] = {
 }
 
 
+def _encode_vlq32(value: int) -> bytes:
+    """AzCore VLQ32: 7 bits per byte, top bit set means more bytes follow.
+
+    Handles values 0..2**32-1 in 1..5 bytes. The decoder in the binary
+    accepts the canonical (shortest) form for any given value.
+    """
+    if value < 0:
+        raise ValueError(f"VLQ32 cannot encode negative value {value}")
+    if value > 0xFFFFFFFF:
+        raise ValueError(f"VLQ32 cannot encode value > 2**32-1: {value}")
+    out = bytearray()
+    remaining = value
+    while True:
+        chunk = remaining & 0x7F
+        remaining >>= 7
+        if remaining:
+            out.append(chunk | 0x80)
+        else:
+            out.append(chunk)
+            return bytes(out)
+
+
 def make_ssl_context() -> SSL.Context:
     ctx = SSL.Context(SSL.DTLS_SERVER_METHOD)
     ctx.use_certificate_file(str(CERT_PATH))
@@ -436,12 +458,7 @@ class PeerSession:
         # values (our 88-byte body) it's a single byte with the top bit
         # clear. resp_body length is always 88 for the default response.
         msg_size = len(resp_body)
-        if msg_size < 128:
-            vlq32 = bytes([msg_size])
-        elif msg_size < 16384:
-            vlq32 = bytes([0x80 | (msg_size & 0x7f), (msg_size >> 7) & 0x7f])
-        else:
-            raise ValueError(f"V3 response too big for naive VLQ32: {msg_size}")
+        vlq32 = _encode_vlq32(msg_size)
         envelope_body = vlq32 + resp_body
         no_length = bool(flags & 0x40)
         if no_length:
@@ -624,13 +641,17 @@ class PeerSession:
             body_bytes = msg.body
 
         msg_size = len(body_bytes)
-        if msg_size < 128:
-            vlq32 = bytes([msg_size])
-        elif msg_size < 16384:
-            vlq32 = bytes([0x80 | (msg_size & 0x7F), (msg_size >> 7) & 0x7F])
-        else:
-            raise ValueError(f"replay body too big for naive VLQ32: {msg_size}")
+        vlq32 = _encode_vlq32(msg_size)
         envelope_body = vlq32 + body_bytes
+        # The Carrier record's size field is u16 — caps at 65535. Bodies
+        # beyond that need MF_CHUNKS reassembly, which is a separate fix.
+        if len(envelope_body) > 0xFFFF:
+            self.log.warning(
+                f"replay seq=0x{msg.seq:x} body_len={msg_size} exceeds "
+                f"u16 record-size limit; chunking not yet implemented; "
+                f"dropping"
+            )
+            return
         record = (
             bytes([flags]) +
             struct.pack(">H", len(envelope_body)) +
