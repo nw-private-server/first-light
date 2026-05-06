@@ -160,6 +160,15 @@ class PeerSession:
         # DTLS 1.2 plaintext cap of 16 384 (SSL3_RT_MAX_PLAIN_LENGTH) so
         # a single replay record + record header fits a single DTLS frame.
         self.replay_single_record_limit = 14000
+        # Post-replay heartbeat: after the replay queue drains, re-send a
+        # captured small message every N ms to keep the client from cleanly
+        # disconnecting (`SM_DISCONNECT reason=0`) when the server falls
+        # silent post-load. 0 disables. Captured 0x15d (12 B) is the
+        # default heartbeat candidate (most frequent small R-msg in the
+        # dump). See project_render_destroy_was_normal_teardown.md.
+        self.post_replay_heartbeat_ms = 500
+        self._heartbeat_msg: ReplayMessage | None = None
+        self._next_heartbeat_at: float = 0.0
         self.handshake_done = False
         self.out_seq = 0  # outbound Carrier-envelope sequence number
         # Per-channel outbound sequence + reliable-sequence counters. GridMate
@@ -574,6 +583,27 @@ class PeerSession:
             self.replay_max_seq,
             include_redacted=self.replay_include_redacted,
         )
+        # Cache a small captured R-msg as the post-replay heartbeat
+        # template. type 0x15d (PingMsg) is the most frequent small R-msg
+        # in the dump and ships clean. Falls back to 0x14f if not present.
+        if self.post_replay_heartbeat_ms > 0:
+            self._heartbeat_msg = (
+                self.replay_store.get(0x2)
+                or next(
+                    (
+                        m for m in self.replay_store.messages
+                        if m.direction == "R" and m.type_id in (0x15d, 0x14f)
+                        and not m.has_redaction
+                    ),
+                    None,
+                )
+            )
+            if self._heartbeat_msg is None:
+                self.log.warning(
+                    "post-replay heartbeat enabled but no clean small R-msg "
+                    "found in dump; disabling heartbeat"
+                )
+                self.post_replay_heartbeat_ms = 0
         # The V3 response sent on ch=0 with seq=0/rel_seq=0 doesn't go through
         # _next_seq, so the per-channel counters are still at 0. Bump them so
         # replay records get seq=1/rel_seq=1 onward instead of colliding with
@@ -589,15 +619,34 @@ class PeerSession:
         )
 
     def _pump_replay(self) -> None:
-        """Send the next queued replay message if its delay has elapsed."""
-        if not self.replay_queue:
-            return
+        """Send the next queued replay message if its delay has elapsed.
+
+        After the queue drains, switch to periodic heartbeat sends if
+        post_replay_heartbeat_ms > 0. This stops the client from cleanly
+        timing out (`SM_DISCONNECT reason=0`) ~9s after the init burst.
+        """
         now = time.monotonic()
-        if now < self._next_replay_at:
+        if self.replay_queue:
+            if now < self._next_replay_at:
+                return
+            msg = self.replay_queue.pop(0)
+            self._send_replay_message(msg)
+            self._next_replay_at = now + self.replay_interval_s
+            # Arm the first heartbeat for one full interval after the
+            # last replay message ships (so we don't double up).
+            if not self.replay_queue and self.post_replay_heartbeat_ms > 0:
+                self._next_heartbeat_at = now + (
+                    self.post_replay_heartbeat_ms / 1000.0
+                )
             return
-        msg = self.replay_queue.pop(0)
-        self._send_replay_message(msg)
-        self._next_replay_at = now + self.replay_interval_s
+
+        # Queue is empty: heartbeat path
+        if self.post_replay_heartbeat_ms <= 0 or self._heartbeat_msg is None:
+            return
+        if now < self._next_heartbeat_at:
+            return
+        self._send_replay_message(self._heartbeat_msg)
+        self._next_heartbeat_at = now + (self.post_replay_heartbeat_ms / 1000.0)
 
     def _send_replay_message(self, msg: ReplayMessage) -> None:
         """Wrap a captured typed-stream body in a Carrier record + envelope.
@@ -840,6 +889,13 @@ def main() -> int:
                          "the DTLS 1.2 plaintext cap (SSL3_RT_MAX_PLAIN_"
                          "LENGTH = 16384). Lower if you see 'dtls message "
                          "too big' SSL errors.")
+    ap.add_argument("--post-replay-heartbeat-ms", type=int, default=500,
+                    help="After replay queue drains, re-send the captured "
+                         "0x15d (or 0x14f) heartbeat every N ms to stop "
+                         "the client from cleanly disconnecting (SM_DISCON"
+                         "NECT reason=0) when the server falls silent. "
+                         "Default 500 (matches community-state-machine-"
+                         "dump phase 21). 0 disables.")
     ap.add_argument("--replay-after-v3", action="store_true",
                     help="After V3 response is sent, replay the captured "
                          "post-registration R-direction messages from the "
@@ -891,6 +947,8 @@ def main() -> int:
     log.info(f"V3 response wrap: flag={args.v3_resp_flag} channel={args.v3_resp_channel or 'mirror-request'}")
     log.info(f"V3 piggyback ACK: {'disabled' if args.no_v3_piggyback_ack else 'enabled (flag 0x20 ch=3)'}")
     log.info(f"replay redacted: {'INCLUDED (substitution active)' if args.replay_include_redacted else 'filtered out'}")
+    log.info(f"post-replay heartbeat: "
+             f"{'disabled' if args.post_replay_heartbeat_ms <= 0 else f'every {args.post_replay_heartbeat_ms}ms'}")
 
     replay_store: ReplayStore | None = None
     if args.replay_after_v3:
@@ -939,6 +997,7 @@ def main() -> int:
                 sess.character_display_name = args.character_display_name
                 sess.replay_chunk_size = args.replay_chunk_size
                 sess.replay_single_record_limit = args.replay_single_record_limit
+                sess.post_replay_heartbeat_ms = args.post_replay_heartbeat_ms
                 sessions[peer] = sess
 
             sess.feed(data)
