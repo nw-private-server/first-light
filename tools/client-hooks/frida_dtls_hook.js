@@ -2823,10 +2823,41 @@ function hookInternalRepFunctions() {
                     }
 
                     if (!vtablePropertyHooksInstalled) {
+                        // The decomp shows:
+                        //   lVar1 = *(longlong *)(DAT_14a7ba0e0 + 0x60);
+                        // Interpretation A (DAT as raw address) failed at
+                        // runtime with "access violation accessing 0x28".
+                        // Interpretation B: DAT_14a7ba0e0 is a global pointer
+                        // variable; deref it first, then add 0x60, then deref
+                        // again. Try both, log which works.
+                        var datBase = base.add(INTERNAL_RVA_GLOBAL_GAME_APP);
+                        var attempts = [];
+                        // Attempt B: pointer-to-pointer (most likely)
                         try {
-                            var datBase = base.add(INTERNAL_RVA_GLOBAL_GAME_APP);
-                            var lVar1 = datBase.add(0x60).readPointer();
-                            var gameConn = lVar1.add(0x28);
+                            var p1 = datBase.readPointer();
+                            if (!p1.isNull()) {
+                                var p2 = p1.add(0x60).readPointer();
+                                if (!p2.isNull()) {
+                                    attempts.push({ tag: "B", lVar1: p2 });
+                                }
+                            }
+                        } catch (_) {}
+                        // Attempt A: raw address (what we tried before)
+                        try {
+                            var p3 = datBase.add(0x60).readPointer();
+                            if (!p3.isNull()) {
+                                attempts.push({ tag: "A", lVar1: p3 });
+                            }
+                        } catch (_) {}
+                        if (attempts.length === 0) {
+                            log("[gameconn-vt] both interpretations of DAT_14a7ba0e0 failed");
+                            return;
+                        }
+                        try {
+                            var attempt = attempts[0];
+                            log("[gameconn-vt] using interpretation " + attempt.tag +
+                                " lVar1=" + attempt.lVar1);
+                            var gameConn = attempt.lVar1.add(0x28);
                             var vt = gameConn.readPointer();
                             var setProp_2d0 = vt.add(0x2d0).readPointer();
                             var setVer_110 = vt.add(0x110).readPointer();
