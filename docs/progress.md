@@ -2926,3 +2926,22 @@ Different thread (render/audio worker, not rep main). Hypothesis: client is wait
 1. Decompile `+0x14b620f` and `+0x6b3cd1c` to identify which world-state struct is uninit -> narrows down which message the client expected.
 2. Extend replay past seq 0x24 (the first big StateBundle is at 0x25 per Mixed Nuts' notes). Blocked on substitution code for redacted UUIDs / persona IDs / JWT in the dump.
 
+### Follow-up infrastructure landed (same session)
+
+After the piggyback-ACK breakthrough we shipped the full pipeline needed to push past seq 0x24 in a single working session:
+
+- **#6 (doc):** `analysis/replay_substitution_design.md` -- inventoried 4912 redacted spans across 54 messages at seq >=0x25, mapped each length class (8 / 16 / 18 / 19 / 20 / 36 / 61) to a live source from `parse_v3_request()`, proposed a `SubstitutionContext` API.
+- **#7 (code):** `server/javelin/replay_substitution.py` with the frozen `SubstitutionContext` dataclass and `apply(msg) -> bytes` length-preserving substitution. New CLI flags `--replay-include-redacted` and `--character-display-name`. 14 unit tests.
+- **#8 (CI):** registered the substitution test file in the GitHub Actions workflow.
+- **#9 (code):** `_encode_vlq32()` helper supporting full 1..5-byte VLQ32 (was capped at 16 KB inline). 13 unit tests covering boundary values + the seq 0x25 / 0x29 sizes. Unblocks 0x25..0x28 (each <64 KB).
+- **#10 (doc):** `analysis/replay_chunking_design.md` -- proposes `MF_CHUNKS` reassembly to ship messages > 64 KB across multiple records using the existing 0x04 flag and the chunks-countdown convention.
+- **#11 (code):** `_chunk_replay_payload()` helper + chunked branch in `_send_replay_message`. New CLI flag `--replay-chunk-size` (default 1100, matches the real server's WORLD DATA segment size). 12 unit tests including the 99 819 B seq 0x29 -> 91 chunks case.
+
+After PR #11, the replay pipeline can ship every captured post-V3 message in `info/nw-login-safe-20260502-153840/` (seq 0x2..0xb0): substitution applied to redacted spans, chunking applied for messages > 64 KB. Total of 84 unit tests in CI on Python 3.11 + 3.12.
+
+The next live test (run with `--replay-after-v3 --replay-include-redacted --replay-max-seq 0x29`) will reveal what the next wall is. Possibilities:
+- Client accepts the full burst -> the render-thread crash at `+0x14b620f` is averted, and we hit some new wall further into world load.
+- Client rejects substituted-UUID StateBundles -> we'll see disconnect bytes, and SPAN_RULES needs (seq, length) overrides for spans where the length-only fallback picked the wrong field.
+- 8-byte AzCore hash zero-fills cause rejection -> need to port AZ_CRC32 from Open 3D Engine.
+- Render-thread crash shifts to a new offset -> Ghidra decomp of the new offset needed.
+
