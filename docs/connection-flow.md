@@ -68,6 +68,10 @@ Multiple S3 config layers fetched:
 5. Server version: `[RETAIL].Javelin.1.365.6030.5950962`
 6. "start actor game connection"
 
+> For the wire-level breakdown of phases 9–10 (DTLS handshake, V3
+> registration, the post-V3 replay window, and the current state-10
+> blocker), see [post-v3-flow.md](post-v3-flow.md).
+
 ### Phase 10: World Entry (t+47s)
 1. "actor game connection succeeds"
 2. State: `WaitingForActorGameConnection → WaitingForSpawnPoint`
