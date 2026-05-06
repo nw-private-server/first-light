@@ -68,6 +68,24 @@ ENVELOPE_HEAD = b"\x80\x01"
 JAVELIN_CIPHER = "ECDHE-RSA-AES256-GCM-SHA384"
 
 
+def format_peer(peer: tuple) -> str:
+    """Render a (host, port) tuple as `host:port` for log prefixes."""
+    if isinstance(peer, tuple) and len(peer) >= 2:
+        return f"{peer[0]}:{peer[1]}"
+    return str(peer)
+
+
+class _PeerLogAdapter(logging.LoggerAdapter):
+    """Prefixes every log line with `[peer=ip:port]` so multi-peer sessions
+    don't interleave indistinguishably in the shared log file."""
+
+    def __init__(self, base: logging.Logger, peer: tuple):
+        super().__init__(base, {"peer": format_peer(peer)})
+
+    def process(self, msg, kwargs):
+        return f"[peer={self.extra['peer']}] {msg}", kwargs
+
+
 def build_sm_ct_acks_record(
     seq: int,
     last_inbound_seq: int | None,
@@ -169,7 +187,24 @@ class PeerSession:
                  replay_interval_ms: int = 50):
         self.peer = peer
         self.sock = sock
-        self.log = log
+        # Wrap the shared logger so this peer's lines get a `[peer=ip:port]`
+        # prefix. The wrapped Logger is still reachable via `self.log.logger`
+        # for the V3-dump path that needs `handlers[0].baseFilename`.
+        self.log = _PeerLogAdapter(log, peer) if not isinstance(log, _PeerLogAdapter) else log
+        # Cache the log file path so post-handshake code paths don't have to
+        # reach into the handler chain on every receipt.
+        self._log_file_path: Path | None = None
+        try:
+            for h in self.log.logger.handlers:
+                if isinstance(h, logging.FileHandler):
+                    self._log_file_path = Path(h.baseFilename)
+                    break
+        except Exception:
+            self._log_file_path = None
+        # Last time we saw inbound activity from this peer (monotonic
+        # seconds). Updated in `feed()` so a periodic sweep can evict
+        # idle sessions and bound the `sessions` dict's growth.
+        self.last_activity_at: float = time.monotonic()
         self.ack_payload = ack_payload
         # Connect-ACK form selector. "mn" = Mixed Nuts (flag 0x21, rel_seq=0,
         # real-server form). "alt" = community dump's form (flag 0xa0,
@@ -255,11 +290,20 @@ class PeerSession:
     # ---------- BIO bridging ----------
 
     def feed(self, datagram: bytes) -> None:
-        """Push a UDP datagram from the wire into the SSL state machine."""
+        """Push a UDP datagram from the wire into the SSL state machine.
+
+        Bumps `last_activity_at` so the idle-sweep in the main loop won't
+        evict an active peer.
+        """
+        self.last_activity_at = time.monotonic()
         try:
             self.conn.bio_write(datagram)
         except SSL.Error as e:
             self.log.warning(f"bio_write failed: {e}")
+
+    def is_idle(self, now: float, threshold_s: float) -> bool:
+        """Return True if no inbound datagram has arrived for `threshold_s`."""
+        return (now - self.last_activity_at) >= threshold_s
 
     def drain_outbound(self) -> None:
         """Send any encrypted bytes the SSL state machine wants to emit."""
@@ -426,16 +470,20 @@ class PeerSession:
     def _handle_v3_data_record_inner(self, m) -> None:
         from server.javelin.v3_response import V3RegistrationResponse, encode
         from server.javelin.v3_request import parse_v3_request
-        # Save a copy to disk so we can RE without needing another live run
+        # Save a copy to disk so we can RE without needing another live run.
+        # Filename includes the peer port so multi-peer sessions don't
+        # collide on `v3_req_001.bin`.
         self.v3_request_count = getattr(self, "v3_request_count", 0) + 1
-        try:
-            outdir = Path(self.log.handlers[0].baseFilename).parent / (
-                Path(self.log.handlers[0].baseFilename).stem + "_v3"
-            )
-            outdir.mkdir(exist_ok=True)
-            (outdir / f"v3_req_{self.v3_request_count:03d}.bin").write_bytes(m.payload)
-        except Exception as e:
-            self.log.debug(f"v3 dump failed: {e}")
+        if self._log_file_path is not None:
+            try:
+                outdir = self._log_file_path.parent / (
+                    self._log_file_path.stem + "_v3"
+                )
+                outdir.mkdir(exist_ok=True)
+                peer_tag = f"{self.peer[1]}" if isinstance(self.peer, tuple) and len(self.peer) >= 2 else "unknown"
+                (outdir / f"v3_req_{peer_tag}_{self.v3_request_count:03d}.bin").write_bytes(m.payload)
+            except Exception as e:
+                self.log.debug(f"v3 dump failed: {e}")
         self.log.info(
             f"!! V3 RegistrationRequest #{self.v3_request_count} received: "
             f"ch={m.channel} flags=0x{m.flags:02x} seq={m.sequence} "
@@ -987,6 +1035,12 @@ def main() -> int:
                          "NECT reason=0) when the server falls silent. "
                          "Default 500 (matches community-state-machine-"
                          "dump phase 21). 0 disables.")
+    ap.add_argument("--peer-idle-timeout-s", type=float, default=120.0,
+                    help="Evict a peer's session if no inbound datagram "
+                         "has arrived for this many seconds. Bounds the "
+                         "sessions dict's growth under churn. Default 120 "
+                         "(handles long pauses during character creation). "
+                         "0 disables the sweep.")
     ap.add_argument("--replay-after-v3", action="store_true",
                     help="After V3 response is sent, replay the captured "
                          "post-registration R-direction messages from the "
@@ -1064,9 +1118,23 @@ def main() -> int:
                 data, peer = sock.recvfrom(65535)
             except socket.timeout:
                 # Drive periodic work for every active session.
+                now = time.monotonic()
                 for sess in list(sessions.values()):
                     sess._pump_replay()
                     sess.drain_outbound()
+                # Sweep idle sessions out of the dict so it can't grow
+                # unboundedly under peer churn. Disabled when timeout=0.
+                if args.peer_idle_timeout_s > 0:
+                    stale = [
+                        peer_key for peer_key, sess in sessions.items()
+                        if sess.is_idle(now, args.peer_idle_timeout_s)
+                    ]
+                    for peer_key in stale:
+                        idle_for = now - sessions[peer_key].last_activity_at
+                        log.info(f"evicted idle peer {format_peer(peer_key)} "
+                                 f"(idle {idle_for:.1f}s, threshold "
+                                 f"{args.peer_idle_timeout_s:.0f}s)")
+                        del sessions[peer_key]
                 continue
             except OSError as e:
                 log.warning(f"recvfrom failed: {e}")
@@ -1074,7 +1142,7 @@ def main() -> int:
 
             sess = sessions.get(peer)
             if sess is None:
-                log.info(f"new peer {peer}")
+                log.info(f"new peer {format_peer(peer)}")
                 sess = PeerSession(ctx, peer, sock, log, ack_payload,
                                    ack_form=args.ack_form,
                                    v3_resp_flag=int(args.v3_resp_flag, 16),

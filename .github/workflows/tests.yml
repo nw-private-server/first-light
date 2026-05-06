@@ -34,4 +34,5 @@ jobs:
                  server/test_captures.py \
                  server/test_vlq32.py \
                  server/test_piggyback_ack.py \
+                 server/test_multi_peer.py \
                  -v
