@@ -196,6 +196,10 @@ class PeerSession:
         # ~1115 B per-chunk size the real server uses for WORLD DATA per
         # docs/community/community_state_machine_dump.txt.
         self.replay_chunk_size = 1100
+        # Threshold above which we switch to MF_CHUNKS. Set just under the
+        # DTLS 1.2 plaintext cap of 16 384 (SSL3_RT_MAX_PLAIN_LENGTH) so
+        # a single replay record + record header fits a single DTLS frame.
+        self.replay_single_record_limit = 14000
         self.handshake_done = False
         self.out_seq = 0  # outbound Carrier-envelope sequence number
         # Per-channel outbound sequence + reliable-sequence counters. GridMate
@@ -670,7 +674,16 @@ class PeerSession:
         vlq32 = _encode_vlq32(msg_size)
         envelope_body = vlq32 + body_bytes
 
-        if len(envelope_body) <= 0xFFFF:
+        # DTLS 1.2 caps plaintext records at SSL3_RT_MAX_PLAIN_LENGTH = 16 384 B
+        # (RFC 5246 §6.2.1). With AES-GCM cipher + record + envelope overhead,
+        # plaintext bodies above ~14 000 B start failing inside OpenSSL with
+        # "dtls message too big" and never reach UDP. Empirical evidence
+        # (capture/responder_20260505_202651.log line 98): 12 706 B replay
+        # body went through; 46 423 B body got dropped at the SSL layer
+        # before MF_CHUNKS would have triggered. So the chunking threshold
+        # is the DTLS plaintext cap, not the Carrier u16 record-size cap
+        # (which is 65 535 and irrelevant here).
+        if len(envelope_body) <= self.replay_single_record_limit:
             # Single-record path
             record = (
                 bytes([flags]) +
@@ -857,10 +870,16 @@ def main() -> int:
                          "spans are 21-23 chars; this is padded/truncated "
                          "to fit each.")
     ap.add_argument("--replay-chunk-size", type=int, default=1100,
-                    help="Per-chunk payload size for MF_CHUNKS replay "
-                         "messages > 64 KB. Default 1100 matches the "
-                         "real server's WORLD DATA segment size. Range "
-                         "1..65000.")
+                    help="Per-chunk payload size for MF_CHUNKS replay. "
+                         "Default 1100 matches the real server's WORLD "
+                         "DATA segment size. Range 1..65000.")
+    ap.add_argument("--replay-single-record-limit", type=int, default=14000,
+                    help="Replay bodies up to this size ship as a single "
+                         "Carrier record; bodies above it are chunked via "
+                         "MF_CHUNKS. Default 14000 leaves headroom under "
+                         "the DTLS 1.2 plaintext cap (SSL3_RT_MAX_PLAIN_"
+                         "LENGTH = 16384). Lower if you see 'dtls message "
+                         "too big' SSL errors.")
     ap.add_argument("--replay-after-v3", action="store_true",
                     help="After V3 response is sent, replay the captured "
                          "post-registration R-direction messages from the "
@@ -959,6 +978,7 @@ def main() -> int:
                 sess.replay_include_redacted = args.replay_include_redacted
                 sess.character_display_name = args.character_display_name
                 sess.replay_chunk_size = args.replay_chunk_size
+                sess.replay_single_record_limit = args.replay_single_record_limit
                 sessions[peer] = sess
 
             sess.feed(data)
