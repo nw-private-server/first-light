@@ -2879,3 +2879,50 @@ So echoing the request's session_uuid was a correctness improvement but is NOT w
 Neither of these visibly advances the rep-wrapper tick state past 10, and neither stops the V3 retry timer in `REP_state10_dispatcher` (0x146b6e190) which always builds and sends V3 in BRANCH B (when gw[0x160]==1, which it is).
 
 Hypothesis: state advance happens via a separate wrapper-tick poll that checks the gameConnection properties set by the receive handler. The poll's expected value isn't being satisfied -- possibly the property at vtable[0x110] (the message-extracted string) isn't what the wrapper expects.
+
+
+## 2026-05-05 (evening) -- V3 retry wall broken via piggyback Carrier ACK
+
+### What landed
+
+`rep_responder._handle_v3_data_record_inner` now bundles a Carrier-level ACK record alongside the V3 RegistrationResponse in the same DTLS envelope. Wire form (matches Mixed Nuts byte-for-byte):
+
+```
+20 [size=0006] 03 [seq] [rel_seq=0000] 40 [last_env_be] [first_env_be] 06
+```
+
+flag 0x20 (MF_DATA_CHANNEL only), channel 3, AckRange marker (0x40) covering the inbound env_seq span we've seen, msgid 0x06 (SM_CT_ACKS). Behind `--no-v3-piggyback-ack` for A/B testing; default ON.
+
+### Test outcome
+
+Run: `capture/responder_20260505_191513.log` + `capture/20260505_191816_piggyback_test_1/session.log`.
+
+| Metric | Previous runs | This run |
+|---|---|---|
+| Real V3 RegistrationRequests | 38-97 | **1** (#2 and #3 are 0xfc-form replay echoes, not retries) |
+| `rep.ready` setter fires with readyAfter=1 | brief, then reset within 20-50s | **34 fires over 14s, no early reset** |
+| Destroy callsite | `FUN_146b3c250 + 0x58f` (rep state handler, byte at `[R13+0xfd]`) | **render-thread path, completely different** |
+| Destroy `reason` | `0x0` | **`0x1`** |
+| Visible game state | black screen post-character-creation | **passes character creation, enters world load, CTDs there** |
+
+The byte at `[R13+0xfd]` from the old destroy gate was almost certainly "we haven't been carrier-acked for our V3 RegistrationRequest" -- bundling the ACK clears it, and the destroy at `+0x58f` never fires.
+
+### The new wall
+
+After the 33 replay messages (seq 0x2..0x24) ship and get carrier-ACKed by the client, there's a ~10s silent gap (19:23:18 -> 19:23:28) where the only inbound traffic is bare `2006` keepalive ACKs. Then a render-thread crashes:
+
+```
+NewWorld.exe+0x14b620f  (Ghidra-misnamed "MusicSegmentProxyCommandData::SetMarkers::operator=")
+NewWorld.exe+0x6b3cd1c  (misnamed "CRendElement::mfTypeString")
+NewWorld.exe+0x5ddd39b
+NewWorld.exe+0x5dd5df4
+wcsrchr -> BaseThreadInitThunk -> RtlUserThreadStart
+```
+
+Different thread (render/audio worker, not rep main). Hypothesis: client is waiting for world-load init data we never push, eventually a render-side init touches an uninit struct.
+
+### Next blockers
+
+1. Decompile `+0x14b620f` and `+0x6b3cd1c` to identify which world-state struct is uninit -> narrows down which message the client expected.
+2. Extend replay past seq 0x24 (the first big StateBundle is at 0x25 per Mixed Nuts' notes). Blocked on substitution code for redacted UUIDs / persona IDs / JWT in the dump.
+
