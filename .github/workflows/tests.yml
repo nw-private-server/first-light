@@ -31,4 +31,5 @@ jobs:
                  server/javelin/test_replay_substitution.py \
                  server/test_loopback.py \
                  server/test_captures.py \
+                 server/test_vlq32.py \
                  -v
