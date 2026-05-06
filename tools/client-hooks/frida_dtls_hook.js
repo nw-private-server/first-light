@@ -2804,6 +2804,60 @@ function hookInternalRepFunctions() {
                 return "<unread>";
             };
 
+            // Read an AZStd::string from a pointer to its 32-byte struct
+            // and return the decoded content. Layout (verified against the
+            // 2026-05-05 vtable hook capture):
+            //   +0x00 data pointer (heap buffer for size > SSO threshold,
+            //                       or sentinel for empty/inline)
+            //   +0x08 aux (allocator / refcount / unused — varies)
+            //   +0x10 size (size_type, 8 bytes LE)
+            //   +0x18 capacity (size_type, 8 bytes LE)
+            // For empty strings (size=0) we return "" instead of trying to
+            // deref the data pointer (which may be a sentinel).
+            var readAzString = function (p) {
+                if (p === undefined || p === null || p.isNull()) return "<null>";
+                try {
+                    var dataPtr = p.readPointer();
+                    var size = p.add(0x10).readU64().valueOf();
+                    var cap = p.add(0x18).readU64().valueOf();
+                    if (size === 0) {
+                        return '"" (cap=' + cap + ')';
+                    }
+                    // Cap the read at 256 bytes to avoid blowing up the log
+                    var readLen = Math.min(size, 256);
+                    var contentBytes = dataPtr.readByteArray(readLen);
+                    if (contentBytes === null) {
+                        return "<unreadable size=" + size + " cap=" + cap +
+                               " dataPtr=" + dataPtr + ">";
+                    }
+                    var u8 = new Uint8Array(contentBytes);
+                    // Try to decode as UTF-8 if printable
+                    var allPrintable = true;
+                    var s = "";
+                    for (var i = 0; i < u8.length; i++) {
+                        var c = u8[i];
+                        if (c < 0x09 || (c > 0x0d && c < 0x20) || c >= 0x7f) {
+                            allPrintable = false;
+                            break;
+                        }
+                        s += String.fromCharCode(c);
+                    }
+                    if (allPrintable) {
+                        var truncated = size > readLen ? "..." : "";
+                        return JSON.stringify(s) + truncated +
+                               " (size=" + size + " cap=" + cap + ")";
+                    }
+                    // Fall back to hex
+                    var hex = "";
+                    for (var j = 0; j < u8.length; j++) {
+                        hex += ("0" + u8[j].toString(16)).slice(-2);
+                    }
+                    return "hex:" + hex + " (size=" + size + " cap=" + cap + ")";
+                } catch (e) {
+                    return "<azstring read failed: " + e + ">";
+                }
+            };
+
             // Resolve the SetProperty / SetVersionString virtuals once, on
             // the first receive-handler call (when the singleton is known
             // to be initialized — the function we're inside dereferences it).
@@ -2884,14 +2938,16 @@ function hookInternalRepFunctions() {
                             }
 
                             // vt[0x110] takes (this, value_str_ptr).
-                            // The decomp shows value is a string extracted
-                            // from the response message.
+                            // value_str_ptr points to a 32-byte AZStd::string
+                            // struct. Read it and decode the content so we
+                            // can compare what the client stores against
+                            // what we ship in v3_response.py.
                             try {
                                 Interceptor.attach(setVer_110, {
                                     onEnter: function (a) {
                                         log("[gameconn-vt 0x110] SetVersionString(" +
                                             "this=" + a[0] +
-                                            " value=" + readMaybeString(a[1], 96) + ")");
+                                            " value=" + readAzString(a[1]) + ")");
                                     }
                                 });
                                 hookStatus("vt_setversion_110", "success");
