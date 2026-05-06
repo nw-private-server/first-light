@@ -65,6 +65,17 @@ var INTERNAL_RVA_GRIDMATE_DESTROY = 0x05dca650;  // FUN_145dca650
 // response from REP".
 var INTERNAL_RVA_RESPONSE_UNMARSHAL = 0x007cd040; // FUN_1407cd040
 var INTERNAL_RVA_RESPONSE_RECEIVE   = 0x064755e0; // FUN_1464755e0
+// 2026-05-05 late: GlobalGameApp singleton at DAT_14a7ba0e0. The receive
+// handler does:
+//   lVar1 = *(longlong *)(DAT_14a7ba0e0 + 0x60);
+//   gameConn = lVar1 + 0x28;
+//   (*gameConn->vtable[0x2d0])(gameConn, "Server version", param2);  // SetProperty
+//   (*gameConn->vtable[0x110])(gameConn, extracted_string);          // SetVersionString
+// Hooking those vtable functions captures exactly what value is being
+// stored. The wrapper-tick state-advance probably polls one of these
+// properties; mismatches between expected and actual would block the
+// state-10 -> state-11 transition. See project_heartbeat_works_state10_stuck.md.
+var INTERNAL_RVA_GLOBAL_GAME_APP    = 0xa7ba0e0;  // DAT_14a7ba0e0
 // Carrier "send system message" public entry — appends msgId byte to bitstream
 // then calls FUN_140f66850 to allocate a record and queue it on channel=3.
 // We hook the entry to capture the msgId and the body bytes (the bitstream
@@ -2770,6 +2781,34 @@ function hookInternalRepFunctions() {
 
         var responseReceive = base.add(INTERNAL_RVA_RESPONSE_RECEIVE);
         if (!isHooked("internal_response_receive")) {
+            // Read first ~64 bytes at addr as a UTF-8 C string, falling back
+            // to hex on failure. Used to interpret arguments to property
+            // setters that may take strings or opaque blobs.
+            var readMaybeString = function (p, maxLen) {
+                if (p === undefined || p === null || p.isNull()) return "<null>";
+                try {
+                    var s = p.readUtf8String(maxLen);
+                    if (s !== null && s.length > 0 && /^[\x09\x0A\x0D\x20-\x7E]*$/.test(s)) {
+                        return JSON.stringify(s);
+                    }
+                } catch (_) {}
+                try {
+                    var byteLen = Math.min(maxLen, 32);
+                    var bytes = new Uint8Array(p.readByteArray(byteLen));
+                    var hex = "";
+                    for (var i = 0; i < bytes.length; i++) {
+                        hex += ("0" + bytes[i].toString(16)).slice(-2);
+                    }
+                    return "hex:" + hex;
+                } catch (_) {}
+                return "<unread>";
+            };
+
+            // Resolve the SetProperty / SetVersionString virtuals once, on
+            // the first receive-handler call (when the singleton is known
+            // to be initialized — the function we're inside dereferences it).
+            var vtablePropertyHooksInstalled = false;
+
             Interceptor.attach(responseReceive, {
                 onEnter: function (args) {
                     log("[v3-resp-receive] !! HANDLER FIRED — response was accepted! " +
@@ -2781,6 +2820,57 @@ function hookInternalRepFunctions() {
                                 .slice(0, 8);
                             log("[v3-resp-receive] bt " + formatBacktrace(frames));
                         } catch (_) {}
+                    }
+
+                    if (!vtablePropertyHooksInstalled) {
+                        try {
+                            var datBase = base.add(INTERNAL_RVA_GLOBAL_GAME_APP);
+                            var lVar1 = datBase.add(0x60).readPointer();
+                            var gameConn = lVar1.add(0x28);
+                            var vt = gameConn.readPointer();
+                            var setProp_2d0 = vt.add(0x2d0).readPointer();
+                            var setVer_110 = vt.add(0x110).readPointer();
+                            log("[gameconn-vt] resolved gameConn=" + gameConn +
+                                " vt=" + vt +
+                                " vt[0x2d0]=" + setProp_2d0 +
+                                " vt[0x110]=" + setVer_110);
+
+                            // vt[0x2d0] takes (this, name_ptr, value_ptr).
+                            // The decomp shows name="Server version" and
+                            // value=param2 (the unmarshaled response object).
+                            try {
+                                Interceptor.attach(setProp_2d0, {
+                                    onEnter: function (a) {
+                                        log("[gameconn-vt 0x2d0] SetProperty(" +
+                                            "this=" + a[0] +
+                                            " name=" + readMaybeString(a[1], 64) +
+                                            " value=" + a[2] + ")");
+                                    }
+                                });
+                                hookStatus("vt_setproperty_2d0", "success");
+                            } catch (e) {
+                                hookStatus("vt_setproperty_2d0", "error: " + e);
+                            }
+
+                            // vt[0x110] takes (this, value_str_ptr).
+                            // The decomp shows value is a string extracted
+                            // from the response message.
+                            try {
+                                Interceptor.attach(setVer_110, {
+                                    onEnter: function (a) {
+                                        log("[gameconn-vt 0x110] SetVersionString(" +
+                                            "this=" + a[0] +
+                                            " value=" + readMaybeString(a[1], 96) + ")");
+                                    }
+                                });
+                                hookStatus("vt_setversion_110", "success");
+                            } catch (e) {
+                                hookStatus("vt_setversion_110", "error: " + e);
+                            }
+                            vtablePropertyHooksInstalled = true;
+                        } catch (e) {
+                            log("[gameconn-vt] resolve failed: " + e);
+                        }
                     }
                 }
             });
