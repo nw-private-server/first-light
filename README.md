@@ -1,33 +1,35 @@
 # NWPrivateServer
 
+[![Tests](https://github.com/L3G/NWPrivateServer/actions/workflows/tests.yml/badge.svg)](https://github.com/L3G/NWPrivateServer/actions/workflows/tests.yml)
+
 A community effort to build a private server emulator for New World before Amazon shuts down the live service (~Dec 2026). The goal is to accept the real unmodified client binary, pass auth, and let a player enter a static world. No combat, NPCs, or persistence required for MVP.
 
 ---
 
 ## Why this exists
 
-Once the official servers go down, all knowledge of the wire protocol becomes much harder to reconstruct without live traffic to sniff. **Capturing and cataloging as many request/response pairs as possible while the servers are still up is the single most valuable thing a contributor can do right now.** See [docs/capture-guide.md](docs/capture-guide.md).
+Once the official servers go down, all knowledge of the wire protocol becomes much harder to reconstruct without live traffic to sniff. **Captures made while the servers are still up are the single most durable thing a contributor can produce.** We have one full login-to-state=53 capture (`info/nw-login-safe-20260502-153840/`); we still need more from different regions, character states, and especially extended in-world traffic. See [docs/capture-guide.md](docs/capture-guide.md).
 
 ---
 
-## Current status
+## Current status (2026-05-05)
 
 | Gate | Description | Status |
 |------|-------------|--------|
 | 1 | Auth flow (HTTPS / OmniSDK / character creation) | **Complete** |
-| 2 | Javelin REP — DTLS handshake + V3 registration | **~80%** — V3 response accepted, client stalls at world-load |
+| 2 | Javelin REP — DTLS handshake + V3 registration | **V3 response accepted by client; `rep.ready` flips 0→1; client then re-sends V3 every ~500ms anyway and the session is destroyed after ~30s. That retry loop is the active blocker.** |
 | 3 | World streaming (post-registration server messages) | Not started |
 | 4 | Input / movement / actor replication | Not started |
 
-See [docs/progress.md](docs/progress.md) for the detailed running history and [docs/next-session.md](docs/next-session.md) for the current exact blocker.
+For background, the running session log is in [docs/progress.md](docs/progress.md) and the latest blocker description is in [docs/next-session.md](docs/next-session.md). These are working notes for the maintainers' Claude Code sessions — read them for context, but don't worry about updating them.
 
 ---
 
 ## What the project needs most right now
 
-1. **Captures** — Especially post-login world-load traffic from different players/sessions. See [docs/capture-guide.md](docs/capture-guide.md) for exactly what to capture and how to submit it.
-2. **Reverse engineering** — `FUN_14644a070` (`gameconn_state`, RVA `0x0644a070`) drives the state-10→11 transition. Decompiling it in Ghidra is the current unblocking task.
-3. **Python/server contributors** — The REP responder (`server/rep_responder.py`) needs the post-V3 message sequence implemented once we know what to send.
+1. **Reverse engineering — top priority.** `FUN_14644a070` (`gameconn_state`, RVA `0x0644a070`) drives the state-10→11 transition. Decompile it and find what condition advances state past 10 after the V3 response is accepted. Sibling target: `FUN_146b3c250 + 0x58f` — find what writes to `[R13+0xfd]`, the byte that fires the destroy loop.
+2. **Captures with in-world traffic.** Our existing capture goes through `state=53` (past `WaitingForPlayerSpawn`) but stops before extended in-world activity. A session that loads into a running world AND captures movement/combat/zone-transition messages is the single most useful new capture. See [docs/capture-guide.md](docs/capture-guide.md) for the priority list.
+3. **Python/server contributors.** Once RE identifies the post-V3 message sequence, `server/rep_responder.py` needs to send it. Independent of that: multi-peer support (currently single-peer), and a Carrier-level reliable ACK on the V3 request itself (a 5-line experiment that may be the entire fix).
 
 ---
 
@@ -76,14 +78,16 @@ python -m server.rep_responder
 python tools\client-hooks\frida_capture.py --exe "path\to\NewWorld.exe" --name session1
 ```
 
-Edit your `hosts` file to redirect auth hostnames to 127.0.0.1. See [docs/capture-routes.md](docs/capture-routes.md) for the full list.
+Before starting the client, redirect auth hostnames to your loopback. Run `python tools\setup_hosts.py` (admin) — it appends every required host to `C:\Windows\System32\drivers\etc\hosts` and adds matching IPv6 entries.
 
 ### Run the tests
 
 ```bash
-python -m server.javelin.test_parser
-python -m server.test_loopback
+pip install pytest
+pytest
 ```
+
+CI runs the same suite on Python 3.11 and 3.12 for every push and PR (see `.github/workflows/tests.yml`). New captures dropped under `info/<name>/messages-redacted.txt` are auto-validated by `server/test_captures.py` — no test registration needed.
 
 ---
 
@@ -126,5 +130,5 @@ If you maintain a mirror, please keep the `info/` captures synced — that data 
 See [CONTRIBUTING.md](CONTRIBUTING.md). The short version:
 
 - **Have a game capture?** → Follow [docs/capture-guide.md](docs/capture-guide.md) and open a PR or share in the community channel.
-- **Have RE findings?** → Add a dated entry to [docs/progress.md](docs/progress.md) or a new file in `analysis/`.
+- **Have RE findings?** → Drop them in `analysis/` as a new `.md` or `.txt` file (look at existing entries for the format).
 - **Writing code?** → One function at a time; keep changes testable. See CONTRIBUTING.md for style expectations.

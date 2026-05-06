@@ -6,26 +6,29 @@ This guide explains how to capture New World network traffic and submit it so th
 
 ---
 
+## What we already have
+
+`info/nw-login-safe-20260502-153840/` is a complete login-to-spawn capture: 177 messages spanning seq `0x0..0xb0`, ending after the StateBundle that takes the client to `state=53` (well past `WaitingForPlayerSpawn`). The byte stream is intact for every message; we have `replay_store.py` parsing it and `rep_responder.py` replaying it. What we don't yet have is full *format decode* for every type past seq `0x24`, plus anything beyond `0xb0`.
+
 ## What to capture
 
-### Priority 1 — Full login-to-world sessions
+### Priority 1 — Extended in-world sessions
 
-The most valuable capture is a complete session from the moment you click "Enter World" through the black-screen loading phase into the fully-rendered world. The critical window is the ~50 messages the server sends immediately after the V3 registration response (seq `0x1`), which we currently do not have in decoded form beyond `0x24`.
+Once in the world, any traffic you can capture tells us about the ongoing message protocol: movement, combat, NPC interaction, zone transitions, inventory use. **Our existing capture stops shortly after spawn — anything past seq `0xb0` is brand-new ground.** A 30-minute capture covering varied in-world activity is more valuable than five short ones.
 
-**Especially valuable:**
-- A session that loads all the way into a running world (past the black screen)
-- Sessions from different regions (eu-central-1, sa-east-1, etc.)
-- Sessions with a character that has significant game state (inventory, quests, housing)
+### Priority 2 — Variety on the login path
 
-### Priority 2 — Extended in-world sessions
-
-Once in the world, any traffic you can capture tells us about the ongoing message protocol: movement, combat, NPC interaction, zone transitions. Longer sessions covering more activities are more useful than many short ones.
+Cross-validation against the baseline `info/nw-login-safe-20260502-153840/` capture. Especially valuable:
+- Sessions from different regions (eu-central-1, sa-east-1, ap-southeast-2, etc.)
+- Sessions with a character that has significant game state (inventory, quests, housing) — the StateBundle bursts (`0x25..0x6c` are ~46 KB each in the baseline) will differ
+- Different account / persona ID — confirms which fields are session-specific vs. account-specific
 
 ### Priority 3 — Edge cases
 
 - Character creation flow (before ever entering the world)
-- Multiple logins in quick succession (captures the retry/variance behavior)
+- Multiple logins in quick succession (captures retry/variance behavior)
 - Login failures (wrong region, full server queue)
+- Mid-session disconnects (graceful and abrupt)
 
 ---
 

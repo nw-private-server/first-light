@@ -1,16 +1,17 @@
 # DTLS Trust Bypass
 
-Runtime-only workaround for the current REP/DTLS blocker.
+Runtime workaround for the client's certificate pinning, so the DTLS handshake against our local REP server succeeds.
 
-## Problem
+> **Status:** This is **the deployed solution**. `tools/client-hooks/frida_dtls_trust_patch.py` ships the in-memory patch described below, and it has been working since 2026-04-19. The runtime bypass is no longer the active blocker — see [next-session.md](next-session.md) for the current one. This doc is the playbook for anyone needing to re-derive or extend it.
 
-The client now reaches `StartREPConnection` and performs a real DTLS handshake
-against our local probe, but fails with:
+## Problem (as originally diagnosed)
+
+The client reaches `StartREPConnection` and performs a real DTLS handshake against our local probe, but fails with:
 
 - `@mm_csdkerr_transport_security_error (2)` in `Game.log`
 - fatal DTLS alert `unknown ca` in the probe
 
-So the blocker is **certificate trust**, not queue/login JSON.
+So the blocker was **certificate trust**, not queue/login JSON.
 
 ## Ghidra findings
 
