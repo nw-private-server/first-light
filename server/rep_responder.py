@@ -48,6 +48,10 @@ from server.javelin.frame import (  # noqa: E402
 )
 from server.javelin.replay_store import ReplayStore, ReplayMessage  # noqa: E402
 from server.javelin.v3_request import V3RegistrationRequest  # noqa: E402
+from server.javelin.wire import (  # noqa: E402
+    chunk_replay_payload as _chunk_replay_payload,
+    encode_vlq32 as _encode_vlq32,
+)
 
 
 CERT_PATH = PROJECT / "server" / "certs" / "server.crt"
@@ -94,50 +98,6 @@ ACK_VARIANTS: dict[str, bytes] = {
     # 14-byte: version + error_code + str_len(0) + 3 status bytes + eos_flag + msgId
     "v3_full": b"\x00\x00\x00\x05" b"\x00\x00\x00\x00" b"\x00\x00" b"\x00\x00\x00" b"\x00" b"\x02",
 }
-
-
-def _chunk_replay_payload(
-    body: bytes, chunk_size: int = 1100,
-) -> list[tuple[int, bytes]]:
-    """Split a body into chunks for MF_CHUNKS transmission.
-
-    Returns a list of (remaining, slice) tuples where the first
-    `remaining` is the total chunk count and each subsequent value
-    decrements to 1 (the countdown convention used by the binary's
-    chunk-reassembly path). Single-chunk fallthrough returns
-    [(1, body)] so the caller can decide whether to even set MF_CHUNKS.
-    """
-    if chunk_size <= 0:
-        raise ValueError(f"chunk_size must be positive, got {chunk_size}")
-    if not body:
-        return [(1, b"")]
-    n = (len(body) + chunk_size - 1) // chunk_size
-    return [
-        (n - i, body[i * chunk_size:(i + 1) * chunk_size])
-        for i in range(n)
-    ]
-
-
-def _encode_vlq32(value: int) -> bytes:
-    """AzCore VLQ32: 7 bits per byte, top bit set means more bytes follow.
-
-    Handles values 0..2**32-1 in 1..5 bytes. The decoder in the binary
-    accepts the canonical (shortest) form for any given value.
-    """
-    if value < 0:
-        raise ValueError(f"VLQ32 cannot encode negative value {value}")
-    if value > 0xFFFFFFFF:
-        raise ValueError(f"VLQ32 cannot encode value > 2**32-1: {value}")
-    out = bytearray()
-    remaining = value
-    while True:
-        chunk = remaining & 0x7F
-        remaining >>= 7
-        if remaining:
-            out.append(chunk | 0x80)
-        else:
-            out.append(chunk)
-            return bytes(out)
 
 
 def make_ssl_context() -> SSL.Context:

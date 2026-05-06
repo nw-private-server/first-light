@@ -1,4 +1,4 @@
-"""Unit tests for `_encode_vlq32` in `server.rep_responder`.
+"""Unit tests for `encode_vlq32` in `server.javelin.wire`.
 
 Verifies the canonical-shortest-form encoding at boundary values that
 matter for the replay path: small bodies (V3 response = 88 B) up through
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from server.rep_responder import _encode_vlq32
+from server.javelin.wire import encode_vlq32 as _encode_vlq32
 
 
 def _decode_vlq32(buf: bytes) -> tuple[int, int]:
