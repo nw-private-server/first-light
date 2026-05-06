@@ -1,4 +1,4 @@
-"""Unit tests for `_chunk_replay_payload` in `server.rep_responder`.
+"""Unit tests for `chunk_replay_payload` in `server.javelin.wire`.
 
 Verifies the MF_CHUNKS countdown convention, length-preservation across
 chunks, and boundary cases that matter for the captured replay (e.g.
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from server.rep_responder import _chunk_replay_payload
+from server.javelin.wire import chunk_replay_payload as _chunk_replay_payload
 
 
 def test_empty_body():
