@@ -116,5 +116,5 @@ So `FUN_146b713e0` is **invoked via vtable when the wrapper receives a specific 
 4. **Channel 3 sysmsg=6 with payloads `2006`, `400001000006`, `400003000006`** — is that an ack-list (`40` flag, `seq_be_u16`, `00 00`, `06` = msgId)? We've been treating it as opaque.
 5. **The `00000005` prefix** in BRANCH A — is `0x05` a SystemMessage opcode in your map (separate from the GridMate registry-index space)?
 
-Repo (private, can grant access): https://github.com/L3G/NWPrivateServer
+Repo: https://github.com/nw-private-server/first-light
 DTLS responder: `server/rep_responder.py`. Carrier marshalling: `server/javelin/frame.py`. Symbols + our partial Ghidra DB: happy to share.

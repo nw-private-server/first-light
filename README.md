@@ -1,8 +1,10 @@
-# NWPrivateServer
+# New World: First Light
 
-[![Tests](https://github.com/L3G/NWPrivateServer/actions/workflows/tests.yml/badge.svg)](https://github.com/L3G/NWPrivateServer/actions/workflows/tests.yml)
+[![Tests](https://github.com/nw-private-server/first-light/actions/workflows/tests.yml/badge.svg)](https://github.com/nw-private-server/first-light/actions/workflows/tests.yml)
 
 A community effort to build a private server emulator for New World before Amazon shuts down the live service (~Dec 2026). The goal is to accept the real unmodified client binary, pass auth, and let a player enter a static world. No combat, NPCs, or persistence required for MVP.
+
+The name *First Light* is the goal: be the first community server to come online before the official ones go dark.
 
 ---
 
@@ -106,19 +108,19 @@ This repository is the primary home for the project, but the code should outlive
 
 **Codeberg** (EU non-profit, recommended):
 ```bash
-git remote add codeberg https://codeberg.org/<your-org>/NWPrivateServer.git
+git remote add codeberg https://codeberg.org/<your-org>/first-light.git
 git push codeberg main
 ```
 
 **Self-hosted Forgejo/Gitea:**
 ```bash
-git remote add self https://<your-host>/NWPrivateServer.git
+git remote add self https://<your-host>/first-light.git
 git push self main
 ```
 
 You can push to multiple remotes at once by adding them all to the `origin` push URL:
 ```bash
-git remote set-url --add --push origin https://codeberg.org/<your-org>/NWPrivateServer.git
+git remote set-url --add --push origin https://codeberg.org/<your-org>/first-light.git
 ```
 
 If you maintain a mirror, please keep the `info/` captures synced — that data is the hardest to reconstruct after shutdown.
