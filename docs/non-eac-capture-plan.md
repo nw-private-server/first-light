@@ -1,9 +1,8 @@
 # Non-EAC Capture Plan
 
-This file turns the current offline DTLS/Javelin findings into a concrete next
-acquisition plan.
+> **Status (2026-05-05):** Mostly executed. Route 1 (archived binary + Frida hook) works and is the path we use daily — see `tools/client-hooks/frida_capture.py`. We have decrypted bytes for the full REP registration window via our own DTLS termination in `server/rep_responder.py`, so the original "obtain session secrets" goal is no longer load-bearing. This doc is kept as historical context; for current capture guidance see [docs/capture-guide.md](capture-guide.md).
 
-## Goal
+## Goal (original — now obsolete)
 
 Obtain **session secrets or decrypted DTLS traffic** for the earliest REP
 registration/bootstrap window we already isolated offline:
