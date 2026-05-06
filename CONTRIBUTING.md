@@ -1,4 +1,4 @@
-# Contributing to NWPrivateServer
+# Contributing to New World: First Light
 
 Thanks for wanting to help. This project succeeds only if more people contribute — the work is too large for any one person and the window before server shutdown is finite.
 
