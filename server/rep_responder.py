@@ -114,6 +114,7 @@ class PeerSession:
                  log: logging.Logger, ack_payload: bytes, ack_form: str = "mn",
                  v3_resp_flag: int = 0x21, v3_resp_channel=None,
                  v3_resp_subheader: str = "000000",
+                 v3_piggyback_ack: bool = True,
                  replay_store: ReplayStore | None = None,
                  replay_max_seq: int = 0x24,
                  replay_interval_ms: int = 50):
@@ -133,6 +134,13 @@ class PeerSession:
         # when the V3 response flag has MF_NO_LENGTH set). Client uses
         # "200002" for V3 retries — mirroring may help.
         self.v3_resp_subheader = v3_resp_subheader
+        # Bundle a Carrier-level piggyback ACK record alongside the V3
+        # RegistrationResponse in the same envelope. Mixed Nuts' working
+        # server sends `20 00 00 06 03 00 03 00 00 40 00 0c 00 02 06`
+        # (flag 0x20 ch=3 sysmsg ACK) bundled with the V3 reply. We don't
+        # currently — testing whether this is what makes the client stop
+        # retrying V3 (per docs/next-session.md "cheapest first action").
+        self.v3_piggyback_ack = v3_piggyback_ack
         self.handshake_done = False
         self.out_seq = 0  # outbound Carrier-envelope sequence number
         # Per-channel outbound sequence + reliable-sequence counters. GridMate
@@ -445,6 +453,39 @@ class PeerSession:
                 struct.pack(">H", 0) +          # rel_seq starts at 0 for reliable
                 envelope_body
             )
+        # Optionally append a Carrier-level piggyback ACK record (flag 0x20
+        # ch=3 sysmsg) acknowledging the inbound env_seq range we've seen.
+        # Mirrors Mixed Nuts' working bundle byte-for-byte:
+        #   20 00 06 03 [seq] [rel_seq=0] 40 [last_env_be] [first_env_be] 06
+        # The 0x40 marker is AckRange, msgid 0x06 is SM_CT_ACKS. Goal:
+        # confirm to the client that we received its V3 RegistrationRequest
+        # at the carrier layer so it stops retrying every ~500ms.
+        ack_record_bytes = b""
+        ack_log = ""
+        if self.v3_piggyback_ack:
+            first_env = getattr(self, "_inbound_env_first",
+                                getattr(self, "last_inbound_env_seq", 0))
+            last_env = getattr(self, "_inbound_env_last",
+                               getattr(self, "last_inbound_env_seq", 0))
+            ack_seq = self.out_msg_seq[3]
+            self.out_msg_seq[3] = (ack_seq + 1) & 0xFFFF
+            ack_inline_payload = (
+                b"\x40" + struct.pack(">H", last_env & 0xFFFF) +
+                struct.pack(">H", first_env & 0xFFFF) + b"\x06"
+            )
+            ack_record_bytes = (
+                bytes([0x20]) +                                  # MF_DATA_CHANNEL
+                struct.pack(">H", len(ack_inline_payload)) +     # size = 6
+                bytes([3]) +                                     # channel 3
+                struct.pack(">H", ack_seq & 0xFFFF) +
+                struct.pack(">H", 0) +                           # rel_seq = 0
+                ack_inline_payload
+            )
+            ack_log = (
+                f" piggyback_ack=[seq={ack_seq} ack_range=({first_env}..{last_env})]"
+            )
+        record = record + ack_record_bytes
+
         if getattr(self, "last_inbound_env_seq", None) is not None:
             datagram = self.wrap_envelope_echo(record, self.last_inbound_env_seq)
         else:
@@ -453,7 +494,8 @@ class PeerSession:
         self.log.info(
             f">> V3RegistrationResponse #{self.v3_request_count} "
             f"session={resp.session_token!r} "
-            f"resp_body_len={len(resp_body)} datagram_len={len(datagram)} "
+            f"resp_body_len={len(resp_body)} datagram_len={len(datagram)}"
+            f"{ack_log} "
             f"datagram_first48={datagram[:48].hex()}"
         )
         self.drain_outbound()
@@ -643,6 +685,12 @@ def main() -> int:
                          "(only used when --v3-resp-flag has 0x40 set). "
                          "Client uses '200002' for V3 retries; try that to "
                          "mirror.")
+    ap.add_argument("--no-v3-piggyback-ack", action="store_true",
+                    help="Disable bundling a Carrier-level ACK (flag 0x20 "
+                         "ch=3 SM_CT_ACKS) alongside the V3 response in the "
+                         "same envelope. Default: bundled (matches Mixed Nuts' "
+                         "working server). Disable to A/B-test whether the "
+                         "piggyback ACK is what stops the V3 retry loop.")
     ap.add_argument("--replay-after-v3", action="store_true",
                     help="After V3 response is sent, replay the captured "
                          "post-registration R-direction messages from the "
@@ -692,6 +740,7 @@ def main() -> int:
     log.info(f"ack variant: {args.ack_variant} payload={ack_payload.hex()}")
     log.info(f"ack form: {args.ack_form} (mn=0x21/rel_seq=0, alt=0xa0/rel_seq=0xFFFF)")
     log.info(f"V3 response wrap: flag={args.v3_resp_flag} channel={args.v3_resp_channel or 'mirror-request'}")
+    log.info(f"V3 piggyback ACK: {'disabled' if args.no_v3_piggyback_ack else 'enabled (flag 0x20 ch=3)'}")
 
     replay_store: ReplayStore | None = None
     if args.replay_after_v3:
@@ -732,6 +781,7 @@ def main() -> int:
                                    v3_resp_flag=int(args.v3_resp_flag, 16),
                                    v3_resp_channel=args.v3_resp_channel,
                                    v3_resp_subheader=args.v3_resp_subheader,
+                                   v3_piggyback_ack=not args.no_v3_piggyback_ack,
                                    replay_store=replay_store,
                                    replay_max_seq=int(args.replay_max_seq, 16),
                                    replay_interval_ms=args.replay_interval_ms)
