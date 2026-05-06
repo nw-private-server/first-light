@@ -64,8 +64,8 @@ info/            Community-shared captures and reference data
 
 - Python 3.11 or 3.12 (python3-dtls is broken on 3.13)
 - pyOpenSSL: `pip install pyopenssl`
-- A non-EAC build of New World (archived/offline build)
-- Frida 16+: `pip install frida-tools` (for trust bypass on the client)
+- A New World client. The live Steam build works for connecting to the mock stack — the deployed Frida trust patch handles cert pinning on top of EAC. A pre-EAC archived build is only needed for in-process capture work (`tools/client-hooks/frida_capture.py`), since EAC blocks Frida's deeper hooks. See [docs/faq.md](docs/faq.md).
+- Frida 16+: `pip install frida-tools` (for the DTLS trust patch on the client)
 
 ### Run the mock stack
 
