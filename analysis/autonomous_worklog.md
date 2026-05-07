@@ -1452,3 +1452,87 @@ either: (a) the loop pauses now and the maintainer triggers a
 runtime capture session, (b) the loop pivots to other parts of the
 codebase the project might benefit from (e.g. characterizing the
 `PlayerManagerTrait` messages, or the `Hub*` message family).
+
+---
+
+### 2026-05-07 — wake 17: A4.3 vtable-correlation attempt — also a dead end
+
+**Did:**
+- One more clever-angle attempt to identify `FUN_14645c660`'s message
+  name. Searched for log-form (non-mangled) string literals matching
+  the strong candidates from A4.3. Hits:
+
+| Candidate | Log-form string? | Mangled-only? |
+|---|---|---|
+| ActorInitializedMessage | YES — `'ActorInitializedMessage'` at `0x14857f768` | also has mangled |
+| ActorStatusNotificationMessage | YES — at `0x14857e840` | also has mangled |
+| OnHubConnectionChanged | no | mangled only |
+| OnPlayerActorStatusChanged | no | mangled only |
+| OnPublishedCharacterMetadata | no | mangled only |
+| ReceiveCharacterMetadata | no | mangled only |
+
+- For each log-form string, the DATA xref was a 2-instruction
+  trampoline (`LEA RAX, [string]; RET`) — these are AZ::TypeId
+  name-getters. `0x146aef990` returns "ActorInitializedMessage";
+  `0x146aef9f0` returns "ActorStatusNotificationMessage".
+- Found the vtable that contains these getters (e.g. the
+  `ActorInitializedMessage` class vtable around
+  `0x148583f10-0x148583fb0`) — confirmed via the embedded UUID
+  text and adjacent name-getter slot.
+- Searched both vtables for `FUN_14645c660`'s RVA. **Not present.**
+
+**Found (A4.3 — confirmed exhausted):**
+
+`FUN_14645c660` does not appear in any AZ-RTTI class vtable I can
+find. Its only reference in the entire binary is the dispatch table
+entry at `0x14abcc45c`. So the message name cannot be confirmed
+through vtable correlation either — there is no static linkage
+between the handler function and the message-class metadata.
+
+The dispatch table is built at compile time from
+`InstallRegistrationHook<T>` template instantiations. Each
+instantiation produces (a) a lambda handler (which becomes
+`FUN_14645c660` and friends) and (b) a row in the dispatch table.
+The C++ template name `T` is preserved only in mangled RTTI form
+in the binary, not as a runtime-accessible string from inside the
+handler. So a release-build static analysis simply cannot recover
+the `T → handler` mapping without runtime data.
+
+**This is the final word on A4.3 from a static angle.** The Frida
+runtime hook (queued for the maintainer) is the only path forward.
+
+**This is also a useful negative result for the project's docs:**
+the maintainer can stop trying to statically reverse handler-to-name
+mappings for this dispatch system. The general pattern for any
+`ClientMessages` / `*Trait` message handler is the same: handler
+function + dispatch-table entry, with no other backlink to the
+type name in release builds.
+
+**Decision: recommend pausing the loop.**
+
+After 17 wakes (2 hours of autonomous time), the player-spawn
+investigation has reached genuine exhaustion. Five separate threads
+(A2.10, A3.1, A4.2, A4.3, A2.9c) all converge on the same single
+runtime-hook session. Continuing more static iterations is
+diminishing returns.
+
+Productive options if the maintainer wants the loop to keep running:
+
+1. **Pivot to other unrelated subsystems.** Characterize
+   `PlayerManagerTrait` (28 messages) or `Hub*` families to expand
+   the project's chunk/message inventory. Useful for long-term
+   protocol completeness, less urgent for MVP.
+2. **Documentation pass.** Write a `tools/ghidra_scripts/README.md`
+   inventorying the 9 generic Ghidra scripts created today
+   (`HeadlessDecompile`, `FindXrefs`, `FindStringXrefs`, etc.)
+   with usage examples. Pure docs, zero new RE.
+3. **Stop and wait** for the maintainer to do a runtime capture
+   session, then resume the loop with the resulting data.
+
+I'll schedule one more wake at the standard interval but mark this
+as the explicit decision point. If the maintainer doesn't redirect
+before then, the next wake will pick option (1) or (2) — likely
+(2), since the docs pass is high-value and risk-free.
+
+**Blockers:** None for the loop, but the loop has hit its
+intended useful range on the player-spawn protocol path.
