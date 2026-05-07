@@ -114,6 +114,20 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
       post-V3 server message sequence (not just SelfIdent). See
       `analysis/state_machine_summary.md` updated tables. See worklog
       wake 11.
+- [x] **A4.1.** Trace writers of `wrapper[+0xbc8]` (the state-12 gate).
+      **DONE 2026-05-07** — single hit: `FUN_145a9fa00` (one-line
+      setter) called from `FUN_14645c660`, which is itself a message
+      handler in the same dispatch table as
+      `PlayerManagerSelfIdentification` (DATA xref at `0x14abcc45c`).
+      So another `ClientMessagesTrait` message advances the state-12
+      gate. See worklog wake 12.
+- [~] **A4.2.** Trace writers of `wrapper[+0x252]` (the state-13 gate).
+      **PARTIAL 2026-05-07** — 3 imm=1 hits but all in unrelated
+      classes (UI, Wwise audio, JSON). Real wrapper writer must use
+      a non-immediate store pattern. Different scan approach needed.
+- [ ] **A4.3.** Identify which `ClientMessagesTrait` message is
+      handled by `FUN_14645c660` (the spawn-point-ready trigger).
+      Same approach as A2.6.
 - [~] **A2.11.** Map xrefs to `FUN_141721c20` to find siblings of
       SelfIdentification. **DEFERRED 2026-05-07** — 99 callers in the
       binary, no obvious filter pattern that would surface
@@ -976,5 +990,91 @@ runtime hook (queued for the maintainer) is the practical answer.
 - A4.2: trace writers of `wrapper[+0x252]` (the state-13 gate).
 - A2.7 still queued (sibling lifecycle handlers in the observer
   table that `FUN_145a87010` walks).
+
+**Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 12: A4.1 done, A4.2 partial, second message handler exposed
+
+**Did:**
+- Ran `FindOffsetWrites 0xbc8 0x1` (state-12 gate) — 1 hit in 32M
+  instructions.
+- Ran `FindOffsetWrites 0x252 0x1` (state-13 gate) — 3 hits, all
+  unrelated classes.
+- Decompiled the state-12 writer and its single caller.
+- `FindXrefs` on the caller.
+
+**Found (A4.1 — clean win):**
+
+1. **`FUN_145a9fa00`** is a 9-line single-purpose setter:
+   ```c
+   void FUN_145a9fa00(longlong param_1) {
+       *(undefined1 *)(param_1 + 0xbc8) = 1;
+   }
+   ```
+   Located adjacent to the other wrapper public methods
+   (`FUN_145a9fa10/30/80`).
+
+2. **One caller**: `FUN_14645c660`, a tiny bridge:
+   ```c
+   void FUN_14645c660(longlong param_1) {
+       lVar1 = FUN_1406d97d0(param_1 + -0x930);
+       if (pGame != 0) {
+           FUN_145a9fa00(
+               pGame[+0x1e0][clientSdk[+0x10] * 8] + 0x130   // wrapper
+           );
+       }
+   }
+   ```
+   Same wrapper-resolution expression as the SelfIdent handler.
+
+3. **`FUN_14645c660` itself is a message handler.** Xrefs:
+   - DATA at `0x14abcc45c` — same dispatch table as
+     `FUN_146454c00` (SelfIdent at `0x14abcc15c`), 0x300 bytes away.
+   - Thunk JMP at `0x14645c65b`, same MSVC virtual-base
+     `this`-adjustment pattern.
+
+   So `FUN_14645c660` handles **another `ClientMessagesTrait`
+   message** — name TBD (queued as A4.3).
+
+**Found (A4.2 partial):** 3 hits for `MOV [reg+0x252], 1`:
+- `FUN_143dd6b20` — UI/text helper (`{value}/{maxCount} - %s`).
+- `FUN_1473ed090` — Wwise audio plugin (`AkSoundSeedWoosh`).
+- `FUN_14752dcd0` — JSON-ish helper (`caseId`/`context`).
+
+All look like unrelated classes. The real wrapper writer must use
+a non-immediate store pattern (register-based, struct-copy, or
+memcpy). Need a different scan.
+
+**Implications for the protocol:**
+
+The post-V3 server message sequence is **at least three messages**
+(possibly four):
+
+```
+state 10 → 11   PlayerManagerSelfIdentificationMsg   (FUN_146454c00)
+state 11 → 12   ?  another trait msg                  (FUN_14645c660)
+                   sets wrapper[+0xbc8] = 1
+state 12 → 13   LevelInfoChangedMsg                   (FUN_146446800)
+state 13 → 14   ?  TBD via A4.2 follow-up
+```
+
+Earlier picture said "two messages." Today's finding moves it to
+"three or four." The state-machine summary doc should be updated
+once A4.3 names the new message.
+
+**Why this iteration was efficient:** the `FindOffsetWrites` script
+has now nailed three single-writer findings (substate=2 for state
+10→11, the destroy-flush flag, and now state-12 gate). The state-13
+gate is the first false-result; informative — the script's
+immediate-store assumption doesn't always hold.
+
+**Next** (queue updated):
+- A4.3: identify the `ClientMessagesTrait` message handled by
+  `FUN_14645c660`. Same approach as A2.6 — examine surrounding
+  dispatch table layout and any log strings near the function entry.
+- A4.2 follow-up: scan for register-based / memcpy writes to the
+  wrapper's `+0x252` field.
 
 **Blockers:** None.
