@@ -1668,3 +1668,97 @@ wake, push to origin, no personal framing in committed artifacts,
 neutral commit-message language. The repo is public.
 
 **Resuming the loop now.** First iteration: C1 (server-side audit).
+
+---
+
+### 2026-05-07 — wake 20: C1 audit + MAJOR find — runtime data already exists in info/
+
+**Did:**
+- Inventoried `server/` (~6.3k lines Python). Read `rep_responder.py`,
+  `v3_response.py`, replay system pieces.
+- Surveyed `info/` directory.
+
+**Found — server architecture:**
+
+The server uses a **replay-and-substitute** strategy, not
+generate-from-scratch:
+
+1. V3 RegistrationRequest received → V3 RegistrationResponse sent
+   (working — the response template is at `v3_response.py` based on
+   bytes captured from a real successful login at
+   `info/nw-login-safe-20260502-153840/messages-redacted.txt`).
+2. After V3, `_start_replay()` queues the captured post-V3 messages
+   (seq 0x2..0x24) for paced replay.
+3. `SubstitutionContext` patches redacted spans (player UUIDs,
+   session token, character name) with the current session's
+   identity before each replay message ships.
+4. After the queue drains, `PingMsg` (type 0x15d) heartbeats keep
+   the connection alive past the captured-session length.
+
+So the server **is** sending the captured `PlayerManagerSelfIdentificationMsg`
+already — but the client doesn't accept it. Today's static findings
+explain *why*: the substituted fields don't match what the wrapper
+setters expect, OR the seq numbering breaks the carrier reliable
+ordering, OR the wire-format byte layout in the captured replay
+diverges from what this build of the binary parses.
+
+**Found — INFO/ HAS RUNTIME DATA WE THOUGHT WE NEEDED FRIDA FOR:**
+
+`info/typeregistry.json` is a **runtime-extracted type registry**
+(80,207 lines, 3,487 named types). Each entry has:
+- The type's UUID
+- The type's name (e.g. `ConfigOverridesDebugTrait::State`)
+- Heap-relative vtable addresses
+- **First 8 bytes of `Marshal` and `Unmarshal` opcodes** for each type
+
+The 3,487 types in the registry correlates almost exactly with the
+3,482 `InstallRegistrationHook<T>` mangled-name strings I counted
+earlier — this registry IS the runtime-equivalent dump of the
+dispatch system.
+
+**The opcode prefixes are the key.** They're 8 unique bytes from
+each Marshal/Unmarshal function's prologue. Grepping the binary's
+code section for those byte sequences will reveal the actual
+function addresses. That gives us a **type-name → handler-address
+mapping** without needing a new Frida session.
+
+This unblocks several of the 5 "runtime-needed" tasks statically:
+- A4.3 (FUN_14645c660 message name)
+- A2.10 (PlayerManagerRejected handler)
+- Even maybe A3.1 (the destroy-event AZ::Crc32 might map to a
+  registry UUID).
+
+Also `info/community_22_phase_in_game_dump.txt` (85 lines) and
+`info/wireshark_carrier_handshake_redacted_session1.txt` exist —
+worth examining for in-world traffic snapshots beyond the
+20260502-153840 capture.
+
+**This is a sharp pivot in the loop's value.** Pre-typeregistry
+discovery, the loop was queueing tasks for the maintainer's runtime
+hook session. Post-discovery, we may be able to resolve most of
+them statically by correlating with the registry. Next iterations
+will:
+
+- C1.1: Build a script that maps `typeregistry.json` Marshal/Unmarshal
+  opcode prefixes to actual function addresses in the binary by
+  byte-pattern search. Output: a `type_name → (marshal_addr,
+  unmarshal_addr)` table.
+- C1.2: With that table, look up FUN_14645c660 (or its containing
+  vtable) → resolve A4.3.
+- C1.3: Also resolve A2.10 by looking up PlayerManagerRejectedMsg
+  in the registry.
+
+**C1 conclusion:** server-side audit produced two outputs of unequal
+weight:
+- Architecture documentation (the replay-substitute strategy) —
+  modest value, mostly already implicit in the README/CONTRIBUTING.
+- Discovery of `typeregistry.json` as a static-analysis-unblocking
+  asset — **major** value, completely changes the rest of the
+  multi-day plan.
+
+**Next** (queue updated):
+- C1.1, C1.2, C1.3 as above.
+- C2 (PlayerManagerTrait characterization) — also benefits from the
+  registry now.
+
+**Blockers:** None.
