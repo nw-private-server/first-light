@@ -1982,3 +1982,97 @@ the project reaches the state-13 stall.
   question surfaces.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 23: full message inventory + A4.3 refinement
+
+**Did:**
+- Parsed the cached `FindStringXrefs InstallRegistrationHook` output
+  (`/tmp/all_install_hooks.txt`, 541KB from earlier wake) with a
+  Python regex into `(namespace, type)` pairs. Result: **2,025
+  unique typed messages across 174 namespaces.**
+- Cross-referenced with the `info/typeregistry.json` named types.
+- Wrote `analysis/message_inventory.md` (2,632 lines) — a
+  comprehensive catalog organized by topical bucket then by
+  namespace, with typeregistry coverage marked.
+- Wrote `tools/build_message_inventory.py` so the doc is
+  regeneratable when binaries / typeregistry refresh.
+
+**Found (C5 outcome):**
+
+The project's prior chunk inventory was two orders of magnitude
+narrower than the actual surface:
+
+| Inventory | Count |
+|---|---|
+| `analysis/javelin_chunks.txt` (prior) | 2 components |
+| `analysis/chunk_names.txt` (prior) | 17 chunk names |
+| `analysis/javelin_classes.txt` (prior) | 730 Javelin::* class names |
+| `analysis/message_inventory.md` (new) | **2,025 messages, 174 namespaces** |
+
+Top namespaces by message count:
+- `Javelin` (519, top-level catch-all)
+- `Javelin::ClientMessages` (487, the per-component facet messages)
+- `Amazon::Hub` (118, 78 in typeregistry)
+- `MB` (107, replicated state)
+- `Aoi::PhysicsTrait` (76)
+- `Aoi::PlayerManagerTrait` (28, server-side player ops)
+- `Amazon::IPC` (28, 27 in typeregistry)
+- `ActorMover` (20, 19 in typeregistry)
+
+**typeregistry coverage pattern:** the 312 named types with full
+handler data in `info/typeregistry.json` cover `Amazon::Hub`,
+`Amazon::IPC`, `ActorMover` heavily but **zero** of `Javelin::*`,
+`Aoi::*`, `MB`, `ChatBroker`. So those two layers are different
+serialization systems — the registry is the AZ-RTTI / persistence
+layer, while `Javelin::*` is the RPC handler layer. They don't
+share the type metadata.
+
+**A4.3 refinement** (the unidentified state-12 trigger handled by
+`FUN_14645c660`):
+
+The full inventory shows `Javelin::ClientMessagesTrait` has **6
+messages**, not the 5 I previously catalogued:
+
+1. `DebugCommandResponseMsg`
+2. `LevelInfoChangedMsg`
+3. `PlayerManagerRejectedMsg`
+4. `PlayerManagerSelfIdentificationMsg`
+5. `RemoteConfigChangedMsg`
+6. **`State`** ← previously missed
+
+The `State` member is a trait-level state-machine message. By
+elimination (SelfIdent and LevelInfoChanged are mapped, Rejected is
+the failure path, RemoteConfigChanged and DebugCommandResponse
+don't fit the "advance state to spawn-point-ready" semantic), the
+likely candidate for `FUN_14645c660` is **`State`** — a generic
+state-update message. That fits the dispatcher pattern of using
+*the same handler bridge* (`FUN_14645c660`) for whatever state
+update arrives.
+
+Not 100% confirmed without runtime data, but a much sharper
+hypothesis than the long candidate list from wake 13.
+
+**Other notable findings from the inventory pass:**
+
+- `Aoi::PlayerManagerTrait` (28 messages) is the server-side
+  counterpart to `ClientMessagesTrait`. Notable members:
+  `OnHubConnectionChangedMsg`, `OnPlayerActorStatusChangedMsg`,
+  `OnFirstTerritoryForPlayerMsg`, `ProcessSpawnQueueMsg`,
+  `RequestRejectClientConnectionMsg` (the *server*'s reject
+  request that produces the client's `PlayerManagerRejectedMsg`).
+- `MB` namespace is the **MarshalByValue** replicated state system
+  — 107 message types, all 0 in typeregistry. This is the GridMate
+  ReplicaChunk dimension, distinct from the trait-RPC dimension.
+- Several smaller traits worth noting for future work:
+  `Javelin::CharacterServiceProxyTrait` (17 msgs),
+  `OrchestrationTrait` (12), `ChatBroker` (18).
+
+**Next** (queue):
+- C6: cross-trait analysis — back-fill `docs/connection-flow.md`
+  with the post-V3 protocol now that `docs/post-v3-sequence.md`
+  and `analysis/message_inventory.md` provide the data.
+- C7: final consolidation — comprehensive protocol map doc.
+
+**Blockers:** None.
