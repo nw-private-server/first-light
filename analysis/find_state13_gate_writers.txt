@@ -1,0 +1,16 @@
+# offset-write scan: MOV [reg + 0x252], 0x1
+
+scanned 32079663 instructions, 3 hits
+
+## hits grouped by enclosing function (3 unique)
+
+### FUN_143dd6b20 @ 143dd6b20  (1 hit)
+  143dd6ffe  MOV byte ptr [RBP + 0x252],0x1
+
+### FUN_1473ed090 @ 1473ed090  (1 hit)
+  1473ed132  MOV byte ptr [RBX + 0x252],0x1
+
+### FUN_14752dcd0 @ 14752dcd0  (1 hit)
+  14752f293  MOV byte ptr [R14 + 0x252],0x1
+
+# end

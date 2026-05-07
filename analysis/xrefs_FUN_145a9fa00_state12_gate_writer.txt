@@ -1,0 +1,8 @@
+# xrefs to FUN_145a9fa00 @ 0x145a9fa00
+
+total references: 1
+
+## UNCONDITIONAL_CALL (1)
+  from 14645c69d in FUN_14645c660 @ 14645c660
+
+# end
