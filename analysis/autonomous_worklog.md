@@ -84,9 +84,21 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
       no self identification"). This function complains when self-id is
       missing and likely runs in the same tick that watches the destroy
       flag — could resolve A3 as a side-effect.
-- [ ] **A3.** Decompile `FUN_146b3c250 + 0x58f` — find what writes
-      `[R13+0xfd]` (the byte that triggers the destroy loop, per
-      `docs/next-session.md`).
+- [x] **A3.** Decompile `FUN_146b3c250 + 0x58f` — find what writes
+      `[R13+0xfd]`. **DONE 2026-05-07** — `FUN_146b3c250` is
+      `TransportLayerGridMateTickThread`; `[+0xfd]` is a skip-timeout-
+      and-flush flag on the GridMate Carrier. Sole writer is
+      `FUN_140fb3560:452` gated by event-id `0xFE476177` (likely an
+      AZ::Crc32 hash of some teardown event name). See worklog wake 8.
+- [ ] **A3.1.** Identify the AZ::Crc32 string for `0xFE476177` (the
+      event ID that sets the destroy flag). Lumberyard's `AZ::Crc32`
+      uses polynomial `0xEDB88320` like zlib but typically lowercases
+      the input — pre-compute hashes of likely names ("disconnect",
+      "OnDisconnect", "Carrier::Disconnect", "DestroySession",
+      "OnSessionDestroy", "SessionEnded") and check for match. Also
+      `0xF36721F9` (the outer `param_5+0x28` dispatch key) and the
+      other branch keys (`0x578a1f75`, `0x20edcd6c`, `-0xd2f448c` ⇒
+      `0xF2D0BB74`, `-0xc98de07` ⇒ `0xF36721F9`).
 - [ ] **A4.** Trace xrefs to `FUN_14645fd70` (the state setter) to confirm
       no other code paths advance state past 10 outside of `FUN_14644a070`.
 - [ ] **A5.** Update `analysis/ghidra_findings.md` with the consolidated
