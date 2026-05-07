@@ -15,10 +15,10 @@
 
 ## TL;DR
 
-After the V3 RegistrationResponse is accepted (already working — the
-maintainer's pre-vacation notes confirmed `rep.ready` flips 0→1), the
-client sits in **GameConnection state 10** waiting on a single message
-the server is **not** sending:
+After the V3 RegistrationResponse is accepted (already working — prior
+project notes confirmed `rep.ready` flips 0→1), the client sits in
+**GameConnection state 10** waiting on a single message the server is
+**not** sending:
 
 > **`Javelin::ClientMessagesTrait::PlayerManagerSelfIdentificationMsg`**
 

@@ -1,9 +1,9 @@
-# Autonomous worklog — vacation 2026-05-07 → ~2026-05-12
+# Autonomous worklog — extended session starting 2026-05-07
 
 This file is appended to by an autonomous Claude session running in `/loop`
-self-paced mode while the maintainer is on vacation. Each entry is a single
-wake-up cycle: what was attempted, what was found, what's next. Read top-down
-to follow progress; the **task queue** at the top reflects current priority.
+self-paced mode. Each entry is a single wake-up cycle: what was attempted,
+what was found, what's next. Read top-down to follow progress; the **task
+queue** at the top reflects current priority.
 
 ## How to read this
 
