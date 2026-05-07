@@ -662,3 +662,84 @@ table — which we already established is tricky to decode statically.
   failure path.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 8: A2.12 partial + A3 SOLVED
+
+**Did:**
+- Decompiled `FUN_146448cd0` (the "no self identification" check from
+  wake 7's GameMessagePort scan).
+- Decompiled `FUN_146b3c250` (the destroy-loop function from
+  `docs/next-session.md`).
+- Built a generalized writer-hunt script
+  (`tools/ghidra_scripts/FindOffsetWrites.py`) and scanned for
+  `MOV [reg + 0xfd], 1` across the whole binary.
+- Decompiled the unique hit and identified the gating condition.
+
+**Found (A2.12 outcome):** `FUN_146448cd0` is *not* the destroy trigger.
+It's `LoadContextAndLevel` — a function that pre-checks self-id and
+LevelInfo flags before initializing the client context. Three failure
+paths log on `"GameMessagePort"`:
+- `[gc+0x1a0] == 0` → "no self identification"
+- `[gc+0x190] == 0` → "missing LevelInfo"
+- `pGame == nullptr` → "pGame is nullptr"
+
+Useful side find: `gc[+0x1a0]` is the "self-id received" flag (set by
+the SelfIdentification handler somewhere — corroborates A2.6).
+`gc[+0x1a1]` is set on successful `LoadContextAndLevel` completion.
+
+**Found (A3 — solved):** The destroy flag at `[+0xfd]`:
+
+1. `FUN_146b3c250` is **`TransportLayerGridMateTickThread`** — the
+   GridMate Carrier tick thread. Identified via line 116 string literal
+   passed to a thread-name setter.
+2. The check at `FUN_146b3c250+0x58f` (line 333 of the decomp):
+   ```c
+   if (*(char *)(param_1 + 0xfd) == '\0') {
+       if (currentTime <= queueItemTimestamp + delayMs) break;
+   }
+   processItem();
+   ```
+   So `[+0xfd] != 0` doesn't directly *destroy* — it tells the tick
+   loop to **skip the timeout check** and force-process all queued
+   items before destruction. Effectively a "shutdown is happening,
+   flush" flag.
+3. **Sole writer** found via instruction scan: `MOV [reg + 0xfd], 1`
+   matched **exactly one** instruction across all 32M instructions.
+   It's at line 452 of `FUN_140fb3560`:
+   ```c
+   else {
+       if (iStack_38 != -0x1b89e89) return;  // 0xFE476177
+       *(undefined1 *)(param_4 + 0xfd) = 1;
+   }
+   ```
+4. So the chain is: some component dispatches event with id `0xFE476177`
+   to `FUN_140fb3560` → carrier flush flag set → next tick force-flushes
+   → destruction follows.
+
+**Outer dispatch context (FUN_140fb3560):** function takes
+`(param_1, param_2, param_3, param_4=carrier?, param_5=event)`. It
+dispatches based on `*(param_5 + 0x28)` (outer event type) and a nested
+`iStack_38` (sub-event type). Magic constants seen, all looking like
+AZ::Crc32 hashes:
+- Outer key: `-0xc98de07` = `0xF36721F9`
+- Sub-event keys: `0x578a1f75`, `0x20edcd6c`, `-0xd2f448c` =
+  `0xF2D0BB74`, `-0x1b89e89` = `0xFE476177` (← destroy-flag key)
+
+**Why this is good news for the project:** the ~30s session destroy
+isn't actively triggered by the server. It's a **client-side timer**
+that eventually dispatches event `0xFE476177` to the carrier. The fix
+is delivering `PlayerManagerSelfIdentificationMsg` *before* whatever
+internal timer reaches the destroy event.
+
+**Two new generic offset-writer hunts now possible** with the new
+`FindOffsetWrites.py` script — useful for any "what writes this byte"
+question in the future.
+
+**Next** (A3.1 added; queue now): A3.1 (Crc32 reversal of `0xFE476177`
+to discover the event name), A2.11 (FUN_141721c20 trace-logger xrefs
+for Rejected handler), A4 (FUN_14645fd70 setter xrefs), A5
+(consolidated state-machine doc).
+
+**Blockers:** None.
