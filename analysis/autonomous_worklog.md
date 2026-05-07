@@ -1903,3 +1903,82 @@ realization.
   the post-V3 sequence is documented from another angle.
 
 **Blockers:** None for the loop.
+
+---
+
+### 2026-05-07 — wake 22: docs/post-v3-sequence.md written + sub_145A85940 located
+
+**Did:**
+- Wrote `docs/post-v3-sequence.md`. Synthesizes the community
+  22-phase dump with our state-machine map and static handler
+  identifications. Sections cover: wire format recap, the 22-phase
+  table with delays/sizes/channels, cross-link to GameConnection
+  state machine, C→S direction, wire-format gotchas, static-RE
+  handler addresses, community-team stall observations,
+  implementation file references, and what's still missing.
+
+- Probed `sub_145A85940` (the community team's `isMasterPlayer=0`
+  blocker) against our binary. Result: `0x145a85940` is **not** a
+  function entry in our binary's analysis — it's inside
+  `FUN_145a85760` at offset `+0x1e0`. Documented in the new
+  protocol doc.
+
+**Found (C1.4 outcome):**
+
+The new doc is positioned in `docs/` (not `analysis/`) because it's
+a maintainer-facing protocol reference, not a session note. It
+explicitly cross-links to:
+- `analysis/state_machine_summary.md` for the state-machine and
+  static-RE findings
+- `info/community_22_phase_in_game_dump.txt` for the canonical
+  community RE
+- `server/javelin/*` files for the existing implementation
+
+This matters because previously the community dump was buried in
+`info/` (~85 lines, no doc index entry, easy to miss). Now anyone
+landing on the project can read `docs/post-v3-sequence.md` and
+get the protocol shape immediately.
+
+**Concrete things now visible from the doc that weren't before:**
+
+1. **The replay store covers seq 0x2..0x24, which is Phase 1
+   through partway into Phase 11 of the 22.** Phases 12–22 are
+   not delivered by the existing server. That's a clear scope
+   for "new captures needed" — extending coverage past 0x24
+   matters more than nailing Phase 9b's wire format (since
+   replay already covers Phase 9b).
+
+2. **The community team's stall (state 13) is past ours (state
+   10).** Their bypass (DLL patch forcing isMasterPlayer=1)
+   suggests the project will hit the same stall once it gets
+   past Phase 9b. Worth flagging as a future blocker.
+
+3. **The CH1 init burst at Phase 11b (~47 units, ~285KB) is
+   mandatory** per the community team. NW_HYBRID_INIT bisection
+   shows 67 units → loading circle, 68 → black screen (game
+   world). This is the most likely candidate for the next
+   significant server-side work after the replay extends
+   past seq 0x24.
+
+**Sub_145A85940 deeper probe:**
+
+Tried decompiling the address directly — Ghidra returned
+`FUN_145a85760` (the containing function), confirming
+`sub_145A85940` is at `+0x1e0` inside that function. This
+function is likely the wrapper's state-handling tick or
+similar, located in the wrapper-class address neighborhood
+(`0x145a8xxxx-0x145a9xxxx`). Not decompiled fully this
+iteration — flagged in the doc for future investigation when
+the project reaches the state-13 stall.
+
+**Next** (queue):
+- C5: replica chunk inventory expansion. Now that the protocol
+  doc is in place, expanding `analysis/javelin_chunks.txt` and
+  `FindChunkRegistrations.py` to cover the broader trait/component
+  facet space is a clean next step.
+- C6: cross-trait analysis — back-fill `docs/connection-flow.md`
+  with the Phase 9b+ details now that they're documented.
+- C2 (PlayerManagerTrait) — keep deferred unless a specific
+  question surfaces.
+
+**Blockers:** None.
