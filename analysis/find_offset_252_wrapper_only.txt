@@ -1,0 +1,11 @@
+# offset-reference scan: any instruction with operand displacement 0x252
+# filtered to function entries starting with: 145a
+
+scanned 32079663 instructions, 1 hits
+
+## hits grouped by enclosing function (1 unique)
+
+### FUN_145a923c0 @ 145a923c0  (1 hit)
+  145a923c0  MOVZX EAX,byte ptr [RCX + 0x252]
+
+# end

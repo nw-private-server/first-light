@@ -1348,3 +1348,107 @@ the destroy chain never fires.
 - A2.10 still needs runtime — queued for maintainer.
 
 **Blockers:** None for the loop.
+
+---
+
+### 2026-05-07 — wake 16: A4.2 follow-up — broad scan; static origin still hidden
+
+**Did:**
+- Wrote `tools/ghidra_scripts/FindOffsetReferences.py` — broader than
+  `FindOffsetWrites`: catches ANY operand with the target displacement
+  (read or write, any opcode, any value), with optional address-range
+  filter.
+- Ran with offset `0x252` filtered to wrapper class neighborhood
+  (`145a` prefix) — only one hit, the gate reader `FUN_145a923c0`
+  (which we already had). **No wrapper-class writer of `+0x252`
+  exists statically.**
+- Ran without filter — 45 hits across 33 functions, all in unrelated
+  classes (UI code, audio, render math, etc.). The byte field
+  `+0x252` is too generic.
+- Tried gc-relative offset `0x382` (= `0x130 + 0x252`, since wrapper
+  is embedded at `gc+0x130`) — 25 hits. Filtered to the Javelin/
+  GameConnection address range (`0x146x`): 2 candidates writing 1.
+- Decompiled both:
+  - `FUN_146cd5780`: CGF (CryGame Format) model loader — references
+    "Node chunk", "PhysicsProxy", "$collision", etc. **Unrelated.**
+  - `FUN_146d0bbe0`: a constructor that does `operator_new(0x1050)`
+    and pre-initializes a `+0x382` byte to 1 along with other
+    fields. The 0x1050-byte object is *not* a GameConnection
+    (GameConnection is much larger). **Unrelated.**
+
+**Found (A4.2 follow-up — exhausted):**
+
+The state-13 gate flag (`wrapper[+0x252]` = `gc[+0x382]`) is **not
+written by any immediate-store instruction in the binary** — neither
+through the wrapper pointer nor through gc-relative arithmetic. The
+writer must use one of:
+- **memcpy / struct copy** from a source object (e.g. zeroing
+  during construction, or copying spawn-data into wrapper fields).
+- **Register-based store with the value computed earlier** (e.g.
+  `MOV BPL, AL; MOV [RBP+0x252], BPL` — the AL came from somewhere
+  upstream).
+- A different intermediate pointer (not wrapper or gc directly,
+  e.g. `MOV [RAX+SOMETHING], 1` where RAX was loaded from some
+  field at a known offset).
+
+For comparison, the **state-12 gate writer** (`wrapper[+0xbc8]`)
+was findable because it had:
+- A direct `MOV [reg+0xbc8], 1` immediate store (FindOffsetWrites
+  caught it).
+- A 9-line wrapper-class setter that exists *because* the trigger
+  is set explicitly by another message handler.
+
+The state-13 gate's absence of a similar setter pattern suggests
+its semantics differ — the flag may flip as a side-effect of some
+larger spawn-state copy, rather than being toggled by a discrete
+event handler.
+
+**Why this is fine for the project:** the maintainer's MVP target
+is reaching state 14 (`InGame`). Knowing *which* server message or
+internal trigger flips `+0x252` is helpful but not blocking — the
+state advances 13→14 once spawn data is delivered, regardless of
+whether there's a discrete "spawn complete" message or whether it
+falls out of `LevelInfoChangedMsg` processing.
+
+**Conclusion:** A4.2 marked DONE-WITH-CAVEAT. The static path is
+genuinely exhausted. Like A2.10, A3.1, A4.3, the path forward is
+runtime — a Frida hook on `FUN_145a923c0` (the gate reader) at
+state-13 transition time would log who wrote the byte.
+
+**Static-RE summary at end of day 1:**
+
+| Question | Answer | How |
+|---|---|---|
+| What gates state 10→11? | `wrapper[+0xa0] == 2` | static, A1 |
+| What writes `wrapper[+0xa0] = 2`? | `FUN_145a87010` (`onConnectionSuccess`) | static, A2.5 (single hit in 32M instructions) |
+| What invokes `onConnectionSuccess`? | `FUN_146454c00` = PlayerManagerSelfIdent handler | static, A2.6 |
+| What gates state 12→13? | `wrapper[+0xbc8] != 0`; also forced state 13 by LevelInfoChanged | static, A1 + A4 |
+| What writes `wrapper[+0xbc8] = 1`? | `FUN_145a9fa00` called from `FUN_14645c660` | static, A4.1 (single hit in 32M instructions) |
+| What is the message at `FUN_14645c660`? | TBD — same dispatch table as SelfIdent, name unrecoverable from static | runtime needed, A4.3 |
+| What gates state 13→14? | `wrapper[+0x252] != 0` | static, A1 |
+| What writes `wrapper[+0x252] = 1`? | TBD — no immediate store exists in binary | runtime needed, A4.2 |
+| What's the destroy event id? | AZ::Crc32 `0xFE476177` | partial, A3 |
+| What is the source string for `0xFE476177`? | TBD — release-build strip | runtime needed, A3.1 |
+| Where is PlayerManagerRejected handler? | TBD — no GameMessagePort log signature | runtime needed, A2.10 |
+
+**Five tasks (A4.3, A4.2, A3.1, A2.10, A2.9c) all converge on Frida.**
+A single targeted runtime capture session would unblock them all.
+
+**Next** (queue):
+- B1 — **DON'T START** until either runtime data lands OR the
+  maintainer explicitly directs the loop to attempt a server-side
+  experiment with the partial knowledge we have. Per
+  `project_autonomous_session_plan.md`, server code changes need a
+  confident hypothesis first. Without wire-format byte layouts, any
+  server-side attempt is guessing.
+- A2.7-followup (sibling lifecycle handlers in observer table that
+  `FUN_145a87010` walks) — this might surface other useful handlers,
+  but the practical payoff is small now that the synthesis is
+  written.
+
+**Blockers:** Loop has hit static-RE exhaustion on the player-spawn
+path. Continuing iterations risk diminishing returns. Suggest
+either: (a) the loop pauses now and the maintainer triggers a
+runtime capture session, (b) the loop pivots to other parts of the
+codebase the project might benefit from (e.g. characterizing the
+`PlayerManagerTrait` messages, or the `Hub*` message family).
