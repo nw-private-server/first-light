@@ -90,15 +90,20 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
       and-flush flag on the GridMate Carrier. Sole writer is
       `FUN_140fb3560:452` gated by event-id `0xFE476177` (likely an
       AZ::Crc32 hash of some teardown event name). See worklog wake 8.
-- [ ] **A3.1.** Identify the AZ::Crc32 string for `0xFE476177` (the
-      event ID that sets the destroy flag). Lumberyard's `AZ::Crc32`
-      uses polynomial `0xEDB88320` like zlib but typically lowercases
-      the input — pre-compute hashes of likely names ("disconnect",
-      "OnDisconnect", "Carrier::Disconnect", "DestroySession",
-      "OnSessionDestroy", "SessionEnded") and check for match. Also
-      `0xF36721F9` (the outer `param_5+0x28` dispatch key) and the
-      other branch keys (`0x578a1f75`, `0x20edcd6c`, `-0xd2f448c` ⇒
-      `0xF2D0BB74`, `-0xc98de07` ⇒ `0xF36721F9`).
+- [~] **A3.1.** Identify the AZ::Crc32 string for `0xFE476177`.
+      **PARTIAL 2026-05-07** — 65 candidate names tried (lifecycle /
+      network / Carrier / GridMate / Replica), no match in zlib CRC32
+      or its lowercased variant. Binary contains 29 references to the
+      32-bit constant `0xFE476177` (across 28 functions) and one is
+      the writer site we already know. The hash literal appears bare
+      (no adjacent source string), consistent with **release-build
+      AZ::Crc32 with the string stripped** — a common Lumberyard
+      pattern. Static reversal looks impractical without a wordlist
+      from the original source. See worklog wake 9.
+- [ ] **A3.1b.** If A3.1 stays static-blocked: defer to runtime —
+      write a Frida hook on `FUN_140fb3560` to log the event-id arg
+      structure when called. Already queued for maintainer as part of
+      A2.9c; this would be a same-hook second-purpose use.
 - [ ] **A4.** Trace xrefs to `FUN_14645fd70` (the state setter) to confirm
       no other code paths advance state past 10 outside of `FUN_14644a070`.
 - [ ] **A5.** Update `analysis/ghidra_findings.md` with the consolidated
@@ -743,3 +748,75 @@ for Rejected handler), A4 (FUN_14645fd70 setter xrefs), A5
 (consolidated state-machine doc).
 
 **Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 9: A3.1 — CRC reversal blocked by stripped strings
+
+**Did:**
+- Tried `0xFE476177` against 65 candidate strings (lifecycle / Carrier /
+  GridMate / Replica / network / common Lumberyard idioms). Both raw
+  CRC32 and lowercased CRC32 attempted. **Zero matches.**
+- Wrote `tools/ghidra_scripts/FindConstant.py` and searched the binary
+  for the 32-bit pattern `0xFE476177`. **29 hits across 28 functions**
+  including the writer site we already had at `FUN_140fb3560`.
+- Decompiled one of the new sites (`FUN_1402af830`) to see the constant
+  in context. Pattern looks like `AZ::Crc32` / `AZ::Name`-style struct
+  construction:
+  ```c
+  local_60 = &PTR_LAB_147ef8d50;     // suspected AZ::Name vtable
+  local_58 = 0xfe476177;             // hash
+  local_54 = 0; local_4c = 0; local_4a = 0;
+  (**(code **)(*param_4 + 0x608))(param_4, &local_60, DAT_147efa330, 0);
+  ```
+  `param_4+0x608` is some vtable method on a registry-like object;
+  initially looked like an Ebus subscribe with handler.
+- Resolved `DAT_147efa330` thinking it was a handler pointer.
+
+**Found (anti-finding):** `DAT_147efa330` is **not** a handler pointer.
+It's a float constant pool entry — 516 xrefs across the binary, and the
+bytes are `400000003fc00000` (= the floats `1.5f` followed by `2.0f`).
+So `+0x608` is some math / weight-tuned method, not a subscribe call.
+The initial "this is a register-handler call" interpretation was wrong.
+
+**Why static CRC reversal looks impractical:**
+
+The constant `0xFE476177` appears bare in the binary with no adjacent
+source string literal at any of the 29 hit sites. This is consistent
+with Lumberyard's `AZ::Crc32` compile-time evaluation: when AZ_CRC is
+used in a release build, the compiler folds the `Crc32(string)`
+constructor into a literal `uint32_t` and the source string is stripped
+from the binary. There's no way to reverse this from static analysis
+without:
+- a wordlist of all possible event names (CRC32 brute-force is
+  computationally expensive even for short strings — `0xFE476177` would
+  need ~2^32 attempts at worst, and meaningful name-shaped strings are
+  a tiny fraction of that space), or
+- a debug build / matching PDB (we have neither), or
+- a runtime capture (Frida hook).
+
+**A3.1 decision:** Marked as PARTIAL. Will not pursue further static
+reversal in the loop. Recommended to the maintainer that any future
+Frida hook (already queued under A2.9c) also log the event id at
+`FUN_140fb3560` entry to identify the event name from the live game.
+
+**A3.1b queued** to capture the runtime path explicitly when the
+maintainer runs that Frida session.
+
+**Did not waste the iteration:** A new generic tool now exists
+(`FindConstant.py`) for any future "find this 32-bit value in the
+binary" need. And we now know the broad pattern of where these CRC
+hashes are constructed (the `local_60 = &PTR_LAB_147ef8d50; local_58 =
+<hash>` idiom, used 29+ times for `0xFE476177` alone — so probably
+the entire codebase uses this for its hashed identifiers).
+
+**Next** (A2.11, A4, A5 from existing queue):
+- A2.11: trace logger (`FUN_141721c20`) xref scan for the missing
+  PlayerManagerRejected handler.
+- A4: xrefs of `FUN_14645fd70` (state setter) to confirm no other
+  paths advance the GameConnection state.
+- A5: consolidated state-machine writeup that synthesizes A1–A3 into
+  a single document for the maintainer.
+
+**Blockers:** None for the loop. The Crc32 reversal is genuinely a
+static-analysis dead end given the binary configuration.
