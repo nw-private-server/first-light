@@ -106,8 +106,12 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
       A2.9c; this would be a same-hook second-purpose use.
 - [ ] **A4.** Trace xrefs to `FUN_14645fd70` (the state setter) to confirm
       no other code paths advance state past 10 outside of `FUN_14644a070`.
-- [ ] **A5.** Update `analysis/ghidra_findings.md` with the consolidated
-      state-machine map.
+- [x] **A5.** Update `analysis/ghidra_findings.md` with the consolidated
+      state-machine map. **DONE 2026-05-07** — written as
+      `analysis/state_machine_summary.md` (cleaner standalone doc;
+      `ghidra_findings.md` is older session-specific notes and should
+      stay as-is). Synthesizes A1–A3 into one maintainer-friendly
+      writeup with end-to-end protocol diagram.
 - [ ] **B1.** Once A1–A5 give a confident hypothesis: implement & test the
       "Carrier-level reliable ACK on V3 request" experiment in
       `server/rep_responder.py`. Run `pytest`. Do **not** ship if tests fail
@@ -820,3 +824,57 @@ the entire codebase uses this for its hashed identifiers).
 
 **Blockers:** None for the loop. The Crc32 reversal is genuinely a
 static-analysis dead end given the binary configuration.
+
+---
+
+### 2026-05-07 — wake 10: A5 — synthesis document
+
+**Did:**
+- Surveyed existing `analysis/*.md` for style conventions
+  (`ghidra_findings.md`, `ctd_investigation.md`).
+- Wrote `analysis/state_machine_summary.md` — a single
+  maintainer-friendly synthesis of the morning's work (A1, A2, A2.5,
+  A2.6, A2.8, A3, A3.1).
+
+**Found (A5 outcome):** Nothing new — pure consolidation. The doc:
+
+- Opens with a TL;DR identifying
+  `Javelin::ClientMessagesTrait::PlayerManagerSelfIdentificationMsg`
+  as the single missing message, and noting that the ~30s session
+  death is a client-side timer (`0xFE476177` event), not server-driven.
+- Tables out the full state-10→14 transition predicates with their
+  exact wrapper-offset checks.
+- Documents the substate-field semantics (0/1/2) and identifies the
+  unique `FUN_145a87010` writer (the `onConnectionSuccess` handler).
+- Catalogs the full `ClientMessagesTrait` class set (5 messages).
+- Diagrams the end-to-end protocol — both the failure case (current)
+  and the desired case (with SelfIdent inserted).
+- Lists what the server still needs to know (wire format, timing).
+- Calls out remaining open questions (A2.7, A2.9, A2.10, A2.11, A3.1,
+  A4) so the maintainer knows where the loop left off.
+
+**Why now:** After 9 wakes the worklog has accumulated enough findings
+that a phone-only reader needs a single document to see the picture
+without scrolling through wake-by-wake narrative. The synthesis is also
+useful internally for the loop — future wakes can reference one doc
+instead of replaying the whole worklog.
+
+**Length / scope:** ~250 lines, one ASCII protocol diagram, four tables.
+Stays at the level the maintainer can read from a phone in a few
+minutes.
+
+**Filename choice:** `state_machine_summary.md` rather than appending
+to the older `analysis/ghidra_findings.md`. The old file is dated
+session-specific notes from 2026-04-17 with its own format and
+narrative. Mixing in 2026-05-07 findings would obscure both. Cleaner to
+have a focused new doc and let the older one remain a snapshot of its
+session.
+
+**Next** (A2.11, A4 from queue):
+- A2.11: trace-logger xref scan to find the still-missing
+  `PlayerManagerRejectedMsg` handler.
+- A4: confirm `FUN_14645fd70` (state setter) has no callers other than
+  `FUN_14644a070` — closes the question of whether *other* code paths
+  could advance state past 10.
+
+**Blockers:** None.
