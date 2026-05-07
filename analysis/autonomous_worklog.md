@@ -1268,3 +1268,83 @@ The connection-lifecycle event flow has **two layers**:
 
 **Blockers:** None for the loop. The runtime-hook items remain queued
 for the maintainer.
+
+---
+
+### 2026-05-07 — wake 15: destroy-trigger trace partial; OnConnectionFail "exiting" is a separate UI-quit path
+
+**Did:**
+- Got xrefs of `FUN_140fb3560` (the unique destroy-flag writer from
+  A3): exactly one direct caller, `FUN_140fadbc0`.
+- Decompiled `FUN_140fadbc0` — a 2-line vtable adapter:
+  ```c
+  void FUN_140fadbc0(p1, longlong *param_2, p3, p4) {
+      uVar1 = (**(code **)(*param_2 + 0x60))(param_2);
+      uVar2 = (**(code **)(*param_2 + 0x70))(param_2);
+      FUN_140fb3560(uVar1, param_2, p3, uVar2, p4);
+  }
+  ```
+  So `param_2` is a callable object with vtable methods at `+0x60`
+  and `+0x70`, and the adapter resolves them before forwarding to
+  the writer.
+- The DATA xref of `FUN_140fadbc0` is at `0x147fc3708` — inside a
+  function-pointer table starting around `0x147fc36c8`. The table
+  has 8-byte rows of mixed function pointers (some repeated,
+  including helpers like `FUN_14029e6a0` appearing twice). Looks
+  like a callback table (e.g., handler entries indexed by event id).
+- Tried `FindConstant 0x147fc36c8` to find what references the
+  table base — **0 hits**. The table is referenced internally and
+  the address isn't materialized as a constant elsewhere; it's
+  reached as the vtable of an object whose pointer is loaded from
+  somewhere else.
+- Side investigation of `&DAT_147fc88d8` (the arg in `FUN_14103b1a0`'s
+  "Lost connection to REP" branch). The bytes there are
+  `71 75 69 74 00` — the ASCII string **`"quit"`**. So the
+  vtable[+0x120] call at the OnConnectionFail "exiting" path is
+  literally `console.execute("quit", 0, 0)` — UI-level full app
+  shutdown via the console, **not** the carrier-destroy event.
+
+**Found / closed loops:**
+
+1. The OnConnectionFail "Lost connection to REP. Exiting..." branch
+   triggers a **console quit** (different mechanism from the carrier
+   destroy-flush flag at `+0xfd`). They're related conceptually
+   (both happen on terminal failure) but distinct:
+   - Carrier `+0xfd = 1` → tick loop force-flushes pending data
+     (early phase of shutdown).
+   - Console `quit` → process exits (final phase, UI-side).
+
+2. The destroy-flag writer (`FUN_140fb3560`) is reached via:
+   ```
+   ??? --(vtable[+0xN])--> FUN_140fadbc0 --(direct)--> FUN_140fb3560
+   ```
+   The `???` is the originating dispatcher — it has the vtable
+   pointer in some object. Not statically discoverable as a constant.
+
+**Why static path is exhausted:** the destroy event is dispatched via
+indirect vtable calls on objects whose vtable pointers are stored on
+the heap and assigned at runtime. From a static analysis standpoint,
+"who calls FUN_140fb3560" devolves into "who builds the dispatcher
+object" — and the constructor flow for these AzCore-style event
+broadcasters is itself table-driven and hard to follow without
+runtime context.
+
+**Bottom line:** A3 was already solved (writer + condition). Trying
+to identify the *origin* of the dispatch turned up two interesting
+distinctions:
+
+- "Lost connection to REP" → quit-via-console (FUN_14103b1a0).
+- Carrier destroy flag → indirect vtable dispatch (FUN_140fadbc0).
+- These are separate paths; the project's ~30s session death is the
+  carrier path, not the console-quit path.
+
+For the maintainer, the practical implication is unchanged: send
+the required messages (SelfIdent + others) before the timeout, and
+the destroy chain never fires.
+
+**Next** (queue):
+- A4.2 follow-up: register-based-store scan for `wrapper[+0x252]`
+  (state-13 gate, the immediate-store scan missed it).
+- A2.10 still needs runtime — queued for maintainer.
+
+**Blockers:** None for the loop.

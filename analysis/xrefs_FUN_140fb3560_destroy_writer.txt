@@ -1,0 +1,11 @@
+# xrefs to FUN_140fb3560 @ 0x140fb3560
+
+total references: 2
+
+## DATA (1)
+  from 14a8c405c in ? @ ?
+
+## UNCONDITIONAL_CALL (1)
+  from 140fadc05 in FUN_140fadbc0 @ 140fadbc0
+
+# end
