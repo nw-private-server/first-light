@@ -1622,3 +1622,49 @@ walk the `Hub*` lifecycle messages, or document a different
 subsystem.
 
 **Blockers:** Static path exhausted on the player-spawn protocol.
+
+---
+
+### 2026-05-07 — scope expansion: from player-spawn to broad RE
+
+The maintainer expanded the loop's mandate from "player-spawn
+protocol path" to broad RE of the binary across roughly 6 days of
+autonomous time. The player-spawn investigation is complete and
+documented; the loop now pivots to adjacent subsystems.
+
+**Updated task queue (long-horizon, exploratory):**
+
+- [ ] **C1.** Server-side code audit. Read `server/rep_responder.py`,
+      `server/auth_mock.py`, `server/javelin/*`. Map existing
+      implementation vs. static findings. Surface concrete
+      implementation gaps.
+- [ ] **C2.** `PlayerManagerTrait` characterization (28 messages,
+      server-side). Enumerate handlers via FindXrefs of each
+      mangled-name string; decompile a representative sample to
+      establish field-shape patterns.
+- [ ] **C3.** Remaining `ClientMessagesTrait` handlers
+      (DebugCommandResponse, RemoteConfigChanged, plus the
+      by-elimination identification of FUN_14645c660).
+- [ ] **C4.** `Hub*` family — ActorInitialized,
+      ActorStatusNotification, HubLifecyclePeeringTrait,
+      HubEndpointSharingTrait, HubLifecycleStateListenerTrait, etc.
+      ~30+ messages.
+- [ ] **C5.** Replica chunk inventory expansion. Extend
+      `FindChunkRegistrations.py` and `analysis/javelin_chunks.txt`
+      to include all chunk-flavored traits the existing scan missed.
+- [ ] **C6.** Cross-trait analysis: in-game message ordering. Pull
+      from logs / strings showing message sequence in observed
+      sessions; back-fill `docs/connection-flow.md`.
+- [ ] **C7.** Final consolidation: comprehensive protocol map
+      document tying everything together, with residual runtime-only
+      gaps explicitly listed.
+
+The earlier player-spawn-path tasks (A1–A5, plus B1) are either
+complete, runtime-blocked, or out-of-scope without runtime data —
+left in the queue above as historical record.
+
+**Discipline carried forward:** ~30 min per iteration, commit per
+wake, push to origin, no personal framing in committed artifacts,
+neutral commit-message language. The repo is public.
+
+**Resuming the loop now.** First iteration: C1 (server-side audit).
