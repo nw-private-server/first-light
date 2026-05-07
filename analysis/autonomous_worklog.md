@@ -1536,3 +1536,44 @@ before then, the next wake will pick option (1) or (2) — likely
 
 **Blockers:** None for the loop, but the loop has hit its
 intended useful range on the player-spawn protocol path.
+
+---
+
+### 2026-05-07 — wake 18: tooling documentation pass
+
+**Did:**
+- Wrote `tools/ghidra_scripts/README.md` — a comprehensive index of
+  the analysis tooling. Documents the `tools/ghidra` CLI wrapper
+  plus 11 Jython scripts (9 new this session + 2 pre-existing
+  `JavelinHunt`, `FindChunkRegistrations`).
+
+**Why:** Per the recommendation in wake 17, the player-spawn static
+investigation has reached genuine exhaustion. With five threads
+queued for the maintainer's runtime hook session, the loop is in
+its diminishing-returns phase. A documentation pass on the tooling
+is high-value, risk-free, and makes the scripts re-usable for
+future investigations of other parts of the binary.
+
+**README content:**
+- Setup notes (script-path registration, Jython 2.7 quirks).
+- CLI wrapper subcommand reference.
+- Script index table.
+- Per-script sections: purpose, args, example usage, what it was
+  used for in this investigation.
+- Output naming conventions.
+- A how-to-add-a-new-script template.
+
+**Next** (queue is light):
+- One more useful angle if the loop continues:
+  `'GameConnectionWrapper: spawn point found'` log literal at
+  `0x1484fea88` — finding its callers could reveal how the
+  state-12→13 transition is observed (and indirectly hint at the
+  `wrapper[+0x252]` writer mechanism for A4.2).
+- Otherwise the loop is at a natural pause point; recommend the
+  maintainer either trigger a runtime-hook session or redirect
+  the loop to other subsystems.
+
+**Blockers:** None. The loop has now produced everything statically
+recoverable on the V3-to-spawn protocol path; further iterations
+are choosing between low-yield static angles and a runtime
+hand-off.
