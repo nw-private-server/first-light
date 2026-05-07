@@ -893,3 +893,88 @@ session.
   could advance state past 10.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 11: A4 done + state-name table; A2.11 deferred
+
+**Did:**
+- Ran `FindXrefs` on `FUN_14645fd70` (state setter from
+  `next-session.md`). 4 distinct callers, not just the state machine.
+- Followed up with `FindXrefs` on `FUN_146466650` (a state-setter
+  wrapper that surfaced as a caller).
+- Decompiled the three non-state-machine callers and read the
+  state-name string-pool array at `0x1484f9ff0`.
+- Tried `FindXrefs` on `FUN_141721c20` (trace logger) for A2.11.
+  99 callers, no clean filter; only one in the SelfIdent neighborhood
+  and that's the SelfIdent handler itself.
+
+**Found (A4):**
+
+1. **The state machine has a public wrapper.** Most state changes go
+   through `FUN_146466650(gc, newState)` which logs
+   `"Update state %s to new state %s"` then calls the raw setter
+   `FUN_14645fd70`. Tracing the raw setter alone undercounts.
+2. **Distinct callers of `FUN_14645fd70` (raw):** 4 functions —
+   `FUN_14644a070` (state machine), `FUN_146466650` (wrapper),
+   `FUN_146446800` (LevelInfoChanged handler), `FUN_14642d2d0`
+   (Disconnected helper).
+3. **Distinct callers of `FUN_146466650` (wrapper):** 5 functions —
+   `FUN_14644a070`, `FUN_146425cb0`, `FUN_14642d950`, `FUN_14645ca20`,
+   `FUN_146468370`. New names worth investigating if mapping the
+   full state-change graph.
+4. **`FUN_146446800` (LevelInfoChanged handler) directly sets state
+   to 0xd = 13** (`WaitingForPlayerSpawn`). So
+   `LevelInfoChangedMsg` *also* advances the state machine, not just
+   `PlayerManagerSelfIdentificationMsg`. The post-V3 server message
+   sequence requires both.
+5. **`FUN_14642d2d0` is a Disconnected helper** — sets state to 0 on
+   teardown.
+6. **Full state-name table recovered.** Array at `0x1484f9ff0`:
+
+   ```
+   0  Disconnected
+   1  QueryGameUpdateCheck
+   2  WaitingForGameUpdateCheck
+   3  QueueGameLogin
+   4  WaitingForQueuedLogin
+   5  QueryForRemoteConfigClass
+   6  WaitingForRemoteConfigClass
+   7  ObtainREPRequirements
+   8  WaitingForREPRequirements
+   9  StartREPConnection
+   10 WaitingForREPConnection         <- where we sit
+   11 WaitingForActorGameConnection   <- what SelfIdent unlocks
+   12 WaitingForSpawnPoint
+   13 WaitingForPlayerSpawn           <- forced by LevelInfoChanged
+   14 InGame
+   ```
+
+   `analysis/state_machine_summary.md` updated with this table and
+   the LevelInfoChanged-forces-13 note.
+
+**Why this matters for the server:**
+
+```
+state 10 (REP)  -- PlayerManagerSelfIdentificationMsg --> 11 (Actor)
+state 11        -- ?                                  --> 12 (SpawnPoint)
+state 12        -- LevelInfoChangedMsg                --> 13 (PlayerSpawn)
+state 13        -- ?                                  --> 14 (InGame)
+```
+
+The MVP target is state 14 (`InGame`). Server needs **at minimum**
+SelfIdent + LevelInfoChanged. The 11→12 and 13→14 transitions are
+gated by wrapper flags (`+0xbc8`, `+0x252`) whose writers haven't
+been traced — those may need additional server messages.
+
+**A2.11 deferred:** 99 trace-logger callers, no static filter,
+runtime hook (queued for the maintainer) is the practical answer.
+
+**Next** (queue updated, two new tasks):
+- A4.1: trace writers of `wrapper[+0xbc8]` (the state-12 gate). What
+  produces this byte = 1?
+- A4.2: trace writers of `wrapper[+0x252]` (the state-13 gate).
+- A2.7 still queued (sibling lifecycle handlers in the observer
+  table that `FUN_145a87010` walks).
+
+**Blockers:** None.
