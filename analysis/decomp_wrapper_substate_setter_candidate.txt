@@ -1,0 +1,70 @@
+// FUN_145a87010 @ 145a87010
+
+void FUN_145a87010(longlong param_1)
+
+{
+  uint uVar1;
+  longlong lVar2;
+  undefined8 *puVar3;
+  longlong lVar4;
+  char cVar5;
+  undefined8 uVar6;
+  longlong *plVar7;
+  undefined8 *puVar8;
+  undefined8 *puVar9;
+  undefined8 local_88;
+  undefined8 uStack_80;
+  undefined1 local_78 [16];
+  undefined **local_68;
+  undefined1 local_60 [8];
+  longlong local_58;
+  undefined8 local_50;
+  undefined4 local_48;
+  undefined4 local_40;
+  undefined4 uStack_3c;
+  undefined4 uStack_38;
+  undefined4 uStack_34;
+  undefined8 local_30;
+  
+  local_88 = "CJavelinActorGame";
+  uStack_80 = "";
+  uVar6 = FUN_14615e0c0();
+  lVar2 = *(longlong *)((longlong)ThreadLocalStoragePointer + (ulonglong)_tls_index * 8);
+  plVar7 = *(longlong **)(lVar2 + 0x68);
+  if (plVar7 == (longlong *)0x0) {
+    plVar7 = (longlong *)FUN_1407eb290();
+    *(longlong **)(lVar2 + 0x68) = plVar7;
+  }
+  local_58 = *plVar7;
+  if (local_58 == 0) {
+    local_68 = &PTR_FUN_147f496c8;
+    *plVar7 = (longlong)local_60;
+    puVar8 = (undefined8 *)FUN_146161960(uVar6,&local_88);
+    cVar5 = FUN_146165ff0(puVar8,3);
+    if (cVar5 != '\0') {
+      local_50 = _Xtime_get_ticks();
+      local_48 = 3;
+      local_40 = (undefined4)local_88;
+      uStack_3c = local_88._4_4_;
+      uStack_38 = (undefined4)uStack_80;
+      uStack_34 = uStack_80._4_4_;
+      local_30 = FUN_1461aab40(puVar8);
+      FUN_1402b6e60(local_30,"ConnectionSuccess");
+      uVar1 = *(uint *)((longlong)puVar8 + 0x1c);
+      puVar3 = (undefined8 *)puVar8[0xd];
+      for (puVar9 = (undefined8 *)puVar8[0xc]; puVar9 != puVar3; puVar9 = puVar9 + 1) {
+        FUN_1461ae980(*puVar8,*puVar9,&local_50,2 < uVar1);
+      }
+      FUN_146163db0(local_30,local_78);
+    }
+    lVar4 = local_58;
+    local_68 = &PTR_FUN_147f496c8;
+    if (*(char *)(lVar2 + 0x3688) == '\0') {
+      __dyn_tls_on_demand_init();
+    }
+    **(longlong **)(lVar2 + 0x68) = lVar4;
+  }
+  *(undefined4 *)(param_1 + 0xa0) = 2;
+  return;
+}
+

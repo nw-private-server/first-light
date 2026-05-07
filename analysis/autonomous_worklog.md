@@ -30,11 +30,18 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
       `FUN_1402a1750` — to characterize the `GameConnectionWrapper` interface.
       **DONE 2026-05-07** — wrapper substate at `+0xa0` has three known
       values (0 fail / 1 in-progress / 2 ready); see worklog entry 2.
-- [ ] **A2.5.** Find code that writes `2` to `wrapper[+0xa0]`. That writer
-      is the missing post-V3 step that should advance state to 11.
-      Approach: xref `FUN_1402a1750` callers (it returns &substate) AND
-      grep instructions for `MOV [reg+0xa0], 2` patterns near other V3
-      handlers. May need a small Ghidra script.
+- [x] **A2.5.** Find code that writes `2` to `wrapper[+0xa0]`. **DONE
+      2026-05-07** — `FUN_145a87010` is `onConnectionSuccess`: logs
+      `"ConnectionSuccess"`, emits events, then writes substate=2. See
+      `analysis/decomp_wrapper_substate_setter_candidate.txt`.
+- [ ] **A2.6.** Trace xrefs to `FUN_145a87010` to find what *invokes* the
+      ConnectionSuccess handler. That's the chain the V3-response path is
+      supposed to trigger and apparently isn't.
+- [ ] **A2.7.** Cross-reference the literal `"ConnectionSuccess"` string in
+      the binary — there may be other Connection lifecycle handlers
+      (`ConnectionFailed`, `ConnectionClosed`, etc.) that share the same
+      registration mechanism. Mapping the full event table will tell us
+      what flavor of message we need to send.
 - [ ] **A3.** Decompile `FUN_146b3c250 + 0x58f` — find what writes
       `[R13+0xfd]` (the byte that triggers the destroy loop, per
       `docs/next-session.md`).
@@ -158,3 +165,87 @@ write directly. Need to check both.
 - After A2.5: A3 (destroy trigger at `FUN_146b3c250+0x58f`).
 
 **Blockers:** None. Marking A2 done; A2.5 added to queue.
+
+---
+
+### 2026-05-07 — wake 3: A2.5 substate=2 writer found
+
+**Did:**
+- Wrote `tools/ghidra_scripts/FindWrapperSubstateWriters.py` — pattern-scans
+  the binary for `MOV [reg + 0xa0], imm` instructions (grouped by imm value)
+  and lists xrefs to `FUN_1402a1750` (the &substate accessor).
+- Ran it via `ghidra script FindWrapperSubstateWriters analysis/decomp_substate_writers.txt`.
+- Strategy 1 (pattern scan) returned 549 imm=2 hits — too noisy because many
+  unrelated classes have a `+0xa0` field.
+- Strategy 2 (FUN_1402a1750 xrefs) returned 3 callers; decompiled the two
+  non-state-machine ones (`FUN_1426eb150`, `FUN_1426edaa0`). Both treat the
+  returned `&substate` as an opaque identity token (passed to
+  `FUN_14141c2b0` and `FUN_141681b00`), not as a writable substate pointer.
+  **Strategy 2 was a dead end** — the accessor is being repurposed as a
+  per-object key.
+- Pivoted to filtering the 549 candidates by address range, restricting to
+  the wrapper class neighborhood (`0x145a8xxxx` / `0x145a9xxxx`, since all
+  known wrapper methods cluster from `0x145a8d150` to `0x145a923c0`).
+  **One** hit in that region: `FUN_145a87010` at `0x145a87170`,
+  `MOV dword ptr [R14 + 0xa0], 0x2`.
+- Decompiled it.
+
+**Found (A2.5):** `FUN_145a87010` is the **`onConnectionSuccess` handler** for
+the wrapper. Body:
+
+```c
+void FUN_145a87010(GameConnectionWrapper *this) {
+    /* logger setup */
+    log("CJavelinActorGame", severity=3, ...);
+    log("ConnectionSuccess");
+    /* iterate observer collection from puVar8[0xc]..puVar8[0xd], emit events */
+    *(int *)(this + 0xa0) = 2;   // <- the missing write
+    return;
+}
+```
+
+The `"ConnectionSuccess"` literal is the smoking gun — this is the success
+callback for the wrapper's connection lifecycle. When invoked, it walks the
+wrapper's observer/listener list emitting events, then advances substate to
+2, which on the next GameConnection tick advances the state machine 10→11.
+
+**The protocol picture is now:**
+
+1. Client sends V3 RegistrationRequest.
+2. Server sends V3 RegistrationResponse.
+3. Client's response handler validates the response and calls some chain
+   that ends at `FUN_145a87010(wrapper)`.
+4. `FUN_145a87010` sets substate=2 + emits a `ConnectionSuccess` event.
+5. Next GameConnection tick: `FUN_145a92370(wrapper)` returns true →
+   `FUN_14645fd70(this, 0xb)` sets state=11 → log
+   `"GameConnectionWrapper: actor game connection succeeds"`.
+
+**The current server's V3 response is being accepted (per docs/next-session.md
+"V3 response accepted by client; rep.ready flips 0→1") but step 3 is not
+firing.** A2.6 (xref `FUN_145a87010`) will identify exactly which condition
+gates the call.
+
+**Why this matters for the server:** once we know what triggers
+`FUN_145a87010`, we know what *additional* server-side message or response
+shape is required. The README's "5-line Carrier reliable-ACK experiment" may
+or may not be the right fix; A2.6 will tell us.
+
+**Other interesting offsets surfaced:**
+- `FUN_145a87010` calls `FUN_146161960` and `FUN_146165ff0` for severity
+  filtering — typical AzCore/Lumberyard logging pattern.
+- `FUN_1461aab40(puVar8)` followed by
+  `FUN_1402b6e60(local_30, "ConnectionSuccess")` is the event emitter
+  signature — the local_30 handle is then passed to `FUN_1461ae980`
+  for each observer in the iteration.
+- `puVar8[0xc]` / `puVar8[0xd]` (offsets 0x60/0x68) are the begin/end
+  iterators of the observer list on the AzCore event broadcaster.
+
+**Next** (A2.6 + A2.7 added to queue):
+- A2.6: xref `FUN_145a87010` callers — find what invokes ConnectionSuccess.
+  Add a small Ghidra script (`FindXrefs.py` taking an address arg).
+- A2.7: cross-reference the `"ConnectionSuccess"` string for sibling
+  handlers — there's almost certainly a `"ConnectionFailed"` etc. nearby,
+  and mapping them tells us the full lifecycle event table.
+- Then A3: destroy trigger.
+
+**Blockers:** None. A2.5 marked done. Two new tasks on queue.
