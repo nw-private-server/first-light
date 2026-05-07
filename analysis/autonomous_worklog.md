@@ -104,8 +104,23 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
       write a Frida hook on `FUN_140fb3560` to log the event-id arg
       structure when called. Already queued for maintainer as part of
       A2.9c; this would be a same-hook second-purpose use.
-- [ ] **A4.** Trace xrefs to `FUN_14645fd70` (the state setter) to confirm
+- [x] **A4.** Trace xrefs to `FUN_14645fd70` (the state setter) to confirm
       no other code paths advance state past 10 outside of `FUN_14644a070`.
+      **DONE 2026-05-07** — found 4 distinct callers of the raw setter,
+      5 distinct callers of a public wrapper `FUN_146466650`, AND
+      recovered the full state-name table at `0x1484f9ff0`. Notably:
+      `LevelInfoChanged` handler (`FUN_146446800`) directly forces state
+      to 13 — so `LevelInfoChangedMsg` is **also** required in the
+      post-V3 server message sequence (not just SelfIdent). See
+      `analysis/state_machine_summary.md` updated tables. See worklog
+      wake 11.
+- [~] **A2.11.** Map xrefs to `FUN_141721c20` to find siblings of
+      SelfIdentification. **DEFERRED 2026-05-07** — 99 callers in the
+      binary, no obvious filter pattern that would surface
+      PlayerManagerRejected; nothing in the SelfIdent address
+      neighborhood except the SelfIdent handler itself. Static path
+      to find the Rejected handler is exhausted; runtime hook (already
+      queued) is the only feasible route.
 - [x] **A5.** Update `analysis/ghidra_findings.md` with the consolidated
       state-machine map. **DONE 2026-05-07** — written as
       `analysis/state_machine_summary.md` (cleaner standalone doc;

@@ -39,7 +39,48 @@ runtime hook (queued for the maintainer).
 The state machine lives in `FUN_14644a070` (the `gameconn_state`
 function flagged in `docs/next-session.md`). It's a switch over
 `gc[+0x1530]` (the int state field on the GameConnection) with cases
-3–14. The state setter is `FUN_14645fd70(gc, newState)`.
+3–14.
+
+The **state-name table** at `0x1484f9ff0` (recovered via the log
+expression `(&PTR_s_Disconnected_1484f9ff0)[gc[+0x1530]]`):
+
+| Value | Name |
+|---|---|
+| 0 | `Disconnected` |
+| 1 | `QueryGameUpdateCheck` |
+| 2 | `WaitingForGameUpdateCheck` |
+| 3 | `QueueGameLogin` |
+| 4 | `WaitingForQueuedLogin` |
+| 5 | `QueryForRemoteConfigClass` |
+| 6 | `WaitingForRemoteConfigClass` |
+| 7 | `ObtainREPRequirements` |
+| 8 | `WaitingForREPRequirements` |
+| 9 | `StartREPConnection` |
+| 10 | `WaitingForREPConnection` |
+| 11 | `WaitingForActorGameConnection` |
+| 12 | `WaitingForSpawnPoint` |
+| 13 | `WaitingForPlayerSpawn` |
+| 14 | `InGame` |
+
+So the project's blocker is state `WaitingForREPConnection` →
+`WaitingForActorGameConnection`, and the post-V3 ladder is
+`WaitingForActorGameConnection` → `WaitingForSpawnPoint` →
+`WaitingForPlayerSpawn` → `InGame`.
+
+**Two state-setter functions exist**:
+
+- `FUN_14645fd70(gc, newState)` — the low-level setter, writes
+  `gc[+0x1530] = newState`.
+- `FUN_146466650(gc, newState)` — the **public wrapper** that logs
+  `"Update state %s to new state %s"` then calls the low-level
+  setter. Most code uses this one for the logging.
+
+Distinct callers of the low-level setter (4): `FUN_14644a070` (the
+state machine), `FUN_146446800` (LevelInfoChanged handler — see § 4
+below), `FUN_14642d2d0` (Disconnected helper), `FUN_146466650`
+(public wrapper). Distinct callers of the wrapper (5): adds
+`FUN_146425cb0`, `FUN_14642d950`, `FUN_14645ca20`, `FUN_146468370`
+to the set, plus `FUN_14644a070` again.
 
 States 10→11→12→13→14 form the player-spawn ladder. Each transition is
 gated by a different read on the **`GameConnectionWrapper`** sub-object
@@ -47,11 +88,11 @@ at `gc + 0x130`:
 
 | Transition | Predicate (Ghidra) | What it actually checks |
 |---|---|---|
-| 10 → 11 | `FUN_145a92370(wrapper)` | `*(int *)(wrapper + 0xa0) == 2` |
-| 11 → 12 | `FUN_145a92380(wrapper)` (inverted) | `*(int *)(wrapper + 0xa0) != 0` (no failure) |
-| 12 → 13 | `FUN_145a905c0(wrapper)` | `*(u8 *)(wrapper + 0xbc8) != 0` |
-| 13 → 14 | `FUN_145a923c0(wrapper)` | `*(u8 *)(wrapper + 0x252) != 0` |
-| any → destroy | `*piVar8 == 0` (via `FUN_1402a1750(wrapper)`) | `*(int *)(wrapper + 0xa0) == 0` |
+| 10 → 11 (`WaitingForREPConnection` → `WaitingForActorGameConnection`) | `FUN_145a92370(wrapper)` | `*(int *)(wrapper + 0xa0) == 2` |
+| 11 → 12 (`WaitingForActorGameConnection` → `WaitingForSpawnPoint`) | `FUN_145a92380(wrapper)` (inverted) | `*(int *)(wrapper + 0xa0) != 0` |
+| 12 → 13 (`WaitingForSpawnPoint` → `WaitingForPlayerSpawn`) | `FUN_145a905c0(wrapper)` | `*(u8 *)(wrapper + 0xbc8) != 0` — **also forced by `LevelInfoChangedMsg`** |
+| 13 → 14 (`WaitingForPlayerSpawn` → `InGame`) | `FUN_145a923c0(wrapper)` | `*(u8 *)(wrapper + 0x252) != 0` |
+| any → 0 (`Disconnected`) | direct call from `FUN_14642d2d0` | helper that resets state to 0 |
 
 The `+0xa0` int on the wrapper is a substate field with three known
 values:
@@ -159,7 +200,7 @@ The trait registers exactly five `Msg` classes via
 |---|---|---|
 | `PlayerManagerSelfIdentificationMsg` | `0x14a153fd0` | Success ladder — advances state 10→11 |
 | `PlayerManagerRejectedMsg`           | `0x14a153db0` | Failure path (handler not yet found) |
-| `LevelInfoChangedMsg`                | `0x14a153b20` | Handler = `FUN_146446800` |
+| `LevelInfoChangedMsg`                | `0x14a153b20` | Handler = `FUN_146446800` — **also forces state to 13** |
 | `RemoteConfigChangedMsg`             | `0x14a153890` | Post-registration |
 | `DebugCommandResponseMsg`            | `0x14a153610` | Post-registration |
 
