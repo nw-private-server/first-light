@@ -1,0 +1,37 @@
+# string xref hunt: u'ClientMessagesTrait'
+
+found 10 defined-string hits
+
+## string at 148003e38: 'ClientMessagesTrait::State'
+  1 references
+    DATA from 1415460c0 in ? @ ?
+
+## string at 14802cb10: 'ClientMessagesTrait'
+  1 references
+    DATA from 1417534f0 in ? @ ?
+
+## string at 14a153610: '.?AV<lambda_1>@?1???$InstallRegistrationHook@VDebugCommandResponseMsg@ClientMessagesTrait@Javelin@@@Hub@Amazon@@YA_NXZ@'
+  0 references
+
+## string at 14a153890: '.?AV<lambda_1>@?1???$InstallRegistrationHook@VRemoteConfigChangedMsg@ClientMessagesTrait@Javelin@@@Hub@Amazon@@YA_NXZ@'
+  0 references
+
+## string at 14a153b20: '.?AV<lambda_1>@?1???$InstallRegistrationHook@VLevelInfoChangedMsg@ClientMessagesTrait@Javelin@@@Hub@Amazon@@YA_NXZ@'
+  0 references
+
+## string at 14a153db0: '.?AV<lambda_1>@?1???$InstallRegistrationHook@VPlayerManagerRejectedMsg@ClientMessagesTrait@Javelin@@@Hub@Amazon@@YA_NXZ@'
+  0 references
+
+## string at 14a153fd0: '.?AV<lambda_1>@?1???$InstallRegistrationHook@VPlayerManagerSelfIdentificationMsg@ClientMessagesTrait@Javelin@@@Hub@Amazo'
+  0 references
+
+## string at 14a154860: '.?AV<lambda_1>@?1???$InstallRegistrationHook@VState@ClientMessagesTrait@Javelin@@@Hub@Amazon@@YA_NXZ@'
+  0 references
+
+## string at 14a154a80: '.?AV<lambda_1>@?1???$InstallRegistrationHook@VClientMessagesTrait@Javelin@@@Hub@Amazon@@YA_NXZ@'
+  0 references
+
+## string at 14a1551e0: '.?AV<lambda_1>@?1???0ClientMessagesTrait@Javelin@@QEAA@XZ@'
+  0 references
+
+# end

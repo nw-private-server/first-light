@@ -45,12 +45,24 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
       (`ConnectionFailed`, `ConnectionClosed`, etc.) that share the same
       registration mechanism. Mapping the full event table will tell us
       what flavor of message we need to send.
-- [ ] **A2.8.** Find the wire format for `PlayerManagerSelfIdentificationMsg`.
-      Approaches: (a) search for `InstallRegistrationHook` template
-      instantiations in the binary's RTTI; (b) decompile the wrapper
-      setters `FUN_145a9fa10/30/80` invoked early in `FUN_146454c00` to
-      see what fields are read from the message body; (c) look for a
-      Javelin chunk/message registry that ties a wire ID to this class.
+- [x] **A2.8.** Find the wire format for `PlayerManagerSelfIdentificationMsg`.
+      **PARTIAL 2026-05-07** — handler-side field shapes mapped via the
+      three wrapper setters (`FUN_145a9fa10/30/80`); see worklog wake 5.
+      Wire-format decode (the actual byte layout) still pending — needs
+      dispatcher path to find serializer.
+- [ ] **A2.9.** Find the dispatcher / serializer for
+      `PlayerManagerSelfIdentificationMsg`. The DATA xref of `FUN_146454c00`
+      at `0x14abcc15c` is the dispatch-table entry; reading the table
+      structure (entries either side of it, fixed stride) should reveal
+      message ID and total entry layout. Companion `FUN_146454bf3` (the
+      "?" caller just before the function) is likely a thunk wrapping
+      a Javelin-chunk dispatch.
+- [ ] **A2.10.** Decompile `PlayerManagerRejectedMsg` handler (sibling
+      message). It's the rejection-path counterpart of SelfIdentification
+      and is a strong candidate for what fires the destroy loop the
+      maintainer is also chasing in A3. Approach: same as A2.6 — find
+      `"PlayerManagerRejected"` literal in the binary, decompile its
+      handler, see if it writes `[R13+0xfd]`.
 - [ ] **A3.** Decompile `FUN_146b3c250 + 0x58f` — find what writes
       `[R13+0xfd]` (the byte that triggers the destroy loop, per
       `docs/next-session.md`).
@@ -364,3 +376,105 @@ handler never fires.
 - A3: destroy trigger.
 
 **Blockers:** None. A2.6 marked done. Two new tasks on queue.
+
+---
+
+### 2026-05-07 — wake 5: A2.8 partial — handler fields + sibling message inventory
+
+**Did:**
+- Decompiled the three wrapper setters consumed by
+  `PlayerManagerSelfIdentification` (`FUN_145a9fa10`, `FUN_145a9fa30`,
+  `FUN_145a9fa80`).
+- Searched the binary for `"PlayerManager*"` strings via `FindStringXrefs`.
+- Searched for `"ClientMessagesTrait"` to enumerate sibling messages.
+- Cross-referenced with the project's existing `analysis/javelin_chunks.txt`
+  and `analysis/javelin_classes.txt` to see what's already cataloged.
+
+**Found (A2.8 partial — handler-side):** All three setters are simple
+struct-copy operations. The message handler signature reduces to:
+
+```
+PlayerManagerSelfIdentification(
+  GameConnection *gc,           // param_1
+  ?,                            // param_2  -- not used in the path that
+                                //             reaches FUN_145a87010
+  Tuple36 *param_3,             // -> wrapper[+0xaf8..+0xb18] (5 fields:
+                                //   8+8+8+8+4 = likely uuid+uuid+int)
+  Tuple36 *param_4,             // -> wrapper[+0xb84..+0xba4] (same shape)
+  ?,                            // param_5
+  MsgBody *param_6,             // 28-byte inline header read into
+                                //   gc[-0x7e8..-0x7b4]
+  StringPlus17 *param_7         // AZStd::string + (8+8+1) tail
+);
+```
+
+`param_6` field map (offsets relative to `param_6` base, byte-precise):
+
+| Bytes | wrapper field | Likely meaning |
+|---|---|---|
+| `[0..4]` | `gc[-0x7e8]` (int) | id / sequence number |
+| `[8..]` (via FUN_1402d13a0) | `gc[-0x7e0]` | sub-struct, possibly a handle |
+| `[10*8 = 0x50, 1B]` | `gc[-0x7c0]` (bool) | debug-virtual-slice flag |
+| `[0xb*8 = 0x58, 8B]` | `gc[-0x7bc]` | long (timestamp? token?) |
+| `[0xd*8 = 0x68, 4B]` | `gc[-0x7b4]` | int |
+
+Note: `param_6[N]` is `param_6 + N*8` because Ghidra typed it as
+`undefined4 *` — those are pointer-array indices, not byte offsets, so
+the actual struct is sparser than it looks.
+
+**Found (A2.8 BIG):** The full sibling message list of `ClientMessagesTrait`
+came back from the string scan. The trait registers exactly five `Msg`
+subclasses via `InstallRegistrationHook<T>` (mangled-name fragments at
+`0x14a153xxx`):
+
+1. `DebugCommandResponseMsg` (string at `0x14a153610`)
+2. `RemoteConfigChangedMsg` (`0x14a153890`)
+3. `LevelInfoChangedMsg` (`0x14a153b20`)
+4. **`PlayerManagerRejectedMsg`** (`0x14a153db0`) ← rejection-path sibling
+5. **`PlayerManagerSelfIdentificationMsg`** (`0x14a153fd0`) ← our target
+
+Plus a `State` enum (`0x14a154860`), the trait itself (`0x14a154a80`),
+and a constructor instantiation (`0x14a1551e0`). The project's existing
+chunk inventory in `analysis/javelin_chunks.txt` only knew about
+`Javelin::BehaviorTreeComponentClientMessages` — it scanned for the
+wrong namespace. **`ClientMessagesTrait` is the entire client-side
+message catalog and was previously uncataloged.**
+
+**Implications for the protocol model:**
+
+The server's V3 RegistrationResponse leaves the client in state 10 with
+substate=1, *waiting on a follow-up message from `ClientMessagesTrait`*.
+The trait has exactly two outcomes for player registration:
+
+- `PlayerManagerSelfIdentificationMsg` → success → state advances to 11
+- `PlayerManagerRejectedMsg` → failure → likely fires the destroy loop
+
+This **also probably resolves task A3** (find what writes `[R13+0xfd]`
+in the destroy path). `PlayerManagerRejectedMsg`'s handler is the strong
+candidate — it would write a "rejected" flag the destroy poll watches.
+A2.10 added to the queue to verify.
+
+The other three messages (`DebugCommandResponse`, `RemoteConfigChanged`,
+`LevelInfoChanged`) are post-registration, post-state-11 traffic — not
+needed for MVP "enter a static world" but useful for full session
+fidelity.
+
+**Wire-format decode (still pending):**
+
+The handler-side field shape doesn't tell us how the bytes arrive over
+DTLS. The serializer/dispatcher path is needed for that. Two leads:
+
+1. The DATA xref of `FUN_146454c00` at `0x14abcc15c` is a dispatch-table
+   entry. Looking at neighboring entries (same fixed stride) should
+   reveal the message ID column. A2.9 picks this up.
+2. The `?` caller at `0x146454bf3` (13 bytes before `FUN_146454c00`) is
+   probably a thunk that converts raw chunk bytes to typed args before
+   calling the handler. Decompiling whatever function contains that
+   address will show the deserialization step.
+
+**Next** (A2.9 + A2.10 added to queue):
+- A2.9: decode dispatch-table entry at `0x14abcc15c` and read `0x146454bf3`'s
+  enclosing function for the deserializer.
+- A2.10: locate `PlayerManagerRejectedMsg` handler (corroborates A3).
+
+**Blockers:** None. A2.8 marked partial-done; two new tasks queued.
