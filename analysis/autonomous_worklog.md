@@ -21,8 +21,10 @@ Rooted in the 2026-05-06 decomp finding: state-10→11 is gated by
 `FUN_145a92370(param_1 + 0x130)`, where `+0x130` is a `GameConnectionWrapper`
 sub-object. The whole vtable on that sub-object drives states 10→14.
 
-- [ ] **A1.** Decompile `FUN_145a92370`. What does it actually check? This is
-      the immediate state-advance predicate.
+- [x] **A1.** Decompile `FUN_145a92370`. What does it actually check? This is
+      the immediate state-advance predicate. **DONE 2026-05-07** — it's
+      `*(int *)(wrapper+0xa0) == 2`. See
+      `analysis/decomp_state_advance_predicate.txt`.
 - [ ] **A2.** Decompile siblings on `param_1+0x130` — `FUN_145a92380`,
       `FUN_145a905c0`, `FUN_145a905d0`, `FUN_145a923c0`, `FUN_145a8d150`,
       `FUN_1402a1750` — to characterize the `GameConnectionWrapper` interface.
@@ -59,3 +61,33 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
 ## Wake log
 
 (entries appended below by each loop iteration)
+
+---
+
+### 2026-05-07 — kickoff (manual, before /loop)
+
+**Did:**
+- Created branch `claude/vacation-2026-05-06`.
+- Committed the `tools/ghidra` wrapper + `HeadlessDecompile.py` from yesterday's setup.
+- Decompiled task **A1**: `ghidra decompile 0x145a92370 --out analysis/decomp_state_advance_predicate.txt`.
+
+**Found (A1):** The state-10→11 predicate is a one-line check:
+
+```c
+bool FUN_145a92370(GameConnectionWrapper *this) {
+    return *(int *)(this + 0xa0) == 2;
+}
+```
+
+So the gate is: `GameConnection.wrapper[+0x130].field[+0xa0] == 2`. State stays at 10 until *something else* writes `2` to that offset on the wrapper. The wrapper sub-object is GameConnection-relative `+0x130`, so the absolute offset on GameConnection is `+0x1d0`.
+
+**Implications:**
+- We now have a precise hunt target: find the writer of `[wrapper+0xa0]`. That writer is what the V3 response is *supposed* to trigger and apparently isn't.
+- The siblings (`FUN_145a905c0`, `FUN_145a923c0`, etc.) likely test the same field with different values (e.g., 3, 4) for the subsequent state transitions — A2 will confirm.
+- Once A2 is done, an xref hunt on writes-of-2-to-`[+0xa0]`-on-this-class is the path to "what message advances the wrapper substate."
+
+**Next** (the /loop will pick up from here):
+- A2: decompile the wrapper-vtable siblings to map the substate→state-transition table.
+- Then: find writers of `wrapper+0xa0`. May need a small Ghidra script (xref by offset on a class, since we don't have a typed class yet).
+
+**Blockers:** None. Marking A1 done in the queue.
