@@ -1,0 +1,36 @@
+# string xref hunt: u'PlayerManagerSelfIdentification'
+
+found 8 defined-string hits
+
+## string at 1484ff6e8: 'PlayerManagerSelfIdentification'
+  1 references
+    DATA from 146454c43 in FUN_146454c00 @ 146454c00
+
+## string at 1484ff708: 'PlayerManagerSelfIdentification failed - pGame is nullptr'
+  1 references
+    DATA from 146454c66 in FUN_146454c00 @ 146454c00
+
+## string at 1484ff748: 'PlayerManagerSelfIdentification failed - clientSdk is nullptr'
+  1 references
+    DATA from 146454c9a in FUN_146454c00 @ 146454c00
+
+## string at 1484ff790: 'PlayerManagerSelfIdentification spawning player at location by editor [%.3f, %.3f, %.3f]'
+  1 references
+    DATA from 146455132 in FUN_146454c00 @ 146454c00
+
+## string at 1484ff7f0: 'PlayerManagerSelfIdentification spawning player, but g_debugPlayerPosition not set!'
+  1 references
+    DATA from 146455140 in FUN_146454c00 @ 146454c00
+
+## string at 1484ff850: 'PlayerManagerSelfIdentification using spawn rotation [%.3f, %.3f, %.3f, %.3f]'
+  1 references
+    DATA from 146455193 in FUN_146454c00 @ 146454c00
+
+## string at 1484ff8a0: 'PlayerManagerSelfIdentification spawning player, but g_debugPlayerRotation not set!'
+  1 references
+    DATA from 1464551a1 in FUN_146454c00 @ 146454c00
+
+## string at 14a153fd0: '.?AV<lambda_1>@?1???$InstallRegistrationHook@VPlayerManagerSelfIdentificationMsg@ClientMessagesTrait@Javelin@@@Hub@Amazo'
+  0 references
+
+# end

@@ -34,14 +34,23 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
       2026-05-07** — `FUN_145a87010` is `onConnectionSuccess`: logs
       `"ConnectionSuccess"`, emits events, then writes substate=2. See
       `analysis/decomp_wrapper_substate_setter_candidate.txt`.
-- [ ] **A2.6.** Trace xrefs to `FUN_145a87010` to find what *invokes* the
-      ConnectionSuccess handler. That's the chain the V3-response path is
-      supposed to trigger and apparently isn't.
+- [x] **A2.6.** Trace xrefs to `FUN_145a87010` to find what *invokes* the
+      ConnectionSuccess handler. **DONE 2026-05-07** — `FUN_146454c00` is
+      the `PlayerManagerSelfIdentification` message handler; it
+      unconditionally calls `FUN_145a87010` on success. RTTI string at
+      `0x14a153fd0` gives us the C++ type:
+      `Javelin::ClientMessagesTrait::PlayerManagerSelfIdentificationMsg`.
 - [ ] **A2.7.** Cross-reference the literal `"ConnectionSuccess"` string in
       the binary — there may be other Connection lifecycle handlers
       (`ConnectionFailed`, `ConnectionClosed`, etc.) that share the same
       registration mechanism. Mapping the full event table will tell us
       what flavor of message we need to send.
+- [ ] **A2.8.** Find the wire format for `PlayerManagerSelfIdentificationMsg`.
+      Approaches: (a) search for `InstallRegistrationHook` template
+      instantiations in the binary's RTTI; (b) decompile the wrapper
+      setters `FUN_145a9fa10/30/80` invoked early in `FUN_146454c00` to
+      see what fields are read from the message body; (c) look for a
+      Javelin chunk/message registry that ties a wire ID to this class.
 - [ ] **A3.** Decompile `FUN_146b3c250 + 0x58f` — find what writes
       `[R13+0xfd]` (the byte that triggers the destroy loop, per
       `docs/next-session.md`).
@@ -249,3 +258,109 @@ or may not be the right fix; A2.6 will tell us.
 - Then A3: destroy trigger.
 
 **Blockers:** None. A2.5 marked done. Two new tasks on queue.
+
+---
+
+### 2026-05-07 — wake 4: A2.6 — message name pinpointed
+
+**Did:**
+- Wrote a generic `tools/ghidra_scripts/FindXrefs.py` (takes function
+  address + optional output path).
+- Ran it for `FUN_145a87010`. Two refs: a vtable DATA entry at
+  `0x14ab72930` and one direct call from `FUN_146454c00` at `0x14645563f`.
+- Decompiled `FUN_146454c00` (477 lines).
+- Wrote `tools/ghidra_scripts/FindStringXrefs.py` for literal-string xref
+  hunts (had to fix a Jython `unicode()` issue on first run).
+- Ran it for `"PlayerManagerSelfIdentification"` to corroborate.
+
+**Found (A2.6):** `FUN_146454c00` is the **`PlayerManagerSelfIdentification`
+message handler**. Smoking-gun evidence:
+
+1. The function's **first action** is a structured logger call:
+   ```c
+   FUN_141721c20("GameMessagePort", "PlayerManagerSelfIdentification");
+   ```
+   It logs the message name on the `GameMessagePort` channel — this is
+   how Lumberyard message handlers identify themselves.
+
+2. The handler reads field values from the message body (`param_6`),
+   stores them onto the GameConnection via offsets `-0x7e8`, `-0x7e0`,
+   `-0x7c0`, `-0x7bc`, `-0x7b4`, then resolves the wrapper sub-object:
+   ```c
+   lVar14 = pGame[+0x1e0][clientSdk[+0x10]] + 0x130;   // = wrapper
+   ```
+   and calls three wrapper setters with message fields:
+   ```c
+   FUN_145a9fa10(wrapper, param_3);
+   FUN_145a9fa30(wrapper, param_7);
+   FUN_145a9fa80(wrapper, param_4);
+   ```
+
+3. **At the very end of any success path** (line 474 of the decomp):
+   ```c
+   FUN_145a87010(local_c0);   // = onConnectionSuccess(wrapper)
+   ```
+   No conditions on the call. Reaching the end of the handler ⇒
+   substate=2 ⇒ state-10→11 advance. There's also an early-success goto
+   `LAB_14645563b` at line 395 that skips the final `FUN_14167c060`
+   payload step but still reaches the ConnectionSuccess call.
+
+4. Bonus confirmation from RTTI: a defined string at `0x14a153fd0` is
+   the demangled-form fragment of a mangled type name:
+   ```
+   .?AV<lambda_1>@?1???$InstallRegistrationHook
+       @VPlayerManagerSelfIdentificationMsg@ClientMessagesTrait@Javelin@@@Hub@Amazon...
+   ```
+   So the C++ class is **`Javelin::ClientMessagesTrait::PlayerManagerSelfIdentificationMsg`**,
+   registered via a template `Javelin::Hub::Amazon::...::InstallRegistrationHook<T>`.
+
+**This is a brand-new finding for the project.** A grep across `docs/`,
+`analysis/`, and `info/` found zero prior mentions of
+`PlayerManagerSelfIdent*` or `ClientMessagesTrait`. The maintainer's
+existing notes say "V3 response accepted, rep.ready flips 0→1, then the
+session is destroyed after ~30s" — the missing piece between those two
+events is **the server failing to send a `PlayerManagerSelfIdentificationMsg`
+after V3**. The client waits for that message, doesn't get it, sits in
+state 10, and eventually gets torn down.
+
+**The message body shape** (inferred from the handler's reads of `param_6`):
+- `param_6[0]` (4 bytes) — copied to `GameConnection-0x7e8` (some int id)
+- `param_6[2]..` — passed to `FUN_1402d13a0` for setup at `-0x7e0`
+- `param_6[10]` (1 byte) — flag, stored at `-0x7c0`; non-zero triggers the
+  debug-virtual-slice spawn-position branch
+- `param_6[0xb]` (8 bytes) — copied to `-0x7bc`
+- `param_6[0xd]` (4 bytes) — copied to `-0x7b4`
+- `param_3`, `param_4`, `param_7` — additional setter args (likely
+  player name strings, character data, world id)
+
+So the field layout is roughly: `int id; <handle>; bool debugFlag; long
+something; int something; string name; ...; string something`. Need to
+decompile `FUN_145a9fa10/30/80` to fully decode.
+
+**Why the project's V3 response alone isn't enough:** The V3 path only
+gets the wrapper through state-10 *entry* (substate=1). The actual
+"connection succeeded" semantic event lives in a separate, named message
+(`PlayerManagerSelfIdentificationMsg`) sent later. Without it, the
+connection appears half-formed — the client knows it has a session but
+not which player the session is for, so the wrapper's onConnectionSuccess
+handler never fires.
+
+**The new state of "what does the server need to do":**
+
+1. ✅ HTTPS / OmniSDK auth
+2. ✅ Javelin REP DTLS handshake
+3. ✅ V3 RegistrationRequest accepted, V3 RegistrationResponse sent
+4. ⏳ **Server must send a `PlayerManagerSelfIdentificationMsg`** with
+   the player's identity info. Wire format TBD (A2.8).
+5. (Then state advances 10→11 and post-V3 message path begins.)
+
+**Next** (A2.7 + A2.8 added to queue):
+- A2.8 (the headline next task): figure out the wire format of
+  `PlayerManagerSelfIdentificationMsg`. Best approach: decompile
+  `FUN_145a9fa10`/`30`/`80` to see exact field shapes; cross-reference
+  with the project's `docs/gridmate-reference.md` for chunk/message
+  serialization conventions.
+- A2.7: scan for sibling lifecycle strings.
+- A3: destroy trigger.
+
+**Blockers:** None. A2.6 marked done. Two new tasks on queue.
