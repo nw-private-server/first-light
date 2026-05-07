@@ -1,0 +1,188 @@
+// FUN_145a905d0 @ 145a905d0
+
+void FUN_145a905d0(longlong param_1,undefined8 param_2,undefined8 param_3)
+
+{
+  longlong lVar1;
+  longlong *plVar2;
+  undefined8 uVar3;
+  longlong lVar4;
+  longlong lVar5;
+  undefined4 local_res8 [2];
+  undefined *local_88;
+  undefined4 uStack_80;
+  undefined1 local_78 [16];
+  undefined1 local_68 [96];
+  
+  *(undefined8 *)(param_1 + 0xa8) = param_2;
+  (*(code *)**(undefined8 **)(param_1 + 0xb0))();
+  *(undefined4 *)(param_1 + 0xa0) = 1;
+  FUN_1408602a0(param_1 + 0xc08);
+  *(undefined1 *)(param_1 + 0xbf0) = 0;
+  *(undefined1 *)(param_1 + 0xbc8) = 0;
+  if (*(longlong *)(param_1 + 0x20) == 0) {
+    *(longlong *)(param_1 + 0x18) = param_1;
+    lVar4 = FUN_145a8e030();
+    lVar5 = *(longlong *)(lVar4 + 0x20);
+    if (lVar5 == 0) {
+      lVar5 = lVar4 + 0x28;
+      *(undefined4 *)(lVar4 + 0x2c) = 0;
+      *(undefined8 *)(lVar4 + 0x30) = 0;
+      lVar1 = lVar4 + 0x38;
+      *(longlong *)(lVar4 + 0x40) = lVar1;
+      *(longlong *)lVar1 = lVar1;
+      *(longlong *)(lVar4 + 0x20) = lVar5;
+      if (lVar5 != 0) goto LAB_145a9065d;
+    }
+    else {
+LAB_145a9065d:
+      LOCK();
+      *(int *)(lVar5 + 4) = *(int *)(lVar5 + 4) + 1;
+      UNLOCK();
+    }
+    lVar4 = *(longlong *)(param_1 + 0x20);
+    *(longlong *)(param_1 + 0x20) = lVar5;
+    if (lVar4 != 0) {
+      FUN_145aa4d30();
+    }
+    lVar5 = *(longlong *)(param_1 + 0x20);
+    lVar4 = *(longlong *)(lVar5 + 0x10);
+    plVar2 = (longlong *)(param_1 + 8);
+    *plVar2 = lVar4;
+    *(undefined8 *)(param_1 + 0x10) = *(undefined8 *)(lVar4 + 8);
+    *(longlong **)(lVar4 + 8) = plVar2;
+    **(longlong **)(param_1 + 0x10) = (longlong)plVar2;
+    plVar2 = (longlong *)(lVar5 + 8);
+    *plVar2 = *plVar2 + 1;
+  }
+  if (*(longlong *)(param_1 + 0x48) == 0) {
+    *(longlong *)(param_1 + 0x40) = param_1 + 0x28;
+    lVar4 = FUN_145a8e230();
+    lVar5 = *(longlong *)(lVar4 + 0x20);
+    if (lVar5 == 0) {
+      lVar5 = lVar4 + 0x28;
+      *(undefined4 *)(lVar4 + 0x2c) = 0;
+      *(undefined8 *)(lVar4 + 0x30) = 0;
+      lVar1 = lVar4 + 0x38;
+      *(longlong *)(lVar4 + 0x40) = lVar1;
+      *(longlong *)lVar1 = lVar1;
+      *(longlong *)(lVar4 + 0x20) = lVar5;
+      if (lVar5 != 0) goto LAB_145a906d6;
+    }
+    else {
+LAB_145a906d6:
+      LOCK();
+      *(int *)(lVar5 + 4) = *(int *)(lVar5 + 4) + 1;
+      UNLOCK();
+    }
+    lVar4 = *(longlong *)(param_1 + 0x48);
+    *(longlong *)(param_1 + 0x48) = lVar5;
+    if (lVar4 != 0) {
+      FUN_145aa4e10();
+    }
+    lVar5 = *(longlong *)(param_1 + 0x48);
+    lVar4 = *(longlong *)(lVar5 + 0x10);
+    plVar2 = (longlong *)(param_1 + 0x30);
+    *plVar2 = lVar4;
+    *(undefined8 *)(param_1 + 0x38) = *(undefined8 *)(lVar4 + 8);
+    *(longlong **)(lVar4 + 8) = plVar2;
+    **(longlong **)(param_1 + 0x38) = (longlong)plVar2;
+    plVar2 = (longlong *)(lVar5 + 8);
+    *plVar2 = *plVar2 + 1;
+  }
+  if (*(longlong *)(param_1 + 0x70) == 0) {
+    *(longlong *)(param_1 + 0x68) = param_1 + 0x50;
+    lVar4 = FUN_145a8e130();
+    lVar5 = *(longlong *)(lVar4 + 0x20);
+    if (lVar5 == 0) {
+      lVar5 = lVar4 + 0x28;
+      *(undefined4 *)(lVar4 + 0x2c) = 0;
+      *(undefined8 *)(lVar4 + 0x30) = 0;
+      lVar1 = lVar4 + 0x38;
+      *(longlong *)(lVar4 + 0x40) = lVar1;
+      *(longlong *)lVar1 = lVar1;
+      *(longlong *)(lVar4 + 0x20) = lVar5;
+      if (lVar5 != 0) goto LAB_145a9074f;
+    }
+    else {
+LAB_145a9074f:
+      LOCK();
+      *(int *)(lVar5 + 4) = *(int *)(lVar5 + 4) + 1;
+      UNLOCK();
+    }
+    lVar4 = *(longlong *)(param_1 + 0x70);
+    *(longlong *)(param_1 + 0x70) = lVar5;
+    if (lVar4 != 0) {
+      FUN_145aa4da0();
+    }
+    lVar5 = *(longlong *)(param_1 + 0x70);
+    lVar4 = *(longlong *)(lVar5 + 0x10);
+    plVar2 = (longlong *)(param_1 + 0x58);
+    *plVar2 = lVar4;
+    *(undefined8 *)(param_1 + 0x60) = *(undefined8 *)(lVar4 + 8);
+    *(longlong **)(lVar4 + 8) = plVar2;
+    **(longlong **)(param_1 + 0x60) = (longlong)plVar2;
+    plVar2 = (longlong *)(lVar5 + 8);
+    *plVar2 = *plVar2 + 1;
+  }
+  if (*(longlong *)(param_1 + 0x98) != 0) goto LAB_145a90805;
+  *(longlong *)(param_1 + 0x90) = param_1 + 0x78;
+  lVar4 = FUN_145a8e330();
+  lVar5 = *(longlong *)(lVar4 + 0x20);
+  if (lVar5 == 0) {
+    lVar5 = lVar4 + 0x28;
+    *(undefined4 *)(lVar4 + 0x2c) = 0;
+    *(undefined8 *)(lVar4 + 0x30) = 0;
+    lVar1 = lVar4 + 0x38;
+    *(longlong *)(lVar4 + 0x40) = lVar1;
+    *(longlong *)lVar1 = lVar1;
+    *(longlong *)(lVar4 + 0x20) = lVar5;
+    if (lVar5 != 0) goto LAB_145a907c8;
+  }
+  else {
+LAB_145a907c8:
+    LOCK();
+    *(int *)(lVar5 + 4) = *(int *)(lVar5 + 4) + 1;
+    UNLOCK();
+  }
+  lVar4 = *(longlong *)(param_1 + 0x98);
+  *(longlong *)(param_1 + 0x98) = lVar5;
+  if (lVar4 != 0) {
+    FUN_145aa4e80();
+  }
+  lVar5 = *(longlong *)(param_1 + 0x98);
+  lVar4 = *(longlong *)(lVar5 + 0x10);
+  plVar2 = (longlong *)(param_1 + 0x80);
+  *plVar2 = lVar4;
+  *(undefined8 *)(param_1 + 0x88) = *(undefined8 *)(lVar4 + 8);
+  *(longlong **)(lVar4 + 8) = plVar2;
+  **(longlong **)(param_1 + 0x88) = (longlong)plVar2;
+  plVar2 = (longlong *)(lVar5 + 8);
+  *plVar2 = *plVar2 + 1;
+LAB_145a90805:
+  lVar5 = FUN_145a79f40(param_3,&local_88);
+  if (*(char *)(lVar5 + 8) != '\0') {
+    FUN_145a79f40(param_3,&local_88);
+    FUN_145a7dc60(local_78,local_88 + 8);
+    local_res8[0] = FUN_145aa16d0(local_68);
+    FUN_145a90b80(param_1 + 0xcd8,local_78,local_res8);
+    FUN_145a90fd0(param_1 + 0xd68,local_78,local_res8);
+    FUN_145a90930(param_1 + 0xdd8,local_78,local_res8);
+    FUN_145a81390(local_78);
+  }
+  lVar5 = FUN_145a79e50(param_3,&local_88);
+  if (*(char *)(lVar5 + 8) != '\0') {
+    FUN_145a79e50(param_3,&local_88);
+    uVar3 = *(undefined8 *)(local_88 + 0x10);
+    *(undefined8 *)(param_1 + 0xcb8) = *(undefined8 *)(local_88 + 8);
+    *(undefined8 *)(param_1 + 0xcc0) = uVar3;
+    uVar3 = *(undefined8 *)(local_88 + 0x20);
+    *(undefined8 *)(param_1 + 0xcc8) = *(undefined8 *)(local_88 + 0x18);
+    *(undefined8 *)(param_1 + 0xcd0) = uVar3;
+  }
+  local_88 = &DAT_1405714a4;
+  uStack_80 = 0;
+  FUN_14033d610(param_1 + 0xbf1,&local_88,"client-connection.retry-connection-till-server-ready");
+  return;
+}
+

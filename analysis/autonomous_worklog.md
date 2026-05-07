@@ -25,9 +25,16 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
       the immediate state-advance predicate. **DONE 2026-05-07** — it's
       `*(int *)(wrapper+0xa0) == 2`. See
       `analysis/decomp_state_advance_predicate.txt`.
-- [ ] **A2.** Decompile siblings on `param_1+0x130` — `FUN_145a92380`,
+- [x] **A2.** Decompile siblings on `param_1+0x130` — `FUN_145a92380`,
       `FUN_145a905c0`, `FUN_145a905d0`, `FUN_145a923c0`, `FUN_145a8d150`,
       `FUN_1402a1750` — to characterize the `GameConnectionWrapper` interface.
+      **DONE 2026-05-07** — wrapper substate at `+0xa0` has three known
+      values (0 fail / 1 in-progress / 2 ready); see worklog entry 2.
+- [ ] **A2.5.** Find code that writes `2` to `wrapper[+0xa0]`. That writer
+      is the missing post-V3 step that should advance state to 11.
+      Approach: xref `FUN_1402a1750` callers (it returns &substate) AND
+      grep instructions for `MOV [reg+0xa0], 2` patterns near other V3
+      handlers. May need a small Ghidra script.
 - [ ] **A3.** Decompile `FUN_146b3c250 + 0x58f` — find what writes
       `[R13+0xfd]` (the byte that triggers the destroy loop, per
       `docs/next-session.md`).
@@ -91,3 +98,63 @@ So the gate is: `GameConnection.wrapper[+0x130].field[+0xa0] == 2`. State stays 
 - Then: find writers of `wrapper+0xa0`. May need a small Ghidra script (xref by offset on a class, since we don't have a typed class yet).
 
 **Blockers:** None. Marking A1 done in the queue.
+
+---
+
+### 2026-05-07 — wake 2: A2 wrapper-vtable characterization
+
+**Did:** Sequentially decompiled six wrapper-vtable siblings via
+`ghidra decompile`. Outputs in `analysis/decomp_wrapper_*.txt`.
+
+**Found (A2):** The `GameConnectionWrapper` (at GameConnection+0x130) has a
+small, well-defined interface around a substate field at `+0xa0`. Five of
+the six sibling functions are trivial accessors; the sixth is the state-10
+setup. Concrete signatures:
+
+| Function | Returns | Body |
+|---|---|---|
+| `FUN_145a92370` | bool | `*(int *)(this + 0xa0) == 2` — **state 10→11 gate (A1)** |
+| `FUN_145a92380` | bool | `*(int *)(this + 0xa0) == 0` — "substate == 0" predicate |
+| `FUN_1402a1750` | int* | `this + 0xa0` — getter, returns &substate |
+| `FUN_145a905c0` | u8 | `*(u8 *)(this + 0xbc8)` — state 12 gate flag |
+| `FUN_145a923c0` | u8 | `*(u8 *)(this + 0x252)` — state 13 gate flag |
+| `FUN_145a8d150` | void* | `this + 0xbf8` — getter for some sub-object |
+| `FUN_145a905d0(this, p2, p3)` | void | state-10 setup; **writes substate = 1**, initializes four list-like substructs at `+0x20`/`+0x48`/`+0x70`/`+0x98`, copies p3 fields into `+0xcb8..+0xcd0`, registers `"client-connection.retry-connection-till-server-ready"` listener at `+0xbf1` |
+
+**Substate (`wrapper[+0xa0]`) lifecycle, derived from the above + yesterday's
+FUN_14644a070 decomp:**
+
+```
+state 10 entry → FUN_145a905d0 sets substate = 1   (in-progress)
+                 ???                  substate = 2 → FUN_145a92370 returns true → state 11
+                 (failure)            substate = 0 → destroy path fires
+```
+
+So GameConnection state 10 holds until *some other code* writes `2` to
+`wrapper[+0xa0]`. That writer is the post-V3 step the project is missing.
+The destroy loop the maintainer is also chasing is the same field reverting
+to 0 (via `FUN_1402a1750` getter + `*piVar8 == 0` check in FUN_14644a070).
+
+**Cross-check with FUN_14644a070 (yesterday's decomp):** the substate-as-int
+read used `FUN_1402a1750` — it's not a vtable thunk, it's a typed accessor
+that returns &substate so the caller can deref or write. This matters for
+A2.5: callers that write substate=2 may go through this accessor or may
+write directly. Need to check both.
+
+**Other interesting offsets surfaced:**
+- `wrapper+0xa8` — assigned `param_2` of FUN_145a905d0 (callback or object ptr).
+- `wrapper+0xb0` — vtable pointer that gets called as `(*(code *)**(...))()`
+  immediately after substate=1 assignment.
+- `wrapper+0xbc8`, `wrapper+0xbf0` — flag bytes initialized to 0 in setup.
+- `wrapper+0xbf1` — feature-flag listener for retry-till-ready.
+- `wrapper+0xc08`, `+0xcb8..+0xcd0`, `+0xcd8`, `+0xd68`, `+0xdd8` — payload
+  buffers / nested structs initialized from p3.
+
+**Next** (queued as A2.5):
+- Find writers of `wrapper[+0xa0]` setting value 2. Likely a small Ghidra
+  script doing instruction-pattern scan for `MOV [Rxx+0xa0], 2` is faster
+  than chasing FUN_1402a1750 xrefs. Also check who calls `FUN_145a92370`
+  (the gate) — anyone reading it might also be able to write it.
+- After A2.5: A3 (destroy trigger at `FUN_146b3c250+0x58f`).
+
+**Blockers:** None. Marking A2 done; A2.5 added to queue.

@@ -1,0 +1,8 @@
+// FUN_145a8d150 @ 145a8d150
+
+longlong FUN_145a8d150(longlong param_1)
+
+{
+  return param_1 + 0xbf8;
+}
+
