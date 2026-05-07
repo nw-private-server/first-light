@@ -40,11 +40,16 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
       unconditionally calls `FUN_145a87010` on success. RTTI string at
       `0x14a153fd0` gives us the C++ type:
       `Javelin::ClientMessagesTrait::PlayerManagerSelfIdentificationMsg`.
-- [ ] **A2.7.** Cross-reference the literal `"ConnectionSuccess"` string in
-      the binary — there may be other Connection lifecycle handlers
-      (`ConnectionFailed`, `ConnectionClosed`, etc.) that share the same
-      registration mechanism. Mapping the full event table will tell us
-      what flavor of message we need to send.
+- [x] **A2.7.** Cross-reference the literal `"ConnectionSuccess"` string
+      in the binary. **DONE 2026-05-07** — the wrapper's
+      `FUN_145a87010` (which writes substate=2) is one of two layers.
+      At the **JavelinGame layer**, two sibling handlers exist:
+      `FUN_14103b570` = `JavelinGame::OnConnectionSucceed` and
+      `FUN_14103b1a0` = `JavelinGame::OnConnectionFail`. They use the
+      same AzCore observer-broadcast pattern (iterate
+      `puVar8[+0x60..+0x68]`, call `FUN_1461ae980` per observer). Fail
+      handler logs "Lost connection to REP. Exiting..." on a specific
+      branch (`param_2 == 0`). See worklog wake 14.
 - [x] **A2.8.** Find the wire format for `PlayerManagerSelfIdentificationMsg`.
       **PARTIAL 2026-05-07** — handler-side field shapes mapped via the
       three wrapper setters (`FUN_145a9fa10/30/80`); see worklog wake 5.
@@ -1173,3 +1178,93 @@ all converge on the same maintainer-queued action: a Frida hook on
 `FUN_146454c00` *and* `FUN_14645c660` *and* `FUN_140fb3560` to
 capture message names and event ids at runtime. Logging a few
 messages from a live session would resolve all three at once.
+
+---
+
+### 2026-05-07 — wake 14: A2.7 — sibling lifecycle handlers found at JavelinGame layer
+
+**Did:**
+- Searched for plausible sibling lifecycle strings: `ConnectionFailed`,
+  `ConnectionClosed`, `ConnectionLost`, `ConnectionAborted`,
+  `ConnectionDisconnected`, `ConnectionRejected`, `OnDisconnect`. Most
+  came back with zero hits. `OnDisconnect` had 4 hits (one for
+  `Popup_OnDisconnection`, one for `'OnDisconnected'` event, one for
+  `CGame::OnDisconnection`, plus an EOSSystemComponent RTTI string).
+- Searched broadly for `"Connection"` — 195 hits, scanning showed
+  the smoking gun: **`'JavelinGame::OnConnectionSucceed'`** at
+  `0x147fc8998` and **`'JavelinGame::OnConnectionFail'`** at
+  `0x147fc89d0` (adjacent — clearly a Succeed/Fail pair).
+- Single xref each: Succeed → `FUN_14103b570`, Fail → `FUN_14103b1a0`.
+- Decompiled both.
+
+**Found (A2.7):**
+
+The connection-lifecycle event flow has **two layers**:
+
+1. **Wrapper layer** (`FUN_145a87010`, mapped on 2026-05-06):
+   logs `"ConnectionSuccess"` on the wrapper's own logger, walks the
+   wrapper's observer list, then writes
+   `*(int *)(wrapper + 0xa0) = 2`. There's only one handler at this
+   layer — no `Failed`/`Lost` counterparts on the wrapper (failure
+   on the wrapper is detected by the substate going back to 0, not
+   by a sibling event).
+
+2. **JavelinGame layer** (`FUN_14103b570` and `FUN_14103b1a0`,
+   adjacent in the binary):
+   - `FUN_14103b570` = `JavelinGame::OnConnectionSucceed` — uses the
+     same AzCore observer-broadcast structure as the wrapper's
+     handler, severity=3 (debug-level trace).
+   - `FUN_14103b1a0` = `JavelinGame::OnConnectionFail` — same pattern
+     but severity=1 (error). Takes
+     `(this, param_2, reasonStruct *param_3, retryCount param_4)`,
+     emits `"JavelinGame::OnConnectionFail: Reason: <reason>"`,
+     iterates the same `puVar8[+0x60..+0x68]` observer list. Has
+     branches based on `param_2 == 0` and `*(this+0x3d8) != '\0'`:
+     - One path logs `"Lost connection to REP. Exiting..."` and
+       calls a vtable method on a global at `DAT_14a7ba0e0+0x78`
+       — likely the UI popup trigger.
+     - Other paths inspect retry vars (`shouldRetryConnect`,
+       `isErrorRetryable`, `currentRetryCount`).
+
+**What this clarifies / closes:**
+
+- **The wrapper's onConnectionSuccess (`FUN_145a87010`) and JavelinGame's
+  OnConnectionSucceed (`FUN_14103b570`) are layered**, not redundant.
+  The wrapper handles the substate transition; JavelinGame handles
+  the higher-level UI / retry / lifecycle event broadcast.
+- The "Lost connection to REP. Exiting..." log site is in
+  `FUN_14103b1a0`. This is likely close to where the carrier-destroy
+  event (CRC `0xFE476177` from A3) gets dispatched — but I didn't
+  trace the dispatch chain from this function this iteration.
+
+**What this does NOT solve:**
+
+- The PlayerManagerRejected handler (A2.10) is still unmapped. The
+  rejection-side handler probably lives in the same `Hub` /
+  `JavelinGame` namespace but doesn't use the
+  `JavelinGame::OnConnection*` log signature.
+- The "Lost connection to REP" branch of `FUN_14103b1a0` is a strong
+  candidate for being the source of the destroy CRC `0xFE476177`,
+  but confirming that needs another pass tracing the vtable[+0x120]
+  call on the `DAT_14a7ba0e0+0x78` object.
+
+**Other findings from the broad `"Connection"` scan worth noting:**
+
+- `'GameConnectionWrapper: spawn point found'` at `0x1484fea88` — log
+  for the state-12→13 transition success (when `wrapper[+0xbc8]`
+  flips). Useful breadcrumb if traced to a writer.
+- `'Popup_OnConnectionFail_MainMenu'` and `'Popup_OnConnectionFail_InWorld'`
+  at `0x147fc7e80/0x147fc7ea0` — UI popup names triggered by the fail
+  path. Could be useful for client-side state inspection.
+- `'CGame::OnDisconnection'` at `0x1484fd118` — global disconnect
+  handler reference. Different layer again.
+
+**Next** (queue still has plenty):
+- A4.2 follow-up (register-based-store scan for `wrapper[+0x252]`).
+- Trace the "Lost connection to REP" path in `FUN_14103b1a0` to see
+  if it dispatches the destroy CRC `0xFE476177` (A3 follow-up;
+  closes the loop on the destroy mechanism).
+- B1 (server-side experiment) is still gated on knowing wire format.
+
+**Blockers:** None for the loop. The runtime-hook items remain queued
+for the maintainer.
