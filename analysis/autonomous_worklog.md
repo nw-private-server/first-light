@@ -1577,3 +1577,48 @@ future investigations of other parts of the binary.
 recoverable on the V3-to-spawn protocol path; further iterations
 are choosing between low-yield static angles and a runtime
 hand-off.
+
+---
+
+### 2026-05-07 — wake 19: final static-path checks; loop pausing
+
+**Did:**
+- Searched for the `"spawn point found"` log literal — single
+  reference, from `FUN_14644a070` (the state machine itself, the
+  state-12→13 transition log). Not a writer.
+- Searched for the `"player spawn succeeds, in game"` log literal —
+  single reference, also from `FUN_14644a070` (state-13→14 log).
+  Also not a writer.
+- Confirmed: log-literal-trace approach can't recover the
+  `wrapper[+0x252]` writer because there isn't one with a
+  semantically-distinct log. The state machine *observes* the byte
+  via `FUN_145a923c0`; whoever flips it does so silently or as a
+  side-effect of larger state copy.
+
+**Decision:** I'm pausing the autonomous loop here. After 19 wakes
+(2.5 hours autonomous) the player-spawn investigation has produced
+everything recoverable from static analysis. The remaining open
+items (A2.10, A3.1, A4.2, A4.3) all need runtime data.
+
+**State of the project at pause time:**
+
+- Branch `claude/vacation-2026-05-06` has 28 commits.
+- `analysis/state_machine_summary.md` is the consolidated
+  maintainer-facing doc.
+- `tools/ghidra_scripts/README.md` documents the 11 analysis
+  scripts.
+- 5 tasks queued for the maintainer (4 of them resolvable by a
+  single Frida hook session).
+- The MVP fix scope is bounded: server needs to send
+  `PlayerManagerSelfIdentificationMsg`, `LevelInfoChangedMsg`, and
+  whatever message `FUN_14645c660` handles. Wire formats need
+  runtime capture.
+
+**To resume the loop:** invoke `/loop` again. I'll re-read this
+worklog and either continue from the queued tasks (mostly
+runtime-blocked) or pivot to a new direction the maintainer points
+at — e.g. characterize `PlayerManagerTrait` server-side messages,
+walk the `Hub*` lifecycle messages, or document a different
+subsystem.
+
+**Blockers:** Static path exhausted on the player-spawn protocol.
