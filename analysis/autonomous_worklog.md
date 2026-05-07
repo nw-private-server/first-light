@@ -1762,3 +1762,144 @@ weight:
   registry now.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 21: typeregistry mapping fails BUT community dump is a goldmine
+
+**Did:**
+- Built `tools/ghidra_scripts/UuidAtAddress.py` — read 16 bytes at
+  an address and look up against a UUID-to-name map derived from
+  `info/typeregistry.json` (312 named UUIDs after deduplication).
+- Tested against the dispatch table metadata addresses:
+  `0x149cc1c44`, `0x149cc1b64` (both for known SelfIdent /
+  adjacent), and `0x140977d3f0` (the FUN_14645c660 metadata).
+- Examined `info/community_22_phase_in_game_dump.txt`.
+
+**Found (typeregistry mapping — partial dead end):**
+
+The dispatch-table metadata RVAs are NOT pointers to AZ::TypeId
+UUIDs. Bytes at `0x149cc1c44` are `11 15 09 00 15 54 17 00 15 34
+16 00 15 01 12 00` — packed pairs of small uint16 values that
+look like a serialization schema (field tag/offset table), not a
+UUID. The `0x140977d3f0` value isn't even a valid memory address
+in the binary's mapped image. So my "dispatch metadata = UUID
+pointer" hypothesis was wrong.
+
+The typeregistry's opcode prefixes (Marshal/Unmarshal first 8
+bytes) are also not unique enough to byte-pattern-match — they're
+mostly generic MSVC function prologues like
+`48 89 5C 24 08` (`MOV [RSP+8], RBX`).
+
+So the runtime registry doesn't directly give us the
+type→handler mapping. **312 of 3,487 named types have full
+handler data, and PlayerManagerSelfIdentification, Rejected,
+LevelInfoChanged, ConnectionSuccess are NOT in the named-with-
+handler subset** — the registry seems to only contain types
+active at the runtime moment of capture.
+
+**Found (community dump — extraordinary):**
+
+`info/community_22_phase_in_game_dump.txt` (85 lines) is a
+reverse-engineered **22-phase post-V3 message sequence** from
+another team that got further than this project. Direct quotes
+from the dump:
+
+- DTLS framing: `[prefix:u16BE][dgramSeq:u16BE][messages...]`,
+  `0x8001` uncompressed / `0x8101` LZ4-body, dgramSeq starts at 2.
+- NW protocol wrapper inside ch0/ch1 carrier payloads:
+  `[PackedSize_LE(innerLen)][0x00][0x01][type:u8][data...]`.
+- Message flag bits: `MF_RELIABLE 0x01`, `MF_CHUNKS 0x04`,
+  `MF_SEQUENTIAL_ID 0x08`, `MF_SEQUENTIAL_REL_ID 0x10`,
+  `MF_DATA_CHANNEL 0x20`, `MF_CONNECTING 0x80`.
+
+The 22 phases (from their reproduction):
+
+| Phase | +Delay | Message | Size |
+|---|---|---|---|
+| 1 | 0ms | VERSION (0x03) | 89B |
+| 2 | 50ms | HEARTBEAT 0x9d | 13B |
+| 3 | 80ms | INIT 0x8a + 0xbe | 154B |
+| 4 | 140ms | WORLD DATA 0x9c chunked (12 segments) | 12.7KB |
+| 5 | 200ms | INIT 0x91(0x19) | 21B |
+| 6 | 220ms | SESSION A4 large | 75B / 195B retail |
+| 7 | 250ms | HEARTBEAT 0x8f | 13B |
+| 8 | 280ms | A6 + 0x88 x2 | ~120B |
+| 9 | 300ms | 0x88 + small A4 | ~60B |
+| **9b** | **310ms** | **SelfIdentification 0x91(0x17)** | **4B** |
+| 10 | 320ms | 0x88 x20 in one datagram | ~840B |
+| 11 | 400ms | SESSION AA (0xaa) | 29B |
+| 11a | 420ms | A4 + WORLD SPAWN A3 + HB 0x8f | ~130B |
+| 11b | 460ms | CH1 burst, 47 units | 285KB |
+| 12 | 1500ms | SESSION AE (trail=0x02) | 22B |
+| 13 | 3000ms | SESSION AE (trail=0x00) | 22B |
+| 14 | 450ms | ENTITY DEFS 0x95 + 0x9d-large + 0xa0 | 2.5KB |
+| 15 | 800ms | GAME DATA 0xb3 + VIVOX URL 0xa7 | 3KB |
+| 16 | 1200ms | SPAWN 0x96 + 0x97 | 160B |
+| 17 | 1400ms | continuous 0x08 entity stream | varies |
+| 18 | 2000ms | Player data 0xa0 burst #1 (210 seg) | 233KB |
+| 19 | 800ms | Player data 0xa0 burst #2 (154 seg) | 171KB |
+| 20 | 7000ms | Entity 0xac chunked | 2.6KB |
+| 21 | continuous | Heartbeats 0x8f/0x9d alternating @ 500ms | 13B |
+| 22 | 10s | continuous ch0 loop | varies |
+
+**Key insights:**
+
+1. **The SelfIdent message we've been hunting is type
+   `0x91(0x17)`, just 4 bytes, sent ~310ms after V3 response.**
+   That's wire-format-precise — bypasses everything we've been
+   trying to recover statically.
+
+2. The community team hit a *different* stall — state 13
+   (WaitingForPlayerSpawn) — because they were sending the full
+   22-phase sequence and got further. Our stall at state 10
+   (WaitingForREPConnection) means we're failing to even send
+   Phase 9b correctly.
+
+3. Their stall resolution: a DLL patch forcing `isMasterPlayer=1`
+   in `sub_145A85940 case 0` plus a predicate-vtable patch on the
+   bundle handler at `0x1717fc0`. **`sub_145A85940` is in our
+   binary's wrapper-class neighborhood** (0x145a85940 — between
+   the wrapper methods we've been characterizing).
+
+4. The dump documents wire-format gotchas the project should
+   know:
+   - "NO post-connect extra byte" in carrier messages.
+   - `flags=0x88` does NOT set `MF_SEQUENTIAL_REL_ID`, so relSeq
+     must be written.
+   - Real-server SM_CONNECT_ACK shape (`0x21/relSeq=0`)
+     instant-disconnects on the test path; the test-39 form
+     `0xa0/relSeq=0xffff` is what works.
+   - `0xa3 WorldSpawn` map path must be exactly
+     `"coatlicue/NewWorld_VitaeEterna"`.
+   - `CH1 unit[0]` (~47KB init burst) is mandatory.
+
+**This dump dramatically updates the project picture.** The
+five-questions-for-Frida list mostly evaporates:
+- A2.10 (PlayerManagerRejected handler) — still TBD but lower
+  priority since we now know the success path's wire format.
+- A3.1 (CRC for destroy) — still TBD.
+- A4.3 (FUN_14645c660 message name) — still TBD.
+- A4.2 (wrapper[+0x252] writer) — likely a side-effect of one of
+  the post-Phase-16 spawn messages.
+- Wire formats — **mostly answered by the dump**.
+
+**This data has been in the repo the whole time.** The project's
+own `info/` directory contained the answer, and the static-RE work
+this morning was solving a problem the community had already
+solved at a higher level. That's a humbling but very useful
+realization.
+
+**Immediate next priority** (queue updates):
+
+- C1.4 (NEW): write up the community dump's findings as a proper
+  protocol document (`docs/post-v3-sequence.md` or similar)
+  cross-linking to `state_machine_summary.md` and to the static
+  function addresses we've identified.
+- C1.5 (NEW): cross-reference `sub_145A85940` (their isMasterPlayer
+  blocker) against our wrapper-class characterization. It's in
+  the same address neighborhood as `FUN_145a87010` etc.
+- C2 (PlayerManagerTrait) deferred — much lower priority now that
+  the post-V3 sequence is documented from another angle.
+
+**Blockers:** None for the loop.
