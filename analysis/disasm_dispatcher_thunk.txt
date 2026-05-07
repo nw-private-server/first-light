@@ -1,0 +1,8 @@
+# starting from 146454bf3
+# 3 instructions in window
+
+146454bec  MOVSXD RAX,dword ptr [RCX + -0x4]
+146454bf0  SUB RCX,RAX
+146454bf3  JMP 0x146454c00  <-- TARGET
+
+# end

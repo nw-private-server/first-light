@@ -50,13 +50,25 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
       three wrapper setters (`FUN_145a9fa10/30/80`); see worklog wake 5.
       Wire-format decode (the actual byte layout) still pending — needs
       dispatcher path to find serializer.
-- [ ] **A2.9.** Find the dispatcher / serializer for
-      `PlayerManagerSelfIdentificationMsg`. The DATA xref of `FUN_146454c00`
-      at `0x14abcc15c` is the dispatch-table entry; reading the table
-      structure (entries either side of it, fixed stride) should reveal
-      message ID and total entry layout. Companion `FUN_146454bf3` (the
-      "?" caller just before the function) is likely a thunk wrapping
-      a Javelin-chunk dispatch.
+- [~] **A2.9.** Find the dispatcher / serializer for
+      `PlayerManagerSelfIdentificationMsg`. **PARTIAL 2026-05-07** — the
+      thunk at `0x146454bec..0x146454bf3` is a MSVC virtual-base `this`
+      adjustment thunk (`MOVSXD; SUB; JMP`), NOT a deserializer.
+      Dispatch-table layout at `0x14abcc15c` not fully decoded — values
+      like `0x09cc1c44` look like data-segment RVAs but don't match
+      zlib CRC32 of any candidate message name. See worklog wake 6.
+- [ ] **A2.9b.** Find a different anchor into the deserializer chain.
+      Approaches to try: (a) decompile the OTHER vtable entry where
+      `FUN_145a87010` was referenced (the DATA xref at `0x14ab72930`);
+      (b) look for `Reflect()` methods of `PlayerManagerSelfIdentificationMsg`
+      — Lumberyard's serializer uses the AZ EditContext / SerializeContext
+      reflection registered there; (c) search for the message size /
+      `OnReceived` in the class's static methods.
+- [ ] **A2.9c.** If dispatch decoding stays hard from the binary alone,
+      switch to a runtime approach: write a Frida hook (in
+      `tools/client-hooks/`) that traps `FUN_146454c00` invocation to
+      log the args at runtime. Marked as queued-for-maintainer because
+      it requires the live game client.
 - [ ] **A2.10.** Decompile `PlayerManagerRejectedMsg` handler (sibling
       message). It's the rejection-path counterpart of SelfIdentification
       and is a strong candidate for what fires the destroy loop the
@@ -77,7 +89,18 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
 
 ## Queued for maintainer (blocks on you)
 
-*(empty — populate as the loop runs)*
+- **A2.9c (Frida hook for FUN_146454c00 args).** Static decoding of the
+  Javelin dispatch table entry at `0x14abcc15c` is harder than expected
+  (the wire-format / message-ID column doesn't decode as zlib CRC32 of
+  any candidate name). When you next have the live client running, a
+  Frida hook on `FUN_146454c00 (0x146454c00)` that logs the seven
+  in-args (especially `param_6` and `param_7`) would give us the full
+  byte layout from a single capture session. Roughly 30 lines of Frida
+  in the style of `tools/client-hooks/frida_capture.py`.
+- **`PlayerManagerSelfIdentificationMsg` in fact decoded?** The wire
+  format is not yet known. Until A2.9 / A2.9b lands, the server cannot
+  *send* this message — only know that it should. Don't merge any
+  server-side experiment that pretends to send it.
 
 ## Hard rules (durable for this loop)
 
@@ -478,3 +501,77 @@ DTLS. The serializer/dispatcher path is needed for that. Two leads:
 - A2.10: locate `PlayerManagerRejectedMsg` handler (corroborates A3).
 
 **Blockers:** None. A2.8 marked partial-done; two new tasks queued.
+
+---
+
+### 2026-05-07 — wake 6: A2.9 — dispatch table inspected, layout not decoded
+
+**Did:**
+- Wrote `tools/ghidra_scripts/DumpDataWindow.py` (qword-wise data dump
+  with xref hints) and `tools/ghidra_scripts/DumpInstructionsWindow.py`
+  (walks instruction list around an address since Ghidra hadn't
+  auto-recognized this region as a function).
+- Dumped data around `0x14abcc15c` (the DATA xref of `FUN_146454c00`).
+- Disassembled around `0x146454bf3` (the "?" UNCONDITIONAL_CALL).
+- Tested the CRC32-message-id hypothesis against several candidate
+  strings (zlib CRC32 of e.g. `"PlayerManagerSelfIdentificationMsg"`,
+  case variants, fully-qualified names).
+
+**Found (A2.9 partial):**
+
+1. **The "?" caller at `0x146454bf3` is a MSVC virtual-base thunk**, not
+   a dispatcher:
+   ```
+   146454bec  MOVSXD RAX, dword ptr [RCX + -0x4]
+   146454bf0  SUB RCX, RAX
+   146454bf3  JMP 0x146454c00
+   ```
+   This is a standard `this`-pointer adjustment thunk for virtual
+   inheritance. It implies `FUN_146454c00` is a method of a class with
+   a multi-base layout, and dispatch through one of the bases needs
+   to subtract a vbtable offset before calling.
+
+2. **The dispatch table at `0x14abcc15c` stores 32-bit RVAs**, not
+   full pointers. The 32-bit value at `0x14abcc15c` is `0x06454c00`
+   (= image_base + this = `0x146454c00` = `FUN_146454c00`). The 32-bit
+   value 4 bytes earlier (`0x14abcc158 = 0x09cc1c44`) was suspected to
+   be the message ID, but **CRC32 didn't match** any candidate name:
+   ```
+   PlayerManagerSelfIdentificationMsg               -> 0x1f79112b
+   PlayerManagerSelfIdentification                  -> 0xad1c494e
+   ClientMessagesTrait::PlayerManagerSelfIdent...   -> 0x8abf028d
+   ```
+   None match `0x09cc1c44`. The values at those positions look more
+   like RVAs into the `.rdata` segment (image_base + 0x09cc1c44 =
+   `0x149cc1c44`, which contains binary blob data — could be vtables,
+   reflection metadata, or AZ TypeIds).
+
+3. **Also seen in the table**: `0x06454bec` (the address of the thunk
+   itself) appears at `0x14abcc154`, just before the data RVA at
+   `0x14abcc158` and the handler RVA at `0x14abcc15c`. So adjacent
+   columns appear to be `(thunk_or_alt_handler, data_blob_rva, handler)`
+   — a 12-byte triple? But surrounding rows don't follow that stride
+   cleanly. The layout is more complex than a simple `(id, fn)` table.
+
+**Why progress stalled:** Static decoding of Javelin's dispatch table
+from raw bytes is high-effort because the structure isn't a plain
+flat array. It looks like an AZ-style typed registry (probably with
+TypeId-keyed lookup) rather than a numeric ID table. Resolving it
+fully needs either (a) a deeper class-hierarchy walk in Ghidra, or
+(b) a runtime sample showing what value the dispatcher uses for the
+lookup. Both are doable, but (b) is faster — hence the
+queued-for-maintainer Frida task.
+
+**Pivoting tasks for next iteration:**
+- A2.9b: try the OTHER vtable xref of `FUN_145a87010` (at `0x14ab72930`).
+  That's a separate anchor — if it's a vtable for a registration class,
+  walking its slots may show the deserializer entry alongside the
+  handler.
+- A2.9c (queued for maintainer): Frida hook to log args at the live
+  call site. Single fastest path to wire format if the static path
+  stays dead-end.
+- A2.10 stays high priority — if `PlayerManagerRejectedMsg` is the
+  destroy trigger, finding its handler resolves task A3 simultaneously.
+
+**Blockers:** None for the loop, but one item moved to "Queued for
+maintainer" (A2.9c — Frida runtime hook).
