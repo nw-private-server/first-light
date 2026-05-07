@@ -180,3 +180,133 @@ def test_warnings_accumulate_across_calls():
     ctx.apply(m)
     ctx.apply(m)
     assert len(ctx.warnings) >= before + 2
+
+
+def test_apply_preserves_surrounding_bytes():
+    """A span in the middle of a body must not perturb the bytes before
+    or after it. Guards against off-by-one slicing in `_field_bytes`."""
+    ctx = _ctx()
+    prefix = b"\xaa\xbb\xcc\xdd"
+    suffix = b"\x11\x22\x33\x44\x55"
+    body = prefix + b"\x00" * 16 + suffix
+    m = _msg(body, [(len(prefix), 16)])
+    out = ctx.apply(m)
+    assert out[:len(prefix)] == prefix
+    assert out[len(prefix):len(prefix) + 16] == ctx.persona_uuid_bytes
+    assert out[-len(suffix):] == suffix
+
+
+def test_apply_zero_fills_when_persona_uuid_missing():
+    """Empty persona_id → persona_uuid_bytes is b''. The 16-byte default
+    rule must still produce a length-preserving zero-filled span instead
+    of crashing or shrinking the body."""
+    req = V3RegistrationRequest(persona_id="", session_uuid=_FIXTURE_SESSION_UUID)
+    ctx = SubstitutionContext.from_v3_and_session(req=req, session_token=b"f" * 32)
+    body = bytearray(b"\xff" * 16)
+    m = _msg(bytes(body), [(0, 16)])
+    out = ctx.apply(m)
+    assert out == b"\x00" * 16
+    assert any("persona" in w.lower() for w in ctx.warnings)
+
+
+def test_apply_zero_fills_when_session_uuid_text_missing():
+    """Empty session_uuid → session_uuid_text is "". The 36-byte default
+    rule (session_uuid_text) zero-fills rather than emitting a short body."""
+    req = V3RegistrationRequest(persona_id=_FIXTURE_PERSONA_ID, session_uuid="")
+    ctx = SubstitutionContext.from_v3_and_session(req=req, session_token=b"f" * 32)
+    body = bytearray(b"\xff" * 36)
+    m = _msg(bytes(body), [(0, 36)])
+    out = ctx.apply(m)
+    assert out == b"\x00" * 36
+    assert len(out) == 36
+
+
+def test_apply_partial_fill_on_unknown_span_in_middle():
+    """A body with [known, unknown, known] spans. The unknown one keeps
+    its original bytes (per the "leaving zero-filled" warning path),
+    while the known ones get substituted, and surrounding inter-span
+    bytes are untouched."""
+    ctx = _ctx()
+    persona_span = b"\x00" * 16   # 16 → persona_uuid_bytes
+    weird_span = b"\xde\xad\xbe\xef\x55\x66\x77"  # length 7 — no rule
+    session_span = b"\x00" * 36
+    pad = b"PAD!"
+    body = persona_span + pad + weird_span + pad + session_span
+    spans = [
+        (0, 16),
+        (16 + len(pad), 7),
+        (16 + len(pad) + 7 + len(pad), 36),
+    ]
+    m = _msg(body, spans)
+    out = ctx.apply(m)
+
+    assert out[:16] == ctx.persona_uuid_bytes
+    assert out[16:16 + len(pad)] == pad
+    # Unknown span kept its original bytes (zero-filled per design;
+    # weird_span supplies the source pattern in our test fixture).
+    assert out[16 + len(pad):16 + len(pad) + 7] == weird_span
+    assert out[16 + len(pad) + 7:16 + len(pad) + 7 + len(pad)] == pad
+    assert out[-36:] == ctx.session_uuid_text.encode("ascii")
+    assert any("len=7" in w for w in ctx.warnings)
+
+
+def test_apply_handles_span_at_end_of_body():
+    """Span at the absolute tail of the body — `out[offset:offset+length]`
+    slicing must cover the final bytes inclusive."""
+    ctx = _ctx()
+    prefix = b"HEAD" + b"\xaa" * 10
+    body = prefix + b"\x00" * 16
+    m = _msg(body, [(len(prefix), 16)])
+    out = ctx.apply(m)
+    assert out[:len(prefix)] == prefix
+    assert out[-16:] == ctx.persona_uuid_bytes
+    assert len(out) == len(body)
+
+
+def test_apply_handles_unordered_spans():
+    """SPAN_RULES doesn't promise any ordering; current implementation
+    iterates `redacted_spans` in list order. A capture's parser could
+    in principle emit them out of file-offset order. Verify both spans
+    end up substituted regardless of order."""
+    ctx = _ctx()
+    body = b"\x00" * 16 + b"GAP!" + b"\x00" * 36
+    # Late span first.
+    spans = [(20, 36), (0, 16)]
+    m = _msg(body, spans)
+    out = ctx.apply(m)
+    assert out[:16] == ctx.persona_uuid_bytes
+    assert out[16:20] == b"GAP!"
+    assert out[20:] == ctx.session_uuid_text.encode("ascii")
+
+
+def test_session_token_field_is_addressable():
+    """`session_token` is in `_field_bytes` for forward-compat. Confirm
+    that if SPAN_RULES routes a span to it, the bytes flow through.
+    Emulated by calling _field_bytes directly (the dispatch path)."""
+    token = b"\xab" * 32
+    ctx = _ctx(session_token=token)
+    out = ctx._field_bytes("session_token", 32)
+    assert out == token
+    # And the _fit fallback handles a wrong-length request.
+    assert ctx._fit(out, 16) == token[:16]
+    assert ctx._fit(out, 40) == token + b"\x00" * 8
+
+
+def test_unknown_field_name_in_span_rules_zero_fills():
+    """If a (seq, length) override in SPAN_RULES points at a field name
+    not handled by `_field_bytes`, the fallback is zero-fill — not a
+    KeyError. Exercises the trailing `return b"\\x00" * length` branch."""
+    ctx = _ctx()
+    # Direct call exercises the dispatch tail.
+    out = ctx._field_bytes("not_a_real_field", 5)
+    assert out == b"\x00" * 5
+
+
+def test_apply_no_redaction_returns_same_object():
+    """Optimization invariant: a clean message (`has_redaction=False`)
+    short-circuits and returns the original body without copying."""
+    ctx = _ctx()
+    body = b"clean payload"
+    m = _msg(body, [])
+    out = ctx.apply(m)
+    assert out is m.body  # same object, not just equal
