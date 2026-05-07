@@ -125,9 +125,15 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
       **PARTIAL 2026-05-07** — 3 imm=1 hits but all in unrelated
       classes (UI, Wwise audio, JSON). Real wrapper writer must use
       a non-immediate store pattern. Different scan approach needed.
-- [ ] **A4.3.** Identify which `ClientMessagesTrait` message is
-      handled by `FUN_14645c660` (the spawn-point-ready trigger).
-      Same approach as A2.6.
+- [~] **A4.3.** Identify which message is handled by `FUN_14645c660`.
+      **PARTIAL 2026-05-07** — message catalog is much bigger than
+      `ClientMessagesTrait` (3482 `InstallRegistrationHook<T>` types),
+      and the handler RVA has only one reference (the dispatch entry
+      itself), so no static Register-by-name site exists. Strong
+      candidates by name: `OnHubConnectionChangedMsg@PlayerManagerTrait`,
+      `ActorInitializedMessage@Hub`, `OnPlayerActorStatusChangedMsg`.
+      Static identification impractical; Frida hook (already queued
+      for maintainer) resolves it cleanly. See worklog wake 13.
 - [~] **A2.11.** Map xrefs to `FUN_141721c20` to find siblings of
       SelfIdentification. **DEFERRED 2026-05-07** — 99 callers in the
       binary, no obvious filter pattern that would surface
@@ -1078,3 +1084,92 @@ immediate-store assumption doesn't always hold.
   wrapper's `+0x252` field.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 13: A4.3 partial — dispatch is table-driven, runtime needed
+
+**Did:**
+- Got DATA xrefs for both known message handlers in the dispatch
+  table: LevelInfoChanged at `0x14abcbb74`, SelfIdent at
+  `0x14abcc15c`. Compared to state-12 trigger at `0x14abcc45c`.
+- Dumped windows around all three to infer table layout.
+- Searched the binary for the literal RVA `0x0645c660`
+  (= `FUN_14645c660`) to find any register-by-pointer site.
+- Searched the full binary for `InstallRegistrationHook<T>` mangled
+  type names to enumerate the message catalog.
+
+**Found (A4.3 — partial):**
+
+1. **Dispatch table layout** is consistent across rows: 16-byte
+   stride with columns `(thunk_a, thunk_b, metadata_rva, handler_rva)`.
+   For SelfIdent and LevelInfoChanged the metadata column points
+   into the `0x149cc xxxx` region (`.rdata` AZ-RTTI metadata).
+   For state-12 trigger the metadata column is `0x0977d3f0`,
+   pointing into a *different* `.rdata` segment (`0x140977 xxxx`),
+   suggesting a different message-type category in the same table.
+
+2. **The handler RVA `0x0645c660` has exactly one reference** — the
+   dispatch table entry itself. So there's no `Register("Name",
+   handler)` style registration site discoverable from static
+   analysis. The dispatch is purely table-driven (probably built
+   at compile time from the `InstallRegistrationHook<T>` template
+   instantiations).
+
+3. **The full message catalog is enormous.** A `FindStringXrefs` for
+   `"InstallRegistrationHook"` matched **3482** mangled type names.
+   Beyond `ClientMessagesTrait` (5 messages) there are at least:
+   - `PlayerManagerTrait` — 28 messages (BanPlayer, KickAllPlayers,
+     OnHubConnectionChanged, OnPlayerActorStatusChanged,
+     OnPublishedCharacterMetadata, ProcessSpawnQueue,
+     ReceiveCharacterMetadata, etc.)
+   - `Hub*` — 20+ messages (ActorInitializedMessage,
+     ActorStatusNotificationMessage, etc.)
+   - `HubLifecyclePeeringTrait`, `HubEndpointSharingTrait`,
+     `HubLifecycleStateListenerTrait`, etc.
+   - `ActorMover`, `ServerContext`, `EbusMessage`, hundreds of
+     component-facet messages in `ClientMessages`.
+
+4. **Strong candidates by semantic name** for what the state-12
+   trigger message could be:
+   - `ActorInitializedMessage@Hub` — fits "actor game connection
+     established" semantics of state 11 → 12.
+   - `OnHubConnectionChangedMsg@PlayerManagerTrait` — same general
+     fit.
+   - `OnPlayerActorStatusChangedMsg@PlayerManagerTrait`.
+   These can't be confirmed without identifying the
+   metadata-column entry at `0x140977d3f0` or via runtime capture.
+
+**Conclusion:** Static A4.3 hits the same wall as A3.1 and A2.10 — the
+binary's release-build configuration has stripped enough metadata
+that name-level identification of arbitrary handlers from a
+table-only registration is impractical. The Frida hook on
+`FUN_14645c660` (or the dispatcher itself) would log the message
+name + body in a single live capture session. Same hook setup as
+the A2.9c task already queued for the maintainer.
+
+**Project picture stable:** even without the message name, the
+*existence* of a third post-V3 trigger is established. The
+maintainer now knows to:
+- Send `PlayerManagerSelfIdentificationMsg` (state 10→11).
+- Send *some* message handled by `FUN_14645c660` (state 11→12; one
+  of the candidates above).
+- Send `LevelInfoChangedMsg` (state 12→13).
+- Send *something* that flips `wrapper[+0x252]` (state 13→14, A4.2
+  follow-up).
+
+**Next** (queue rotates):
+- A2.7: scan the observer table that `FUN_145a87010` walks for
+  sibling lifecycle handlers — may surface other client-side
+  events worth knowing about.
+- A4.2 follow-up: register-based-store scan for `wrapper[+0x252]`
+  (probably extending FindOffsetWrites with a "MOV-then-MOV"
+  detector).
+- B1 (server experiment) is still gated behind wire-format
+  decoding which is gated behind the Frida hook.
+
+**Blockers:** None for the loop. Three tasks (A2.10, A3.1, A4.3)
+all converge on the same maintainer-queued action: a Frida hook on
+`FUN_146454c00` *and* `FUN_14645c660` *and* `FUN_140fb3560` to
+capture message names and event ids at runtime. Logging a few
+messages from a live session would resolve all three at once.
