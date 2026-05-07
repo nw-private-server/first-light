@@ -1,0 +1,87 @@
+# string xref hunt: u'Rejected'
+
+found 21 defined-string hits
+
+## string at 1480022a8: 'Rejected'
+  1 references
+    DATA from 148000d20 in ? @ ?
+
+## string at 14802a3c0: 'AOI.MigrationRejected'
+  1 references
+    DATA from 149e8fc98 in ? @ ?
+
+## string at 1481ca2e8: 'Hud.LocalPlayer.GenericInvite.RejectedCharacters'
+  1 references
+    READ from 1433b87d2 in FUN_1433b7920 @ 1433b7920
+
+## string at 1481ca320: 'Hud.LocalPlayer.GenericInvite.RejectedCharacter.%zd'
+  1 references
+    DATA from 1433b8649 in FUN_1433b7920 @ 1433b7920
+
+## string at 1481d1ba8: 'GroupsComponentClientFacet_OnGroupFinderApplicationRejected'
+  1 references
+    DATA from 1433ff1a0 in ? @ ?
+
+## string at 1481de180: 'GuildsComponentClientFacet_OnSentGuildInviteRejectedMsg'
+  1 references
+    DATA from 14346ef80 in ? @ ?
+
+## string at 1482d5d58: 'SocialComponentClientFacet_OnFriendInviteRejected'
+  1 references
+    DATA from 143eab130 in ? @ ?
+
+## string at 14831f500: 'Hud.LocalPlayer.GroupFinder.ApplicationRejected'
+  1 references
+    READ from 14421b686 in FUN_14421a380 @ 14421a380
+
+## string at 1483b1f98: 'OnFriendInviteRejected'
+  2 references
+    DATA from 144dd2e72 in FUN_144dd29d0 @ 144dd29d0
+    DATA from 144f153ba in FUN_144f15320 @ 144f15320
+
+## string at 1483b2858: 'OnGuildInviteRejected'
+  2 references
+    DATA from 144dcfd8c in FUN_144dcf990 @ 144dcf990
+    DATA from 144f14c82 in FUN_144f14c60 @ 144f14c60
+
+## string at 1483b8500: 'eGroupFinderApplicationState_Rejected'
+  1 references
+    DATA from 144f4969f in FUN_144f40780 @ 144f40780
+
+## string at 1483b9298: 'eGroupsInviteRemovedReason_Rejected'
+  1 references
+    DATA from 144f4b22e in FUN_144f40780 @ 144f40780
+
+## string at 1483b92c0: 'eGroupsInviteRemovedReason_RejectedStreamerModeBlock'
+  1 references
+    DATA from 144f4b23d in FUN_144f40780 @ 144f40780
+
+## string at 148581c00: 'GridLoadRejected'
+  1 references
+    DATA from 1485735d8 in ? @ ?
+
+## string at 148724ac8: 'IDPRejectedClaim'
+  1 references
+    DATA from 14028dbf4 in FUN_14028dbf0 @ 14028dbf0
+
+## string at 149576e88: '%*sRejected Uses:\n%*s'
+  1 references
+    DATA from 1477d97ce in FUN_1477d9670 @ 1477d9670
+
+## string at 149576ea0: '%*sNo Rejected Uses.\n'
+  1 references
+    DATA from 1477d9856 in FUN_1477d9670 @ 1477d9670
+
+## string at 14a153db0: '.?AV<lambda_1>@?1???$InstallRegistrationHook@VPlayerManagerRejectedMsg@ClientMessagesTrait@Javelin@@@Hub@Amazon@@YA_NXZ@'
+  0 references
+
+## string at 14a1b7820: '.?AV<lambda_1>@?1???$InstallRegistrationHook@VGroupsComponentClientFacet_OnGroupFinderApplicationRejected@ClientMessages'
+  0 references
+
+## string at 14a1be470: '.?AV<lambda_1>@?1???$InstallRegistrationHook@VGuildsComponentClientFacet_OnSentGuildInviteRejectedMsg@ClientMessages@Jav'
+  0 references
+
+## string at 14a1f6430: '.?AV<lambda_1>@?1???$InstallRegistrationHook@VSocialComponentClientFacet_OnFriendInviteRejected@ClientMessages@Javelin@@'
+  0 references
+
+# end

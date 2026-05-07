@@ -69,12 +69,21 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
       `tools/client-hooks/`) that traps `FUN_146454c00` invocation to
       log the args at runtime. Marked as queued-for-maintainer because
       it requires the live game client.
-- [ ] **A2.10.** Decompile `PlayerManagerRejectedMsg` handler (sibling
-      message). It's the rejection-path counterpart of SelfIdentification
-      and is a strong candidate for what fires the destroy loop the
-      maintainer is also chasing in A3. Approach: same as A2.6 — find
-      `"PlayerManagerRejected"` literal in the binary, decompile its
-      handler, see if it writes `[R13+0xfd]`.
+- [~] **A2.10.** Decompile `PlayerManagerRejectedMsg` handler.
+      **PARTIAL 2026-05-07** — handler not yet found. The literal
+      `"PlayerManagerRejected"` does not appear as a log string anywhere,
+      and the 9 handlers logging on `"GameMessagePort"` don't include it.
+      Mapped the full GameMessagePort handler set instead (see wake 7).
+      Next: search xrefs of `FUN_141721c20` (the trace logger used by
+      SelfIdentification) for siblings, and check other log channels
+      ("Javelin", "ClientHub", etc.).
+- [ ] **A2.11.** Map xrefs to `FUN_141721c20` to find siblings of
+      SelfIdentification logged on the same trace channel. The Rejected
+      handler may live there.
+- [ ] **A2.12.** Decompile `FUN_146448cd0` ("LoadContextAndLevel failed -
+      no self identification"). This function complains when self-id is
+      missing and likely runs in the same tick that watches the destroy
+      flag — could resolve A3 as a side-effect.
 - [ ] **A3.** Decompile `FUN_146b3c250 + 0x58f` — find what writes
       `[R13+0xfd]` (the byte that triggers the destroy loop, per
       `docs/next-session.md`).
@@ -575,3 +584,69 @@ queued-for-maintainer Frida task.
 
 **Blockers:** None for the loop, but one item moved to "Queued for
 maintainer" (A2.9c — Frida runtime hook).
+
+---
+
+### 2026-05-07 — wake 7: A2.10 — full GameMessagePort handler set mapped
+
+**Did:**
+- Searched for `"PlayerManagerRejected"` literal — only the RTTI mangled
+  string matched; no plain log line. Searched for `"Rejected"` broadly:
+  21 hits, none in `Javelin::ClientMessagesTrait` namespace.
+- Probed adjacent code RVAs in the dispatch table around `FUN_146454c00`
+  (`FUN_146455680`, `FUN_146455820`) thinking they might be sibling
+  handlers; they're not — one is a thread-task-queue flush, the other
+  is a render-math helper.
+- Pivoted: searched for `"GameMessagePort"` literal xrefs to enumerate
+  the entire set of handlers logging on that channel.
+
+**Found (A2.10 partial):** Nine functions reference `"GameMessagePort"`
+as a log argument:
+
+| Address | First identifying string | Role |
+|---|---|---|
+| `FUN_146454c00` | `"PlayerManagerSelfIdentification"` | ✅ KNOWN — success handler |
+| **`FUN_146446800`** | `"LevelInfoChanged"` | **NEW** — sibling trait message handler |
+| **`FUN_146448cd0`** | `"LoadContextAndLevel failed - no self identification"` | **NEW** — failure-detect helper |
+| `FUN_14644b280` | `"Switch coming from clientContextInstanceId..."` | Context switch |
+| `FUN_14644d960` | `"Attempted to reset region interest..."` | Region/Coatlicue util |
+| `FUN_146463540` | `"Reset"` | Some reset handler |
+| `FUN_14643e7b0` | `"MayHandleReplicationUnreliable() returning false..."` | Replication check |
+| `FUN_146455e90` | `"ProcessPendingReliableMsgQueue processing %zu..."` | Reliable-msg queue |
+| `FUN_14103d820` | `"Attempted to reset region interest..."` | Region/Coatlicue util |
+
+**Implications:**
+
+1. **`LevelInfoChangedMsg` handler is `FUN_146446800`** — confirms one of
+   the five `ClientMessagesTrait` siblings inferred from RTTI. The
+   project now has handler addresses for two of the five.
+
+2. **`PlayerManagerRejectedMsg` handler is NOT in this set.** Possible
+   reasons: (a) it logs on a different channel ("Javelin",
+   "ClientFlow", etc.), (b) it doesn't log at all, (c) the trace logger
+   used (`FUN_141721c20`) is different from the GameMessagePort log
+   functions and the Rejected handler uses only the trace path.
+
+3. **`FUN_146448cd0` is a high-value lead for A3 (destroy trigger).**
+   Its log line `"LoadContextAndLevel failed - no self identification"`
+   says "I'm checking if self-id happened, and it didn't." That's
+   exactly the polled-each-tick check that would write the destroy
+   flag at `[R13+0xfd]`. Strong candidate for A3 resolution.
+
+**Why static-only RE on the Rejected handler is hard:** the trait
+template `InstallRegistrationHook<T>` instantiates a lambda per-message,
+and lambdas are anonymous functions Ghidra labels as `FUN_*`. Without
+a unique log string or RTTI cross-link, distinguishing Rejected from
+the other ClientMessagesTrait handlers requires walking the dispatch
+table — which we already established is tricky to decode statically.
+
+**Next** (queued):
+- A2.11: enumerate xrefs to `FUN_141721c20` (the specific trace logger
+  used by SelfIdent) and look at the second argument string of each
+  call site. Sibling handlers using the same trace channel will surface
+  there.
+- A2.12: decompile `FUN_146448cd0` — likely resolves A3 (destroy
+  trigger) by showing what flag is set on the "no self identification"
+  failure path.
+
+**Blockers:** None.
