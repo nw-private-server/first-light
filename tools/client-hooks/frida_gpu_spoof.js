@@ -1,32 +1,39 @@
 // frida_gpu_spoof.js
 //
-// Bypass NewWorld's "Unsupported video card detected" abort path so the
-// game can proceed past GPU validation in a VM environment where DXGI
-// returns VendorId = DeviceId = 0 (e.g. UTM virtio-gpu on Apple Silicon).
+// Bypass NewWorld's GPU-validation abort path so the game can proceed
+// past adapter detection in a VM environment where DXGI returns
+// VendorId = DeviceId = 0 (e.g. UTM virtio-gpu on Apple Silicon).
 //
-// The relevant code is in NewWorld.exe FUN_147143960 (binary downloaded
-// 2026-05-06). At RVA ~0x147143d2b it calls:
+// The relevant code is in NewWorld.exe FUN_147143960 (RVA 0x7143960
+// from image base 0x140000000; binary downloaded 2026-05-06). It:
 //
-//   iVar3 = MessageBoxW((HWND)0x0, pwVar13, L"AZoth", 0x20131);
-//   if (iVar3 == 2) {
-//       // "User chose to cancel startup due to unsupported GPU."
-//       return 0;            // <- caller treats this as fatal
-//   }
+//   1. Gathers GPU info via FUN_1470b99f0
+//   2. If feature level < 6, shows MessageBoxW(AZoth, 0x20131)
+//      asking user to continue or cancel — if cancel, returns 0
+//   3. Initializes the chosen Render Module (D3D11 or D3D12) via
+//      a vtable call (param_1[0x4b8]) — if init fails, returns 0
+//   4. Returns 1 on full success
 //
-// 0x20131 = MB_OKCANCEL | MB_ICONWARNING | MB_DEFBUTTON2 | MB_SYSTEMMODAL.
-// MB_DEFBUTTON2 makes Cancel the default, so an auto-dismissed dialog
-// (no human at the keyboard) lands on IDCANCEL = 2 and the game self-
-// terminates.
+// The CALLER treats a 0 return as fatal and TerminateProcess()es.
 //
-// This hook intercepts MessageBoxW and forces the return value to
-// IDOK = 1 whenever the caption is the literal "AZoth", which the game
-// uses for its own pop-ups. The branch following IDOK falls through to
-// "User chose to continue despite unsupported GPU!" and the rest of
-// startup proceeds.
+// Two hooks here, layered:
+//
+// (a) MessageBoxW interceptor — forces IDOK on any AZoth-captioned
+//     dialog. In testing on Frida 17, the dialog was already auto-
+//     dismissing as IDOK so this is mostly defensive.
+//
+// (b) FUN_147143960 onLeave override — forces retval = 1 even when
+//     render-module init fails. The game's renderer won't actually
+//     work, but we don't need rendering for network init; networking
+//     runs on its own thread and reaches V3 RegistrationRequest
+//     independently of the render path. Keeping the process alive
+//     past validateGpu() is enough.
 //
 // Loaded via tools/client-hooks/frida_capture.py --gpu-spoof. The host
 // listens for `send({type:"log",...})` messages — console.log is not
 // wired up, so this script uses send() everywhere.
+
+const RVA_VALIDATE_GPU = 0x7143960;
 
 (function () {
     function emit(text) {
@@ -120,5 +127,56 @@
         },
     });
 
-    emit("[gpu_spoof] hook installed");
+    emit("[gpu_spoof] MessageBoxW hook installed");
+
+    // (b) Hook FUN_147143960 (validateGpu) and force its retval to 1
+    //     even when D3D11 init fails. This keeps the process alive
+    //     past the GPU gate so network init can proceed.
+    try {
+        const mainModule = Process.getModuleByName("NewWorld.exe");
+        if (!mainModule) {
+            emit("[gpu_spoof] could not get NewWorld.exe module; FUN_147143960 hook skipped");
+            return;
+        }
+        const validateGpuAddr = mainModule.base.add(RVA_VALIDATE_GPU);
+        emit(
+            "[gpu_spoof] hooking FUN_147143960 @ " +
+                validateGpuAddr +
+                " (base=" +
+                mainModule.base +
+                " + 0x" +
+                RVA_VALIDATE_GPU.toString(16) +
+                ")"
+        );
+
+        let validateCalls = 0;
+        let validateForced = 0;
+        Interceptor.attach(validateGpuAddr, {
+            onEnter: function (_args) {
+                validateCalls += 1;
+                emit("[gpu_spoof] FUN_147143960 entered (call #" + validateCalls + ")");
+            },
+            onLeave: function (retval) {
+                const orig = retval.toInt32();
+                if (orig !== 1) {
+                    validateForced += 1;
+                    retval.replace(ptr(1));
+                    emit(
+                        "[gpu_spoof] FUN_147143960 retval " +
+                            orig +
+                            " -> 1 (forced; calls=" +
+                            validateCalls +
+                            " forced=" +
+                            validateForced +
+                            ")"
+                    );
+                } else {
+                    emit("[gpu_spoof] FUN_147143960 returned 1 naturally");
+                }
+            },
+        });
+        emit("[gpu_spoof] FUN_147143960 hook installed");
+    } catch (e) {
+        emit("[gpu_spoof] FUN_147143960 hook setup threw: " + e);
+    }
 })();
