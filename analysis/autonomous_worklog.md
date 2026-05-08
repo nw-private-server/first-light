@@ -3117,3 +3117,39 @@ explicit pre-condition.
 - Or pause until the maintainer's experiment results.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 35: verification commands surfaced in protocol-overview
+
+**Did:**
+- Added a "Local verification" section to
+  `docs/protocol-overview.md` between "Open questions" and
+  "File index". Documents the pytest + loopback commands with
+  strict timeouts, what coverage they provide, and what they
+  explicitly DON'T cover (client-side / in-world state).
+
+**Why:**
+
+After standing up the verification environment in wake 34, the
+commands lived only in the worklog narrative. Surfacing them in
+the maintainer-facing overview means anyone landing on the
+project sees the regression bar (84 tests, 0.3s) at the same
+place they read the open-questions list.
+
+**Pause state:**
+
+VM-setup-for-Windows work is on hold pending explicit user OK
+to install UTM. The user said "Slow iteration is fine as long
+as it's constant" — so the loop continues on its 240s cadence
+with polish work, but anything requiring software installation
+on the host machine waits for explicit go.
+
+**Next** (queue):
+- Could write a short doc on the Phase 1–6 VM setup plan as a
+  "ready-to-go when authorized" deliverable so the maintainer
+  has the steps documented when they choose to proceed.
+- Or continue polish work on existing docs.
+
+**Blockers:** Unilateral software installation paused awaiting
+maintainer OK on UTM.

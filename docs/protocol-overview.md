@@ -191,6 +191,41 @@ Two leading hypotheses, in order of cheapness to test:
 - **`PlayerManagerRejectedMsg` handler address.** Not found
   statically; would inform server-side rejection-path testing.
 
+## Local verification
+
+Server-side correctness is verifiable locally without a live game
+client. Commands run with strict per-test timeouts so they never hang.
+
+```bash
+# One-time setup (Python 3.11 or 3.12; python3-dtls is broken on 3.13+)
+python3.12 -m venv .venv
+.venv/bin/pip install -q pytest pytest-timeout pyOpenSSL
+
+# Unit suite — 84 tests, ~0.3s. Pre-condition for any patch.
+.venv/bin/pytest --timeout=30 --ignore=server/test_client.py
+
+# In-process loopback — full SM_CONNECT_REQUEST → SM_CONNECT_ACK
+# round-trip without DTLS. Verifies parser + marshaler + handler.
+timeout 30 .venv/bin/python -m server.test_loopback
+```
+
+Coverage: parser/marshaler round-trips, replay-substitution span
+rules, captured-message validation, chunk reassembly, VLQ32 codec.
+
+`server/test_client.py` is a manual integration script (requires
+`python3-dtls`, does a real DTLS handshake to a running stub
+server). Excluded from the unit suite because it `sys.exit(1)`s on
+import when the optional dep is missing — run it standalone when
+you have the dep installed.
+
+**What this doesn't cover:** anything client-side. Confirming "the
+client accepted our V3 response" or "state advanced past 10"
+requires a live New World client connecting to the stub server —
+which needs a Windows host and the non-EAC archived build (per
+`tools/client-hooks/README.md`). EAC blocks runtime instrumentation
+on the live Steam build. Static-RE + the unit suite is the bound
+on what's verifiable from a non-Windows / non-archive environment.
+
 ## File index
 
 ### Maintainer-facing protocol docs
