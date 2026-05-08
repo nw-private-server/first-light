@@ -3613,3 +3613,95 @@ Phase F, the doc covers shared-folder vs external-drive
 options. Phase G is now one command away once F is done.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 44: SSH access into VM established; Phase F approach pivots to run-direct-from-share
+
+**Did:**
+
+- Maintainer enabled OpenSSH server in the VM, added our public
+  key to `C:\ProgramData\ssh\administrators_authorized_keys`
+  (Windows-OpenSSH-specific override required for admin accounts),
+  and shared user/IP. SSH from the Mac to the VM now works
+  end-to-end with PowerShell-via-stdin scripting.
+- Cloned `first-light` into `C:\first-light` on branch
+  `claude/vacation-2026-05-06`. Repo now lives in the VM with
+  all 51+ commits ready for Phase G/H tooling.
+- Probed shared-folder mount, dependency installs, and disk space.
+
+**Found:**
+
+1. **The shared folder shows up as `Z:\`, not `\\Mac\Home\...`.**
+   UTM uses SPICE WebDAV (`\\localhost@9843\DavWWWRoot`) which
+   gets auto-mapped to drive `Z:`. The `\\Mac\Home\` path the
+   docs cited is Parallels/VMware terminology and doesn't apply.
+   `Z:\Bin64\NewWorld.exe`, `Z:\assets\`, etc. are all directly
+   readable from the VM.
+
+2. **Disk-space constraint blocks the planned full robocopy.**
+   The 100 GB VM has only ~69 GB free after Windows install +
+   dependencies; the game directory is ~71 GB (assets/ alone is
+   70.85 GB). The full copy from the Phase F doc would have
+   failed with "disk full" partway through.
+
+3. **Subdirectory sizes:**
+   - `assets/`: 70.85 GB
+   - `Bin64/`: 268 MB
+   - `_CommonRedist/`: 136 MB
+   - `EasyAntiCheat/`: 35 MB
+   - root files (engine.json, bootstrap.cfg, etc.): tiny
+
+4. **VM environment:**
+   - Python 3.11.9 ✓ (x64)
+   - Frida 17.9.6 ✓
+   - Git 2.54.0.windows.1 ✓
+   - Steam process running ✓
+   - SPICE WebDAV daemon running ✓
+   - UTM Guest Tools mounted but not installed — not blocking
+     anything since the share already works via spice-webdavd
+
+**Action — `vm_setup_steps.md` rewritten for Phase F:**
+
+Three options documented, ordered by friction:
+
+- **F-0 (recommended first try)**: run NewWorld directly from
+  `Z:\Bin64\NewWorld.exe` via Frida — zero copy, zero disk used.
+  Risk: SPICE WebDAV is slow for asset PAK reads.
+- **F-1 (full copy)**: documented but flagged "won't fit on a
+  100 GB VM."
+- **F-2 (hybrid)**: copy `Bin64/`, `EasyAntiCheat/`,
+  `_CommonRedist/`, root files locally (~430 MB), then
+  `mklink /D C:\NewWorldArchive\assets Z:\assets`. Fallback if
+  F-0 fails because Steam objects to non-local game dir.
+- **F-3 (external drive)**: kept but renumbered.
+
+Phase H example command updated to default to the F-0 path.
+
+**Why this matters:**
+
+1. The VM is now remotely drivable. Future loop iterations can
+   execute `frida_capture.py` and read `capture/<timestamp>/`
+   results without the maintainer at the keyboard.
+2. Phase F goes from "30–60 min wait" to "0 min" — direct from
+   share is the new fast path.
+3. Disk-full failure caught before the copy ran.
+
+**Next** (queue, in priority order):
+
+1. Phase G client-side: `python tools\setup_hosts.py` in the VM
+   to redirect Amazon hostnames to 192.168.64.1.
+2. Phase G host-side: `tools/serve_for_vm.sh` on the Mac. This
+   is sudo + foreground, so it likely needs an explicit
+   maintainer ack or a backgroundable variant.
+3. Phase H smoke test: `frida_capture.py --exe Z:\Bin64\NewWorld.exe`
+   with the SelfIdent diagnostic hook. Read results back.
+4. Resolve V3-retry hypothesis tree from the captured trace.
+
+**Blockers:**
+
+`tools/serve_for_vm.sh` runs auth_mock with sudo (port 443) —
+not autonomously startable. Maintainer needs to launch the
+host-side servers OR auth_mock could move to a non-privileged
+port with the VM's hosts file doing redirection. Latter is a
+small follow-up if the simple path is too friction-heavy.

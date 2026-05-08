@@ -84,26 +84,77 @@ Inside Windows:
 
 ## Phase F: Bring the project + game directory into the VM
 
-Two options:
+### Where the shared folder shows up
 
-### Option F-1: Shared folder (recommended)
+UTM's SPICE WebDAV agent mounts a configured shared directory as
+**Z:\\** in Windows (specifically `\\localhost@9843\DavWWWRoot`,
+mapped automatically). It does **not** appear under `\\Mac\Home\...`
+— that path comes from Parallels/VMware Fusion documentation and
+does not apply to UTM.
 
-If you set up a shared directory in Phase C step 5, the game
-directory at `~/SteamLibrary/NewWorld/` shows up under
-`\\Mac\Home\SteamLibrary\NewWorld\` in Windows. Copy it locally:
+So with Phase C step 5 pointing at `~/SteamLibrary/NewWorld/`, the
+game directory contents show up at `Z:\Bin64\`, `Z:\assets\`, etc.
+
+Verify before continuing:
 
 ```powershell
-robocopy "\\Mac\Home\SteamLibrary\NewWorld" "C:\NewWorldArchive" /E /MT:8
+Test-Path Z:\Bin64\NewWorld.exe
+# True
 ```
 
-`/MT:8` runs 8 threads in parallel. ~71 GB transfer over UTM's
-shared-folder layer is slow (USB-2 speeds, plan for 30–60 min).
+### Option F-0: Run directly from Z: (recommended first attempt)
 
-### Option F-2: External drive
+Skip the copy entirely. Phase H's `frida_capture.py` accepts an
+`--exe` flag pointing at any path, including the share:
 
-Faster if you have a USB 3+ drive. Copy `~/SteamLibrary/NewWorld/`
-onto the drive on the Mac, mount it in the VM, copy to
-`C:\NewWorldArchive\`. ~10 min.
+```powershell
+python tools\client-hooks\frida_capture.py --exe "Z:\Bin64\NewWorld.exe"
+```
+
+**Pros:** zero disk usage, instant, no transfer wait.
+**Cons:** SPICE WebDAV is slow for asset PAK reads — the game may
+take longer to reach login screen. Steam may also dislike a
+non-local game directory for appid validation; if so, fall back to
+F-2.
+
+For initial smoke testing (does the game launch under Frida at all?
+do hooks attach?), Option F-0 is the lowest-friction starting point.
+
+### Option F-1: Local copy (if Z: direct fails)
+
+```powershell
+robocopy "Z:\" "C:\NewWorldArchive" /E /MT:8
+```
+
+⚠️ **Disk space**: a fresh 100 GB Windows VM has ~69 GB free after
+install, but the game directory is ~71 GB. The full copy will
+fail with disk-full. See Option F-2.
+
+### Option F-2: Hybrid (local Bin64, symlink assets to Z:)
+
+Most assets are static and read-only — the game just reads them.
+Copy `Bin64/` and small support files locally (Steam likes that),
+but symlink `assets/` (~70 GB) back to the share:
+
+```powershell
+# Copy small dirs / root files locally
+robocopy "Z:\Bin64"        "C:\NewWorldArchive\Bin64"        /E /MT:8
+robocopy "Z:\EasyAntiCheat" "C:\NewWorldArchive\EasyAntiCheat" /E /MT:8
+robocopy "Z:\_CommonRedist" "C:\NewWorldArchive\_CommonRedist" /E /MT:8
+robocopy "Z:\" "C:\NewWorldArchive\" /XD assets Bin64 EasyAntiCheat _CommonRedist /COPYALL
+
+# Directory symlink for the giant assets tree (Administrator PowerShell)
+cmd /c mklink /D C:\NewWorldArchive\assets Z:\assets
+```
+
+Total local disk used: ~430 MB instead of 71 GB.
+
+### Option F-3: External drive
+
+Faster if you have a USB 3+ drive AND enough VM disk. Copy
+`~/SteamLibrary/NewWorld/` onto the drive on the Mac, mount it in
+the VM, copy to `C:\NewWorldArchive\`. ~10 min. Same disk-space
+caveat as F-1.
 
 ### Project repo
 
@@ -200,9 +251,14 @@ Once networking is wired:
 # Make sure Steam is running + logged in (Phase E step 1)
 # Then launch NewWorld via Frida:
 cd C:\first-light
+# Option F-0 (run direct from share):
 python tools\client-hooks\frida_capture.py `
-  --exe "C:\NewWorldArchive\Bin64\NewWorld.exe" `
+  --exe "Z:\Bin64\NewWorld.exe" `
   --name vm_test
+# Or, if you went with Option F-1 / F-2:
+# python tools\client-hooks\frida_capture.py `
+#   --exe "C:\NewWorldArchive\Bin64\NewWorld.exe" `
+#   --name vm_test
 ```
 
 If you ALSO want the SelfIdent diagnostic hook (worth running first
