@@ -222,5 +222,54 @@
     tryHook("ucrtbase.dll", "exit", 1);
     tryHook("vcruntime140.dll", "_CxxThrowException", 2);
 
+    // Entry-time hook on FUN_1410d1120 (the function that crashes
+    // ~332ms after FUN_147143960 returns; wake 47 root-cause). Captures
+    // a backtrace at every call so we can identify the calling
+    // subsystem before the crash strikes.
+    try {
+        const main = Process.getModuleByName("NewWorld.exe");
+        if (main) {
+            const RVA_CRASH_FN = 0x10d1120;
+            const crashFnAddr = main.base.add(RVA_CRASH_FN);
+            let calls = 0;
+            Interceptor.attach(crashFnAddr, {
+                onEnter: function (args) {
+                    calls += 1;
+                    // Sample first 4 entries so we don't flood; the crash
+                    // happens on the nth call where n is small.
+                    if (calls <= 4 || calls % 100 === 0) {
+                        emit(
+                            "[exit_trap] FUN_1410d1120 entered (call #" +
+                                calls +
+                                " tid=" +
+                                this.threadId +
+                                ")"
+                        );
+                        emit(
+                            "[exit_trap]   args: arg0=" +
+                                args[0] +
+                                " arg1=" +
+                                args[1] +
+                                " arg2=" +
+                                args[2]
+                        );
+                        backtrace(this.context, "FUN_1410d1120 entry call#" + calls);
+                    }
+                },
+            });
+            emit(
+                "[exit_trap] hooked FUN_1410d1120 (crash site) @ " +
+                    crashFnAddr +
+                    " (base=" +
+                    main.base +
+                    " + 0x" +
+                    RVA_CRASH_FN.toString(16) +
+                    ")"
+            );
+        }
+    } catch (e) {
+        emit("[exit_trap] FUN_1410d1120 entry hook threw: " + e);
+    }
+
     emit("[exit_trap] all hooks installed");
 })();
