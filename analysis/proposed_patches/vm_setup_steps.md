@@ -150,20 +150,31 @@ ipconfig | Select-String "Default Gateway"
 
 ### Run the servers on the Mac
 
+**One-shot launcher** (recommended) — auto-detects the VM-side
+IP, runs both servers, Ctrl-C stops both:
+
+```bash
+tools/serve_for_vm.sh
+# It will sudo-prompt once for auth_mock's port 443 binding.
+```
+
+**Or manually in two terminals** if you prefer separate logs
+visible per server:
+
 ```bash
 # Terminal 1: HTTPS auth mock with rep address pointing at the Mac
-sudo python -m server.auth_mock \
+sudo .venv/bin/python -m server.auth_mock \
   --port 443 \
-  --rep-host MAC_IP_FROM_VM \
+  --rep-host "$(tools/show_vm_host_ip.sh)" \
   --rep-port 24083
 
 # Terminal 2: DTLS REP server bound to all interfaces
-python -m server.rep_responder --port 24083
+.venv/bin/python -m server.rep_responder --bind-port 24083
 ```
 
 `auth_mock` needs admin (port 443). `rep_responder` doesn't but
 will need its UDP port reachable from the VM — UTM's default NAT
-should pass UDP fine.
+passes UDP fine.
 
 ### Redirect hostnames in the VM
 

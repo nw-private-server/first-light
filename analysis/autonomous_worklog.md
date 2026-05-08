@@ -3560,3 +3560,56 @@ runs eliminates one class of "why isn't it working" debugging.
   doc commands suffice.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 43: Phase G one-shot launcher script
+
+**Did:**
+- Wrote `tools/serve_for_vm.sh` — auto-detects the VM-side IP via
+  `show_vm_host_ip.sh`, launches both `auth_mock.py` and
+  `rep_responder.py` with the correct flags (auth_mock with
+  `--rep-host` set to the VM-side IP), traps SIGINT for clean
+  shutdown of both PIDs.
+- Updated Phase G in `vm_setup_steps.md` to recommend the
+  one-shot launcher with the manual two-terminal flow as
+  fallback.
+
+**Why:**
+
+The maintainer reported finishing UTM Windows install. Phase E
+(Steam + Python + Frida) is in flight; Phase G (networking) comes
+right after Phase F. Pre-staging the launcher means when they
+hit Phase G, they run one command instead of remembering the
+flag combo.
+
+**Script accepts:**
+
+- `--no-auth` — skip auth_mock (e.g. for re-using one already
+  running)
+- `--no-rep` — skip rep_responder
+- `--auth-port`, `--rep-port` — override defaults
+- `--help` — usage extracted from the comment block
+
+Verified `--help` runs without launching.
+
+**Status:**
+
+VM phase board:
+- A ✅ UTM was already installed
+- B ✅ Windows ARM64 ISO downloaded
+- C ✅ VM created (UEFI shell hiccup → manual BOOTAA64.EFI worked)
+- D ✅ Windows installed
+- E in progress — Steam + Python 3.11 (x64) + Frida + UTM Tools
+- F pending — game directory transfer (~71 GB)
+- G pending — `tools/serve_for_vm.sh` ready to go
+- H pending — `frida_capture.py --exe ...` against
+  `C:\NewWorldArchive\Bin64\NewWorld.exe`
+
+**Next:**
+
+Wait on maintainer's Phase E progress. When they're ready for
+Phase F, the doc covers shared-folder vs external-drive
+options. Phase G is now one command away once F is done.
+
+**Blockers:** None.
