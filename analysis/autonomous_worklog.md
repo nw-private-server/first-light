@@ -159,18 +159,27 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
 
 ## Queued for maintainer (blocks on you)
 
-- **TOP PRIORITY (added wake 24): verify replay actually delivers
-  `PlayerManagerSelfIdentificationMsg`.** The project's current
-  state-10 stall might be because the captured replay window
-  (seq 0x2..0x24) doesn't contain the SelfIdent message at all —
-  the type IDs in the capture don't trivially match the community
-  dump's claimed Phase 9b type `0x91(0x17)`. The fastest way to
-  resolve: run a Frida hook on `FUN_146454c00 (0x146454c00)`
-  during a live replay session and check whether it fires. If it
-  doesn't, the server is sending bytes that look right but never
-  contain the gating message. If it does fire but state still
-  doesn't advance, the substitution is wrong and we need to
-  inspect the args.
+- **TOP PRIORITY (sharpened wake 26): does `FUN_146454c00` fire
+  for the seq 0x7 message during a live replay?** The byte-level
+  capture audit confirmed there is NO `00 01 91 17` (community
+  dump's Phase 9b SelfIdent signature) anywhere in the captured
+  session. The only `0x91`-prefixed frame is `00 01 91 19` at
+  seq 0x7 (4 bytes, type 0x651) — which the community dump labels
+  Phase 5 INIT, not Phase 9b SelfIdent. Two possibilities:
+  - **(A)** The capture genuinely doesn't contain SelfIdent →
+    fix requires a fresh capture with the SelfIdent message.
+    No amount of server-side tuning advances state 10→11.
+  - **(B)** This build's SelfIdent is `0x91(0x19)` (= type 0x651)
+    and the community dump's `0x91(0x17)` is from a different
+    build → seq 0x7 IS the SelfIdent already in our replay
+    window, and the stall is from substitution / seq ordering /
+    ack shape.
+
+  The Frida hook on `FUN_146454c00 (0x146454c00)` resolves it
+  in one observation: hook at function entry, log when fires,
+  run a replay session and watch. If it fires when seq 0x7
+  arrives, (B) is correct and we chase substitution. If never,
+  (A) is correct and we need new captures.
 - **A2.9c (Frida hook for FUN_146454c00 args).** Static decoding of the
   Javelin dispatch table entry at `0x14abcc15c` is harder than expected
   (the wire-format / message-ID column doesn't decode as zlib CRC32 of
@@ -2269,3 +2278,119 @@ with us.
 - C7: final consolidation across what's been learned.
 
 **Blockers:** None for the loop.
+
+---
+
+### 2026-05-07 — wake 26: byte-decoded the captured replay — SelfIdent NOT in capture window
+
+**Did:**
+- Inspected the captured replay
+  (`info/nw-login-safe-20260502-153840/messages-redacted.txt`)
+  byte-level, looking for the community-dump Phase 9b SelfIdent
+  signature `00 01 91 17` (= NW-protocol-wrapper marker `00 01`
+  followed by 2-byte type `0x91 0x17`).
+- Searched for all `0x91`-prefixed frames in the entire capture.
+- Listed every small (≤20-byte) message in the capture by seq, type
+  and direction.
+
+**Found:**
+
+1. **The community-dump Phase 9b signature does NOT appear anywhere
+   in the capture.** Zero hits for `00 01 91 17`.
+
+2. **The only `0x91`-prefixed frame is `00 01 91 19`** at seq `0x7`
+   — that's a 4-byte type `0x651` message. The community dump labels
+   `0x91(0x19)` as Phase 5 INIT (part of a 21B grouped record:
+   4B `0x91(0x19)` + 17B small `0xa4`).
+
+3. **All small messages in the capture window** (seq 0x0..0x24
+   range, plus heartbeats afterward):
+
+   | Seq | Type | Size | Likely phase |
+   |---|---|---|---|
+   | 0x2 | 0x15d | 12B | HEARTBEAT 0x9d (Phase 2) |
+   | 0x7 | 0x651 | 4B | INIT 0x91(0x19) (Phase 5) |
+   | 0x8 | 0xa4 | 20B | small 0xa4 (Phase 5 grouped) |
+   | 0xa | 0x14f | 12B | HEARTBEAT 0x8f (Phase 7) |
+   | 0xf | 0xa4 | 20B | small 0xa4 (Phase 9 candidate) |
+   | 0x27+ | mixed | 12B | post-replay heartbeats |
+
+   **No 4-byte SelfIdent message after seq 0xf.** The capture
+   transitions from Phase 5/6/7-shape messages directly into the
+   chunked WORLD DATA (seq 0xc..0x24, all type 0x1b88 = `0x9c`)
+   and then to entity-stream traffic.
+
+**Two possible interpretations:**
+
+**(A) The captured session simply doesn't contain SelfIdent.**
+This would happen if:
+- The capture was filtered or truncated before SelfIdent could
+  be observed.
+- The captured session was a special form (editor login,
+  developer-mode bypass) that doesn't generate SelfIdent.
+- The community dump's 22-phase sequence is from a DIFFERENT
+  point in the connection than what this capture covers — e.g.
+  this capture is post-V3 actor-game-connection traffic, not
+  the immediate post-V3 lifecycle messages.
+
+If (A) is correct, **no amount of server-side replay tuning,
+substitution refinement, or ack-shape adjustment can advance
+state 10→11**. The gating message simply isn't in the bytes
+being replayed. The fix path requires a fresh capture that
+includes SelfIdent.
+
+**(B) The build version disagrees with the community dump on
+sub-IDs.** If this game build's SelfIdent is actually
+`0x91(0x19)` (matching seq 0x7) and the community dump's
+`0x91(0x17)` claim is from a different build version, then:
+- Seq 0x7 IS the SelfIdent message.
+- The replay window already covers it (seq 0x2..0x24 includes
+  seq 0x7).
+- The state-10 stall is from something else — substitution,
+  seq numbering, ack shape, or a downstream issue.
+
+**How to distinguish (A) vs (B):**
+
+Run the existing Frida hook on `FUN_146454c00` (the SelfIdent
+handler at `0x146454c00`) during a live replay session. If
+that handler fires when seq 0x7 reaches the client, (B) is
+correct and we should chase substitution / ordering issues. If
+it never fires regardless of how many seq 0x7-shaped messages
+arrive, (A) is correct and we need a fresh capture.
+
+This is the **single most important question** for the V3-retry
+blocker. Already promoted to top of the maintainer queue in
+wake 24; this iteration adds the byte-level evidence that makes
+the question precise: "does FUN_146454c00 fire on the seq 0x7
+message in our capture, or not?"
+
+**Bonus finding — confirmation of community-dump notation:**
+
+The notation `0x91(0xNN)` in the community dump means "first
+wire byte 0x91, second wire byte 0xNN" (after the `00 01`
+marker). The decoded type ID under the project's typed-stream
+encoding `[(t & 0x3F) | 0x80, (t >> 6) & 0xFF]` is then:
+
+- `0x91(0x19)` → low6=0x11 + (0x19<<6)=0x640 → type 0x651
+- `0x91(0x17)` → low6=0x11 + (0x17<<6)=0x5C0 → type 0x5d1
+- `0x9c` → (presumably single-byte? or `0x9c(0x02)`?) → 0x9c
+  itself (since 0x9c & 0x3F = 0x1c, |0x80 = 0x9c, so wire
+  byte 0 = 0x9c with no second byte, decoded = 0x1c, but
+  community calls it "0x9c"). Inconsistent.
+
+The single-byte vs 2-byte type encoding is itself a wire-
+format ambiguity worth resolving more thoroughly. For now the
+above finding stands without depending on type-ID decoding —
+direct byte search for `00 01 91 17` returns no hits, period.
+
+**Next** (queue):
+- Top maintainer-queue item remains: Frida-verify whether
+  `FUN_146454c00` fires for the seq 0x7 message in the
+  current replay. Resolves the (A) vs (B) ambiguity and
+  identifies the actionable fix.
+- C7 (final consolidation) — the project picture is now sharp
+  enough to write the master synthesis.
+
+**Blockers:** None for the loop. The state-10 root cause has
+narrowed to two specific possibilities, distinguishable by a
+single Frida observation.
