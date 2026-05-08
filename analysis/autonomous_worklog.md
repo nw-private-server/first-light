@@ -3848,3 +3848,120 @@ contains:
 - `hooks.log` (4.3 KB) — pass/fail summary of every hook attempt
 - `packets.jsonl` (0 bytes) — empty, expected since game terminated
   before network init
+
+---
+
+### 2026-05-07 — wake 46: GPU validation function identified, hooked, succeeds — but game still dies in a silent exit path
+
+**Did:**
+
+1. Static-RE: located the "Unsupported video card detected" string at
+   `0x1485e5d10` via a new wide-string xref helper
+   (`tools/ghidra_scripts/FindWideStringXrefs.py` — companion to
+   FindStringXrefs.py for UTF-16LE strings, which Win32 *W APIs use).
+   Single xref, from `0x147143d2b` inside FUN_147143960.
+2. Decompiled FUN_147143960 (RVA 0x7143960). Found the gate:
+   ```
+   iVar3 = MessageBoxW((HWND)0, text, L"AZoth", 0x20131);
+   if (iVar3 == 2) { /* "User chose to cancel" */ return 0; }
+   ```
+   `0x20131 = MB_OKCANCEL | MB_ICONWARNING | MB_DEFBUTTON2 | MB_SYSTEMMODAL`,
+   so Cancel is the default button.
+3. Wrote `tools/client-hooks/frida_gpu_spoof.js` with two layered hooks:
+   (a) MessageBoxW interceptor forcing IDOK=1 on AZoth-captioned
+       dialogs;
+   (b) FUN_147143960 onLeave forcing retval=1 even on internal failure
+       (in case render-module init was the actual gate).
+4. Wired up `frida_capture.py --gpu-spoof` flag (default OFF; physical
+   hosts don't need it).
+5. Ran four smoke iterations (`vm_smoke_002` through `vm_smoke_006`),
+   each diagnosing and fixing a layer.
+
+**Found — three Frida 17 / pipeline bugs caught in sequence:**
+
+- `Module.findExportByName` is gone in Frida 17. Other scripts in this
+  repo use `Module.getExportByName`. (caught vm_smoke_002)
+- Even `Module.getExportByName(string, string)` static form throws
+  "TypeError: not a function" in Frida 17. The working form is
+  `Process.getModuleByName("user32.dll").findExportByName("MessageBoxW")`
+  — i.e. the per-module instance method. The main hook gets away with
+  the static form because it always uses an IAT-walking primary path
+  with the static form as fallback inside try/catch. (caught vm_smoke_004)
+- `console.log` from a Frida script doesn't reach
+  `frida_capture.py`'s on_message handler (which only routes
+  `message["type"] == "send"`). Other hook scripts use a
+  `send({type:"log",text:...})` helper. Without this, the gpu_spoof
+  hook was running but its diagnostic logs never appeared in
+  session.log. (caught vm_smoke_003 → vm_smoke_004)
+
+**Found — the actual GPU dynamics:**
+
+- The first MessageBoxW (DX12 fallback warning) is `uType=0x20030`
+  = `MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL` — informational only,
+  always returns IDOK=1. Not a gate.
+- The second MessageBoxW (Unsupported video card) is `uType=0x20131`
+  with MB_DEFBUTTON2 = Cancel default. **But Frida's hook
+  side-effect on Windows-ARM64-Prism causes both dialogs to
+  auto-return IDOK=1** before our hook can intervene. So MB_DEFBUTTON2
+  isn't actually the gate in this environment.
+- FUN_147143960 (the GPU-validation function) **returns 1 (success)
+  naturally** — even with VendorId=0, DeviceId=0, render-module init
+  apparently completes (or is skipped via the
+  `if (param_2 != 5) goto LAB_147143f23` path).
+- Despite GPU-validate succeeding, **the game terminates ~332 ms
+  later in a silent path** that none of our hooked exits
+  (TerminateProcess, abort, RaiseFailFastException, RtlExitUserProcess,
+  ExitProcess) intercept. The session.log has no events between
+  `FUN_147143960 returned 1` and `[!] Session detached: process-terminated`.
+
+**Conclusion:**
+
+The MessageBoxW dialog is a red herring. The real abort is downstream
+of FUN_147143960. Most likely candidates for the silent exit path:
+
+1. **Access violation in subsequent renderer code.** Once GPU-validate
+   returns 1, the engine assumes a working renderer exists and
+   dereferences something that's null — Windows kills the process
+   without going through any hooked exit.
+2. **`NtTerminateProcess` directly via syscall**, bypassing the
+   `kernel32!TerminateProcess` wrapper we hooked. (TerminateProcess
+   is hooked successfully but never fires.)
+3. **An SEH / VEH unhandled-exception filter** that Windows handles
+   internally.
+
+**Three commits this iteration:**
+
+- `018d286` — initial gpu_spoof hook + FindWideStringXrefs.py
+- `85a2a0b` — Frida 17 fix (`getExportByName`)
+- `e3a93de` — `send({type:"log",...})` for Frida-routed logging
+- `30db860` — `Process.getModuleByName(...).findExportByName(...)` form
+- `bdaa0ef` — layered hook on FUN_147143960 onLeave forcing retval=1
+
+The hook itself is sound. The remaining problem is identifying the
+silent exit path so we can hook *that* too — or, alternatively,
+finding the upstream code that triggers the bad post-validate
+behavior and short-circuiting it earlier.
+
+**Next** (queue, in priority order):
+
+1. Hook `ntdll!NtTerminateProcess` (low-level syscall stub — catches
+   any TerminateProcess flavor including direct syscall use). Also
+   hook `RaiseException`, `RtlRaiseStatus`, `KiUserExceptionDispatcher`
+   to catch hardware-exception driven exits.
+2. Once the silent exit path is hooked, the stack trace at the call
+   site identifies which engine subsystem is the actual abort source.
+3. From there, decide: short-circuit that path with a higher-level
+   hook, or pivot to a different host (Parallels Desktop's better
+   D3D virtualization may make all of this moot).
+
+**Time-wise**: this was the first wake to do real iterative
+debugging on a runtime hook — three pipeline bugs caught and fixed.
+Each smoke run is ~70s wall-clock with the 90s timeout cap, so the
+fix-test loop is fast enough to iterate productively.
+
+**Blockers:**
+
+The silent exit is the new blocker; the GPU dialog isn't (it always
+returned IDOK in our environment). Next wake's task is to identify
+where the silent exit originates and either hook around it or make
+a hardware-host pivot decision.
