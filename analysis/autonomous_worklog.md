@@ -2703,3 +2703,108 @@ The loop is now firmly in "polish + ready-to-apply deliverable"
 mode rather than "uncover new findings" mode.
 
 **Blockers:** None for the loop.
+
+---
+
+### 2026-05-07 — wake 30: Frida hook script staged for the SelfIdent diagnostic
+
+**Did:**
+- Read existing `tools/client-hooks/frida_dtls_hook.js` and
+  `frida_capture.py` for project Frida convention.
+- Wrote `tools/client-hooks/frida_self_ident_hook.js` — a focused
+  hook script that targets `FUN_146454c00` (SelfIdent handler) and
+  `FUN_145a87010` (onConnectionSuccess wrapper-substate writer).
+
+**Why this hook:**
+
+It's the second of the two staged experiments for resolving the
+state-10 stall:
+
+1. **Correlation-echo patch** (already staged at
+   `analysis/proposed_patches/correlation_echo_v3_response.md`) —
+   the cheaper test, 10-line server-side change with a CLI flag.
+2. **Frida hook on SelfIdent handler** (this iteration) — the
+   fallback diagnostic if (1) doesn't resolve the V3 retry.
+
+The hook resolves wake 26's interpretation A vs B in a single
+observation:
+- If `FUN_146454c00` fires during a replay session: interpretation
+  B is correct (the captured seq 0x7 IS the SelfIdent for this
+  build) and the stall is downstream of the handler.
+- If it never fires: interpretation A is correct (capture lacks
+  SelfIdent) and the project needs new captures.
+
+**What it logs:**
+
+For each handler invocation, the seven in-args plus hex dumps of
+the pointer-shaped struct args:
+- `param_3` (Tuple36) — 36 bytes — likely uuid+uuid+int
+- `param_4` (Tuple36) — 36 bytes — same shape
+- `param_6` (MsgBody) — 28 bytes — message header fields
+- `param_7` (StringPlus17) — AZStd::string + tail, decoded
+  inline using SSO-aware logic
+
+Plus a separate hook on `FUN_145a87010` (onConnectionSuccess) so
+the maintainer can tell whether the substate=2 write is happening:
+- SelfIdent fires + onConnectionSuccess fires → state 10→11 should
+  advance, project past the blocker.
+- SelfIdent fires + onConnectionSuccess does NOT fire → handler is
+  bailing mid-execution (substitution / field-shape issue, but
+  message ARRIVING is fine).
+- Neither fires → message isn't arriving at all.
+
+Three distinct outcomes, three distinct fix directions.
+
+**Why this is a NEW file** (not an addition to the existing
+`frida_dtls_hook.js`):
+
+- The existing hook is a comprehensive observation suite with many
+  hooks for the broader DTLS / REP / transport-state work.
+- This new hook is a focused diagnostic with two Interceptor.attach
+  calls. Keeping it separate lets the maintainer load JUST this
+  one without the heavier observation overhead, and revert by
+  not loading it.
+- Doesn't change any existing project behavior.
+
+**Usage** (documented in the file header):
+
+```bash
+frida -p <NewWorld_PID> -l tools/client-hooks/frida_self_ident_hook.js
+```
+
+Or add to the script-loading list in `frida_capture.py`. Output
+goes through the standard `{type:"log", text:...}` channel so it
+shows up alongside the main hook logs.
+
+**Three open questions resolvable in one Frida session now:**
+
+1. Does SelfIdent handler fire during replay?
+2. Does onConnectionSuccess fire after SelfIdent?
+3. What are the actual byte layouts of the seven in-args?
+
+The third item alone resolves the wire-format gap that's been
+the runtime-needed bottleneck for multiple queued tasks (A2.9c,
+A4.3, etc.).
+
+**Pair with the correlation-echo patch:**
+
+The maintainer's keyboard-time workflow is now:
+1. Apply the correlation-echo patch (file 1).
+2. Run server with `--mystery-source echo-prelude`.
+3. Run client with this Frida hook loaded.
+4. Watch for HANDLER FIRED + connectionSuccess FIRED logs.
+5. If both fire → V3 retry resolved + state advancing.
+6. If only HANDLER FIRED → patch worked but substitution broken.
+7. If neither → patch didn't resolve V3 retry; switch direction.
+
+Three distinct success/failure states, three distinct next
+moves. The project's path past the V3 retry is now a decision
+tree with bounded branches.
+
+**Next** (queue):
+- C2 (PlayerManagerTrait characterization) — orthogonal long-term
+  value, ~28 server-side messages to enumerate.
+- Consider any "polish" improvements to existing docs based on
+  the deeper understanding now in place.
+
+**Blockers:** None.
