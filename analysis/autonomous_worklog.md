@@ -5319,3 +5319,113 @@ Two important refinements for the LevelInfoChanged encoder:
    semantics.
 
 **Blockers:** None new.
+
+---
+
+### 2026-05-08 — wake 58: ProcessPendingReliableMsgQueue is polymorphic, not table-driven
+
+**Did:**
+
+1. Decompiled `FUN_146455e90` ("ProcessPendingReliableMsgQueue") to
+   test the hypothesis that it's the dispatcher loop body.
+2. Traced its `(**(code **)(*param_1 + 8))(param_1, msg)` call site
+   to identify whether it touches the dispatch table at
+   `0x14abcc15c`.
+3. Side-traced `FUN_146158ba0` (called `(uVar15)` and result branch
+   was the chain-of-responsibility key).
+
+**Found — `FUN_146455e90` IS the ProcessPending loop, BUT
+dispatch is polymorphic, not table-driven:**
+
+The function walks two queues:
+
+1. **`m_pendingUnexpectedMsgs`** (vector of 0x10-byte items at
+   `param_1[0x19..0x1B]`) — for each item, calls
+   `(**(code **)(*param_1 + 8))(param_1, item)`. That's
+   **method[1] of param_1's own vtable**. The dispatcher delegates
+   to a per-class virtual.
+2. **A reliable-ordered queue** (40-byte items at `param_1[0x11..0x12]`)
+   — filtered by sequence number (`*plVar14 == param_1[0xe]`,
+   the next-expected counter) and context-instance id
+   (`(char)plVar14[4] == (char)param_1[0x10]`). Walks
+   monotonically, processes one at a time, increments
+   `param_1[0xe]` per consumed message.
+
+The dispatcher is **NOT** consulting the `0x14abcc15c` packed-RVA
+table. It uses C++ polymorphism — each subclass that owns this
+queue (probably `JavelinClientMessagesTraitContext` or similar)
+implements its own `vtable[1]` to handle items.
+
+So **the `0x14abcc15c` table is for a DIFFERENT path**, probably
+the OnRecv / unmarshal entry-point that runs BEFORE the message
+gets queued for reliable-ordered delivery. The two paths are:
+
+```
+network bytes
+    ↓ (deserializer + dispatch on type-id)
+    ↓     <- THIS is what the 0x14abcc15c table likely drives
+[message object]
+    ↓ (reliable-ordering + sequence tracking)
+    ↓     <- ProcessPendingReliableMsgQueue runs here
+vtable[1] → per-class handler entry
+    ↓ (specific message type's dispatch)
+specific handler (e.g. FUN_146454c00 for SelfIdent)
+```
+
+**`FUN_146158ba0` is a listener-equality check, not a dispatcher:**
+
+```c
+undefined8 FUN_146158ba0(longlong param_1, longlong param_2) {
+    if ((param_1 != param_2) &&
+        ((*(longlong *)(param_1 + 0x18) != *(longlong *)(param_2 + 0x18) ||
+         (*(longlong *)(param_1 + 0x20) != *(longlong *)(param_2 + 0x20))))) {
+        return 0;
+    }
+    return 1;
+}
+```
+
+Compares two pointers; returns 1 if they're the same object OR
+both point to objects with matching values at offsets +0x18 and
++0x20. This is **listener dedup** in the registration framework
+— used to skip duplicate "I am listening to message X" registrations.
+
+The `cVar13 = FUN_146158ba0(uVar15)` calls in `FUN_146455e90` are
+checking whether some message was already handled by a sibling
+listener (the second `FUN_146437270` chain is a fall-back if the
+first didn't claim it).
+
+**Why this is still useful:**
+
+We've now **eliminated** one hypothesis: the
+`ProcessPendingReliableMsgQueue` path is NOT where the dispatch
+table at `0x14abcc15c` gets consumed. So the search for the
+dispatch-table reader needs a different angle:
+
+- The table's consumers must run during the **deserialize +
+  dispatch on type-id** stage, BEFORE messages get queued for
+  reliable ordering.
+- Likely entry points: `OnReceive`, `Unmarshal`, or the
+  AzNetworking `Driver::OnRecv` callback.
+
+**Files this iteration:** None new.
+
+**Commit:** Following.
+
+**Next** (queue, in priority order):
+
+1. **Decompile the deserialize entry point.** Wake 5 inferred
+   that the dispatch table at `0x14abcc15c` is consumed by an
+   `OnRecv` / unmarshal path, but the consumer wasn't pinned
+   down. With `ProcessPendingReliableMsgQueue` ruled out, the
+   target is more like `JavelinClientMessagesTraitContext::OnRecv`
+   or a sibling. Search for callers of `FUN_146454bec` (the thunk)
+   that look like a loop iterating over a typed-message stream.
+2. **Try `FUN_1402b04f0`** (the alternative AZStd::string copy
+   from `FUN_146410750`'s assign branch) — confirms string
+   semantics for the wire-format encoder.
+3. **Try yet another sibling — `FUN_14643e7b0`**
+   ("MayHandleReplicationUnreliable() returning false..."). Wake
+   7 noted this. May yield another wire format.
+
+**Blockers:** None new.
