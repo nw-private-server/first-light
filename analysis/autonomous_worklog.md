@@ -5429,3 +5429,115 @@ dispatch-table reader needs a different angle:
    7 noted this. May yield another wire format.
 
 **Blockers:** None new.
+
+---
+
+### 2026-05-08 — wake 59: dispatch-table consumer not statically findable; GameMessagePort log channel mixes handlers + class methods
+
+**Did:**
+
+1. Wrote `tools/ghidra_scripts/FindByteLiteralXrefs.py` — a helper
+   that scans for arbitrary 4-byte literal patterns anywhere in
+   the loaded image. Useful when Ghidra's xref tracker misses
+   packed RVA references.
+2. Scanned for the SelfIdent thunk's RVA `06454bec` as a 4-byte
+   literal.
+3. Decompiled `FUN_146463540` ("Reset") to test if it's a sibling
+   wire-format handler.
+
+**Found — the thunk's RVA is referenced only inside the dispatch table:**
+
+`06454bec` (LE bytes `ec 4b 45 06`) appears at exactly ONE
+location in the binary: `0x14abcc154` — the dispatch table
+entry itself. **Nowhere else in code or data.** Implication:
+the dispatcher consumes the table via runtime-computed addresses
+(RIP-relative LEA + index arithmetic), not via static literal
+references. Ghidra can't trace the consumer through that
+indirection without a more sophisticated instruction-level
+analysis pass.
+
+**Found — `FUN_146463540` is a class method, NOT a wire-format
+handler:**
+
+```c
+void FUN_146463540(longlong param_1) {
+    FUN_14143e010("GameMessagePort", "Reset");
+    // ...empty queues at param_1+0x88, +0xc8..0xd0
+    // ...reset pointers at param_1+0x70/0x78 to a default
+    // ...zero param_1+0x1a0..0x1a2
+}
+```
+
+It takes only `param_1` (the class instance) — no `param_2`
+message body. The "Reset" log is a generic class-state-reset
+trace, not a handler-entry announcement.
+
+**Important meta-finding — the GameMessagePort log channel is
+NOT 1:1 with message handlers:**
+
+Wake 7 enumerated 9 functions referencing `"GameMessagePort"`
+as a log-arg. Wake 7 implicitly assumed those were message
+handlers, but that's wrong. Some are class methods (`Reset()`)
+or utility helpers (`FUN_14644b280` queue-orderer). The actual
+wire-format-owning handlers in this set are only:
+
+- `FUN_146454c00` — SelfIdent ✓
+- `FUN_146446800` — LevelInfoChanged ✓
+
+Other entries in wake 7's table are NOT wire-format handlers,
+they just log on the same channel.
+
+**Updated wire-format inventory:** Still 2 confirmed messages
+(SelfIdent + LevelInfoChanged). The earlier hope that the
+GameMessagePort enumeration would surface 7+ more was misplaced.
+
+**Why this matters / why we're slowing down:**
+
+The static-RE path to enumerating ALL ClientMessagesTrait
+messages is hitting fundamental walls:
+
+1. The dispatch table at `0x14abcc15c` exists but its consumer
+   is dynamically computed (no static xrefs).
+2. The handler functions are anonymous lambdas via
+   `InstallRegistrationHook<T>` — their addresses don't appear
+   as separate exports.
+3. The GameMessagePort log channel is shared with class methods,
+   so it's not a clean handler enumeration.
+4. RTTI strings exist for each message type (`PlayerManagerSelfIdentificationMsg`,
+   `PlayerManagerRejectedMsg`, `LevelInfoChangedMsg`, etc.) but
+   they have no direct code references — linked via __type_info
+   at runtime.
+
+The 2 messages we DO have (SelfIdent, LevelInfoChanged) cover
+the critical path for state 10→11 advance. Going beyond that
+requires either runtime instrumentation (Frida hook on
+`FUN_146454bec` to log the actual table consumer's RIP at
+each call) or a fundamentally different static angle.
+
+**Files this iteration:**
+
+- `tools/ghidra_scripts/FindByteLiteralXrefs.py` (new) — a
+  generic utility for chasing packed-RVA references
+- This worklog entry
+
+**Commit:** Following.
+
+**Next** (queue, in priority order):
+
+1. **Pivot away from message enumeration** to deeper analysis
+   of the 2 messages we have. Specifically: `FUN_1402b04f0`
+   (the AZStd::string copy in `FUN_146410750`'s assign branch)
+   — confirms string-encoding semantics for the encoder.
+2. **Try `FUN_14643e7b0`** ("MayHandleReplicationUnreliable...")
+   — its name suggests REPLICATION (network-tier dispatch),
+   not a message handler. Confirming this would further
+   narrow wake 7's list.
+3. **Look at the connection-class itself.** `param_1 - 0x990`
+   is a struct we keep walking around but don't fully know.
+   If we map MORE of its fields (the wake 53 inventory has
+   ~10 fields; the actual struct probably has 100+), we
+   discover where SelfIdent's stored values are USED — which
+   tells us their semantics.
+
+**Blockers:** None new. The lower-hanging fruit is gone; remaining
+work is incremental.
