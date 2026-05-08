@@ -2879,3 +2879,35 @@ source to validate against.
   results and pivot based on outcome.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 32: protocol-overview cross-link to namespace conventions
+
+**Did:**
+- Added a "Namespace convention (which side of the wire?)" subsection
+  in `docs/protocol-overview.md` directly under the layered-protocol
+  diagram, with a worked example pair and a deep-link to the full
+  table in `analysis/message_inventory.md`.
+
+**Why this place:**
+
+The protocol-overview's layered diagram introduces the concept of
+"typed messages" (the bottom layer of the stack) but the diagram
+itself doesn't disambiguate on-wire vs internal. A first-time reader
+who lands on protocol-overview will see the message catalog count
+(2,025) and immediately benefit from knowing the heuristic for
+which slice is on-wire.
+
+The example pair `RequestRejectClientConnectionMsg` →
+`PlayerManagerRejectedMsg` was chosen because it's directly relevant
+to the project's V3-retry investigation (the rejection path) and
+the cross-namespace pairing is unambiguous.
+
+**Next** (queue):
+- Could add a similar cross-link from `docs/post-v3-sequence.md` to
+  the wire format details if there's a duplication worth resolving.
+- Or pause polish work and wait for maintainer correlation-experiment
+  results.
+
+**Blockers:** None.

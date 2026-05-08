@@ -74,6 +74,24 @@ are queued for the maintainer at a real keyboard.
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
+**Namespace convention (which side of the wire?):** the message
+catalog mixes on-wire types with server-side internal-bus types in
+the same dispatch system. Heuristic for telling them apart:
+
+- `Javelin::ClientMessagesTrait::*Msg` — **on-wire**, server→client
+- `Javelin::ClientMessages::*` — **on-wire**, both directions, per-component
+- `MB::*` — **on-wire**, MarshalByValue replicated state
+- `ActorMover::*` — **on-wire**, high-frequency movement
+- `Aoi::*Trait::*` — **server-side internal**; effects reach clients
+  via the corresponding `ClientMessagesTrait` message
+- `Amazon::IPC::*` — **not on-wire**, IPC scaffolding
+
+Example pair: `Aoi::PlayerManagerTrait::RequestRejectClientConnectionMsg`
+(server-internal request) → server emits
+`Javelin::ClientMessagesTrait::PlayerManagerRejectedMsg` (on-wire) →
+client handles it. Full table:
+[`analysis/message_inventory.md` § "Namespace conventions"](../analysis/message_inventory.md#namespace-conventions-which-side-of-the-wire).
+
 ## The state-machine ladder
 
 The GameConnection state field at `gc[+0x1530]` is a 0–14 enum with
