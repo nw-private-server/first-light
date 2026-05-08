@@ -4405,3 +4405,138 @@ Investment: ~5 wakes, ~10 commits, full diagnostic pipeline built.
 Outcome: definitive characterization that Frida bypass alone
 cannot resolve, with a structured Parallels proposal as the
 clear next step.
+
+---
+
+### 2026-05-08 — wake 51: SelfIdent wire-format struct decoded from handler's parameter accesses
+
+**Did:**
+
+1. With the VM track paused per maintainer direction, returned to
+   static-RE. Picked task A2.9b (alternate anchor into the
+   SelfIdent deserializer chain).
+2. Approach (a) (decompile the OTHER vtable entry at `0x14ab72930`
+   where `FUN_145a87010` is referenced) confirmed the table is
+   packed 4-byte RVAs in pairs (handler+thunk), not an 8-byte
+   function-pointer vtable. Same shape as the dispatch table at
+   `0x14abcc15c`. Not a useful second anchor.
+3. Pivoted to a more direct approach: **read the handler's
+   parameter accesses to recover the in-memory struct layout.**
+   The SelfIdent handler `FUN_146454c00` reads exactly 5 fields
+   from its `param_6` (the message body) before any conditional
+   branch, so the offsets are stable.
+
+**Found — PlayerManagerSelfIdentificationMsg struct layout:**
+
+```
++0x00  uint32_t              m_field0
++0x04  (4 bytes alignment)
++0x08  AZStd::vector<u32>    m_field08    (32-byte container)
++0x28  uint8_t               m_debugFlag
++0x29  (3 bytes padding)
++0x2C  uint64_t              m_field2C   (UNALIGNED 8-byte read)
++0x34  uint32_t              m_field34
++0x38  end
+```
+
+Total minimum size: **0x38 = 56 bytes**.
+
+The "vector" identification came from decompiling
+`FUN_1402d13a0` — which the handler invokes on `param_6 + 2`
+(offset 0x08). Its body is the canonical `AZStd::vector<u32>`
+copy idiom: divide source byte-extent by 4 for element count,
+allocate `count*4` bytes with 4-byte alignment via
+`FUN_141499110`, `memcpy` the bytes. Could equally be
+`vector<float>` or `vector<int32_t>` (byte-level identical).
+
+Notable structural quirk: the `uint64_t` at `+0x2C` is **stored
+unaligned** for 8-byte access (4-byte alignment only). The
+compiler used 4-byte struct alignment for this region. That
+matches the `param_5` analysis below (also unaligned 16-byte
+struct at `+0x4`).
+
+**Wire format proposal:**
+
+If the AzCore serializer copies fields one-for-one with the
+struct layout (typical for non-versioned typed messages):
+
+```
++0x00  u32     m_field0
++0x04  u32     vector_length
++0x08  u32[]   vector_payload    (length * 4 bytes)
++...   u8      m_debugFlag
++...+1 u8[3]   padding
++...   u64     m_field2C         (unaligned)
++...   u32     m_field34
+```
+
+Min wire size with empty vector: **0x18 + 5 = ~0x20 bytes**.
+
+Full writeup: `analysis/selfident_wire_format.md`.
+
+**Other findings from this decompile:**
+
+- Three early `FUN_145a9fa10/30/80` calls forward `param_3`,
+  `param_7`, `param_4` (in that order) into the wrapper sub-object
+  at `param_1+0x130`. These are the wrapper setters identified
+  in worklog wake 5. The args come from the dispatcher's caller,
+  not the message body, so they're **identity-tuple inputs**
+  (sender ID, session UUID, etc.) not part of the wire payload.
+
+- Param_5 has a 16-byte struct at offsets `+0x4..+0x14` (read as
+  two qwords at +0x4 and +0xC, unaligned). Strongly UUID-shaped.
+  The handler short-circuits when it doesn't match `*plVar8 / plVar8[1]`
+  (some expected sender). This is the **expected client identity**
+  comparison gate.
+
+- The `m_debugFlag = true` branch is a debug-only path that
+  reads CVars `g_debugPlayerPosition` / `g_debugPlayerRotation`
+  and parses comma-separated triplets via `atof`. Production
+  servers should set `m_debugFlag = 0`.
+
+**Why this matters:**
+
+This unblocks the V3-retry / SelfIdent server-side encoding work.
+With the struct layout known, `server/javelin/v3_response.py` (or
+a sibling SelfIdent encoder) can build a syntactically valid
+SelfIdent body. The semantic meaning of each field is still
+open — that's a "needs runtime data" problem (one captured
+SelfIdent observation resolves it), but the syntactic shape
+no longer is.
+
+**Files this iteration:**
+
+- `analysis/selfident_wire_format.md` (new) — full decode + open
+  questions
+- `tools/ghidra_scripts/DumpVtable.py` (new) — small helper for
+  dumping packed-RVA tables; useful for the dispatch tables this
+  binary uses extensively
+
+**Commit:** (after this entry).
+
+**Next** (queue, in priority order):
+
+1. **Field semantics for the SelfIdent struct.** The handler
+   stores fields at fixed offsets in `param_1` (the
+   GameConnection); see `selfident_wire_format.md` table. Tracing
+   reads of those offsets in OTHER functions tells us what the
+   fields mean — e.g., if something in the Lumberyard render path
+   reads `gameConn[-0x7e0]` as a vector of shader IDs, we know
+   `m_field08` is shader IDs. Doable static-side.
+
+2. **Dispatch table layout decoding.** The `0x14abcc15c` table
+   has 4-dword entries: (preprocessor_rva, thunk_rva, type_data_rva,
+   handler_rva). The `type_data_rva` (e.g. `0x09cc1c44` for
+   SelfIdent) is what we don't understand. If decoded, we can
+   enumerate every message in the dispatch table and recover
+   names + handlers in bulk.
+
+3. **A2.10 (PlayerManagerRejected handler)** — still open. If we
+   can find this handler, its handler/dispatch entry would be in
+   the same `0x14abcc...` table; sibling entries to SelfIdent
+   would tell us the fail/retry path.
+
+**Blockers:**
+
+None new — the static-RE path is open and productive again. VM
+work still gated on maintainer's path decision.
