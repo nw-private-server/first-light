@@ -159,6 +159,18 @@ sub-object. The whole vtable on that sub-object drives states 10→14.
 
 ## Queued for maintainer (blocks on you)
 
+- **TOP PRIORITY (added wake 24): verify replay actually delivers
+  `PlayerManagerSelfIdentificationMsg`.** The project's current
+  state-10 stall might be because the captured replay window
+  (seq 0x2..0x24) doesn't contain the SelfIdent message at all —
+  the type IDs in the capture don't trivially match the community
+  dump's claimed Phase 9b type `0x91(0x17)`. The fastest way to
+  resolve: run a Frida hook on `FUN_146454c00 (0x146454c00)`
+  during a live replay session and check whether it fires. If it
+  doesn't, the server is sending bytes that look right but never
+  contain the gating message. If it does fire but state still
+  doesn't advance, the substitution is wrong and we need to
+  inspect the args.
 - **A2.9c (Frida hook for FUN_146454c00 args).** Static decoding of the
   Javelin dispatch table entry at `0x14abcc15c` is harder than expected
   (the wire-format / message-ID column doesn't decode as zlib CRC32 of
@@ -2076,3 +2088,110 @@ hypothesis than the long candidate list from wake 13.
 - C7: final consolidation — comprehensive protocol map doc.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 24: SM_CONNECT_ACK shape investigation + replay-vs-dump type mismatch
+
+**Did:**
+- Pivoted from C6 to a directly-actionable check: does the project's
+  `send_connect_ack` use the form the community dump documented as
+  working, or the form documented as instant-disconnecting?
+- Read `server/rep_responder.py:send_connect_ack` (line 799+).
+- Cross-referenced `docs/progress.md` for prior testing notes.
+- Listed all messages in the captured replay
+  (`info/nw-login-safe-20260502-153840/messages-redacted.txt`)
+  and compared to the community dump's 22-phase type IDs.
+
+**Found 1 — both ack-forms already implemented as a CLI option:**
+
+`send_connect_ack` already has both forms behind `--ack-form
+{mn,alt}`:
+
+- `mn` (default, "Mixed Nuts" form): `flags=0x21`, seq=0,
+  rel_seq=0. Annotated as **"real-server form, byte-identical to
+  Mixed Nuts' Wireshark dissector capture"**.
+- `alt` (community dump form): `flags=0xa0`, seq=current,
+  rel_seq=0xFFFF. Annotated with the community team's note:
+  **"the 0x21/0 form instant-disconnects on their path"**.
+
+The two reversers disagree on which form the real server uses. Per
+`docs/progress.md` 2026-05-04: the maintainer chose `mn` because
+that form **made the client send the V3 request in the first place**
+(real progress signal), and noted "falling back to `0xa0/0xffff` is
+the obvious next experiment if the next attempt regresses."
+
+So both possibilities are a CLI flag away. This is *not* the active
+blocker — the project has already moved past the ACK-shape question
+in their testing.
+
+**Found 2 — captured-replay type IDs don't match community dump's
+phase types:**
+
+The capture at
+`info/nw-login-safe-20260502-153840/messages-redacted.txt` covers
+seq 0x0..0x24 and beyond. Listing the types:
+
+```
+seq=0x0 type=0x13   W
+seq=0x1 type=0x3    R   <- Phase 1 VERSION (matches 0x03)
+seq=0x2 type=0x15d  R   <- HEARTBEAT (community 0x9d, 2-byte encoded)
+seq=0x4 type=0x40a  R
+seq=0x5 type=0x1be  R
+seq=0x6 type=0x65c  R
+seq=0x7 type=0x651  R
+seq=0x8 type=0xa4   R   <- Phase 8 0xa4 (community matches!)
+seq=0x9 type=0xca4  R
+seq=0xa type=0x14f  R   <- different HEARTBEAT
+seq=0xb type=0x18a6 R
+seq=0xc..0x18 type=0x1b88 R  <- chunked, 14× same type
+seq=0x25 type=0x8 R     <- Phase 17 entity stream (matches!)
+```
+
+The community dump's Phase 9b SelfIdent claim is `type 0x91(0x17)`,
+which under the project's typed-stream encoding `[(type_id & 0x3F)
+| 0x80, (type_id >> 6) & 0xFF]` would either decode to type 0x5d1
+(if 0x17 is the high subtype byte) or 0x91 itself (if single-byte).
+**Neither 0x5d1 nor 0x91 appears in the captured replay's seq
+0x2..0x24.**
+
+So either:
+
+- The community dump and the captured-replay use different type-ID
+  encoding conventions, and the SelfIdent message *is* in the
+  capture under a different ID label.
+- OR the captured replay doesn't actually contain the
+  state-10→11-triggering SelfIdent message.
+
+**This is a potentially-significant gap.** If the replay doesn't
+contain the message that's supposed to advance state, then the
+server's current replay-substitute strategy can't possibly drive
+the state machine forward — regardless of how good the ack shape
+or substitution is.
+
+**The ambiguity is resolvable** but not from static RE alone:
+
+1. Decode the actual byte sequences at seq 0x2..0x24 in the
+   capture against the community dump's wire-format spec
+   (`[PackedSize_LE][0x00][0x01][type:u8][data...]`) to confirm
+   each frame's message type.
+2. Hook `FUN_146454c00` (the SelfIdent handler) at runtime to see
+   if it actually fires during a replay session.
+3. Find a different captured session that's known to include
+   PlayerManagerSelfIdentificationMsg as identified by Frida.
+
+**This is now the most important question** for moving past the
+state-10 stall. Recommended for the maintainer: take one captured
+session through the existing Frida hooks and verify whether
+`FUN_146454c00` fires during the replay.
+
+**Next** (queue):
+- **Q-MAINTAINER**: verify whether the replay actually delivers
+  PlayerManagerSelfIdent via existing Frida hooks. This is the
+  single most important question for the state-10 blocker. Added
+  to "Queued for maintainer".
+- C6 (back-fill connection-flow.md) deferred — the post-V3 doc
+  this morning is sufficient for now.
+- C7 (final consolidation) — closer to ready now.
+
+**Blockers:** None for the loop.
