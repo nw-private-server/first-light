@@ -95,8 +95,12 @@ CI runs the same suite on Python 3.11 and 3.12 for every push and PR (see `.gith
 
 ## Key protocol references
 
+- [docs/protocol-overview.md](docs/protocol-overview.md) — **Start here.** Master synthesis: state-machine map, layered protocol diagram, current open questions, file index.
 - [docs/connection-flow.md](docs/connection-flow.md) — Full login-to-world-entry sequence extracted from real game logs
-- [docs/gridmate-reference.md](docs/gridmate-reference.md) — Deep-read of Lumberyard GridMate source; this is the Javelin wire-format reference
+- [docs/post-v3-sequence.md](docs/post-v3-sequence.md) — 22-phase post-V3 server→client message reference
+- [docs/gridmate-reference.md](docs/gridmate-reference.md) — Deep-read of Lumberyard GridMate source; the Javelin wire-format reference
+- [analysis/state_machine_summary.md](analysis/state_machine_summary.md) — GameConnection state-machine map with handler addresses
+- [analysis/message_inventory.md](analysis/message_inventory.md) — Catalog of 2,025 typed messages across 174 namespaces
 - [analysis/v3_request/BODY_DECODE.md](analysis/v3_request/BODY_DECODE.md) — Registration request body field map
 - [docs/dtls-trust-bypass.md](docs/dtls-trust-bypass.md) — How to bypass the client's certificate pinning
 

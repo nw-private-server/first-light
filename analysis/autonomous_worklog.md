@@ -2515,3 +2515,99 @@ something else entirely and we need the Frida hook on
   value live test once they're at a real keyboard.
 
 **Blockers:** None for the loop.
+
+---
+
+### 2026-05-07 — wake 28: C7 done — master synthesis doc written
+
+**Did:**
+- Wrote `docs/protocol-overview.md` (~250 lines) as the maintainer-
+  facing master synthesis. Sections: where the project is (state
+  table), layered protocol map (5 layers from HTTPS auth down to
+  typed messages), state-machine ladder, 22-phase summary, what
+  the server does today, open questions with leading hypotheses,
+  comprehensive file index, three-tiered "what good progress
+  looks like" roadmap.
+- Updated `README.md` "Key protocol references" section to point
+  at the new doc as the starting point, and added cross-references
+  to `post-v3-sequence.md`, `state_machine_summary.md`,
+  `message_inventory.md`.
+
+**Why this doc:**
+
+After 27 wakes the project's docs/ and analysis/ directories
+contain a lot of detail (state-machine map, protocol sequence,
+message inventory, captured replay, community findings, framing
+spec) but no single entry point. A new contributor — or the
+maintainer returning after time away — needed to know which
+file to open first.
+
+`protocol-overview.md` is that entry point. It uses the master
+diagram pattern (5 nested layers from HTTPS down to typed
+messages) so anyone can place a question at the right layer
+and find the relevant detail doc.
+
+**Layer diagram introduced:**
+
+```
+HTTPS auth (auth_mock.py)
+    │
+DTLS 1.2 / Javelin REP (rep_responder.py)
+    │
+GridMate Carrier datagram (frame.py)
+    │
+Application-layer message (Mixed Nuts asymmetric framing)
+    │
+Typed messages (2,025 InstallRegistrationHook<T> instantiations)
+```
+
+This was previously implicit; making it explicit lets the
+maintainer point reviewers / contributors / commenters at the
+correct depth for any question.
+
+**Three-tier roadmap section** added:
+
+1. **Resolve V3 retry** (small, fast — correlation-echo
+   experiment in v3_response.py).
+2. **Extend replay coverage past seq 0x24** (medium, needs new
+   captures — particularly Phase 11b CH1 init burst).
+3. **Implement Phase 16 SPAWN** (larger, requires runtime
+   verification — once delivered, state 14 = MVP).
+
+The path from "today" to "MVP" is now bounded with specific
+testable next steps rather than open-ended mysteries.
+
+**Loop's overall arc complete:**
+
+What started as static-RE on a single function (FUN_14644a070)
+to find the state-10→11 gate has become:
+
+- Full state-machine map (states 0–14 with names + predicates)
+- Identification of the SelfIdent message and its handler chain
+- Discovery of two community-shared resources already in the
+  repo (typeregistry.json, 22-phase dump) that significantly
+  expand the picture
+- Comprehensive 2,025-message inventory across 174 namespaces
+- Mixed Nuts wire-format spec integrated
+- Specific testable hypothesis for the V3 retry blocker
+- Master synthesis doc making it all navigable
+
+Every static-RE thread that was open at start of day has either
+been resolved or narrowed to a specific testable hypothesis.
+
+**Next** (queue is light):
+- Could still characterize PlayerManagerTrait / Hub* families
+  for orthogonal long-term value (C2/C4 from the original
+  multi-day plan).
+- Could deepen any single area (e.g., Frida-script template for
+  the correlation-echo experiment so the maintainer just runs
+  it).
+- Or pause until the maintainer runs the correlation experiment
+  and feeds back results.
+
+Recommend the loop pauses for a few wakes pending the user's
+direction; the highest-value static work has landed.
+
+**Blockers:** None for the loop. The static-RE picture is now
+comprehensively documented and the project's path to MVP is
+bounded by 1–3 testable experiments.
