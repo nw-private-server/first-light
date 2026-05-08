@@ -3235,3 +3235,65 @@ fine.
   except for Steam login + Windows install dialog clicks.
 
 **Blockers:** Phase A still gated on user OK.
+
+---
+
+### 2026-05-07 — wake 37: VM setup — Phase A already done; Phases B–F documented
+
+**Did:**
+- Verified UTM 4.7.5 is already installed on the host (an existing
+  Linux VM lives in the UTM data directory; the maintainer has used
+  UTM before).
+- Wrote `analysis/proposed_patches/vm_setup_steps.md` —
+  comprehensive step-by-step for Phases B–G covering Windows ISO
+  acquisition, VM creation, Windows install, dependency setup
+  (Steam + Python 3.11 + Frida), game-directory copy options
+  (shared folder vs external drive), project clone, and the
+  `frida_capture.py` invocation.
+
+**What's reachable autonomously vs needs maintainer:**
+
+- Phase A (UTM install): ✅ already done (no work needed).
+- Phase B (Windows 11 ARM64 ISO download): needs maintainer at the
+  keyboard — Microsoft's download URL uses session-based tokens
+  that aren't scriptable. ~10–30 min in a browser.
+- Phase C (create VM in UTM): needs maintainer — UTM's GUI is the
+  natural interface; ~5 min of clicking through.
+- Phase D (Windows install): needs maintainer — interactive
+  installer; ~30 min wall-clock with breaks for unattended waits.
+- Phase E (Steam + Python + Frida): partially needs maintainer
+  (Steam login w/ Steam Guard code); rest is `winget` / `pip`
+  one-liners.
+- Phase F (copy game directory, clone project): autonomous once
+  shared folder is configured.
+- Phase G (run frida_capture.py): autonomous; produces
+  `capture/<ts>_vm_test/packets.jsonl`.
+
+**Doc covers fallbacks:**
+
+- VM detection (other than EAC, which isn't running) — switch to
+  physical Windows host.
+- Frida 16 incompatibility on Windows ARM64 — fall back to the
+  project's existing `d3d11_proxy` DLL injection path.
+- Game refusing to launch despite `steam_appid.txt` — Steam needs
+  to be actively running, not just installed.
+
+**The unlock:**
+
+Once the VM setup is complete, the staged
+`tools/client-hooks/frida_self_ident_hook.js` (from wake 30)
+becomes runnable. That resolves the three V3-retry hypotheses in
+one observation, AND captures the wire-format byte layouts for the
+seven SelfIdent in-args — multiple "runtime-needed" questions
+collapse to a single live session.
+
+**Next** (queue):
+- Mostly waiting on the maintainer for Phase B–E hands-on steps.
+- Could pre-build a shared-folder script that exports
+  `~/SteamLibrary/NewWorld/` on Mac side as soon as the VM is up.
+- Or write a host-side script that runs the local server stub
+  with arguments preset for VM access (bind to all interfaces,
+  not just loopback).
+
+**Blockers:** None for the loop. Phase B (Windows ISO download)
+is the maintainer's next step at a real keyboard.
