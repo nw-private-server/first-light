@@ -5192,3 +5192,130 @@ for completeness.
    beyond Rejected.
 
 **Blockers:** None new.
+
+---
+
+### 2026-05-08 — wake 57: +0xa1 gate is dynamic (per-listener); LevelInfo struct has runtime +0xb0 flag
+
+**Did:**
+
+1. Decompiled `FUN_14057143c` — the per-entry callback inside the
+   LevelInfoChanged `+0xa1` gate dispatcher.
+2. Decompiled `FUN_146410750` — the LevelInfo struct's
+   storage / move-assign function called by the handler with
+   `param_1 - 0x8b0` and the local `local_e8` buffer.
+
+**Found — `FUN_14057143c` is a generic vtable thunk:**
+
+```c
+void FUN_14057143c(undefined8 *param_1) {
+    /* WARNING: Could not recover jumptable. Too many branches */
+    (**(code **)*param_1)();
+    return;
+}
+```
+
+It dereferences `*param_1` to get a vtable pointer, then calls
+the first method of that vtable. Ghidra warns "too many
+branches" — meaning hundreds of distinct vtables can land here
+at runtime.
+
+**Implication for the +0xa1 gate:** The predicate is **per-listener**.
+Whatever objects are registered in the thread-local list (read
+inside `FUN_1463e42b0`) provide their own first-method
+implementations, and EACH of those decides `gate = true|false`
+based on its own logic given the body byte at `+0xa1`. Different
+listeners may have different rules.
+
+**Server-side impact:** Setting `m_levelIsLoading = 1` (the byte
+the handler currently passes) is a reasonable default but not
+provably the only valid value. The "right" value is whatever
+the registered listeners at the moment of dispatch will accept.
+Without a runtime trace, we can't pin it down further.
+
+**Found — LevelInfo struct has a runtime-only flag at `+0xB0`:**
+
+`FUN_146410750` is a copy/move-assign function for the LevelInfo
+struct. Its branch logic on `+0xb0` reveals:
+
+```c
+if (*(char *)(param_1 + 0xb0) == '\0') {
+    if (*(char *)(param_2 + 0xb0) == '\0') return param_1;
+    // fresh-copy / move-construct branch
+} else if (*(char *)(param_2 + 0xb0) == '\0') {
+    *(char *)(param_1 + 0xb0) = 0;     // clear destination flag
+}
+```
+
+So `+0xb0` is an **"is initialized" flag**. The handler sets it
+to 1 (`local_38 = '\x01';`) before calling `FUN_146410750` to
+mark the source as ready. Important nuance:
+
+- The **wire format** is still 176 bytes (0xB0). The flag is NOT
+  serialized.
+- The **in-memory** struct is 177+ bytes (likely 184 bytes with
+  alignment).
+- **Updated `clientmessagestrait_wire_formats.md`** to clarify
+  this distinction.
+
+**Bonus finding — AZStd::unordered_* container internal:**
+
+The 56-byte `m_extendedField` container at body+0x68 has a
+self-referencing field at internal offset +0x20 (so absolute
++0x88 within the body). On copy/move, `FUN_146410750` writes
+`(undefined1)param_1` (the LOW BYTE of the destination pointer)
+to that field. This is a **hashtable bucket sentinel** —
+typical AZStd::unordered behavior; the sentinel needs to be
+re-pointed when copied.
+
+This means a server-side encoder can NOT just memcpy a
+pre-built struct — it must construct the unordered container
+in-place at the destination. For an empty container (count=0),
+the sentinel just needs a sane default value (often the
+container's own address); for non-empty, full reconstruction
+required.
+
+**Why this matters:**
+
+Two important refinements for the LevelInfoChanged encoder:
+
+1. **The +0xb0 flag is internal, NOT wire.** Server-side code
+   must not include this byte in the serialized output. Wake 54's
+   "176 bytes" stays correct.
+2. **The +0xa1 gate is non-deterministic from static-RE.** The
+   safest server-side default is `m_levelIsLoading = 1`, matching
+   the handler's own initialization. If that fails the gate
+   in practice, runtime instrumentation is the only way to
+   resolve.
+
+**Files this iteration:**
+
+- `analysis/clientmessagestrait_wire_formats.md` (two
+  refinements: +0xa1 row + new "runtime-only field" note for
+  +0xb0).
+- This worklog entry.
+
+**Commit:** Following.
+
+**Next** (queue, in priority order):
+
+1. **Pivot to a different ClientMessagesTrait message.** With
+   SelfIdent and LevelInfoChanged fully characterized and the
+   convention well understood, decompile another sibling handler.
+   Wake 7 listed `FUN_146463540` ("Reset"), `FUN_14643e7b0`
+   ("MayHandleReplicationUnreliable() returning false..."),
+   `FUN_146455e90` ("ProcessPendingReliableMsgQueue processing %zu...")
+   — these may or may not be ClientMessagesTrait but at minimum
+   they share the GameMessagePort log channel. Decompiling one
+   confirms whether each is a wire-format owner or a utility.
+2. **Decompile `FUN_146455e90` ("ProcessPendingReliableMsgQueue
+   processing %zu...")** specifically. The "ProcessPending" name
+   suggests this IS the dispatcher loop body that walks the
+   reliable-message queue and dispatches handlers — exactly what
+   we need to decode the dispatch table layout.
+3. **`FUN_1402b04f0`** — the alternative copy function used in the
+   "both initialized" assign branch of `FUN_146410750`. Probably
+   a destructive AZStd::string assign. Confirms the string
+   semantics.
+
+**Blockers:** None new.
