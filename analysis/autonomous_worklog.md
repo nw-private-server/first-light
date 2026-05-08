@@ -3153,3 +3153,85 @@ on the host machine waits for explicit go.
 
 **Blockers:** Unilateral software installation paused awaiting
 maintainer OK on UTM.
+
+---
+
+### 2026-05-07 — wake 36: the "non-EAC archive" trick is just don't run the launcher
+
+**Did:**
+- Re-read `tools/client-hooks/frida_capture.py:249-275`,
+  `tools/client-hooks/README.md`, and `docs/non-eac-capture-plan.md`
+  to figure out what the existing setup actually does to bypass EAC.
+- Verified the contents of the SteamCMD-downloaded game directory.
+
+**Found:**
+
+The "archived non-EAC build" the project's docs reference is **just
+a copy of the game directory** with one configuration trick — there's
+no patched binary, no community-sourced alternate version, no EAC
+removal. The full mechanism, recovered from existing code:
+
+1. Copy the game directory anywhere (the project's own
+   `frida_capture.py` only cares about the `--exe` path).
+2. Create a `steam_appid.txt` containing `1063730` next to
+   `NewWorld.exe` — `frida_capture.py:251` does this automatically
+   on every spawn so it's self-contained.
+3. Have Steam running and logged in (provides the Steam launch-context
+   the game checks at startup).
+4. Spawn `NewWorld.exe` directly via `frida.spawn(GAME_EXE)` instead
+   of running `NewWorldLauncher.exe`.
+5. Frida attaches before the main thread runs and injects the
+   trust-patch + hooks scripts.
+
+**EAC is a wrapper, not an integrated check.** It bootstraps from
+`NewWorldLauncher.exe` → `EasyAntiCheat_Launcher.exe` →
+`NewWorld.exe`. By skipping the launcher chain entirely (just
+spawning `NewWorld.exe` directly), EAC's process-injection and
+anti-tamper layer never activates. The game proceeds because
+`steam_appid.txt` + a running Steam process satisfy its other
+launch-context checks.
+
+**What this means for the VM:**
+
+The 71 GB game directory we already have at
+`~/SteamLibrary/NewWorld/` (downloaded via SteamCMD on 2026-05-06)
+is functionally identical to what would live in
+`G:\NewWorldArchive\GameClient\` on a Windows host running the
+existing setup. The full path forward is:
+
+| Phase | What | Needs maintainer? |
+|---|---|---|
+| A. Install UTM, download Windows 11 ARM64 ISO | brew install + ISO download | ✅ user OK to install UTM |
+| B. Create VM, install Windows | UTM GUI walks through install | partially — Windows install dialog |
+| C. Install Steam in VM, log in | Steam installer, user credentials | ✅ Steam login |
+| D. Copy `~/SteamLibrary/NewWorld/` into VM (or via shared folder) | UTM shared folder feature | no |
+| E. Install Python 3.11 + Frida 16+ in VM | Python installer, `pip install frida-tools` | no |
+| F. Run `frida_capture.py --exe "C:\NewWorldArchive\Bin64\NewWorld.exe"` against our local server | runs the exact same flow as the existing home setup | no |
+
+**No EAC strip needed.** No archive sourcing needed. No multi-week
+RE project needed. The game directory we have on disk is the
+"archive" once it's in a Windows VM environment with Steam logged
+in.
+
+**One real risk: VM detection.** EAC's wrapper would detect a VM if
+it ran. But since we're skipping the wrapper entirely, EAC never
+runs and never gets a chance to detect the VM. The game's own
+internal checks (if any) are configured by `steam_appid.txt` +
+Steam process to look like a normal Steam launch. The community
+22-phase dump (`info/community_22_phase_in_game_dump.txt`) shows
+others have done this on Windows hosts; the VM extension is
+plausible.
+
+**One performance concern:** Windows ARM64 + x64 emulation via
+Microsoft Prism + Apple Hypervisor framework is going to be slow.
+"Boot the game far enough to see state advance" might be feasible
+even at low FPS; "play the game" almost certainly isn't. For our
+purposes (verify state machine + capture wire bytes), low FPS is
+fine.
+
+**Next** (queue):
+- Awaiting maintainer's `go` on UTM install (Phase A).
+- All subsequent phases documented above; can run them autonomously
+  except for Steam login + Windows install dialog clicks.
+
+**Blockers:** Phase A still gated on user OK.
