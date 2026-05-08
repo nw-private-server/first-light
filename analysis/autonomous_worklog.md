@@ -3297,3 +3297,66 @@ collapse to a single live session.
 
 **Blockers:** None for the loop. Phase B (Windows ISO download)
 is the maintainer's next step at a real keyboard.
+
+---
+
+### 2026-05-07 — wake 38: VM networking section + verify host bind
+
+**Did:**
+- Verified `server/rep_responder.py` defaults to bind `0.0.0.0:23971`
+  (line 60), with `--bind-host` / `--bind-port` flags. Reachable
+  from the VM out of the box.
+- Verified `server/auth_mock.py` defaults to bind `::` dual-stack
+  IPv4+v6 with `--rep-host` and `--rep-port` flags for the
+  client-facing REP address it advertises in login tickets
+  (default 127.0.0.1, will need to be the Mac's VM-side IP for
+  the VM scenario).
+- Verified `tools/setup_hosts.py` accepts `--target-ip` for the
+  redirect target and is hard-coded to the Windows hosts path —
+  meant to run inside the VM.
+- Updated `analysis/proposed_patches/vm_setup_steps.md` with a
+  new Phase G (Networking) and renumbered the "run the existing
+  setup" content as Phase H.
+
+**The Phase G section covers:**
+
+1. Finding the Mac's IP from the VM's perspective (default gateway
+   in UTM's NAT, typically `192.168.64.1`).
+2. Running `auth_mock` with `--rep-host MAC_IP_FROM_VM` so the
+   client connects back to the Mac's IP, not localhost.
+3. Running `rep_responder` (binds 0.0.0.0 by default, no flag
+   needed for VM access).
+4. Running `setup_hosts.py --apply --target-ip MAC_IP_FROM_VM`
+   inside the VM to redirect Amazon hostnames at the Mac.
+
+**Phase H** also adds a separate `frida` invocation for the
+SelfIdent diagnostic hook on top of `frida_capture.py`'s default
+hooks.
+
+**Why this matters:**
+
+The original Phase G was a placeholder; without the networking
+section, the maintainer would hit "client can't reach server"
+errors on first attempt. This makes the doc end-to-end runnable.
+
+**Status of staged deliverables:**
+
+| Deliverable | File | Status |
+|---|---|---|
+| Correlation-echo patch | `analysis/proposed_patches/correlation_echo_v3_response.md` | ready |
+| SelfIdent Frida hook | `tools/client-hooks/frida_self_ident_hook.js` | ready |
+| VM setup A→H steps | `analysis/proposed_patches/vm_setup_steps.md` | ready |
+| Master synthesis | `docs/protocol-overview.md` | ready |
+| Worklog narrative | `analysis/autonomous_worklog.md` | live |
+
+The maintainer's next physical-keyboard activity is Phase B
+(Windows ISO download). Everything else is staged.
+
+**Next** (queue):
+- The polish well is genuinely getting deep — most things landed.
+- Could write a quick FAQ doc consolidating the questions surfaced
+  in the live conversation (Prism viability, Windows x64 on
+  Apple Silicon, EAC bypass mechanism). Useful for future
+  contributors who hit the same questions.
+
+**Blockers:** None.

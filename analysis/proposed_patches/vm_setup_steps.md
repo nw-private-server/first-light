@@ -117,29 +117,82 @@ git -C C:\first-light fetch origin
 git -C C:\first-light checkout claude/vacation-2026-05-06
 ```
 
-## Phase G: Run the existing setup
+## Phase G: Networking (VM ↔ Host)
 
-Once Phases C–F are done:
+The servers run on the Mac; the game runs in the VM. Both server
+binaries already bind to `0.0.0.0` by default
+(`server/rep_responder.py:60` and `server/auth_mock.py:--host '::'`),
+so they're reachable from the VM's network without code changes.
+
+### Find the Mac's IP from the VM's perspective
+
+In the Windows VM, open PowerShell and run:
 
 ```powershell
-# Launch the local server stub (in WSL or via Python on Windows;
-# easier to run on the Mac and have the VM connect to host networking)
-# On the Mac side:
+ipconfig | Select-String "Default Gateway"
+```
+
+The default gateway IS the Mac (UTM's NAT puts the host at the
+gateway). UTM's default subnet gives the Mac something like
+`192.168.64.1`. Note this address — it's `MAC_IP_FROM_VM` below.
+
+### Run the servers on the Mac
+
+```bash
+# Terminal 1: HTTPS auth mock with rep address pointing at the Mac
+sudo python -m server.auth_mock \
+  --port 443 \
+  --rep-host MAC_IP_FROM_VM \
+  --rep-port 24083
+
+# Terminal 2: DTLS REP server bound to all interfaces
 python -m server.rep_responder --port 24083
+```
 
-# In the VM, redirect hostnames to the Mac's IP via:
-# C:\Windows\System32\drivers\etc\hosts
-# (need admin notepad; project's tools\setup_hosts.py automates)
+`auth_mock` needs admin (port 443). `rep_responder` doesn't but
+will need its UDP port reachable from the VM — UTM's default NAT
+should pass UDP fine.
 
-# Then spawn NewWorld via Frida:
+### Redirect hostnames in the VM
+
+Inside Windows, from an Administrator PowerShell:
+
+```powershell
+cd C:\first-light
+python tools\setup_hosts.py --apply --target-ip MAC_IP_FROM_VM
+```
+
+Verify by trying to resolve one of the hostnames:
+
+```powershell
+nslookup d3bj4csovi1fe8.cloudfront.net
+# Should return MAC_IP_FROM_VM
+```
+
+## Phase H: Run NewWorld through the existing setup
+
+Once networking is wired:
+
+```powershell
+# Make sure Steam is running + logged in (Phase E step 1)
+# Then launch NewWorld via Frida:
 cd C:\first-light
 python tools\client-hooks\frida_capture.py `
   --exe "C:\NewWorldArchive\Bin64\NewWorld.exe" `
   --name vm_test
 ```
 
-Steam needs to be running and logged in (Phase E step 1) for the
-launch-context check to pass.
+If you ALSO want the SelfIdent diagnostic hook (worth running first
+time to resolve the V3-retry hypothesis tree):
+
+```powershell
+# In a second VM PowerShell, after frida_capture.py spawns the game:
+frida -p $(Get-Process NewWorld | Select-Object -ExpandProperty Id) `
+      -l C:\first-light\tools\client-hooks\frida_self_ident_hook.js
+```
+
+Or add the script to `frida_capture.py`'s script-load list so it
+attaches at spawn time.
 
 ## Expected outcome
 
