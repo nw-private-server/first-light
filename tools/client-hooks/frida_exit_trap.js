@@ -28,22 +28,83 @@
     }
 
     function backtrace(ctx, label) {
-        try {
-            const frames = Thread.backtrace(ctx, Backtracer.ACCURATE);
-            const lines = [];
-            for (let i = 0; i < frames.length && i < 32; i++) {
-                let sym;
-                try {
-                    sym = DebugSymbol.fromAddress(frames[i]).toString();
-                } catch (_e) {
-                    sym = frames[i].toString();
+        // Try ACCURATE first for clean prologues; fall back to FUZZY which
+        // copes better with hand-written assembly / exception dispatchers
+        // where ACCURATE gives up at the first frame.
+        const tries = [Backtracer.ACCURATE, Backtracer.FUZZY];
+        for (let t = 0; t < tries.length; t++) {
+            try {
+                const frames = Thread.backtrace(ctx, tries[t]);
+                if (!frames || frames.length === 0) continue;
+                const tag = tries[t] === Backtracer.ACCURATE ? "ACCURATE" : "FUZZY";
+                emit(
+                    "[exit_trap] " +
+                        label +
+                        " stack[" +
+                        tag +
+                        "] (" +
+                        frames.length +
+                        " frames):"
+                );
+                for (let i = 0; i < frames.length && i < 32; i++) {
+                    let sym;
+                    try {
+                        sym = DebugSymbol.fromAddress(frames[i]).toString();
+                    } catch (_e) {
+                        sym = "(no symbol)";
+                    }
+                    emit("    " + i + ". " + frames[i] + "  " + sym);
                 }
-                lines.push("    " + i + ". " + frames[i] + "  " + sym);
+                if (frames.length > 1) return; // good enough
+            } catch (e) {
+                emit("[exit_trap] backtrace " + t + " failed: " + e);
             }
-            emit("[exit_trap] " + label + " stack (" + frames.length + " frames):");
-            for (let i = 0; i < lines.length; i++) emit(lines[i]);
+        }
+    }
+
+    // Decode EXCEPTION_RECORD on x64 Windows.
+    //   typedef struct _EXCEPTION_RECORD {
+    //       DWORD                    ExceptionCode;        // 0x00
+    //       DWORD                    ExceptionFlags;       // 0x04
+    //       struct _EXCEPTION_RECORD *ExceptionRecord;     // 0x08
+    //       PVOID                    ExceptionAddress;     // 0x10
+    //       DWORD                    NumberParameters;     // 0x18
+    //       ULONG_PTR                ExceptionInformation[15]; // 0x20
+    //   } EXCEPTION_RECORD;
+    function readExceptionRecord(ptrER, label) {
+        try {
+            if (!ptrER || ptrER.isNull()) {
+                emit("[exit_trap] " + label + " EXCEPTION_RECORD null");
+                return;
+            }
+            const code = ptrER.readU32();
+            const flags = ptrER.add(4).readU32();
+            const exAddr = ptrER.add(0x10).readPointer();
+            const numParams = ptrER.add(0x18).readU32();
+            let sym = "(no symbol)";
+            try {
+                sym = DebugSymbol.fromAddress(exAddr).toString();
+            } catch (_e) {}
+            emit(
+                "[exit_trap] " +
+                    label +
+                    " EXCEPTION code=0x" +
+                    code.toString(16) +
+                    " flags=0x" +
+                    flags.toString(16) +
+                    " addr=" +
+                    exAddr +
+                    " (" +
+                    sym +
+                    ") nparams=" +
+                    numParams
+            );
+            for (let i = 0; i < numParams && i < 4; i++) {
+                const v = ptrER.add(0x20 + i * 8).readPointer();
+                emit("    param[" + i + "] = " + v);
+            }
         } catch (e) {
-            emit("[exit_trap] backtrace failed: " + e);
+            emit("[exit_trap] " + label + " EXCEPTION_RECORD read failed: " + e);
         }
     }
 
@@ -93,14 +154,62 @@
         }
     }
 
+    // Special hook: KiUserExceptionDispatcher gets the EXCEPTION_RECORD
+    // via the rcx register on x64 Windows (not standard arg passing).
+    // It's the kernel-to-user transition point for hardware exceptions.
+    try {
+        const mod = Process.getModuleByName("ntdll.dll");
+        const addr =
+            (mod && (mod.findExportByName ? mod.findExportByName("KiUserExceptionDispatcher")
+                                          : mod.getExportByName("KiUserExceptionDispatcher")));
+        if (addr && !addr.isNull()) {
+            Interceptor.attach(addr, {
+                onEnter: function (_args) {
+                    emit(
+                        "[exit_trap] *** ntdll!KiUserExceptionDispatcher (tid=" +
+                            this.threadId +
+                            ")"
+                    );
+                    // On x64, the dispatcher receives EXCEPTION_RECORD* in rcx
+                    // and CONTEXT* in rdx. Frida's args[] array maps to rcx/rdx/r8/r9.
+                    // The exception record is also reachable via the CPU context.
+                    try {
+                        const recordPtr = this.context.rcx; // first arg on x64
+                        const ctxPtr = this.context.rdx; // CONTEXT*
+                        readExceptionRecord(recordPtr, "KiUserExceptionDispatcher");
+                        // The CONTEXT struct's RIP at offset 0xF8 is where the fault occurred
+                        try {
+                            const faultRip = ctxPtr.add(0xf8).readPointer();
+                            let sym = "(no symbol)";
+                            try {
+                                sym = DebugSymbol.fromAddress(faultRip).toString();
+                            } catch (_e) {}
+                            emit(
+                                "[exit_trap]   CONTEXT.Rip = " + faultRip + " (" + sym + ")"
+                            );
+                        } catch (_e) {}
+                    } catch (e) {
+                        emit("[exit_trap] could not read exception record: " + e);
+                    }
+                    backtrace(this.context, "KiUserExceptionDispatcher");
+                },
+            });
+            emit("[exit_trap] hooked ntdll!KiUserExceptionDispatcher (special) @ " + addr);
+        } else {
+            emit("[exit_trap] KiUserExceptionDispatcher not found");
+        }
+    } catch (e) {
+        emit("[exit_trap] KiUserExceptionDispatcher special hook threw: " + e);
+    }
+
     // Direct termination paths.
     tryHook("ntdll.dll", "NtTerminateProcess", 2);
     tryHook("ntdll.dll", "RtlExitUserProcess", 1);
     tryHook("ntdll.dll", "ZwTerminateProcess", 2); // alias of Nt*; hook both in case one isn't reached
     tryHook("ntdll.dll", "RtlRaiseStatus", 1);
 
-    // Exception-driven abort paths.
-    tryHook("ntdll.dll", "KiUserExceptionDispatcher", 0);
+    // Exception-driven abort paths (other than KiUserExceptionDispatcher which
+    // has its special hook above).
     tryHook("ntdll.dll", "RtlDispatchException", 2);
     tryHook("KernelBase.dll", "UnhandledExceptionFilter", 1);
     tryHook("KernelBase.dll", "RaiseException", 1);
