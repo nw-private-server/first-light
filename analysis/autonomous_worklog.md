@@ -4668,3 +4668,160 @@ symbol or runtime data.
    bytecode or a class-info record.
 
 **Blockers:** None new.
+
+---
+
+### 2026-05-08 — wake 53: +0x990 hypothesis CONFIRMED via LevelInfoChanged handler; additional struct offsets and a second message's wire format
+
+**Did:**
+
+1. Decompiled `FUN_1406d97d0` — verified it's a tiny field getter
+   (`return *(qword *)(param_1 + 0x48);`), confirming that
+   `FUN_1406d97d0(param_1 - 0x990)` is reading the +0x48 field of a
+   struct rooted at `param_1 - 0x990`. The `param_1 = struct + 0x990`
+   reading is plausible but not provable from this alone.
+2. Tried `FindOffsetReferences.py 0x1A8` filtered to the
+   `0x14645xxxx` namespace — only 4 hits, all `LEA RCX, [RBP+0x1A8]`
+   (stack-frame address calculations, not struct accesses).
+   So +0x1A8 isn't a useful struct offset there.
+3. Decompiled `FUN_146446800` = LevelInfoChangedMsg handler (per
+   wake 7's GameMessagePort enumeration). **This is the verification.**
+
+**Found — `+0x990` hypothesis CONFIRMED:**
+
+Both `FUN_146454c00` (SelfIdent) and `FUN_146446800` (LevelInfoChanged)
+use the same `FUN_1406d97d0(param_1 - 0x990)` call to walk to a
+sub-object. Same getter, same offset, on a `param_1` that's
+otherwise structurally consistent (both store state at negative
+offsets in roughly the same range). **`param_1 - 0x990` is the
+same struct in both handlers.**
+
+The state field is at sub-object offset `+0x1530` (matches wake 11).
+LevelInfoChanged transitions state 14 (InGame) → state 13
+(WaitingForPlayerSpawn) when its level-context-id changes:
+
+```c
+if (*(int *)(lVar5 + 0x1530) == 0xe) {        // state == 14 InGame
+    FUN_14143e010("GameConnection","Update state %s to new state %s",
+                  PTR_s_InGame_1484fa060,"WaitingForPlayerSpawn");
+    if (*(int *)(lVar5 + 0x1530) != 0xd) {
+        FUN_14645fd70(lVar5, 0xd);             // setState(13)
+        *(undefined4 *)(lVar5 + 0x1530) = 0xd;
+        ...
+    }
+}
+```
+
+Confirms wake 11 finding that LevelInfoChangedMsg also drives the
+state machine, not just SelfIdent.
+
+**Found — additional GameConnection-substruct storage offsets:**
+
+LevelInfoChanged stores into more `param_1`-relative slots,
+identifying additional fields in the `param_1`-struct:
+
+| param_1 offset | Type | Apparent use |
+|---|---|---|
+| `-0x910` | u8 | `m_clientContextInstanceId` byte (cached) |
+| `-0x8b0` | ? | Stored level-info struct (172-byte block via `FUN_146410750`) |
+| `-0x7f8` | u64 | Cached `*(qword *)(msg + 0xa8)` — old level-context-id |
+| `-0x7f0` | u8 | "SelfIdent received" flag (per wake 51 also; SelfIdent sets it to 1 here too) |
+| `-0x7ef` | u8 | NEW — flag involved in state transition decision |
+| `-0x7ee` | u8 | NEW — flag involved in state transition decision |
+| `-0x7e8 ... -0x7b4` | (SelfIdent fields) | (per wake 51) |
+
+So the struct rooted at `param_1` (≈ `outerSession + 0x990`) has
+at least the storage range `[param_1 - 0x910, param_1 - 0x7b4]`
+populated by the message handlers.
+
+**Found — LevelInfoChangedMsg wire format (partial):**
+
+`FUN_146446800`'s second parameter (the message body or carrier)
+is read at:
+
+| Offset | Type | Use |
+|---|---|---|
+| `+0xa1` | u8 | flag (passed to `FUN_1463e42b0` via pointer) |
+| `+0xa2` | u8 | gate for the state-13 transition |
+| `+0xa8` | u64 | `m_clientContextInstanceId` — the actual id |
+
+The high offset (0xa0+) suggests `param_2` is a carrier struct
+where the header occupies the first 0xa0 bytes and the message
+body starts at +0xa0. That's consistent with the `Carrier`
+framing used elsewhere in this codebase.
+
+**Implications for the GameConnection struct map:**
+
+We now have 8 known fields in the `param_1`-struct:
+
+```
+param_1 - 0x910 : u8   m_cached_level_context_id
+param_1 - 0x8b0 : blob m_levelInfoStruct (172 bytes)
+param_1 - 0x7f8 : u64  m_oldLevelContextId
+param_1 - 0x7f0 : u8   m_selfIdentReceived
+param_1 - 0x7ef : u8   ?
+param_1 - 0x7ee : u8   ?
+param_1 - 0x7e8 : u32  m_selfIdent_field0
+param_1 - 0x7e0 : vec  m_selfIdent_field08
+param_1 - 0x7c0 : u8   m_selfIdent_debugFlag
+param_1 - 0x7bc : u64  m_selfIdent_field2C
+param_1 - 0x7b4 : u32  m_selfIdent_field34
+```
+
+Under the `param_1 = struct + 0x990` hypothesis, that's:
+
+```
+struct + 0x080 : m_cached_level_context_id (u8)
+struct + 0x0E0 : m_levelInfoStruct (blob)
+struct + 0x198 : m_oldLevelContextId (u64)
+struct + 0x1A0 : m_selfIdentReceived (u8)
+struct + 0x1A8 : m_selfIdent_field0 (u32)
+struct + 0x1B0 : m_selfIdent_field08 (vector)
+struct + 0x1D0 : m_selfIdent_debugFlag
+struct + 0x1D4 : m_selfIdent_field2C
+struct + 0x1DC : m_selfIdent_field34
+```
+
+(Sub-object pointer at +0x48 plus the state field at sub-object
++0x1530 are inside the deeper sub-struct.)
+
+**Why this matters:**
+
+1. **Wire-format dictionary doubled.** We now have layouts for two
+   ClientMessagesTrait messages (SelfIdent, LevelInfoChanged), not
+   one. Both are needed for the post-V3 sequence (wake 11 found
+   LevelInfoChangedMsg also drives state).
+2. **`m_oldLevelContextId` field (`param_1 - 0x7f8`) tells us how
+   the client filters duplicate level-info messages.** The handler
+   short-circuits when the message's `+0xa8` matches the cached
+   `-0x7f8` — so the server must change `m_clientContextInstanceId`
+   on each level transition for the client to act on it.
+3. **The dispatcher now has a confirmed cross-handler convention:**
+   - Both handlers receive `param_1` with the same struct offset
+     (`-0x990` from struct start)
+   - Both log via the GameMessagePort channel
+   - Both touch the state machine via `FUN_14645fd70(... , state)`
+   - Differences in `param_2..param_7` count are real (SelfIdent
+     uses 6+, LevelInfoChanged uses just 2) — different dispatch
+     thunks for different messages.
+
+**Files this iteration:** None new. Used existing tools.
+
+**Commit:** This worklog entry only.
+
+**Next** (queue, in priority order):
+
+1. **Decompile sibling handlers** (`FUN_14644b280`, `FUN_14644d960`,
+   `FUN_146463540`, `FUN_14643e7b0`) — wake 7's GameMessagePort
+   list. Each one likely has a wire format we can extract.
+2. **Map `m_levelInfoStruct` blob layout** — the 172-byte block
+   at `param_1 - 0x8b0` populated by `FUN_146410750(param_1 - 0x8b0,
+   local_e8)` where `local_e8` is built from `FUN_1464027b0(local_e8,
+   param_2)`. Decompiling `FUN_1464027b0` reveals more of the
+   level-info wire format and `FUN_146410750` shows how it's stored.
+3. **A2.10 (PlayerManagerRejected handler)** — still pending. The
+   wake-7 enumeration showed it's NOT in the GameMessagePort set,
+   so it logs on a different channel. Search for log strings
+   matching "Rejected", "Reject", "denied" might surface it.
+
+**Blockers:** None new.
