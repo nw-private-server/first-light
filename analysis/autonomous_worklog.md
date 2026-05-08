@@ -4825,3 +4825,122 @@ struct + 0x1DC : m_selfIdent_field34
    matching "Rejected", "Reject", "denied" might surface it.
 
 **Blockers:** None new.
+
+---
+
+### 2026-05-08 — wake 54: full LevelInfoChangedMsg body recovered (176 bytes); reference doc created
+
+**Did:**
+
+1. Decompiled `FUN_14644b280` ("Switch coming from
+   clientContextInstanceId..."). It's NOT a top-level message
+   handler — it's a per-context-instance queue helper that
+   compares param_4 (a context id) to a cached `param_1[+0x80]`
+   and tracks a counter at `param_1[+0x70]`. 5-arg shape, doesn't
+   match either dispatched-handler convention. Wake 7's
+   speculation about it being a sibling handler was wrong.
+2. Decompiled `FUN_1464027b0` — the LevelInfo body copy
+   constructor. **This gives us the complete 176-byte body
+   layout** instead of just the few fields the handler directly
+   reads.
+3. Created `analysis/clientmessagestrait_wire_formats.md` as a
+   dedicated reference doc consolidating both message layouts +
+   server-side implications + the convention shared across
+   ClientMessagesTrait handlers.
+
+**Found — full LevelInfoChangedMsg wire format:**
+
+```
++0x00   AZStd::string  m_levelName             (28 bytes string container)
++0x28   AZStd::string  m_someOtherName         (28 bytes string container)
++0x50   u32            m_field50
++0x54   u32            m_field54
++0x58   u32            m_field58
++0x5C   u32            m_field5C               (4 contiguous u32s — possibly Vec4 / quat)
++0x60   u64            m_field60
++0x68   container      m_extendedField         (56-byte AZStd::vector-like — copy via FUN_1416074b0)
++0xA0   u8             m_field_a0
++0xA1   u8             m_levelIsLoading (?)    (passed to FUN_1463e42b0 for early-out check)
++0xA2   u8             m_isInGameTransition (?)(gate for state-14→state-13 transition)
++0xA3   u8             m_field_a3
++0xA8   u64            m_clientContextInstanceId  (handler's de-dup key)
++0xB0   end                                     (matches local_e8[176] in handler)
+```
+
+The handler's high-offset reads (`param_2 + 0xa1`, `+0xa2`, `+0xa8`)
+that initially looked like a "carrier header" are actually direct
+hits into the middle of the body — there's no extra header
+prefix on top.
+
+**Found — `FUN_14644b280` is a queue helper, not a message handler:**
+
+It takes (param_1, param_2 [u64*], param_3, param_4 [char], param_5
+[char]) and:
+
+- Compares `param_4` to a cached `param_1[+0x80]` (per-instance
+  context id)
+- Compares `*param_2` to `param_1[+0x70]` (a counter)
+- On match, increments the counter and returns `true`.
+- On `param_4 == cached + 1` (next-context), logs the "Switch
+  coming from..." message and dispatches via `FUN_1463f1ca0`.
+
+This is the **per-context-instance message-ordering check** that
+the dispatcher framework uses BEFORE delivering a message to the
+real handler. It's per-context state, not a wire-format owner.
+
+**Created reference doc:**
+
+`analysis/clientmessagestrait_wire_formats.md` consolidates:
+
+- Convention shared across handlers (param_1 - 0x990 → outer
+  struct, state at sub-object +0x1530, etc.)
+- Full PlayerManagerSelfIdentificationMsg layout (from wake 51)
+- Full LevelInfoChangedMsg layout (from this wake)
+- Server-side encoding implications (e.g., must change
+  m_clientContextInstanceId on each level transition for the
+  client to act)
+- "How to add to this reference" so future static-RE wakes can
+  extend it.
+
+**Why this matters:**
+
+The server-side encoder for `LevelInfoChangedMsg` now has a
+complete in-memory layout to target. To produce a syntactically
+valid body, encode:
+
+1. `[u32 length][bytes]` for `m_levelName` (per AzCore string
+   convention).
+2. `[u32 length][bytes]` for `m_someOtherName`.
+3. 4 u32s zero-filled (or sensible Vec4 if the engine cares).
+4. A u64 zero.
+5. The 56-byte container at +0x68 — needs more decode (next wake).
+6. 4 u8 flags, of which `+0xa1` and `+0xa2` need to be set such
+   that the state-14 → state-13 transition fires.
+7. A non-zero `m_clientContextInstanceId` at `+0xa8` that **changes**
+   between calls.
+
+Plus: the wake-11 finding that `LevelInfoChangedMsg` directly
+forces the state machine to 13 is now actionable — once the
+container at +0x68 is decoded, the server can emit this message
+and bring the client past state 12.
+
+**Files this iteration:**
+
+- `analysis/clientmessagestrait_wire_formats.md` (new)
+- `analysis/autonomous_worklog.md` (this entry)
+
+**Commit:** Following this entry.
+
+**Next** (queue, in priority order):
+
+1. **Decompile `FUN_1416074b0`** (the container-copy helper) to
+   recover the 56-byte `m_extendedField` layout. This is the
+   last piece of LevelInfoChangedMsg's body that's still opaque.
+2. **Decompile `FUN_1463e42b0`** (the helper called with `+0xa1`)
+   to learn what conditions cause the handler to early-out vs
+   proceed. This tells us how to set `m_levelIsLoading` correctly.
+3. **A2.10 (PlayerManagerRejected handler)** — still pending. The
+   wake-7 enumeration showed it's NOT in the GameMessagePort set;
+   try other log channels ("Javelin", "ClientFlow", "JavelinNet"...).
+
+**Blockers:** None new.
