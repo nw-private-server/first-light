@@ -38,6 +38,29 @@ client either ignoring the message or hitting the sender-validation
 gate (the handler short-circuits when param_5's UUID-shaped struct
 doesn't match the expected sender).
 
+**SECONDARY CAVEAT — wire-vs-in-memory size conflict:**
+`docs/post-v3-sequence.md` table column "Size" lists Phase 9b
+SelfIdentification as **4B** body. That conflicts with this
+encoder's 21-byte minimum (which is the in-memory struct size
+the handler reads). Two possible interpretations:
+
+  1. The 4-byte wire body is a **trigger / signal** message
+     (e.g. "client wants to self-identify") and the actual identity
+     data is sourced from session state, NOT serialized over the
+     wire. In this case THIS encoder is wrong for Phase 9b — it's
+     encoding the in-memory struct, not the wire trigger.
+
+  2. The "4B" in the doc is a stale/incorrect estimate that
+     predates the wake 51-60 static-RE work. The handler reads
+     21+ bytes of structured data; the wire body must therefore
+     be at least that big. In this case this encoder is correct.
+
+This is **unresolved without runtime data**. Encoding a
+LevelInfoChanged-style 21+byte body and sending it as Phase 9b
+would either be the right thing OR produce a client-rejected
+oversized message. **Do not integrate into rep_responder until
+runtime validation settles this.**
+
 Field semantic notes (from the static-RE work):
 
   - m_field0:    u32 — purpose unconfirmed (sequence? persona-id-half?)

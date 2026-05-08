@@ -106,7 +106,7 @@ channel.
 | 7 | 250ms | HEARTBEAT `0x8f` | 0 | 13B | |
 | 8 | 280ms | `0xa6` + `0x88`x2 | 0 | ~120B | grouped |
 | 9 | 300ms | `0x88` + small `0xa4` | 0 | ~60B | grouped |
-| **9b** | **310ms** | **SelfIdentification `0x91(0x17)`** | **0** | **4B** | **state 10→11 trigger** |
+| **9b** | **310ms** | **SelfIdentification `0x91(0x17)`** | **0** | **4B¹** | **state 10→11 trigger** |
 | 10 | 320ms | `0x88` x20 | 0 | ~840B | one carrier datagram |
 | 11 | 400ms | SESSION AA `0xaa` | 0 | 29B | |
 | 11a | 420ms | `0xa4` + WORLD SPAWN `0xa3` + HB `0x8f` | 0 | ~130B | retail dseq=26 |
@@ -122,6 +122,16 @@ channel.
 | 20 | 7000ms | Entity `0xac` chunked | 0 | 2.6KB | |
 | 21 | continuous | Heartbeats `0x8f`/`0x9d` alternating @ 500ms | 0 | 13B | |
 | 22 | 10s+ | Continuous ch0 loop `0x94`/`0xa5`/`0xac`/`0x9a` | 0 | varies | |
+
+¹ **Phase 9b size note:** the 4-byte figure dates from before
+wake 51's wire-format work. Static-RE on the SelfIdent handler
+(`FUN_146454c00`) shows it reads from a 56-byte in-memory struct
+(see `analysis/clientmessagestrait_wire_formats.md`), so either
+the wire body is much larger than 4 bytes, OR the 4-byte body is
+a trigger/signal that prompts the client to source identity from
+session state. Unresolved without a captured Phase 9b — the
+hypothesized 21+ byte encoder lives at `server/javelin/self_ident.py`
+but is not yet wired into emission.
 
 ## Cross-link to the GameConnection state machine
 

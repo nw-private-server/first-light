@@ -309,6 +309,82 @@ def test_self_ident_accepts_list_for_field_08():
 
 
 # ---------------------------------------------------------------------------
+# Integration: SelfIdent + LevelInfoChanged combined
+# ---------------------------------------------------------------------------
+# Constructs a server-emit-ready bundle of both ClientMessagesTrait bodies,
+# verifies sizes + delimiting offsets, exercises both encoders together.
+# Does NOT modify rep_responder (the live emission path is replay-based and
+# wiring fresh encoders in requires runtime validation of an unresolved
+# wire-vs-in-memory size conflict — see post-v3-sequence.md note ¹ and the
+# "SECONDARY CAVEAT" in self_ident.py).
+
+
+def test_combined_sequence_well_formed():
+    """Build a SelfIdent then LevelInfoChanged body bundle. Verify the two
+    bodies concatenate cleanly with the expected offsets — i.e. the byte
+    stream a Carrier framer would consume after wrapping each body in its
+    own typed envelope."""
+    si_body = encode_self_ident(PlayerManagerSelfIdentificationMsg(
+        field_0=0x12345678,
+        field_08=(0xa, 0xb, 0xc),
+        debug_flag=0,
+        field_2c=0xCAFEBABEDEADBEEF,
+        field_34=0x44332211,
+    ))
+    lic_body = encode_level_info(LevelInfoChangedMsg(
+        level_name="NewWorld_Aeternum",
+        other_name="ServerAlpha-EU",
+        client_context_instance_id=0x4242,
+    ))
+
+    # Each body is independently parseable. Concatenation is just appending.
+    bundle = si_body + lic_body
+
+    # SelfIdent expected size: min + 3 vector elements
+    assert len(si_body) == SI_MIN_WIRE_SIZE + 3 * 4
+
+    # LevelInfoChanged expected size: min + len("NewWorld_Aeternum") +
+    # len("ServerAlpha-EU")
+    assert len(lic_body) == LIC_MIN_WIRE_SIZE + 17 + 14
+
+    # Bundle is the sum
+    assert len(bundle) == len(si_body) + len(lic_body)
+
+    # SelfIdent's first 4 bytes are field_0; verify still positioned correctly
+    # in the bundle
+    assert bundle[0:4] == _struct.pack("<I", 0x12345678)
+
+    # LevelInfoChanged's first 4 bytes (= u32 length of m_levelName) appear
+    # right after SelfIdent's full body
+    assert bundle[len(si_body):len(si_body) + 4] == _struct.pack("<I", 17)
+    # And the level_name bytes follow
+    assert bundle[len(si_body) + 4:len(si_body) + 4 + 17] == b"NewWorld_Aeternum"
+
+
+def test_combined_sequence_production_safe_defaults():
+    """Both encoders' defaults match the 'production server' recipe:
+    SelfIdent.debug_flag = 0 (skips the debug branch); LevelInfoChanged
+    flags include level_is_loading = 1 and is_in_game_transition = 1
+    (allows the state-14 → 13 transition to fire)."""
+    si = PlayerManagerSelfIdentificationMsg()
+    assert si.debug_flag == 0
+
+    lic = LevelInfoChangedMsg()
+    assert lic.level_is_loading == 1
+    assert lic.is_in_game_transition == 1
+
+
+def test_combined_sequence_min_total_size():
+    """Empty / default both encoders. Verify the minimum combined wire size
+    is exactly SI_MIN + LIC_MIN — the floor a server must allocate for the
+    two bodies before adding any actual content."""
+    si_body = encode_self_ident(PlayerManagerSelfIdentificationMsg())
+    lic_body = encode_level_info(LevelInfoChangedMsg())
+    assert len(si_body) + len(lic_body) == SI_MIN_WIRE_SIZE + LIC_MIN_WIRE_SIZE
+    assert SI_MIN_WIRE_SIZE + LIC_MIN_WIRE_SIZE == 21 + 48
+
+
+# ---------------------------------------------------------------------------
 # v3_request — error paths (no capture file needed)
 # ---------------------------------------------------------------------------
 

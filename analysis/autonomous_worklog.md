@@ -5875,3 +5875,119 @@ ready to integrate them.
    end-to-end byte layout matching expectations is another.
 
 **Blockers:** None new.
+
+---
+
+### 2026-05-08 — wake 63: integration deferred — wire-vs-in-memory size conflict for SelfIdent surfaced
+
+**Did:**
+
+1. Surveyed `server/` for the live emission path. The current
+   architecture is **replay-based** (`server/javelin/replay_substitution.py`
+   → `server/rep_responder.py`) — captured server-side messages
+   are replayed with a few session-specific spans patched in.
+   No "fresh encoder" path exists.
+2. Cross-checked `docs/post-v3-sequence.md` against the encoder
+   sizes for sanity.
+3. **Surfaced a real conflict** that blocks safe integration.
+
+**Found — wire-vs-in-memory size conflict for SelfIdent:**
+
+`docs/post-v3-sequence.md`'s phase table lists Phase 9b
+SelfIdentification with body size **4 bytes**:
+
+```
+| **9b** | **310ms** | **SelfIdentification `0x91(0x17)`** | **0** | **4B** | **state 10→11 trigger** |
+```
+
+But the wake 51-60 static-RE work hypothesizes a **21-byte
+minimum** wire body (4 + 4 + 1 + 8 + 4 with empty vector). This
+encoder ships at `server/javelin/self_ident.py`.
+
+Two interpretations of the conflict:
+
+1. **The 4-byte wire body is a trigger / signal message.** The
+   client receives "I want you to identify yourself" and sources
+   the actual identity data (`m_field0`, the vector, `m_field2C`,
+   etc.) from session state, NOT from the wire. In this case the
+   handler reads from a struct that was filled by an EARLIER
+   stage (e.g. the V3 RegistrationResponse), not by the
+   SelfIdentification message itself.
+
+2. **The 4-byte figure is a stale/incorrect estimate** that
+   predates the wake 51-60 wire-format work. The handler reads
+   21+ bytes; therefore the wire body is at least that big. The
+   doc's "4B" came from an earlier guess.
+
+Without runtime data, we can't distinguish. **Integrating the
+self_ident encoder into rep_responder right now would risk
+either producing the right thing OR producing a 21+ byte
+oversized message the client rejects.** The cost of being wrong
+is real (client either ignores or aborts).
+
+**LevelInfoChanged is a different story** — the handler clearly
+reads `param_2 + 0xa1`, `+0xa2`, `+0xa8` etc. (high offsets),
+which means the wire body IS at least 0xb0 = 176 bytes. There's
+no equivalent ambiguity. But LevelInfoChanged sits at Phase 14/15
+in the post-V3 sequence, well past where the project's current
+replay coverage ends (~seq 0x24 ≈ Phase 11).
+
+**Action taken — flag the conflict, defer integration:**
+
+1. Updated `server/javelin/self_ident.py` docstring with a
+   "SECONDARY CAVEAT" section documenting the conflict and
+   explicitly recommending against integration without runtime
+   validation.
+2. Updated `docs/post-v3-sequence.md` with a footnote ¹ on the
+   "4B" figure flagging it as pre-wake-51 and pointing to the
+   wire-format reference.
+3. Added 3 integration tests to `test_codecs.py` that build a
+   combined SelfIdent + LevelInfoChanged byte bundle, verify
+   each body's offsets are well-formed in the bundle, verify
+   default flag values match the production-server recipe, and
+   verify min combined size = `SI_MIN_WIRE_SIZE + LIC_MIN_WIRE_SIZE`
+   = 21 + 48 = 69 bytes. **No live emission path was modified.**
+
+**Tests passing**: 113 → 116 (3 new integration tests). Total
+suite at 116 passing in 0.25s.
+
+**Why this is the right call:**
+
+The maintainer can pick up either of these from this state:
+
+- If they capture a live Phase 9b on a real session and confirm
+  the 4-byte hypothesis, they'd build a separate "SelfIdent
+  trigger" encoder (just the 2-byte type + 2 bytes of subtype
+  / signal value) and the current `self_ident.py` becomes a
+  reference for what fields the TRIGGER causes the client to
+  source from session state.
+- If the captured Phase 9b is 21+ bytes, the current encoder
+  is correct as-is and integration is straightforward.
+
+Either path needs runtime data to validate, which is gated on
+the maintainer's strategic decision (Frida bypass / Parallels /
+physical host / cloud GPU per `analysis/MORNING_BRIEF.md`).
+
+**Files this iteration:**
+
+- `server/javelin/self_ident.py` — added "SECONDARY CAVEAT"
+- `docs/post-v3-sequence.md` — footnote ¹ on Phase 9b 4B figure
+- `server/javelin/test_codecs.py` — 3 integration tests
+- This worklog entry
+
+**Commit:** Following.
+
+**Next** (queue, in priority order):
+
+1. **Wait on maintainer's strategic decision** (per
+   `analysis/MORNING_BRIEF.md`) for the host/runtime path.
+   Without runtime data, the wire-format conflict can't resolve.
+2. **(Optional polish)** Cross-link the encoders + the
+   wire-format reference doc to keep them in sync.
+3. **(Optional, if more static-RE comes up)** Try to find the
+   actual deserializer for SelfIdent — that would settle the
+   wire-vs-in-memory conflict statically. The current static-RE
+   path didn't surface it (dispatch table consumer is dynamic).
+
+**Blockers:** Wire-format validation needs runtime data. Same as
+wake 60's note: the lower-hanging static-RE fruit is gone.
