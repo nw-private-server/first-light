@@ -16,6 +16,31 @@
 > 2 components and `analysis/chunk_names.txt` cataloged 17 chunk
 > names. This inventory is two orders of magnitude broader.
 
+## Namespace conventions (which side of the wire?)
+
+Inferred from naming patterns and cross-referencing message-pair
+relationships (e.g. `Javelin::ClientMessagesTrait::PlayerManagerRejectedMsg`
+is the client-side counterpart sent in response to
+`Aoi::PlayerManagerTrait::RequestRejectClientConnectionMsg`).
+
+| Namespace prefix | Likely role | What goes on the wire? |
+|---|---|---|
+| `Javelin::ClientMessagesTrait::*` | Client-side handlers for messages from the server | YES — these are server→client wire messages |
+| `Javelin::ClientMessages::*` | Per-component-facet messages, both directions | YES — bulk of gameplay traffic |
+| `Aoi::*Trait::*` | Server-side internal bus (event/command dispatch within the server process) | NO — internal to server |
+| `MB::*` | MarshalByValue replicated state | YES — replica state on the wire |
+| `Amazon::Hub::*` | Hub-layer lifecycle / peering | Mixed — some on-wire, some inter-server |
+| `Amazon::IPC::*` | Inter-process communication scaffolding | NO (but registered in same dispatch system) |
+| `ActorMover` | Movement messages | YES — high-frequency on-wire |
+| `Hub::Amazon::*` (e.g. `ActorInitializedMessage`) | Cross-server lifecycle | Likely server↔server, sometimes echoed to client |
+
+**Rule of thumb for the project:** messages with `*Msg` suffix in
+`Javelin::ClientMessagesTrait` are the canonical
+server→client message types. `Request*` / `On*` patterns in
+`Aoi::*Trait` are server-side request/notify types — the *effects*
+of those reach clients via the corresponding `*ClientMessagesTrait`
+message, not directly.
+
 ## Index by topical bucket
 
 ### Connection / lifecycle (project-relevant)

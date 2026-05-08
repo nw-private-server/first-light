@@ -2808,3 +2808,74 @@ tree with bounded branches.
   the deeper understanding now in place.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 31: namespace-convention notes added to message_inventory
+
+**Did:**
+- Considered C2 (PlayerManagerTrait deep characterization) but
+  realized most of those 28 messages are server-side INTERNAL
+  bus messages, not on-wire types. Their handlers are in the
+  server side (which the project IS implementing); the project
+  doesn't need to *catalog* them in detail because it's writing
+  them, not reverse-engineering them.
+- Pivoted to a smaller polish: added a "Namespace conventions
+  (which side of the wire?)" section to
+  `analysis/message_inventory.md` documenting which namespace
+  prefixes correspond to on-wire vs internal-bus messages.
+
+**Found (sharper namespace-pattern interpretation):**
+
+The pair `Aoi::PlayerManagerTrait::RequestRejectClientConnectionMsg`
++ `Javelin::ClientMessagesTrait::PlayerManagerRejectedMsg` shows
+the project's two-namespace pattern:
+
+- `Aoi::*Trait::*` = server-side internal request/notify bus.
+  Server components send these to each other; effects propagate
+  to clients via the corresponding ClientMessagesTrait message.
+  NOT on the wire.
+- `Javelin::ClientMessagesTrait::*Msg` = canonical server→client
+  on-wire message types. ON the wire.
+- `Javelin::ClientMessages::*` = component-facet messages
+  (both directions). ON the wire.
+- `MB::*` = MarshalByValue replicated state. ON the wire (replica
+  state stream).
+- `Amazon::IPC::*` = inter-process scaffolding. NOT on wire (but
+  registered in same dispatch system, hence catalog match).
+- `ActorMover::*` = movement messages. ON the wire (high freq).
+
+**Rule of thumb for the project**: when looking for what the
+server needs to SEND, look in `Javelin::ClientMessagesTrait::*`
+and `Javelin::ClientMessages::*`. When tracing where a server-
+side action originates, look in `Aoi::*Trait::*`. The two halves
+typically pair up by name (`RequestRejectClientConnection` →
+`Rejected`).
+
+**Why this matters:**
+
+It saves future investigators time. Without this convention note,
+someone looking at PlayerManagerTrait's 28 messages might think
+all 28 are on-wire types the server needs to encode. They're not
+— most are server-side internal events that produce ZERO direct
+wire traffic. The on-wire counterpart for the project to deliver
+is whatever ClientMessagesTrait message gets dispatched in
+response.
+
+**Why this is a polish iteration not a deep dive:**
+
+Static-RE on the 28 PlayerManagerTrait handlers wouldn't surface
+new actionable info for the V3-retry blocker (which is the
+project's immediate concern). The namespace note is the high-
+leverage takeaway from the inventory; longer trait-by-trait
+characterization waits until the project has a runtime data
+source to validate against.
+
+**Next** (queue):
+- Possible next polish: cross-link `analysis/message_inventory.md`
+  back into `docs/protocol-overview.md` so readers find the
+  namespace conventions on first browse.
+- Or wait for the maintainer's correlation-echo experiment
+  results and pivot based on outcome.
+
+**Blockers:** None.
