@@ -103,8 +103,8 @@ the message's `+0xa8` matches.
 
 | Offset | Size | Field (proposed) | Notes |
 |---|---|---|---|
-| `0x00` | `0x28` | `m_levelName` | `AZStd::string` — copy via `FUN_1402b0580` |
-| `0x28` | `0x28` | `m_someOtherName` | `AZStd::string` (purpose TBD — could be region, instance id name) |
+| `0x00` | `0x28` | `m_levelName` | `AZStd::string` (40-byte container in-memory; see "AZStd::string layout" below) — copy via `FUN_1402b0580` |
+| `0x28` | `0x28` | `m_someOtherName` | `AZStd::string` (40 bytes; purpose TBD — could be region, instance id name) |
 | `0x50` | 4 | `m_field50` | u32 (or float) |
 | `0x54` | 4 | `m_field54` | u32 (or float) |
 | `0x58` | 4 | `m_field58` | u32 (or float) |
@@ -197,6 +197,46 @@ body.
 This contrasts with the 0x68..0xa0 "container" which has internal
 structure not yet decoded — that one might have header bytes
 embedded.
+
+## AZStd::string layout
+
+Recovered from `FUN_1402b04f0` (the move-assign used in
+`FUN_146410750`'s "both initialized" branch). Total in-memory size
+is **40 bytes (0x28)**:
+
+| Offset | Size | Field | Notes |
+|---|---|---|---|
+| `0x00` | 16 | data buffer (SSO) or data pointer | When `capacity <= 0xF`, this is the inline SSO buffer (first 16 chars). When `capacity > 0xF`, the first 8 bytes are a heap pointer |
+| `0x10` | 8 | SSO continuation or metadata | Part of the SSO buffer when in SSO mode |
+| `0x18` | 8 | `size_t m_size` | length in characters (not bytes including null) |
+| `0x20` | 8 | `size_t m_capacity` | capacity; **`0x0F` is the SSO sentinel** (when in SSO mode) |
+
+**SSO threshold**: 15 characters (capacity == `0xF` while SSO).
+For strings longer than 15 chars, the buffer is heap-allocated and
+`m_capacity > 0xF`.
+
+**Move-assign behavior** (`FUN_1402b04f0`):
+
+```c
+// 1. Free destination's heap if it was non-SSO
+if (capacity_dst > 0xF) free(data_dst);
+// 2. Copy 32 bytes (data ptr/SSO + metadata + size + capacity) from source
+memmove(dst, src, 16);  dst[2] = src[2];
+dst.m_size = src.m_size;
+dst.m_capacity = src.m_capacity;
+// 3. Reset source to empty SSO
+src.data_ptr = 0;  src[2] = 0;  src.m_size = 0xF;  // (size becomes capacity sentinel)
+```
+
+**Wire format implication**: the AzCore convention for `AZStd::string`
+on the wire is **`[u32 length][bytes]`** — no SSO byte-pattern,
+no allocator state, just length and raw bytes. The 40-byte
+in-memory layout is purely for runtime; encoders write only the
+length prefix and bytes.
+
+For the LevelInfoChangedMsg encoder, both `m_levelName` and
+`m_someOtherName` follow this convention. An empty string
+encodes as `[0x00, 0x00, 0x00, 0x00]` (just the u32:0 length).
 
 ## How to add to this reference
 

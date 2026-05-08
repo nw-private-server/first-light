@@ -5541,3 +5541,146 @@ each call) or a fundamentally different static angle.
 
 **Blockers:** None new. The lower-hanging fruit is gone; remaining
 work is incremental.
+
+---
+
+### 2026-05-08 — wake 60: AZStd::string layout decoded; offset-cross-ref scans yield diminishing returns
+
+**Did:**
+
+1. Decompiled `FUN_1402b04f0` — the alternative AZStd::string
+   copy used in `FUN_146410750`'s "both initialized" assign branch.
+2. Ran `FindOffsetReferences.py 0x1A8` and `0x1B0` filtered to
+   the `0x1464*` namespace looking for cross-handler readers
+   (under the wake 53 +0x990 hypothesis).
+3. Updated `analysis/clientmessagestrait_wire_formats.md` with
+   the AZStd::string findings.
+
+**Found — `FUN_1402b04f0` is a clean AZStd::string move-assign:**
+
+The function reveals the full in-memory layout (**40 bytes /
+0x28**, NOT 28 bytes — wake 51's "(28 bytes string container)"
+note was the hex offset misread as decimal):
+
+```
++0x00..+0x0F (16): SSO buffer (or heap data pointer + 8 bytes when long)
++0x10..+0x17  (8): SSO continuation (or part of metadata when long)
++0x18         (8): size_t m_size
++0x20         (8): size_t m_capacity (sentinel 0xF == SSO mode)
+```
+
+SSO threshold is **15 characters**. For strings longer than 15,
+the buffer is heap-allocated and `m_capacity > 0xF`.
+
+Move-assign:
+1. Free destination's heap if it was non-SSO
+2. Memmove all 32 bytes (data + size + capacity) from source
+3. Reset source to empty SSO state (size=0, capacity=0xF)
+
+**Wire format implication (already known but now nailed down):**
+AzCore's `AZStd::string` serializer convention is `[u32 length][bytes]`
+— no SSO byte-pattern, no allocator state. An empty string is just
+4 zero bytes. This is what the LevelInfoChangedMsg encoder needs
+for `m_levelName` and `m_someOtherName`.
+
+**Updated `clientmessagestrait_wire_formats.md`** with a new
+"AZStd::string layout" section detailing the in-memory layout +
+move-assign + wire format. Also corrected the
+LevelInfoChangedMsg row annotations to clarify "40-byte container
+in-memory" instead of the ambiguous "(28 bytes)" wording.
+
+**Found — cross-reference scans hit diminishing returns:**
+
+Scan results filtered to `0x1464*` namespace:
+
+- **`+0x1A8` (m_field0 storage)**: only constant-loading
+  `MOV reg, 0x1A8` instructions — not field accesses.
+  No useful cross-handler readers identified.
+
+- **`+0x1B0` (m_field08 vector start)**: 142 hits across 90
+  unique functions, mostly `MOVUPS xmmword [reg+0x1B0]` —
+  16-byte SSE memory copies. These are how the compiler moves
+  the vector header (begin+end = 16 bytes) during struct
+  copy/init operations. Too noisy to identify a meaningful
+  reader.
+
+The +0x990 hypothesis from wake 53 might still be correct, but
+the SelfIdent fields' storage offsets aren't producing useful
+external-reader patterns. Either:
+
+(a) The fields are only read by the SelfIdent handler itself
+    and the LevelInfoChanged handler (which we already have),
+(b) Other readers use even higher base offsets and access these
+    fields with NEGATIVE displacements (like `[reg-0x800]`) that
+    the scan format doesn't catch.
+
+Field semantics for SelfIdent's `m_field0`, `m_field08`,
+`m_field2C`, `m_field34` remain unknown without runtime data.
+
+**Why this matters:**
+
+For the server-side encoder, this iteration's payoff is the
+confirmed AZStd::string wire format (`[u32 length][bytes]`,
+nothing else). That's enough to encode both string fields in
+LevelInfoChangedMsg correctly.
+
+The semantic blank for SelfIdent's u32/u64/vector fields is
+not a wire-correctness problem — sending zeros works
+syntactically. It's a "will the client like the values" problem,
+which only runtime testing can resolve.
+
+**Files this iteration:**
+
+- `analysis/clientmessagestrait_wire_formats.md` (added
+  "AZStd::string layout" section, corrected size annotations)
+- This worklog entry
+
+**Commit:** Following.
+
+**Strategic note — static-RE inflection point:**
+
+Wakes 51-60 expanded the wire-format dictionary substantially:
+
+- 2 fully characterized messages (SelfIdent, LevelInfoChanged)
+- AZStd::string layout (40 bytes, SSO threshold 15)
+- AZStd::vector<u32> copy semantics (`FUN_1402d13a0`)
+- AZStd::unordered_* container layout (56 bytes; `FUN_1416074b0`)
+- Connection-class outer struct: 8 named fields, +0x990 offset
+- State machine entry: `FUN_14645fd70(subObject, state)` at
+  subObject offset +0x1530
+- Cross-handler convention (param_1 - 0x990 outer struct)
+- Wake 7's "9 GameMessagePort handlers" corrected to 2 wire
+  handlers + 7 non-handler utilities
+
+Beyond this, the static-RE work is hitting walls:
+
+- Dispatch table consumer is dynamic (RIP-relative)
+- Handler enumeration via log channel is over-broad
+- Field semantics need runtime cross-referencing
+- RTTI strings have no direct xrefs
+
+**The remaining work that's still tractable statically** is mostly
+documentation polish + analyzing helper functions whose role is
+already inferrable. The natural next step is **server-side
+encoding work** — actually writing the LevelInfoChangedMsg
+encoder using the wire-format reference doc, and patching
+`server/javelin/v3_response.py` (or sibling) to emit it. That's
+a coding task, not a static-RE task, but it's the natural
+next step in the project.
+
+**Next** (queue, in priority order):
+
+1. **Write the LevelInfoChangedMsg encoder** as a Python module
+   in `server/javelin/level_info_changed.py` (or similar). Cover
+   both string fields, the 4-tuple, the u64, the empty unordered
+   container, the 4 byte flags, and the u64
+   `m_clientContextInstanceId`. Provides a callable the post-V3
+   sequence can use.
+2. **Add a unit test** to validate the encoder produces the
+   expected byte layout. Use Python's struct module + AzCore-style
+   length-prefixing.
+3. **(Optional) Document the encoder in the wire-format reference**
+   — link the doc back to the encoder so they stay in sync.
+
+**Blockers:** Strategic shift from RE → encoding implementation.
+None procedurally blocking; just a different mode of work.
