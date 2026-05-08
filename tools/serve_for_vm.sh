@@ -9,7 +9,17 @@
 # Usage:
 #   tools/serve_for_vm.sh               # foreground, both servers, ctrl-C exits
 #   tools/serve_for_vm.sh --no-auth     # only run rep_responder
-#   tools/serve_for_vm.sh --rep-port 24083 --auth-port 443
+#   tools/serve_for_vm.sh --rep-port 24083 --auth-port 4443
+#   tools/serve_for_vm.sh --privileged  # use port 443 (requires sudo)
+#
+# Default mode (unprivileged):
+#   auth_mock listens on the Mac at port 4443. The VM redirects
+#   client traffic via Windows portproxy: 127.0.0.1:443 → MAC_IP:4443.
+#   See tools/setup_vm_portproxy.ps1 (run once in VM as Administrator).
+#
+# Privileged mode (--privileged):
+#   auth_mock listens on the Mac at port 443 directly via sudo.
+#   No portproxy needed in the VM.
 #
 # Logs:
 #   capture/auth_mock_logs/YYYYMMDD.log     (auth_mock's own log path)
@@ -17,7 +27,7 @@
 #
 # Requires:
 #   - .venv set up (see docs/protocol-overview.md § Local verification)
-#   - sudo access for auth_mock (binds port 443)
+#   - --privileged mode requires sudo access (auth_mock binds port 443)
 #   - UTM running with default Shared Network (auto-detected via
 #     tools/show_vm_host_ip.sh)
 
@@ -29,10 +39,11 @@ cd "${PROJECT_ROOT}"
 
 # --- args -----------------------------------------------------------
 
-AUTH_PORT=443
+AUTH_PORT=4443
 REP_PORT=24083
 RUN_AUTH=1
 RUN_REP=1
+PRIVILEGED=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -40,6 +51,7 @@ while [[ $# -gt 0 ]]; do
         --no-rep)    RUN_REP=0;  shift;;
         --auth-port) AUTH_PORT="$2"; shift 2;;
         --rep-port)  REP_PORT="$2";  shift 2;;
+        --privileged) PRIVILEGED=1; AUTH_PORT=443; shift;;
         -h|--help)
             grep -E "^# (Usage|  )" "$0" | sed 's/^# //'
             exit 0
@@ -83,10 +95,17 @@ trap cleanup INT TERM EXIT
 
 if [[ $RUN_AUTH -eq 1 ]]; then
     echo "[serve_for_vm] starting auth_mock on :${AUTH_PORT} with --rep-host ${VM_HOST_IP}"
-    sudo -E .venv/bin/python -m server.auth_mock \
-        --port "${AUTH_PORT}" \
-        --rep-host "${VM_HOST_IP}" \
-        --rep-port "${REP_PORT}" &
+    if [[ $PRIVILEGED -eq 1 ]]; then
+        sudo -E .venv/bin/python -m server.auth_mock \
+            --port "${AUTH_PORT}" \
+            --rep-host "${VM_HOST_IP}" \
+            --rep-port "${REP_PORT}" &
+    else
+        .venv/bin/python -m server.auth_mock \
+            --port "${AUTH_PORT}" \
+            --rep-host "${VM_HOST_IP}" \
+            --rep-port "${REP_PORT}" &
+    fi
     pids+=($!)
 fi
 
@@ -105,6 +124,14 @@ fi
 
 echo
 echo "[serve_for_vm] running. host IP for VM: ${VM_HOST_IP}"
+if [[ $PRIVILEGED -eq 0 && $RUN_AUTH -eq 1 ]]; then
+    echo "[serve_for_vm] auth_mock is on port ${AUTH_PORT} (unprivileged)."
+    echo "[serve_for_vm] In the VM (Administrator PowerShell, one-time):"
+    echo "[serve_for_vm]   netsh interface portproxy add v4tov4 listenport=443 \\"
+    echo "[serve_for_vm]     listenaddress=127.0.0.1 connectport=${AUTH_PORT} \\"
+    echo "[serve_for_vm]     connectaddress=${VM_HOST_IP}"
+    echo "[serve_for_vm] (or run: tools\\setup_vm_portproxy.ps1)"
+fi
 echo "[serve_for_vm] press Ctrl-C to stop"
 echo "[serve_for_vm] PIDs: ${pids[*]}"
 echo
