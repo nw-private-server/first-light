@@ -3705,3 +3705,146 @@ not autonomously startable. Maintainer needs to launch the
 host-side servers OR auth_mock could move to a non-privileged
 port with the VM's hosts file doing redirection. Latter is a
 small follow-up if the simple path is too friction-heavy.
+
+---
+
+### 2026-05-07 — wake 45: First end-to-end smoke test — game launches, all hooks load, GPU detection is the blocker
+
+**Did:**
+
+1. Resized VM partition (dropped recovery part #4, extended C: to 119.79 GB).
+2. Established the Phase F pivot we couldn't predict from desk research:
+   **SPICE WebDAV (drive Z:) silently truncates reads on files >100 MB**
+   with `ERROR 223 (0x000000DF)`. NewWorld.exe (171 MB) and 76 asset PAKs
+   (70.67 GB total) are unreadable through the share. Z: is unusable for
+   the actual game data.
+3. Pushed full game directory (~71 GB) from Mac to VM via SCP through
+   the existing SSH channel. Throughput ~95 MB/s; total ~12 minutes.
+4. Refactored `tools/serve_for_vm.sh` for unprivileged operation
+   (auth_mock on :4443, no sudo) and wrote `tools/setup_vm_portproxy.ps1`
+   to forward 127.0.0.1:443 → MAC_IP:4443 inside the VM via
+   `netsh interface portproxy`. This unblocks autonomous Phase G.
+5. Set up the VM client side end-to-end:
+   - Trusted regenerated `newworld_ca.crt` in `Cert:\LocalMachine\Root`
+     (`certutil -addstore`).
+   - Ran `setup_hosts.py --apply --target 127.0.0.1` (28 hostnames
+     redirected).
+   - Ran `setup_vm_portproxy.ps1` (proxy installed, verified).
+   - Verified reachability: `Test-NetConnection 127.0.0.1 :443 = True`,
+     `Test-NetConnection 192.168.64.1 :4443 = True`.
+6. Started auth_mock + rep_responder on Mac (background, unprivileged).
+7. **Ran the smoke test** with 240s hard timeout, aggressive process
+   kill, full log capture.
+
+**Found — the test outcome:**
+
+- ✅ **Frida spawn worked** — `frida.spawn(C:\NewWorldArchive\Bin64\NewWorld.exe)`
+  succeeded; PID 8316 spawned suspended, attached, resumed.
+- ✅ **DTLS trust patch loaded at the expected RVA**:
+  `secure_init=0x7ff75f4ae750` = base `0x7ff7596e0000` + `0x5dce750`,
+  exactly matching `frida_dtls_trust_patch.js`'s hardcoded RVA. This
+  validates that the binary in the VM (downloaded via SteamCMD on the
+  Mac on 2026-05-06) is the same build the existing tooling targets.
+- ✅ **All 12 internal_* hooks installed** — every static-RE finding
+  from earlier wakes (`internal_rep_secure_init`, `internal_gameconn_state`,
+  `internal_carrier_send_sysmsg`, `internal_gridmate_destroy`, etc.)
+  resolved to the right address and hooked successfully.
+- ✅ **All RVA-validate stamps matched** — including the FUN_146b6f190
+  ready_setter "[KNOWN]" tag.
+- ✅ **Steam initialized**: `[steam] SteamAPI_Init -> 0` (success).
+- ✅ **ConnectEx + DisconnectEx hooked dynamically** via SIO_GET_EXTENSION_FUNCTION_POINTER.
+- ❌ **Game terminated at GPU detection** before reaching network init:
+  ```
+  [ui] MessageBoxW caption=AZoth text=Your graphics card does not
+       support all the DirectX 12 features we require. Falling back
+       to DirectX 11.
+  [ui] MessageBoxW caption=AZoth text=Unsupported video card detected!
+       Continuing to run might lead to unexpected results or crashes.
+       Please check the manual for further information on hardware
+       requirements.
+
+  "" [vendor id = 0x0000, device id = 0x0000]
+  [!] Session detached: process-terminated
+  ```
+- 0 packets captured. Game exited ~76 seconds after launch (most of
+  that on Frida hook installation, then Steam init at 22:13:42, then
+  GPU MessageBoxes at 22:13:44, then process-terminated at 22:13:44.485).
+
+**Why the GPU check fails:**
+
+UTM uses `virtio-gpu` for graphics virtualization. virtio-gpu doesn't
+expose a real DXGI adapter with valid Vendor ID / Device ID; the
+game's DXGI enumeration returns blanks. The first MessageBox warns
+about DX12 fallback, the second warns about an unsupported card,
+and after both auto-dismiss the game calls its own self-termination
+path (we see `TerminateProcess` was hooked; the game uses it to
+exit cleanly).
+
+This matches the FAQ's prediction (`vm_setup_faq.md`,
+"Q: Will Microsoft Prism actually run NewWorld.exe?"): GPU
+virtualization quality was the #1 listed risk. The 40-60% estimate
+for "starts and reaches network init under UTM" landed on the low
+end.
+
+**Why this is still a huge result:**
+
+The infrastructure is *fully proven*:
+
+- SSH-driven VM control loop (we ran a full E2E test autonomously
+  while the maintainer was asleep)
+- Full game directory transfer via SCP works (12 min, 95 MB/s)
+- Frida spawn + attach + script load on x64 NewWorld.exe under
+  Microsoft Prism on Apple Silicon — confirmed working
+- All 25+ Frida hooks load successfully — validates the entire
+  pipeline of static-RE → RVA hardcoding → runtime instrumentation
+- Mac-side server stack (auth_mock + rep_responder) reachable from
+  VM via portproxy chain
+- All cert/hosts plumbing works
+
+**What now blocks**: pure GPU adapter spoofing. Three paths:
+
+1. **Frida hook on DXGI adapter enumeration / `IDXGIAdapter::GetDesc`**
+   to return fake VendorId/DeviceId values. Effort: medium — needs
+   to find the COM vtable slots and patch them. The game then thinks
+   it has a real GPU and continues.
+2. **Find and bypass the "GPU-not-supported -> exit" code path in
+   NewWorld.exe with a Frida hook.** Effort: small if we can identify
+   the function quickly via static-RE; the game probably has a
+   `void CheckGPU()` that aborts on bad descriptors.
+3. **Switch to Parallels Desktop** — FAQ flagged as the obvious
+   fallback; better D3D virtualization and DXGI exposure.
+
+**Next** (queue):
+
+1. Static-RE hunt for the GPU-validation function in NewWorld.exe.
+   Searches: cross-references to "Unsupported video card detected"
+   string, `IDXGIAdapter::GetDesc` callers, `D3D11CreateDevice`
+   callers, the abort path that follows the second MessageBox.
+2. Once identified, write a Frida hook to either: (a) lie to the
+   GPU-info getter, or (b) skip the abort.
+3. Re-run the smoke test with the new hook; observe how far the
+   game gets.
+
+If GPU spoofing turns out to be too deep a rabbit hole or the
+hook can't get past the issue, the queue's escalation is Parallels
+Desktop trial + retest. Both paths preserve the rest of the
+infrastructure built tonight.
+
+**Blockers:**
+
+GPU virtualization. The Frida hook attempt is the next iteration's
+focused work.
+
+**Audit trail (this session's commits):**
+
+- `8a2ad15` — tools(vm): unprivileged-mode serve_for_vm.sh + setup_vm_portproxy.ps1
+- (this commit) — wake 45 worklog + Phase F doc fix for the WebDAV size cap
+
+**Capture artifact:**
+
+`C:\first-light\capture\20260507_221218_vm_smoke_001\` in the VM
+contains:
+- `session.log` (13.5 KB) — every hook installation + UI events
+- `hooks.log` (4.3 KB) — pass/fail summary of every hook attempt
+- `packets.jsonl` (0 bytes) — empty, expected since game terminated
+  before network init

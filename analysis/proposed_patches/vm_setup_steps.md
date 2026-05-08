@@ -102,50 +102,73 @@ Test-Path Z:\Bin64\NewWorld.exe
 # True
 ```
 
-### Option F-0: Run directly from Z: (recommended first attempt)
+### ⚠️ SPICE WebDAV's 100 MB read-size cap
 
-Skip the copy entirely. Phase H's `frida_capture.py` accepts an
-`--exe` flag pointing at any path, including the share:
+UTM's SPICE WebDAV (drive `Z:`) **silently fails reads on files
+larger than ~100 MB** with `ERROR 223 (0x000000DF) — The file
+size exceeds the limit allowed and cannot be saved.` This affects:
 
-```powershell
-python tools\client-hooks\frida_capture.py --exe "Z:\Bin64\NewWorld.exe"
+- `Z:\Bin64\NewWorld.exe` (171 MB) — robocopy skips it; Frida
+  spawn fails with the same error code.
+- 76 PAK files in `Z:\assets` (70.67 GB total).
+
+**Implication:** "run direct from Z:" and "symlink assets to Z:"
+both fail in practice. The game can't launch from Z:, and even
+if it could, asset PAK loads would fail. You need a real local
+copy of everything large.
+
+### Option F-1: Full local copy via SCP push from the Mac
+
+Once SSH-from-Mac-to-VM is available (see Phase E quirks for the
+`administrators_authorized_keys` requirement), push the whole
+tree directly:
+
+```bash
+# On the Mac:
+scp -r -i ~/.ssh/id_ed25519 ~/SteamLibrary/NewWorld/* \
+  juni@<VM-IP>:'C:\NewWorldArchive\'
 ```
 
-**Pros:** zero disk usage, instant, no transfer wait.
-**Cons:** SPICE WebDAV is slow for asset PAK reads — the game may
-take longer to reach login screen. Steam may also dislike a
-non-local game directory for appid validation; if so, fall back to
-F-2.
+Throughput on UTM Shared Network: ~95 MB/s in practice. 71 GB
+takes ~12 minutes. SCP also bypasses Defender realtime scan
+(set exclusions first: `Add-MpPreference -ExclusionPath
+C:\NewWorldArchive`).
 
-For initial smoke testing (does the game launch under Frida at all?
-do hooks attach?), Option F-0 is the lowest-friction starting point.
+This is the recommended path if SSH access is set up.
 
-### Option F-1: Local copy (if Z: direct fails)
+### Option F-2: Robocopy from Z: (small files only)
 
-```powershell
-robocopy "Z:\" "C:\NewWorldArchive" /E /MT:8
-```
-
-⚠️ **Disk space**: a fresh 100 GB Windows VM has ~69 GB free after
-install, but the game directory is ~71 GB. The full copy will
-fail with disk-full. See Option F-2.
-
-### Option F-2: Hybrid (local Bin64, symlink assets to Z:)
-
-Most assets are static and read-only — the game just reads them.
-Copy `Bin64/` and small support files locally (Steam likes that),
-but symlink `assets/` (~70 GB) back to the share:
+Robocopy from `Z:` works for files **under 100 MB**. Use this for
+the small DLLs and support files, then SCP-push the large ones:
 
 ```powershell
-# Copy small dirs / root files locally
-robocopy "Z:\Bin64"        "C:\NewWorldArchive\Bin64"        /E /MT:8
+# Most of Bin64, EasyAntiCheat, _CommonRedist are <100 MB
+robocopy "Z:\Bin64"         "C:\NewWorldArchive\Bin64"         /E /MT:8
 robocopy "Z:\EasyAntiCheat" "C:\NewWorldArchive\EasyAntiCheat" /E /MT:8
 robocopy "Z:\_CommonRedist" "C:\NewWorldArchive\_CommonRedist" /E /MT:8
 robocopy "Z:\" "C:\NewWorldArchive\" /XD assets Bin64 EasyAntiCheat _CommonRedist /COPYALL
-
-# Directory symlink for the giant assets tree (Administrator PowerShell)
-cmd /c mklink /D C:\NewWorldArchive\assets Z:\assets
 ```
+
+Then SCP-push only the files that were skipped (NewWorld.exe + the
+77 large PAKs).
+
+### Disk space caveat: extend C: to use the full disk
+
+A fresh 100 GB Windows install ships with `C:` at ~99 GB and a
+~750 MB recovery partition at the tail blocking extension. To
+fit the 71 GB game directory + Windows + tools, drop the recovery
+partition and extend C:
+
+```powershell
+# Administrator PowerShell:
+Remove-Partition -DiskNumber 0 -PartitionNumber 4 -Confirm:$false
+$max = (Get-PartitionSupportedSize -DriveLetter C).SizeMax
+Resize-Partition -DriveLetter C -Size $max
+```
+
+(Recovery partition is fine to lose on a throwaway verification
+VM — it's the partition Windows boots into for "Reset this PC,"
+which we don't need.)
 
 Total local disk used: ~430 MB instead of 71 GB.
 
@@ -201,47 +224,65 @@ ipconfig | Select-String "Default Gateway"
 
 ### Run the servers on the Mac
 
-**One-shot launcher** (recommended) — auto-detects the VM-side
-IP, runs both servers, Ctrl-C stops both:
+**One-shot launcher** (recommended) — defaults to unprivileged
+mode (auth_mock on :4443, no sudo); runs both servers, Ctrl-C stops
+both:
 
 ```bash
 tools/serve_for_vm.sh
-# It will sudo-prompt once for auth_mock's port 443 binding.
 ```
 
-**Or manually in two terminals** if you prefer separate logs
-visible per server:
+It prints a one-liner for the VM-side portproxy that pairs with
+this. Use `--privileged` to fall back to port 443 + sudo (mostly
+useful for direct-physical-Windows scenarios where there's no VM
+to run a portproxy in).
+
+**Or manually in two terminals**:
 
 ```bash
-# Terminal 1: HTTPS auth mock with rep address pointing at the Mac
-sudo .venv/bin/python -m server.auth_mock \
-  --port 443 \
+# Terminal 1: HTTPS auth mock on :4443 (unprivileged)
+.venv/bin/python -m server.auth_mock \
+  --port 4443 \
   --rep-host "$(tools/show_vm_host_ip.sh)" \
   --rep-port 24083
 
-# Terminal 2: DTLS REP server bound to all interfaces
+# Terminal 2: DTLS REP server on UDP/24083
 .venv/bin/python -m server.rep_responder --bind-port 24083
 ```
 
-`auth_mock` needs admin (port 443). `rep_responder` doesn't but
-will need its UDP port reachable from the VM — UTM's default NAT
-passes UDP fine.
+`rep_responder` doesn't need admin and binds UDP/24083 directly —
+the client connects to MAC_IP:24083 on its own (auth_mock's
+`/login` response carries the rep address).
 
-### Redirect hostnames in the VM
+### Set up the VM client side
 
-Inside Windows, from an Administrator PowerShell:
+Three one-time steps inside the VM, all from an Administrator
+PowerShell:
 
 ```powershell
+# 1. Trust the auth_mock CA (path is wherever you SCP'd the
+#    regenerated newworld_ca.crt; or use server\certs\newworld_ca.crt
+#    if you committed it):
+certutil -addstore -f "ROOT" C:\path\to\newworld_ca.crt
+
+# 2. Redirect Amazon hostnames to localhost:
 cd C:\first-light
-python tools\setup_hosts.py --apply --target-ip MAC_IP_FROM_VM
+python tools\setup_hosts.py --apply --target 127.0.0.1
+
+# 3. Forward 127.0.0.1:443 -> MAC_IP:4443 (matches the Mac's
+#    auth_mock unprivileged port):
+.\tools\setup_vm_portproxy.ps1
 ```
 
-Verify by trying to resolve one of the hostnames:
+Verify reachability after starting the Mac servers:
 
 ```powershell
-nslookup d3bj4csovi1fe8.cloudfront.net
-# Should return MAC_IP_FROM_VM
+Test-NetConnection 127.0.0.1 -Port 443         # should be True
+Test-NetConnection 192.168.64.1 -Port 4443     # also True
 ```
+
+(If you're using `--privileged` mode on the Mac, skip step 3 and
+use `--target 192.168.64.1` in step 2.)
 
 ## Phase H: Run NewWorld through the existing setup
 
@@ -251,15 +292,17 @@ Once networking is wired:
 # Make sure Steam is running + logged in (Phase E step 1)
 # Then launch NewWorld via Frida:
 cd C:\first-light
-# Option F-0 (run direct from share):
 python tools\client-hooks\frida_capture.py `
-  --exe "Z:\Bin64\NewWorld.exe" `
+  --exe "C:\NewWorldArchive\Bin64\NewWorld.exe" `
   --name vm_test
-# Or, if you went with Option F-1 / F-2:
-# python tools\client-hooks\frida_capture.py `
-#   --exe "C:\NewWorldArchive\Bin64\NewWorld.exe" `
-#   --name vm_test
 ```
+
+> **Important:** SPICE WebDAV (drive `Z:`) silently truncates
+> reads on files larger than ~100 MB with `ERROR_FILE_TOO_LARGE`
+> (0xDF). NewWorld.exe is 171 MB and many asset PAKs are over
+> 1 GB, so the F-0 "run direct from Z:" approach was found
+> non-viable in practice. Use Option F-2 (local copy via SCP-push;
+> see Phase F above).
 
 If you ALSO want the SelfIdent diagnostic hook (worth running first
 time to resolve the V3-retry hypothesis tree):
