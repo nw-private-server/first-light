@@ -5684,3 +5684,105 @@ next step in the project.
 
 **Blockers:** Strategic shift from RE → encoding implementation.
 None procedurally blocking; just a different mode of work.
+
+---
+
+### 2026-05-08 — wake 61: LevelInfoChangedMsg encoder + 15 unit tests
+
+**Did:**
+
+1. Wrote `server/javelin/level_info_changed.py` — Python encoder
+   for the LevelInfoChangedMsg body, following the pattern of
+   `server/javelin/v3_response.py` (dataclass + `encode()` +
+   self-test).
+2. Added 15 pytest cases to `server/javelin/test_codecs.py`
+   covering: empty min size, string length prefix + payload, each
+   field at the correct offset (quad, field_60, extended_count,
+   flag bytes, client_context_instance_id), validation errors
+   (quad length, u8/u32/u64 ranges), the unsupported-non-empty-
+   container raise, and that the default flag values match the
+   handler convention.
+3. Ran the suite: **99 passed** (was 84 before this iteration;
+   15 new from LevelInfoChangedMsg) in 0.26s.
+
+**Wire format encoded** (per `clientmessagestrait_wire_formats.md`,
+hypothesized AzCore convention):
+
+```
+[u32 LE: m_levelName length][bytes]
+[u32 LE: m_someOtherName length][bytes]
+[u32 LE × 4: quad]
+[u64 LE: field_60]
+[u32 LE: extended_count = 0]    (non-zero raises NotImplementedError)
+[u8 × 4: field_a0, level_is_loading, is_in_game_transition, field_a3]
+[u64 LE: m_clientContextInstanceId]
+```
+
+Min wire size **48 bytes** (all-empty / all-zero); grows by string
+lengths.
+
+Default values match the handler convention (`level_is_loading=1`,
+`is_in_game_transition=1` so the state-14 → state-13 transition
+fires).
+
+**Caveat (documented in the encoder + reference doc):**
+
+The wire format is hypothesized from in-memory layout + AzCore
+conventions, NOT validated against a captured live message. A
+mismatch would manifest as the client either ignoring the message
+or aborting. Specifically uncertain pieces:
+
+- Whether the AzCore string serializer prefixes with u32 LE or
+  some VLQ variant. (We assume u32 LE.)
+- Whether the unordered container's wire form is just `[u32 count]`
+  for empty (we assume yes; this matches AzCore vector convention).
+- Whether the 4-byte padding at in-memory +0xA4..+0xA7 (skipped by
+  the copy constructor) is also skipped on the wire. (We skip it.)
+
+These will be settled the first time we either capture a real
+LevelInfoChangedMsg or get the engine's reaction to a server-emitted
+message. None block writing the encoder; mismatch = adjust + retry.
+
+**Why this matters:**
+
+This converts wakes 51-60's static-RE findings into actually
+callable code. The post-V3 sequence builder can now do something
+like:
+
+```python
+from server.javelin.level_info_changed import (
+    LevelInfoChangedMsg, encode as encode_level_info,
+)
+
+body = encode_level_info(LevelInfoChangedMsg(
+    level_name="NewWorld_Aeternum",
+    other_name="ServerAlpha-EU",
+    client_context_instance_id=session_state.next_context_id(),
+))
+# ... wrap body in carrier framing and emit
+```
+
+That's the practical payoff of the static-RE thread.
+
+**Files this iteration:**
+
+- `server/javelin/level_info_changed.py` (new) — 168 lines
+- `server/javelin/test_codecs.py` — added 110 lines of tests
+
+**Commit:** Following.
+
+**Next** (queue, in priority order):
+
+1. **Wire LevelInfoChangedMsg into the post-V3 sequence builder.**
+   Find the function in `server/` that emits the post-V3 messages
+   and add LevelInfoChangedMsg to its sequence at the appropriate
+   point (per `docs/post-v3-sequence.md` — Phase 9b is SelfIdent,
+   LevelInfoChanged is post-Phase-9b in the state-14 → 13 transition
+   path).
+2. **Write a similar encoder for SelfIdent.** Already have all the
+   wire-format details. The encoder is straightforward; same pattern.
+3. **Write a unit test that emits SelfIdent then LevelInfoChanged
+   in sequence and verifies their byte buffers concatenate cleanly
+   for the carrier framer to consume.**
+
+**Blockers:** None new.

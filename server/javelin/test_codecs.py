@@ -100,6 +100,120 @@ def test_make_session_token_unique():
 
 
 # ---------------------------------------------------------------------------
+# LevelInfoChangedMsg
+# ---------------------------------------------------------------------------
+
+from .level_info_changed import (  # noqa: E402
+    LevelInfoChangedMsg,
+    encode as encode_level_info,
+    MIN_WIRE_SIZE as LIC_MIN_WIRE_SIZE,
+)
+import struct as _struct  # noqa: E402
+
+
+def test_level_info_empty_min_size():
+    blob = encode_level_info(LevelInfoChangedMsg())
+    assert len(blob) == LIC_MIN_WIRE_SIZE == 48
+
+
+def test_level_info_empty_strings_are_zero_length():
+    blob = encode_level_info(LevelInfoChangedMsg())
+    # First u32 is length of m_levelName, second u32 is length of m_someOtherName
+    assert blob[0:4] == b"\x00\x00\x00\x00"
+    assert blob[4:8] == b"\x00\x00\x00\x00"
+
+
+def test_level_info_string_length_prefix_and_payload():
+    msg = LevelInfoChangedMsg(level_name="alpha", other_name="bravo_x")
+    blob = encode_level_info(msg)
+    # m_levelName: 4-byte LE length then bytes
+    assert blob[0:4] == _struct.pack("<I", 5)
+    assert blob[4:9] == b"alpha"
+    # m_someOtherName follows immediately
+    assert blob[9:13] == _struct.pack("<I", 7)
+    assert blob[13:20] == b"bravo_x"
+
+
+def test_level_info_quad_at_correct_offset_after_strings():
+    msg = LevelInfoChangedMsg(level_name="ab", other_name="cd",
+                              quad=(1, 2, 3, 4))
+    blob = encode_level_info(msg)
+    # 4 (len_a) + 2 (a) + 4 (len_b) + 2 (b) = 12 bytes before the quad
+    assert blob[12:28] == _struct.pack("<IIII", 1, 2, 3, 4)
+
+
+def test_level_info_field_60_at_correct_offset():
+    msg = LevelInfoChangedMsg(field_60=0xCAFEBABE_DEADBEEF)
+    blob = encode_level_info(msg)
+    # 4 + 4 + 16 = 24 bytes before field_60
+    assert blob[24:32] == _struct.pack("<Q", 0xCAFEBABE_DEADBEEF)
+
+
+def test_level_info_extended_count_at_correct_offset():
+    blob = encode_level_info(LevelInfoChangedMsg())
+    # 4 + 4 + 16 + 8 = 32 bytes before extended_count u32
+    assert blob[32:36] == b"\x00\x00\x00\x00"
+
+
+def test_level_info_flag_bytes_at_correct_offset():
+    msg = LevelInfoChangedMsg(field_a0=0x11, level_is_loading=0x22,
+                              is_in_game_transition=0x33, field_a3=0x44)
+    blob = encode_level_info(msg)
+    # 4 + 4 + 16 + 8 + 4 = 36 bytes before the 4 flag bytes
+    assert blob[36:40] == bytes((0x11, 0x22, 0x33, 0x44))
+
+
+def test_level_info_client_context_id_at_correct_offset():
+    msg = LevelInfoChangedMsg(client_context_instance_id=0x9876543210)
+    blob = encode_level_info(msg)
+    # 4 + 4 + 16 + 8 + 4 + 4 = 40 bytes before m_clientContextInstanceId
+    assert blob[40:48] == _struct.pack("<Q", 0x9876543210)
+
+
+def test_level_info_full_size_with_strings():
+    msg = LevelInfoChangedMsg(level_name="hello", other_name="world!",
+                              client_context_instance_id=42)
+    blob = encode_level_info(msg)
+    # Min + len("hello") + len("world!")
+    assert len(blob) == LIC_MIN_WIRE_SIZE + 5 + 6
+
+
+def test_level_info_validates_quad_length():
+    with pytest.raises(ValueError, match="quad must have 4 elements"):
+        LevelInfoChangedMsg(quad=(1, 2, 3))  # type: ignore[arg-type]
+
+
+def test_level_info_validates_u8_flags():
+    with pytest.raises(ValueError, match="must fit in u8"):
+        LevelInfoChangedMsg(level_is_loading=0x100)
+
+
+def test_level_info_validates_u32_quad():
+    with pytest.raises(ValueError, match="must fit in u32"):
+        LevelInfoChangedMsg(quad=(1, 2, 3, 0x1_0000_0000))
+
+
+def test_level_info_validates_u64_field_60():
+    with pytest.raises(ValueError, match="must fit in u64"):
+        LevelInfoChangedMsg(field_60=2 ** 64)
+
+
+def test_level_info_extended_count_nonzero_not_supported():
+    with pytest.raises(NotImplementedError, match="m_extendedField"):
+        LevelInfoChangedMsg(extended_count=1)
+
+
+def test_level_info_default_flags_match_handler_recipe():
+    # The handler convention is level_is_loading=1 and
+    # is_in_game_transition=1; verify our defaults match.
+    msg = LevelInfoChangedMsg()
+    assert msg.level_is_loading == 1
+    assert msg.is_in_game_transition == 1
+    assert msg.field_a0 == 0
+    assert msg.field_a3 == 0
+
+
+# ---------------------------------------------------------------------------
 # v3_request — error paths (no capture file needed)
 # ---------------------------------------------------------------------------
 
