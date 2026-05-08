@@ -3027,3 +3027,93 @@ as a low-priority server-experiment task for the maintainer.
   the maintainer's experiment results.
 
 **Blockers:** None for the loop.
+
+---
+
+### 2026-05-07 — wake 34: server-side verification stood up; client-side blocked by EAC
+
+**Did:**
+- Surveyed feasibility of running NewWorld.exe locally for in-world
+  verification of state transitions. Concluded: not reachable from
+  this Mac.
+- Stood up Python 3.12 venv (`.venv/`, gitignored) with pytest +
+  pyOpenSSL deps.
+- Ran the project's pytest suite with a 30s per-test timeout:
+  **84 tests passed in 0.32s** (codecs, parser, replay
+  substitution, captures, chunking, vlq32). Excluded
+  `server/test_client.py` from collection because it `sys.exit(1)`s
+  on import when `python3-dtls` isn't installed — that's a manual
+  integration script, not a unit test.
+- Ran `server.test_loopback` standalone with 30s shell timeout:
+  full SM_CONNECT_REQUEST → SM_CONNECT_ACK round-trip works
+  in-process without DTLS. Server-side parser + marshaler + handler
+  paired correctly.
+
+**What can't be verified locally** (and why):
+
+NewWorld.exe is Windows-only and EAC-protected. Three layered
+blocks:
+
+1. **Apple Silicon Mac** — runs Windows ARM64 in Parallels / UTM /
+   VMware Fusion, and Windows ARM64 runs x64 binaries via Microsoft
+   Prism, but...
+2. **EAC detects VMs.** Hypervisor-detection in current EAC builds
+   refuses to launch the game in any detected VM. Evasion is an
+   arms race.
+3. **Project's bypass requires the non-EAC archived build.** Per
+   `tools/client-hooks/README.md`: "The live Steam build rejects
+   all runtime instrumentation due to Easy Anti-Cheat. Requires
+   the archived/non-EAC build." The project's Frida cert-pinning
+   bypass operates *after* the game process starts — EAC's
+   launcher-time checks kick before any of those hooks load.
+
+So local in-world verification needs:
+- A Windows machine (or VM with EAC evasion that the maintainer
+  can maintain), AND
+- The non-EAC archived build (which the maintainer doesn't have
+  remote access to).
+
+Neither is reachable from this Mac. The static-RE picture +
+84-test verified server is the binding bound until either changes.
+
+**What IS verifiable locally** (and just was):
+
+| Test | Status | Coverage |
+|---|---|---|
+| `pytest --ignore=server/test_client.py` | ✅ 84/84 pass | parser / marshaler / replay substitution / captures / chunking / vlq32 |
+| `python -m server.test_loopback` | ✅ pass | in-process SM_CONNECT_REQUEST → SM_CONNECT_ACK round-trip |
+
+Both run with strict timeouts (30s pytest per-test, 30s shell-level
+for the loopback). No long-running risk.
+
+**Reproducible verification commands:**
+
+```bash
+# One-time setup
+python3.12 -m venv .venv
+.venv/bin/pip install -q pytest pytest-timeout pyOpenSSL
+
+# Run the unit suite (exclude the manual integration script)
+.venv/bin/pytest --timeout=30 --ignore=server/test_client.py
+
+# Run the loopback smoke test
+timeout 30 .venv/bin/python -m server.test_loopback
+```
+
+The `.venv/` directory is gitignored. No source changes required to
+run these.
+
+**Why this matters:**
+
+When the maintainer applies the staged correlation-echo patch
+(`analysis/proposed_patches/correlation_echo_v3_response.md`), they
+should re-run the unit suite first to confirm the patch doesn't
+regress server-side correctness. The 84-test bar is now an
+explicit pre-condition.
+
+**Next** (queue):
+- Could update `docs/protocol-overview.md` with the verification
+  commands so they're discoverable.
+- Or pause until the maintainer's experiment results.
+
+**Blockers:** None.
