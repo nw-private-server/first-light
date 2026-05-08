@@ -4110,3 +4110,138 @@ all of these issues go away simultaneously.
 Waiting on strategic direction (Frida vs Parallels). Current Frida
 path is producing diagnostic info but no resolution; each iteration
 narrows the cause but adds another hook to write.
+
+---
+
+### 2026-05-08 — wake 48: corrected the wake-47 RVA arithmetic; Parallels pivot proposal written
+
+**Did:**
+
+1. Added an entry-time `Interceptor.attach` on what I thought was
+   FUN_1410d1120 (the wake-47 crash function) to capture the call
+   stack at the moment of the crash.
+2. Re-ran smoke test (vm_smoke_009): hook was confirmed installed
+   but **never fired** before the access violation.
+3. Investigated why; **caught a calculation error in wake 47**.
+4. Wrote `analysis/proposed_patches/parallels_setup.md` — structured
+   proposal for the Parallels Desktop pivot.
+
+**Found — wake 47's RVA was wrong:**
+
+The crash address was `0x7ff7607b11b5`. The module base was
+`0x7ff7596e0000`. I computed the RVA as `0x10D11B5` in wake 47, but
+the correct subtraction is:
+
+```
+0x7ff7607b11b5 - 0x7ff7596e0000 = 0x70D11B5  (NOT 0x10D11B5)
+```
+
+Off by `0x6000000` because I dropped a leading hex digit. The
+correct Ghidra address is `0x1470D11B5`, not `0x1410D11B5`. Wake
+47's decompile (`FUN_1410d1120`, the spatial-query routine with
+SIMD math) was the wrong function entirely.
+
+**Decompiling the correct address** at `0x1470D11B5`:
+
+The actual crashing function `FUN_1470d11a0` is a 4-instruction
+thunk:
+
+```c
+void FUN_1470d11a0(longlong *param_1, undefined8 param_2, undefined8 param_3, undefined8 param_4) {
+    (**(code **)(*param_1 + 8))(param_1, param_2, 0, param_3, param_4);
+    return;
+}
+```
+
+It dereferences `param_1` (treats it as a vtable pointer), reads
+the second function pointer (`*param_1 + 8`), and indirectly calls
+it. Crash offset is +0x15 inside the function — the `call qword
+ptr [rax+8]` instruction. **Classic null/invalid vtable dispatch.**
+
+This means `param_1` (the object) is null or uninitialized at the
+moment of dispatch. Some upstream subsystem allocated this object
+slot but never populated it — typical cascading-init-failure
+pattern when the renderer half-initializes due to bad GPU info.
+
+**Implications for the Frida bypass path:**
+
+- Even with the correct function identified, bypassing the call
+  alone doesn't solve the upstream issue; the next subsystem to
+  use the same null pointer will crash too.
+- Each iteration would need to:
+  1. Hook the next crash site
+  2. Identify what's null and where it should have been initialized
+  3. Either provide a fake object or skip the call
+  4. Repeat
+- Estimate: 3-6 more wakes minimum, with no guarantee any of them
+  succeed (some need real GPU-backed memory allocations like
+  textures, which we genuinely can't fake).
+
+**Why my entry hook didn't fire:**
+
+The hook was installed at the WRONG address (`0x7ff75A7B1120` =
+base + the wrong RVA). It hooked a real function (`FUN_1410d1120`,
+the SIMD spatial-query routine), which the game simply didn't call
+during early init. The hook waited for nothing.
+
+If we wanted to redo this hook at the correct address (base +
+`0x70d11a0` = `0x7ff760823120`), we could — and the entry hook
+would catch the call. But given the cascade-failure pattern, the
+caller would just be one more null-vtable victim of the upstream
+GPU-init issue. Not worth the wake budget.
+
+**Strategic recommendation: Parallels Desktop.**
+
+Per the new `analysis/proposed_patches/parallels_setup.md`:
+
+- Parallels' D3D virtualization is substantially better than UTM's
+  `virtio-gpu`. FAQ estimate: 80%+ of "starts and reaches network
+  init" probability vs UTM's 40-60%.
+- All the infrastructure built tonight (SCP push, SSH-driven
+  control loop, serve_for_vm.sh, setup_vm_portproxy.ps1, hosts
+  redirects, CA trust, Frida hooks) **transfers as-is**.
+- Setup time: ~30 min wall-clock plus ~30 min unattended Windows
+  reinstall.
+- Cost: free 14-day trial; $99.99/yr if subscribed.
+- Maintainer-interactive part is bounded to ~5 min (install
+  Parallels + Windows VM creation).
+
+**Three paths, three commits this iteration:**
+
+- `a6ecdf7` — entry-time hook on FUN_1410d1120 (turns out wrong
+  address, but the hook plumbing is sound and reusable)
+- `5a1c454` (already committed in wake 47) — silent-abort root-causing
+- (this commit) — wake 48 worklog + parallels_setup.md proposal
+
+**Next** (queue):
+
+1. **Awaiting maintainer input on the Parallels pivot** —
+   `analysis/proposed_patches/parallels_setup.md` lays out the
+   proposal in full. Decision matrix: Frida (2 weeks of yak-shave
+   maybe) vs Parallels trial (~30 min, 80%+ success).
+
+2. **If maintainer approves Parallels:** drive the setup as far as
+   I can autonomously (everything except the Parallels.app install
+   itself, since that needs a Mac GUI consent loop).
+
+3. **If maintainer wants to keep going on Frida:** the next thing
+   to do is fix the entry-hook RVA (`0x70d11a0`, not `0x10d1120`)
+   and re-run to capture the actual caller's backtrace; from there
+   identify the null upstream object.
+
+**Blockers:**
+
+- Strategic direction (Frida vs Parallels) — proposal filed.
+- Parallels installation needs the maintainer's keyboard if that
+  path is chosen.
+
+**Lesson learned:**
+
+Hex arithmetic in worklogs MUST be double-checked (especially
+across long subtractions). Wake 47 and the first half of wake 48
+chased the wrong function because I dropped a digit in
+`0x7ff7607b11b5 - 0x7ff7596e0000`. A simple sanity check —
+"does the module size match the RVA?" — would have caught it
+faster (I had the module's loaded extent visible from the
+`gpu_spoof` log showing FUN_147143960 at RVA `0x7143960` ≈ 119 MB,
+proving the module is much larger than 17 MB / `0x10D11B5`).
