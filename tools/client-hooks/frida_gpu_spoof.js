@@ -34,9 +34,11 @@
 // Loaded via tools/client-hooks/frida_capture.py --gpu-spoof.
 
 (function () {
-    const messageBoxW = Module.findExportByName('user32.dll', 'MessageBoxW');
-    if (!messageBoxW) {
-        console.log('[gpu_spoof] MessageBoxW export not found');
+    let messageBoxW;
+    try {
+        messageBoxW = Module.getExportByName('user32.dll', 'MessageBoxW');
+    } catch (e) {
+        console.log('[gpu_spoof] MessageBoxW export not found: ' + e);
         return;
     }
     console.log('[gpu_spoof] hooking MessageBoxW @ ' + messageBoxW);
