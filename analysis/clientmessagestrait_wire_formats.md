@@ -110,9 +110,9 @@ the message's `+0xa8` matches.
 | `0x58` | 4 | `m_field58` | u32 (or float) |
 | `0x5C` | 4 | `m_field5C` | u32 (or float) — pattern of 4 contiguous u32s suggests a 4-tuple (Vec4 / quat?) |
 | `0x60` | 8 | `m_field60` | u64 |
-| `0x68` | `0x38` | `m_extendedField` | Container copied via `FUN_1416074b0` with side-context from `+0x98`. Likely an `AZStd::vector<T>` or similar — internal layout TBD |
+| `0x68` | `0x38` | `m_extendedField` | **AZStd hash-container** (set or map; copy logic `(N-1)/7 + N` + power-of-2 bucket sizing in `FUN_1416074b0` confirms unordered associative). 56-byte in-memory layout: vtable ptr + 6 qwords of bookkeeping. Side-context at `+0x98` is the allocator/hasher snapshot. Element type T not yet known. Wire encoding for an empty container is typically `[u32 count=0]`. |
 | `0xA0` | 1 | `m_field_a0` | u8 |
-| `0xA1` | 1 | `m_levelIsLoading` (?) | u8 — passed to `FUN_1463e42b0` for "should I act?" check; gate for the body of the handler |
+| `0xA1` | 1 | `m_levelIsLoading` (?) | u8 — passed by-pointer to `FUN_1463e42b0` as opaque payload to a list-walking dispatcher. The dispatcher walks a thread-local list, invokes a callback (`FUN_14057143c`) per entry with `(entry+offset, &this_byte)`, and the callback's return value becomes the gate. So the gate isn't decided by `m_levelIsLoading` alone — it depends on the contents of the list at the moment of the call. For server-side encoding: setting `m_levelIsLoading = 0x01` is what wake-54's "production server" recipe assumes; non-zero values are likely fine, the gate's actual logic lives in `FUN_14057143c`. |
 | `0xA2` | 1 | `m_isInGameTransition` (?) | u8 — gate for the state-14 → state-13 transition |
 | `0xA3` | 1 | `m_field_a3` | u8 |
 | `0xA4` | 4 | _pad_ | not copied by the constructor; structural alignment |

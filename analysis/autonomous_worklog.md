@@ -4944,3 +4944,146 @@ and bring the client past state 12.
    try other log channels ("Javelin", "ClientFlow", "JavelinNet"...).
 
 **Blockers:** None new.
+
+---
+
+### 2026-05-08 — wake 55: m_extendedField is an AZStd hash-container; +0xa1 gate is callback-driven; new namespace clue for Rejected handler
+
+**Did:**
+
+1. Decompiled `FUN_1416074b0` — the container-copy helper used for
+   the 56-byte block at LevelInfoChangedMsg body+0x68.
+2. Decompiled `FUN_1463e42b0` — the early-out gate called with
+   body+0xa1.
+3. Searched for `"Rejected"`, `"JavelinNet"`, `"ClientFlow"`,
+   `"ClientHub"`, `"PlayerManagerR"` log strings to retry A2.10.
+
+**Found — `FUN_1416074b0` is an AZStd hash-container copy:**
+
+```c
+*param_1 = (longlong)&DAT_147ef88c0;       // vtable ptr
+param_1[1] = 0;                             // bookkeeping
+...
+uVar33 = (param_2[2] + -1) / 7 + param_2[2];  // load-factor calc
+// + power-of-2 bucket sizing via bit scanning
+```
+
+The `(N-1)/7 + N` pattern (= `N * 8/7`) is the AZStd
+load-factor calculation. The subsequent power-of-2 bucket sizing
+(`uVar30 = 0xffffffffffffffff >> (0x3f - lVar4)`) is the bucket
+count rounding. Together, this is the canonical
+`AZStd::unordered_set` / `AZStd::unordered_map` copy
+constructor.
+
+So **`m_extendedField` at body+0x68 is an unordered associative
+container of 56 bytes in-memory** (vtable + 6 qwords of bookkeeping).
+The element type T is unknown without further analysis.
+
+For server-side encoding: an empty hash container's wire form is
+typically `[u32 count=0]` per AzCore convention. Sending an empty
+container should be safe for an initial syntactically-valid
+LevelInfoChangedMsg.
+
+**Found — `FUN_1463e42b0` is a list-walking dispatcher, not a
+direct gate:**
+
+```c
+ulonglong FUN_1463e42b0(undefined1 *param_1, undefined8 *param_2,
+                        undefined1 *param_3) {
+    // param_2 = function pointer + extra arg
+    // param_3 = opaque payload (the body+0xa1 byte)
+    lVar7 = FUN_141027d40();             // get thread-local context
+    plVar1 = (longlong *)(lVar7 + 0x58); // list head
+    pcVar4 = (code *)*param_2;            // callback
+    plVar9 = walk_to_list_start(*plVar1);
+    do {
+        plVar9 = ...; plVar3 = next(plVar9);
+        uVar6 = (*pcVar4)(plVar9[5] + uVar5, *param_3);  // invoke
+        *param_1 = uVar6;                                 // store result
+        if (local_40 == 2) break;                         // early-exit signal
+    } while (plVar9 != plVar1);
+}
+```
+
+So the LevelInfoChanged handler's gate at body+0xa1 isn't decided
+by the byte's value alone — it walks a thread-local list of
+"registered handlers" and invokes a callback (`FUN_14057143c`) per
+entry, passing `&body_byte` as opaque payload. The callback's
+return value becomes the gate.
+
+In short: **`m_levelIsLoading` is just a token the gate dispatcher
+forwards to per-listener callbacks.** Setting it to 0x01 (as
+wake 54's "production server" recipe suggested) is fine; the
+actual gate logic is one level deeper, in `FUN_14057143c`.
+
+**Updated `clientmessagestrait_wire_formats.md`** with both
+findings — the `m_extendedField` row now identifies the container
+type, and the `+0xa1` row notes the callback-driven gate.
+
+**Found — alternate-channel string search for Rejected handler:**
+
+- `"Rejected"` has 21 hits; none in `Javelin::ClientMessagesTrait`
+  namespace.
+- `"PlayerManagerRedirectorTrait"` exists at `0x148022e80` — that's
+  a DIFFERENT namespace from `ClientMessagesTrait`. "Redirect"
+  semantics often go with rejection.
+- An RTTI string `InstallRegistrationHook<OnGetCharacterResponse@PlayerManagerResponses@Aoi>`
+  shows there's a `Aoi::PlayerManagerResponses` namespace where
+  messages live, separate from `Javelin::ClientMessagesTrait`.
+- `"JavelinNet"`, `"ClientFlow"`, `"ClientHub"` — 0 hits each.
+
+**The Rejected handler is likely in `Aoi::PlayerManagerResponses`
+or `PlayerManagerRedirectorTrait`, not `ClientMessagesTrait`.**
+That's a useful course-correction: previous wakes (4, 7, 11)
+assumed Rejected was sibling to SelfIdent in the same namespace.
+It probably isn't.
+
+**Why this matters:**
+
+For server-side LevelInfoChangedMsg encoding, all 176 bytes of
+the body are now characterized:
+
+```
++0x00  AZStd::string  (length-prefixed bytes)
++0x28  AZStd::string
++0x50  4×u32
++0x60  u64
++0x68  AZStd::unordered_*  (empty: just u32=0)
++0xA0..A3  4×u8
++0xA4  4 bytes padding (skipped by copy ctor)
++0xA8  u64  m_clientContextInstanceId  (must change between calls)
+```
+
+A minimum-viable encoder fills strings with empty (u32=0 length),
+the 4-tuple and u64 with zeros, the unordered container with
+u32=0 count, the bytes with reasonable defaults (specifically
++0xa1=1, +0xa2=1 to pass the gate per the convention), and a
+non-zero unique +0xa8.
+
+For the Rejected handler — pivoting search away from
+`Javelin::ClientMessagesTrait` to `Aoi::PlayerManagerResponses`
+or `PlayerManagerRedirectorTrait`. Future wake.
+
+**Files this iteration:**
+
+- Updated `analysis/clientmessagestrait_wire_formats.md` (two row
+  refinements).
+- This worklog entry.
+
+**Commit:** Following.
+
+**Next** (queue, in priority order):
+
+1. **Search for `InstallRegistrationHook` xrefs in
+   `Aoi::PlayerManagerResponses` and `PlayerManagerRedirectorTrait`
+   namespaces** — surface the Rejected (or equivalent
+   "registration-rejected") handler.
+2. **Decompile `FUN_14057143c`** (the per-entry callback inside
+   the +0xa1 gate dispatcher) to learn the actual predicate that
+   gates `LevelInfoChangedMsg` handler progression. Needed for
+   accurate `m_levelIsLoading` value choice.
+3. **Decompile `FUN_146410750`** (how the LevelInfo blob gets
+   stored at param_1 - 0x8b0) — this might reveal additional
+   side-effect paths the message triggers in the GameConnection.
+
+**Blockers:** None new.
