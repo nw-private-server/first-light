@@ -3507,3 +3507,56 @@ VM setup phase board:
   bind to" if needed, but `0.0.0.0` is fine.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 42: pre-flight sanity checks for VM Phase H
+
+**Did:**
+- Inspected `tools/client-hooks/frida_capture.py` for hardcoded
+  paths that would break in the VM environment.
+- Inspected `tools/client-hooks/frida_dtls_trust_patch.js` for
+  hardcoded RVAs that depend on a specific binary build version.
+
+**Found — no action needed:**
+
+`frida_capture.py` is already VM-friendly:
+- Default `GAME_EXE` =
+  `C:\Program Files (x86)\Steam\steamapps\common\New World\Bin64\NewWorld.exe`
+  (line 54-57)
+- Override via `--exe` CLI flag (line 331) — this is what the
+  VM scenario uses, pointing at `C:\NewWorldArchive\Bin64\NewWorld.exe`
+- Override via `NW_GAME_EXE` env var as alternative
+
+`frida_dtls_trust_patch.js` hardcodes `RVA_SECURE_INIT = 0x5dce750`
+(= `FUN_145dce750` = `Javelin_SecureSocketDriver_Initialize`).
+This RVA matches the binary we downloaded via SteamCMD on
+2026-05-06 — verified during today's static-RE work which
+identified `FUN_145dce750` at the same offset.
+
+**Conclusion:** existing tools work as-is for the VM scenario
+when pointed at the SteamCMD-downloaded game directory. No script
+modifications needed for Phase H.
+
+**The only realistic risk** is if the VM somehow ends up running
+a *different* build of NewWorld.exe than what we have on disk
+(e.g., via Steam-in-VM auto-updating it). Mitigation: don't let
+Steam-in-VM update the game; we explicitly point Frida at our
+copy under `C:\NewWorldArchive\` rather than at any
+Steam-managed install path. The doc already says this.
+
+**Why this matters:**
+
+The trust-patch is the load-bearing piece of the existing
+runtime instrumentation. If its hardcoded RVA missed, cert
+pinning wouldn't be bypassed and the client would refuse our
+self-signed cert. Confirming the RVA matches before Phase H
+runs eliminates one class of "why isn't it working" debugging.
+
+**Next** (queue):
+- Wait on Phase D / E / F progress.
+- Could write a Phase E one-liner script (Python + Frida install
+  via winget + pip in PowerShell) but it's small enough that the
+  doc commands suffice.
+
+**Blockers:** None.
