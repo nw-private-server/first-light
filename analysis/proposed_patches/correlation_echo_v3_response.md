@@ -165,16 +165,32 @@ Most likely positive signals (any one is sufficient):
 ### Failure signal
 
 If V3 retries continue uninterrupted, the correlation-echo
-hypothesis is wrong. Other candidates to consider next:
+hypothesis is wrong. Other candidates to consider next, in order
+of cheapness to test:
 
-- Mystery8 might be derived from request bytes via a hash, not a
-  raw byte slice. Try CRC32 over the prelude, or first 8 bytes of
-  the auth blob, or some other transformation.
-- The 16-byte correlation might be at a different offset — try
-  body[0x14..0x1c] (the "CRC32-shaped" 8 bytes) instead.
-- The retry might be from a different field entirely. Falling back
-  to Frida hook on `FUN_146454c00` (per `state_machine_summary.md`
-  § 8) is the next-clearest diagnostic.
+- **Mystery8 transformation.** Mystery8 might be derived from
+  request bytes via a hash rather than a raw byte slice. Try
+  CRC32 over the prelude, or first 8 bytes of the auth blob, or
+  some other transformation.
+- **Different offset.** The 16-byte correlation might be at a
+  different position — try `body[0x14..0x1c]` (the "CRC32-shaped"
+  8 bytes from `BODY_DECODE.md`) instead.
+- **Identity mismatch in replay** (Hypothesis 3 from worklog wake
+  33). The `SubstitutionContext.character_uuid_bytes` is a
+  deterministic UUID5 stub from `persona_id`, not the real
+  character UUID from the auth flow. If V3 itself isn't being
+  retried but the *post-V3 replay* is being rejected by the
+  client (which can look like V3 retry symptoms), the fix is
+  bridging `auth_mock`'s character-creation state into
+  `rep_responder` via the reserved `auth_state` parameter on
+  `SubstitutionContext.from_v3_and_session`. See
+  `replay_substitution.py:160` — the comment "reserved for a
+  future bridge to the auth-mock state" is the hook.
+- **Frida fallback.** Run the hook at
+  `tools/client-hooks/frida_self_ident_hook.js` against the same
+  session. Three distinct outcomes (per the script's docstring)
+  tell you which of the three V3-retry hypotheses is correct in
+  one observation.
 
 ## How to revert
 
