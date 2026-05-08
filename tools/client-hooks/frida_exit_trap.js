@@ -222,24 +222,35 @@
     tryHook("ucrtbase.dll", "exit", 1);
     tryHook("vcruntime140.dll", "_CxxThrowException", 2);
 
-    // Entry-time hook on FUN_1410d1120 (the function that crashes
-    // ~332ms after FUN_147143960 returns; wake 47 root-cause). Captures
-    // a backtrace at every call so we can identify the calling
+    // Entry-time hook on FUN_1470d11a0 (the function that crashes
+    // ~332ms after FUN_147143960 returns; wake 48 found the right
+    // RVA after correcting the wake-47 hex arithmetic error). The
+    // function is a 4-instruction virtual-call thunk:
+    //   (**(code **)(*param_1 + 8))(param_1, ...);
+    // and the crash is at +0x15 (the `call qword ptr [rax+8]`
+    // instruction) where param_1's vtable is null. Captures a
+    // backtrace at every call so we can identify the calling
     // subsystem before the crash strikes.
     try {
         const main = Process.getModuleByName("NewWorld.exe");
         if (main) {
-            const RVA_CRASH_FN = 0x10d1120;
+            const RVA_CRASH_FN = 0x70d11a0;
             const crashFnAddr = main.base.add(RVA_CRASH_FN);
             let calls = 0;
             Interceptor.attach(crashFnAddr, {
                 onEnter: function (args) {
                     calls += 1;
-                    // Sample first 4 entries so we don't flood; the crash
-                    // happens on the nth call where n is small.
-                    if (calls <= 4 || calls % 100 === 0) {
+                    if (calls <= 6 || calls % 100 === 0) {
+                        let p1Bytes = "(unreadable)";
+                        try {
+                            // Read the first qword that param_1 points at —
+                            // that's the vtable pointer we'll dereference.
+                            if (args[0] && !args[0].isNull()) {
+                                p1Bytes = args[0].readPointer().toString();
+                            }
+                        } catch (_e) {}
                         emit(
-                            "[exit_trap] FUN_1410d1120 entered (call #" +
+                            "[exit_trap] FUN_1470d11a0 entered (call #" +
                                 calls +
                                 " tid=" +
                                 this.threadId +
@@ -250,15 +261,15 @@
                                 args[0] +
                                 " arg1=" +
                                 args[1] +
-                                " arg2=" +
-                                args[2]
+                                " *arg0=" +
+                                p1Bytes
                         );
-                        backtrace(this.context, "FUN_1410d1120 entry call#" + calls);
+                        backtrace(this.context, "FUN_1470d11a0 entry call#" + calls);
                     }
                 },
             });
             emit(
-                "[exit_trap] hooked FUN_1410d1120 (crash site) @ " +
+                "[exit_trap] hooked FUN_1470d11a0 (crash site) @ " +
                     crashFnAddr +
                     " (base=" +
                     main.base +
@@ -268,7 +279,7 @@
             );
         }
     } catch (e) {
-        emit("[exit_trap] FUN_1410d1120 entry hook threw: " + e);
+        emit("[exit_trap] FUN_1470d11a0 entry hook threw: " + e);
     }
 
     emit("[exit_trap] all hooks installed");
