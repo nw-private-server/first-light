@@ -126,15 +126,27 @@ so they're reachable from the VM's network without code changes.
 
 ### Find the Mac's IP from the VM's perspective
 
-In the Windows VM, open PowerShell and run:
+UTM's default Shared Network mode bridges the VM to the host on
+the `192.168.64.0/24` subnet, with the Mac at **`192.168.64.1`**
+(verified in this environment).
+
+To confirm or auto-detect, run on the Mac:
+
+```bash
+tools/show_vm_host_ip.sh
+# 192.168.64.1
+```
+
+The script auto-detects the right bridge interface in case UTM's
+naming changes between versions. Use this output as
+`MAC_IP_FROM_VM` in the steps below.
+
+If you'd rather verify from inside Windows, the default gateway
+IS the Mac:
 
 ```powershell
 ipconfig | Select-String "Default Gateway"
 ```
-
-The default gateway IS the Mac (UTM's NAT puts the host at the
-gateway). UTM's default subnet gives the Mac something like
-`192.168.64.1`. Note this address — it's `MAC_IP_FROM_VM` below.
 
 ### Run the servers on the Mac
 

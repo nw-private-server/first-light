@@ -3456,3 +3456,54 @@ cost.
   unless they choose otherwise.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 41: VM-host-IP helper added; Phase G IP made concrete
+
+**Did:**
+- Inspected the host's network interfaces. Confirmed UTM's default
+  Shared Network bridge is `bridge100` with the host at
+  `192.168.64.1` (subnet `192.168.64.0/24`).
+- Wrote `tools/show_vm_host_ip.sh` — a small helper that auto-detects
+  the right bridge interface and prints the host's IP as seen from
+  a UTM VM. Verified: outputs `192.168.64.1`.
+- Updated `analysis/proposed_patches/vm_setup_steps.md` Phase G
+  "Find the Mac's IP" subsection to reference the helper script and
+  use the verified IP rather than "typically 192.168.64.1."
+
+**Why:**
+
+When the maintainer reaches Phase G, they need the host IP for two
+flags: `auth_mock.py --rep-host` and `setup_hosts.py --target-ip`.
+The original doc said "typically 192.168.64.1" — fine for guidance,
+not great for automation. The helper script removes the manual
+detection step and works regardless of UTM version (auto-finds the
+bridge by inspecting interface names + RFC1918 IPs).
+
+The script is also useful in shell pipelines, e.g.:
+
+```bash
+sudo python -m server.auth_mock --port 443 \
+    --rep-host "$(tools/show_vm_host_ip.sh)" --rep-port 24083
+```
+
+**Status:**
+
+VM setup phase board:
+- A ✅ UTM was already installed
+- B ✅ Windows ARM64 ISO downloaded
+- C in progress (got past the UEFI shell hiccup)
+- D in progress (Windows install)
+- E pending (Steam, Python, Frida)
+- F pending (game directory transfer, ~71 GB)
+- G pending (networking — host IP now scripted at
+  `tools/show_vm_host_ip.sh`)
+- H pending (run NewWorld via Frida)
+
+**Next** (queue):
+- Wait on Phase D / E progress.
+- Could write the same kind of helper for "IP that auth_mock should
+  bind to" if needed, but `0.0.0.0` is fine.
+
+**Blockers:** None.
