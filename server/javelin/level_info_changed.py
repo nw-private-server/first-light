@@ -1,6 +1,8 @@
 """
 LevelInfoChangedMsg encoder.
 
+See `analysis/clientmessagestrait_wire_formats.md` for the canonical
+wire-format reference (kept in sync with this file by convention).
 Wire format hypothesized from `analysis/clientmessagestrait_wire_formats.md`
 (static-RE wakes 51, 53, 54, 57, 60). Field offsets and types come from
 decompiling `FUN_146446800` (the handler) and `FUN_1464027b0` (the body

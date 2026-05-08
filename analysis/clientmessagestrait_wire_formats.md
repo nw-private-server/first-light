@@ -2,7 +2,30 @@
 
 > Static-RE inventory of message bodies the New World client expects
 > on the post-V3 GameMessagePort channel. Compiled from handler
-> decomps in worklog wakes 51, 53, 54.
+> decomps in worklog wakes 51, 53, 54, 57, 60, 63.
+
+## Implementations
+
+The two messages documented here have shipping Python encoders +
+unit tests in `server/javelin/`:
+
+| Message | Encoder | Tests |
+|---|---|---|
+| `PlayerManagerSelfIdentificationMsg` | [`server/javelin/self_ident.py`](../server/javelin/self_ident.py) | `test_codecs.py::test_self_ident_*` |
+| `LevelInfoChangedMsg` | [`server/javelin/level_info_changed.py`](../server/javelin/level_info_changed.py) | `test_codecs.py::test_level_info_*` |
+
+When updating the wire format here, update the encoder; when changing
+the encoder, update this reference. They drift if maintained
+independently.
+
+> ⚠️ **SelfIdent wire-vs-in-memory conflict (open):** the doc
+> [`docs/post-v3-sequence.md`](../docs/post-v3-sequence.md)'s phase
+> table lists Phase 9b SelfIdent body as 4 bytes (footnote ¹). The
+> handler reads from a 56-byte in-memory struct, hypothesizing a
+> 21+ byte wire body. Either the wire body is a 4-byte trigger and
+> the deserializer fills the rest from session state, OR the doc's
+> 4B figure is stale. **Unresolved without runtime data** — see the
+> "SECONDARY CAVEAT" in `self_ident.py`.
 >
 > **All offsets are within the message body struct** (the
 > dispatcher unpacks the carrier and passes the body to the handler;

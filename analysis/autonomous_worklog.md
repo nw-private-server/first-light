@@ -5991,3 +5991,74 @@ physical host / cloud GPU per `analysis/MORNING_BRIEF.md`).
 
 **Blockers:** Wire-format validation needs runtime data. Same as
 wake 60's note: the lower-hanging static-RE fruit is gone.
+
+---
+
+### 2026-05-08 — wake 64: closing polish — cross-link encoders to wire-format reference
+
+**Did:**
+
+1. Confirmed there's no productive non-runtime-dependent work
+   left. The key SelfIdent wire-format conflict from wake 63 needs
+   runtime data; speculating further without that risks adding
+   incorrect content.
+2. Cross-linked the wire-format reference doc to the shipping
+   encoder modules (and back). Future contributors landing on
+   either side now see the other.
+
+**Found:**
+
+`analysis/clientmessagestrait_wire_formats.md` had no pointer
+to the actual implementations. Added an "Implementations" table
+near the top:
+
+| Message | Encoder | Tests |
+|---|---|---|
+| `PlayerManagerSelfIdentificationMsg` | `server/javelin/self_ident.py` | `test_codecs.py::test_self_ident_*` |
+| `LevelInfoChangedMsg` | `server/javelin/level_info_changed.py` | `test_codecs.py::test_level_info_*` |
+
+Plus a note that the reference and the encoders are kept in
+sync by convention, and a callout for the unresolved 4B-vs-21B
+SelfIdent conflict pointing to the encoder's "SECONDARY CAVEAT"
+section and the post-v3-sequence.md footnote.
+
+Added reciprocal pointers in both encoder docstrings so a
+maintainer reading either file sees the link to the other.
+
+**Test suite:** 116 passing (no logic changed).
+
+**Files this iteration:**
+
+- `analysis/clientmessagestrait_wire_formats.md` (cross-link
+  table + conflict callout)
+- `server/javelin/level_info_changed.py` (one-liner pointer to
+  the reference doc)
+- `server/javelin/self_ident.py` (one-liner pointer to the
+  reference doc)
+- This worklog entry
+
+**Commit:** Following.
+
+**State of the project at this iteration's end:**
+
+The static-RE → encoder pipeline is at a clean stopping point:
+
+- 2 wire formats fully characterized + encoders + 29 tests
+- Wire-format reference doc with complete struct layouts
+- Cross-handler convention (`param_1 - 0x990` outer struct) documented
+- Connection-class struct field map (10 named fields)
+- Open SelfIdent 4B-vs-21B conflict cleanly flagged in 3 places
+  (encoder, reference, sequence doc)
+- 116 unit tests passing
+- 80 commits on the branch
+- Both encoders are ready for integration when runtime data
+  resolves the wire-format conflict
+- VM work is paused pending strategic decision (per
+  `analysis/MORNING_BRIEF.md`)
+
+**The loop is winding down.** This wake's iteration scheduled one
+more 1800s wake to confirm the polished state, then stop with
+PushNotification per the wake-49 closing recipe.
+
+**Blockers:** None new. Genuinely waiting on the maintainer's
+strategic call.

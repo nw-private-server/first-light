@@ -1,6 +1,8 @@
 """
 PlayerManagerSelfIdentificationMsg encoder.
 
+See `analysis/clientmessagestrait_wire_formats.md` for the canonical
+wire-format reference (kept in sync with this file by convention).
 Wire format hypothesized from `analysis/clientmessagestrait_wire_formats.md`
 (static-RE wakes 51, 53, 60). Field offsets and types come from
 decompiling `FUN_146454c00` (the handler) and `FUN_1402d13a0`
