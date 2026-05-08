@@ -3360,3 +3360,37 @@ The maintainer's next physical-keyboard activity is Phase B
   contributors who hit the same questions.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 39: VM setup FAQ written; Phase B complete (ISO landed)
+
+**Did:**
+- Wrote `analysis/proposed_patches/vm_setup_faq.md` with calibrated
+  answers to seven recurring VM-setup questions: Prism viability,
+  why not Windows x64, EAC bypass mechanism, VM detection,
+  fallbacks, the 71 GB game-dir transfer, total time estimate, and
+  Frida-on-ARM64 fallback to `d3d11_proxy/`.
+
+**Phase B complete:** maintainer reported
+`Win11_25H2_English_Arm64_v2.iso` finished downloading. Phase C
+(create VM in UTM) is now active.
+
+**Status of staged deliverables:**
+
+| Deliverable | Status |
+|---|---|
+| Correlation-echo patch | ✅ ready |
+| SelfIdent Frida hook | ✅ ready |
+| VM setup A→H steps | ✅ ready |
+| VM setup FAQ | ✅ ready (this iteration) |
+| Master synthesis | ✅ ready |
+| 84-test verification | ✅ runs |
+
+**Next** (Phase C is interactive — maintainer at keyboard):
+- UTM Create New VM walkthrough
+- Resource allocation (8 GB RAM, 4 cores, 100 GB storage)
+- Shared folder setup pointing at `~/SteamLibrary/NewWorld/`
+
+**Blockers:** None for the loop. Phase C unblocked, will be walked
+through interactively via chat.
