@@ -5087,3 +5087,108 @@ or `PlayerManagerRedirectorTrait`. Future wake.
    side-effect paths the message triggers in the GameConnection.
 
 **Blockers:** None new.
+
+---
+
+### 2026-05-08 — wake 56: PlayerManagerRejectedMsg confirmed in ClientMessagesTrait (wake 55 was wrong); handler still elusive
+
+**Did:**
+
+1. Searched RTTI mangled strings for `"PlayerManagerRejected"`.
+2. Tried decompiling unchecked candidates from the dispatch
+   table around SelfIdent (`FUN_146455673`, `FUN_146455812`,
+   `FUN_146455857`).
+3. Ran `FindOffsetReferences.py 0x130` filtered to the `0x1464`
+   namespace (where ClientMessagesTrait handlers live).
+
+**Found — RTTI confirms PlayerManagerRejectedMsg IS in `Javelin::ClientMessagesTrait`:**
+
+```
+0x14a153db0: '.?AV<lambda_1>@?1???$InstallRegistrationHook@VPlayerManagerRejectedMsg@ClientMessagesTrait@Javelin@@@Hub@Amazon@@YA_NXZ@'
+  0 references
+```
+
+This **corrects wake 55's speculation** that Rejected lived in
+`Aoi::PlayerManagerResponses`. It's actually a sibling of SelfIdent
+in the same namespace. (Wake 55 was reasoning from neighbor RTTI
+strings; the explicit search nails it.)
+
+The RTTI string has 0 direct code references — typical for MSVC
+RTTI which is linked through `__type_info` system at runtime, not
+direct string xrefs. So this single string doesn't surface the
+handler.
+
+**Failed leads:**
+
+- Adjacent dispatch table addresses around SelfIdent
+  (`FUN_146455673`, `FUN_146455812`, `FUN_146455857`) are
+  mid-function offsets, not new handler entries. The dispatch
+  table layout doesn't have entries at every `+16` offset; entry
+  spacing is variable.
+- `FindOffsetReferences.py 0x130` filtered to `0x1464*` returned
+  **463 lines, hundreds of unique functions**. Most are
+  stack-frame LEAs (`LEA RDX, [RBP+0x130]` = local var
+  addressing). The handler-candidate filter (LEA from RBX/RDI/R15
+  — typical object pointers) still has dozens of candidates,
+  too many to triage one at a time.
+
+**The Rejected handler is still hiding from static-RE.** Next
+angle ideas:
+
+1. **Decompile the SelfIdent handler's caller chain** to find
+   the dispatcher loop. The dispatcher reads from the dispatch
+   table at `0x14abcc...` and matches incoming message type IDs.
+   If we find the dispatcher, its loop body iterates the table
+   structure, which gives us the entry layout (variable-size
+   records?). Then enumerating ALL entries gives us all handlers,
+   including Rejected.
+
+2. **Search for a SHORTER unique string** the Rejected handler
+   might log. Wake 7 already tried "Rejected" broadly. Maybe
+   try "rejected" (lowercase), "Reject" without the suffix, or
+   "PlayerManager" prefix.
+
+3. **Look at `FUN_14154161c`** (the stub function used as filler
+   in 7 consecutive slots of the table at `0x1484fc...`, per
+   wake 52). If Rejected has a NO-OP handler (the engine ignores
+   reject messages by design — rejection might be encoded as a
+   non-event), the dispatch entry would point at this stub.
+
+4. **The community dump from wake 21** already includes message
+   type names. Cross-check the dump for `PlayerManagerRejected`
+   adjacency to other ClientMessagesTrait messages — that gives
+   us its dispatch ordering, which may help locate the handler.
+
+**Why this matters:**
+
+The Rejected handler's behavior tells us how the client treats
+auth failure. If we know what it does, we can:
+- Decide whether the server should ever send Rejected vs always
+  sending success
+- Reproduce the client's reaction (logout, retry, error UI)
+- Confirm whether Rejected's wire format is identical to SelfIdent's
+  (likely shorter — just an error code)
+
+But Rejected is NOT on the critical path for state-10→11 advance.
+SelfIdent + LevelInfoChanged are. Rejected is a "nice to have"
+for completeness.
+
+**Files this iteration:** None new. Used existing scripts.
+
+**Commit:** This worklog entry only.
+
+**Next** (queue, in priority order):
+
+1. **Decompile FUN_14057143c** — the gate predicate inside the
+   `+0xa1` callback dispatcher (still pending from wake 55).
+   Tells us how to set `m_levelIsLoading` correctly for the
+   server-side LevelInfoChangedMsg encoder.
+2. **Decompile FUN_146410750** — how the LevelInfo blob is
+   stored at param_1-0x8b0; might reveal additional side-effects
+   the message triggers (per wake 54 next-step list).
+3. **Try a different angle for Rejected** — see options above.
+4. **Cross-reference the community dump** for the full
+   ClientMessagesTrait message list to see what we're missing
+   beyond Rejected.
+
+**Blockers:** None new.
