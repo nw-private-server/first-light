@@ -2611,3 +2611,95 @@ direction; the highest-value static work has landed.
 **Blockers:** None for the loop. The static-RE picture is now
 comprehensively documented and the project's path to MVP is
 bounded by 1–3 testable experiments.
+
+---
+
+### 2026-05-07 — wake 29: ready-to-apply patch for the correlation experiment
+
+**Did:**
+- Read `server/javelin/v3_response.py` in full to understand the
+  `mystery8` field's current state. **Important correction**:
+  `mystery8` is NOT zero-filled (as I'd written earlier) — it
+  defaults to specific captured bytes (`0b 88 8d 68 70 6c 41 5b`)
+  from Mixed Nuts's real successful login.
+- Wrote `analysis/proposed_patches/correlation_echo_v3_response.md`
+  — a comprehensive proposed patch document.
+
+**Why "patch document" not "applied patch":**
+
+Per `project_autonomous_session_plan.md`, server code changes need
+a confident hypothesis first AND maintainer approval. The
+correlation-echo hypothesis is sharp but untested. Writing the
+change as a reviewable proposed patch (with diff, test plan,
+revert plan) gives the maintainer a one-step apply-and-test
+workflow when they're at a real keyboard.
+
+**Mystery8 finding sharpens the hypothesis:**
+
+The current `mystery8` default is bytes captured from Mixed Nuts's
+real successful login. Those bytes WORKED for that captured
+session — which is consistent with them being a correlation
+echo for *that* session's correlation_uuid. For new sessions
+with different correlation_uuids, the bytes are wrong, the
+client's correlator never matches, and V3 retries forever.
+
+This is a *much* stronger hypothesis than "the field is zero-
+filled and might need to mirror something" — the field is
+actively hardcoded to one specific session's value.
+
+**Patch shape** (~10 lines + CLI flag, default unchanged):
+
+- Add `--mystery-source {captured,echo-prelude}` CLI flag, default
+  `captured` (= current behavior, no regression).
+- When `echo-prelude`, set `mystery8 = m.payload[6:14]` (the V3
+  request body's "u64 / handle" 8-byte field per
+  `analysis/v3_request/BODY_DECODE.md`).
+- Threading through `PeerSession.__init__` to make the flag
+  reachable in `_handle_v3_data_record_inner`.
+
+**Test workflow** documented inline:
+1. Run with default → confirm baseline V3 retry symptom.
+2. Run with `--mystery-source echo-prelude` → look for one of:
+   - Server log: V3 RegistrationRequest count stops climbing.
+   - Server log: "replay queue armed" firing.
+   - Frida log: "actor game connection succeeds" trace.
+3. If V3 retry continues → hypothesis wrong, next step is Frida
+   hook on `FUN_146454c00`.
+
+**Why this is worth doing first** (compared to the Frida hook):
+
+- 1 server-side flag toggle vs writing a Frida script + Frida
+  setup against EAC.
+- ~10 LoC vs an unbounded read-only client-side instrumentation.
+- Single live run resolves either way (success or null result).
+
+**Patch is intentionally NOT applied:**
+
+The maintainer's discipline is to gate server-code changes
+behind explicit testing intent. The patch doc gives them a
+review-and-apply workflow; the loop stays on its read-and-
+document discipline.
+
+**Other refinements possible later:**
+
+- If `mystery8 = body[6:14]` doesn't work, alternative candidates
+  (CRC32-shaped bytes at body[0x14:0x1c], hash transformations)
+  are documented in the patch's "Failure signal" section.
+- A second proposed patch could add server-side CRC32 validation
+  of incoming C→S records (defensive — not project-blocking but
+  good hygiene). Not written yet.
+
+**Next** (queue):
+- C2 (PlayerManagerTrait characterization) — orthogonal long-term
+  value. Could pick up next iteration.
+- Or: write a second proposed-patch doc for the Frida hook (the
+  fallback if correlation-echo doesn't work) so the maintainer
+  has both experiments staged ready-to-go.
+- Or: pause the loop pending the maintainer's run of the
+  correlation experiment and route results into the next
+  iteration's direction.
+
+The loop is now firmly in "polish + ready-to-apply deliverable"
+mode rather than "uncover new findings" mode.
+
+**Blockers:** None for the loop.
