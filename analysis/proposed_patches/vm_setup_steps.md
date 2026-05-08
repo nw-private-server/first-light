@@ -1,10 +1,17 @@
 # VM Setup Steps for Local Client-Side Verification
 
-> **Status: Phase A done (UTM already installed). Phases B–F documented
-> below for the maintainer to walk through.** Once complete, the VM
-> runs the same flow as the existing home setup
-> (`tools/client-hooks/frida_capture.py --exe ...`) — just on a
-> Windows VM instead of a physical Windows host.
+> **Status (2026-05-08): UTM end-to-end works for everything except
+> the actual game launch.** SSH-driven control loop, 71 GB SCP push,
+> Mac-side servers, portproxy, hosts file, CA trust, Frida hooks
+> all proven. **However: UTM's `virtio-gpu` returns blank DXGI
+> adapter info, which causes the CryEngine renderer init to leave
+> hundreds of vtable slots null and the game crashes (access
+> violation) before reaching network init.** See worklog wakes
+> 45-49 for the full diagnostic and
+> [`parallels_setup.md`](parallels_setup.md) for the proposed
+> pivot. Most of the steps below remain correct for any Windows
+> VM backend; only the Parallels-specific delta (network IP, GPU
+> Tools) differs.
 
 ## Why this is now tractable
 

@@ -226,6 +226,29 @@ which needs a Windows host and the non-EAC archived build (per
 on the live Steam build. Static-RE + the unit suite is the bound
 on what's verifiable from a non-Windows / non-archive environment.
 
+### Running the client in a Mac VM
+
+If you don't have a physical Windows host, the project supports
+driving a Windows VM on the Mac. Two backends documented:
+
+- **UTM** (`virtio-gpu`, free): full setup walkthrough at
+  [`analysis/proposed_patches/vm_setup_steps.md`](../analysis/proposed_patches/vm_setup_steps.md).
+  Caveat: UTM's GPU virtualization may not expose enough D3D11
+  features for the renderer to fully initialize — the game can
+  crash during CryEngine renderer init before reaching network
+  init. See worklog wakes 45-49 for the full diagnostic.
+- **Parallels Desktop** (better D3D, $99.99/yr or 14-day free
+  trial): pivot proposal at
+  [`analysis/proposed_patches/parallels_setup.md`](../analysis/proposed_patches/parallels_setup.md).
+  Substantially better D3D virtualization; FAQ-estimated 80%+
+  probability of reaching network init vs UTM's 40-60%.
+
+All other infrastructure (SCP-pushing the game directory, SSH
+into the VM, `tools/serve_for_vm.sh` Mac-side launcher,
+`tools/setup_vm_portproxy.ps1` for unprivileged auth_mock,
+hosts-file redirection, CA install, Frida 17 capture) is
+backend-agnostic.
+
 ## File index
 
 ### Maintainer-facing protocol docs

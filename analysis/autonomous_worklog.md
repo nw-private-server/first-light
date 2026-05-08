@@ -5,6 +5,26 @@ self-paced mode. Each entry is a single wake-up cycle: what was attempted,
 what was found, what's next. Read top-down to follow progress; the **task
 queue** at the top reflects current priority.
 
+> **Quick orientation (2026-05-08):** see [`MORNING_BRIEF.md`](MORNING_BRIEF.md)
+> for the one-page summary of the overnight session. Currently blocked
+> on a strategic decision (Frida bypass continuation vs Parallels Desktop
+> pivot vs hardware host vs cloud GPU). Static-RE work below mostly
+> completed in earlier wakes; current work is client-side runtime
+> instrumentation.
+
+## Currently actionable (top of queue)
+
+1. **(blocked on maintainer)** Pick path: Parallels trial / continue
+   Frida bypass / physical host / AWS GPU VM. See
+   [`proposed_patches/parallels_setup.md`](proposed_patches/parallels_setup.md).
+2. **(autonomous follow-up if Parallels is picked)** Drive new VM
+   setup end-to-end: install Parallels Tools in VM, configure
+   shared folder, SSH server, SCP push of game directory, hosts +
+   portproxy + CA + Frida hooks (all infrastructure ready to reuse).
+3. **(autonomous follow-up if Frida is picked)** The cascade is
+   fundamental — see wake 49. Path is yak-shave with low success
+   probability. Recommend pivot.
+
 ## How to read this
 
 - Latest entry is at the bottom. Add new entries; do not edit prior ones except
