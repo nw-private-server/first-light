@@ -33,11 +33,42 @@
         send({ type: "log", text: text });
     }
 
-    let messageBoxW;
+    // Frida 17 dropped the static Module.getExportByName(...) form;
+    // use the per-module instance method instead.
+    let messageBoxW = null;
     try {
-        messageBoxW = Module.getExportByName("user32.dll", "MessageBoxW");
+        const mod = Process.getModuleByName("user32.dll");
+        if (mod && typeof mod.findExportByName === "function") {
+            messageBoxW = mod.findExportByName("MessageBoxW");
+        } else if (mod && typeof mod.getExportByName === "function") {
+            messageBoxW = mod.getExportByName("MessageBoxW");
+        }
     } catch (e) {
-        emit("[gpu_spoof] MessageBoxW export not found: " + e);
+        emit("[gpu_spoof] module/export resolution threw: " + e);
+    }
+    if (!messageBoxW || messageBoxW.isNull()) {
+        // last-resort: walk loaded modules and probe for the export
+        try {
+            const modules = Process.enumerateModules();
+            for (let i = 0; i < modules.length; i++) {
+                if (modules[i].name.toLowerCase() === "user32.dll") {
+                    try {
+                        const m = modules[i];
+                        if (typeof m.findExportByName === "function") {
+                            messageBoxW = m.findExportByName("MessageBoxW");
+                        } else if (typeof m.getExportByName === "function") {
+                            messageBoxW = m.getExportByName("MessageBoxW");
+                        }
+                    } catch (_e) {}
+                    break;
+                }
+            }
+        } catch (e2) {
+            emit("[gpu_spoof] enumerateModules threw: " + e2);
+        }
+    }
+    if (!messageBoxW || messageBoxW.isNull()) {
+        emit("[gpu_spoof] could not resolve MessageBoxW; aborting hook install");
         return;
     }
     emit("[gpu_spoof] hooking MessageBoxW @ " + messageBoxW);
