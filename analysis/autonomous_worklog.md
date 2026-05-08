@@ -4540,3 +4540,131 @@ no longer is.
 
 None new — the static-RE path is open and productive again. VM
 work still gated on maintainer's path decision.
+
+---
+
+### 2026-05-08 — wake 52: SelfIdent field-semantic search via -0x7e8 hits a wall; large function-pointer table discovered
+
+**Did:**
+
+1. Tried the queued task A2.13 (find OTHER functions that read
+   `gameConn[-0x7e8..-0x7b4]`).
+2. Ran the existing `tools/ghidra_scripts/FindOffsetReferences.py`
+   with displacement `-0x7e8`.
+3. Investigated the only non-stack hit (`FUN_145f74520`).
+4. Tried tracing back through the dispatch chain — looked for
+   xrefs to the dispatch table at `0x14abcc15c`, the thunk
+   `FUN_146454bec`, and the table containing the thunk.
+
+**Found — direct displacement search is too narrow:**
+
+`FindOffsetReferences.py -0x7e8` scanned all 32M instructions and
+returned only **3 hits**:
+
+- `FUN_146454c00 + 0xbd` — `MOV [R13-0x7e8], EAX` (the SelfIdent
+  handler's own write — already known).
+- `FUN_1414113e0 + 0xd` — `LEA RBP, [RSP-0x7e8]` (stack-frame
+  setup for a function with a 0x7e8-byte local frame, unrelated).
+- `FUN_145f74520 + 0x10` — `LEA RBP, [RAX-0x7e8]` (also stack-frame
+  setup; the function takes `param_3` then loads RAX from
+  somewhere and offsets by 0x7e8 to allocate a local frame; the
+  local arrays sum to roughly 0x7e8 bytes — `local_858[256]` =
+  2048 bytes plus other locals).
+
+Why the search misses: the SelfIdent handler stores fields at
+`param_1 - 0x7e8`, where `param_1` is some offset INTO a
+GameConnection-like struct. **Other code that reads the same
+fields almost certainly uses a different base pointer with a
+different (positive) offset** — so they don't show up as
+`-0x7e8` displacements.
+
+**The base-offset hypothesis:**
+
+The handler also does `lVar5 = FUN_1406d97d0(param_1 + -0x990);`
+— i.e. it passes `param_1 - 0x990` to a getter that reads an
+inner field at `+0x8`. If `FUN_1406d97d0` is a "get sub-object"
+accessor that expects a *struct start* as input, then `param_1`
+itself is `0x990` bytes into the GameConnection. Under that
+hypothesis:
+
+| Storage | param_1-relative | Hypothesized GameConn-relative |
+|---|---|---|
+| `m_field0` (u32) | `-0x7e8` | `+0x1A8` |
+| `m_field08` (vector) | `-0x7e0..-0x7c0` | `+0x1B0..+0x1D0` |
+| `m_debugFlag` (u8) | `-0x7c0` | `+0x1D0` |
+| `m_field2C` (u64) | `-0x7bc` | `+0x1D4` |
+| `m_field34` (u32) | `-0x7b4` | `+0x1DC` |
+
+If this is right, scanning for `+0x1A8`, `+0x1B0`, etc., as
+displacements should find external readers. **Next iteration's
+work.** Caveat: the `0x990` hypothesis is unverified — the
+caller may pass `param_1` from yet another offset. Need to
+trace one of the dispatch-chain handlers to confirm.
+
+**Side discovery: a large function-pointer table at `0x1484fc...`:**
+
+Searching for xrefs to `FUN_146454bec` (the thunk to SelfIdent
+handler) found a single `DATA from 1484fc748`. Dumping the
+surrounding region revealed an **8-byte-pointer vtable-or-array
+of at least 29 entries** (`0x1484fc6e0..0x1484fc7e8`):
+
+- Slot [9] = `0x146454bec` (the SelfIdent thunk)
+- Slot [10] = `0x14645499c` (another handler — probably a
+  sibling message)
+- Slot [11] = `0x1464467e8` (another handler)
+- Slot [12..14] = more handlers in the `0x14645xxxx` neighborhood
+- **Slots [15..21] all point to the same stub function
+  `0x14154161c`** (Ghidra has no function defined there;
+  probably `AzNoOp` or `AZ::PolymorphicError`)
+- Slots [22..28] = more handlers, including `AkStompAllocatorInitForThread`
+  (Wwise audio) at slot [25]
+
+The 7-consecutive-stub run plus mixed-domain handlers (network
++ audio) suggests this is **a global registration array of
+function pointers** — possibly the Lumberyard GlobalEnvironment's
+function registry, NOT a single class's vtable. Slot indices
+likely map to a fixed enum of "system services."
+
+`FindXrefs` on the table base/middle returns 0 — code reads the
+addresses via runtime computation, so Ghidra can't trace back
+the dispatcher.
+
+**Why this matters / partial nature:**
+
+The "sibling handlers" angle is promising — if slot [9] is
+SelfIdent, slot [10] (`0x14645499c`) is right next door in the
+binary too (same `0x1464...` range). Decompiling slots [8..14]
+might surface other ClientMessagesTrait handlers and give us
+their wire formats too, in bulk.
+
+But the BIG question — what does each slot index MEAN — needs
+the dispatcher caller, which static analysis can't reach without
+symbol or runtime data.
+
+**Files this iteration:** None new. Used existing
+`FindOffsetReferences.py` and `DumpVtable.py`.
+
+**Commit:** This worklog entry only.
+
+**Next** (queue, in priority order):
+
+1. **Verify the `param_1 = gameConn + 0x990` hypothesis** by
+   decompiling `FUN_1406d97d0` (the getter the handler calls)
+   to see if its first parameter is treated as the start of a
+   known struct. If yes, we have the absolute storage offsets
+   in the GameConnection and can scan for external readers.
+
+2. **Decompile sibling handlers in the table at `0x1484fc...`**
+   — specifically slots [10] and [11] (`0x14645499c` and
+   `0x1464467e8`). If they're message handlers with similar
+   field-access patterns, compare arg layouts to identify what
+   message family this is and how param_1 relates to the
+   GameConnection.
+
+3. **Dispatch table type-data RVAs** (still pending from wake 51).
+   The 4-RVA-tuple at `0x14abcc150..0x14abcc15c` for SelfIdent
+   has a "type data ptr" of `0x09cc1c44`. Dumping that region
+   gave structured-but-opaque data; possibly a serializer
+   bytecode or a class-info record.
+
+**Blockers:** None new.
