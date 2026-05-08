@@ -3965,3 +3965,148 @@ The silent exit is the new blocker; the GPU dialog isn't (it always
 returned IDOK in our environment). Next wake's task is to identify
 where the silent exit originates and either hook around it or make
 a hardware-host pivot decision.
+
+---
+
+### 2026-05-07 — wake 47: silent abort identified — access-violation-equivalent in a vtable callback during GPU/scene init
+
+**Did:**
+
+1. Wrote `tools/client-hooks/frida_exit_trap.js` — hooks every plausible
+   exit/abort entry point (NtTerminateProcess, RtlExitUserProcess,
+   ZwTerminateProcess, KiUserExceptionDispatcher, RtlDispatchException,
+   UnhandledExceptionFilter (KernelBase + kernel32), RaiseException,
+   abort, _exit, exit, _CxxThrowException) and dumps a 32-frame
+   backtrace via `Thread.backtrace` + `DebugSymbol.fromAddress` when
+   any of them fires.
+2. Special-cased KiUserExceptionDispatcher: reads EXCEPTION_RECORD via
+   rcx (x64 ABI for the dispatcher) and CONTEXT.Rip via rdx+0xf8.
+3. Wired a `--exit-trap` flag into `frida_capture.py`.
+4. Re-ran smoke test (vm_smoke_007 / vm_smoke_008) with both
+   `--gpu-spoof` and `--exit-trap`.
+
+**Found — the silent exit path:**
+
+```
+EXCEPTION code=0xc00000aa flags=0x0
+addr=0x7ff7607b11b5 (NewWorld.exe +0x10d11b5)
+CONTEXT.Rip = 0x7ff7607b11b5
+```
+
+- Exception code `0xc00000aa` (raised through KiUserExceptionDispatcher)
+- Faulting RIP at `RVA 0x10d11b5`, which lives at offset `0x95` inside
+  function `FUN_1410d1120` (Ghidra address `0x1410d1120`).
+- Frida's `DebugSymbol.fromAddress` picked the closest exported symbol
+  (`AK::WriteBytesBuffer::Clear`) which is **misleading** — the exported
+  symbol is the nearest *named* thing in the address space; the actual
+  function `FUN_1410d1120` is unnamed.
+
+**Decompiling FUN_1410d1120** (the actual crash site) shows it's a
+spatial/scene query routine:
+
+- Takes `param_1` (some scene-graph/manager struct), `param_2` (4D
+  vector / AABB), `param_3` (output struct).
+- Computes `param_2[4] - *param_2` (AABB extent), uses `rcpps` and
+  `movmskps` (SIMD math).
+- Walks pointer chains: `*(param_1+0x40) -> +0x30`, `lVar10+200`,
+  `lVar10+0x88`, etc.
+- Calls FUN_1414186c0 / FUN_1414190a0 (likely AABB-vs-grid or
+  ray-vs-grid intersection helpers).
+- The crash at offset 0x95 happens during one of those pointer chases
+  — likely a NULL dereference where one of the chained pointers is
+  uninitialized.
+
+**Xref to FUN_1410d1120:** referenced as DATA from `0x147fdba28` —
+that's a **vtable / function-pointer table entry**, not a direct call.
+So the function is invoked indirectly through some object's vtable as
+a virtual method or callback. The caller can't be statically
+identified from this xref alone; needs either a Frida hook on
+FUN_1410d1120 itself to capture the call stack at runtime, or a
+broader caller-tree search starting from likely renderer/scene init
+functions.
+
+**Earlier C++ throws (caught) before the fatal exception:**
+
+Three `KernelBase!RaiseException` events with code `0xe06d7363` (the
+MS C++ exception magic, "msc\0" + 'E') fire before the access
+violation. FUZZY backtrace shows frames at:
+- frame 0: 0x7fffbb379a3c (in some library, near `isatty`)
+- frame 10: 0x7fffbf4c81a4 (in ntdll, RtlRaiseException)
+
+These look like cleanly-thrown-and-caught C++ exceptions — probably
+`std::runtime_error` or similar inside the engine's GPU/audio/scene
+enumeration code. They're not the root cause; the access violation
+is.
+
+**Why this matters:**
+
+The crash isn't in an obviously-GPU function. It's in scene-graph /
+spatial-query code that depends on some upstream subsystem (likely
+either the renderer or another engine module that wasn't fully
+initialized because of the GPU situation). Cascading failure pattern
+is consistent with the broader picture: virtio-gpu's empty
+VendorId/DeviceId leaves engine subsystems in a half-initialized
+state, and the first one to dereference a stale pointer crashes.
+
+**Strategic decision point — queued for maintainer:**
+
+The Frida-based bypass is becoming a long tail. Each "fix" reveals
+another cascading failure:
+
+- wake 45: GPU MessageBox cancel path — fixed
+- wake 46: FUN_147143960 retval — wasn't actually the gate
+- wake 47: scene-graph FUN_1410d1120 access violation — current
+- (likely future): every other engine subsystem that touches the
+  broken GPU state
+
+Two paths forward:
+
+1. **Continue Frida bypass.** Keep adding hooks. Estimated 3-6 more
+   wakes to reach network init, with no guarantee any of them
+   succeed (some may need real GPU memory / textures).
+
+2. **Pivot to Parallels Desktop.** $100/yr (free trial first), much
+   better D3D virtualization. From the FAQ: "Game starts and reaches
+   network init under Parallels: 80%+". Probably 1-2 wakes to set
+   up the alternate VM, then a single smoke test that should clear
+   all of these issues at once.
+
+Recommendation: **Parallels.** The Frida bypass path is becoming a
+yak-shave; even if we get past this crash, there'll be others
+upstream of network init. Parallels' real D3D11 device should make
+all of these issues go away simultaneously.
+
+**Files this iteration:**
+
+- `tools/client-hooks/frida_exit_trap.js` (new) — exit/exception
+  catcher with EXCEPTION_RECORD decoding
+- `tools/client-hooks/frida_capture.py` — `--exit-trap` flag wiring
+- This worklog entry
+
+**Commits:**
+
+- `328d200` — initial frida_exit_trap.js
+- `10458a1` — read EXCEPTION_RECORD + faulting RIP
+
+**Next** (queue, in priority order):
+
+1. **Decision pending from maintainer:** Frida bypass vs Parallels.
+   Default if no answer: try one more Frida iteration (hook
+   FUN_1410d1120 onEnter to identify the caller via stack trace),
+   then if that doesn't break the loop, pivot to documenting the
+   Parallels setup as a structured proposal.
+
+2. **If Frida bypass:** hook FUN_1410d1120 entry to grab the call
+   stack at the moment of crash. The 9 hidden frames between
+   exception dispatcher and frame 10 contain the answer.
+
+3. **If Parallels:** new doc `analysis/proposed_patches/parallels_setup.md`
+   walking through trial install, Windows VM creation, and the
+   minimal-friction path to reusing the existing infrastructure
+   (SCP, hooks, Phase G, etc.).
+
+**Blockers:**
+
+Waiting on strategic direction (Frida vs Parallels). Current Frida
+path is producing diagnostic info but no resolution; each iteration
+narrows the cause but adds another hook to write.
