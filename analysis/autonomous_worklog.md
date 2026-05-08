@@ -3394,3 +3394,65 @@ The maintainer's next physical-keyboard activity is Phase B
 
 **Blockers:** None for the loop. Phase C unblocked, will be walked
 through interactively via chat.
+
+---
+
+### 2026-05-07 — wake 40: minimum-game-dir experiment scoped (not feasible statically)
+
+**Did:**
+- Inspected `~/SteamLibrary/NewWorld/` layout to assess whether a
+  subset of the 71 GB game directory could replace the full
+  transfer in Phase F.
+
+**Found:**
+
+Top-level layout:
+- `Bin64/` — 268 MB (engine binaries, NewWorld.exe, DLLs)
+- `_CommonRedist/` — 136 MB (Visual C++ + DirectX redists)
+- `EasyAntiCheat/` — 35 MB (we skip the launcher, so likely not needed)
+- `assets/` — **71 GB** (almost everything)
+- `bootstrap.cfg` (4 KB) — points at `Assets` folder + `Javelin` DLL
+- `PaksList.lst` — manifest of 127 PAK files
+- `NewWorldLauncher.exe` — 3.7 MB (we skip this)
+- `shaderlist_pc.txt` — 24 MB
+
+Inside `assets/`: 127 PAK files, mostly 1 GB each:
+- `DataStrm.pak` + 52 parts (most of the world data)
+- `VegetationStrm.pak` + 4 parts
+- `SharedDataStrm` parts (some 1.2 GB, others 4 KB stubs)
+- `CoatlicueStrm.pak` (233 MB — the world / map data)
+- `shadersbin_d3d12.pak` (1.4 GB)
+- `localization/` (2 GB)
+- `shadercachestartup.pak` (516 KB)
+
+**Verdict:** can't determine the minimum-loading subset from static
+inspection. The launcher reads `PaksList.lst` and expects all 127
+PAKs to exist (validates against the manifest). Whether they're
+eagerly loaded vs lazy-loaded is an engine implementation detail
+that needs runtime testing.
+
+**Recommendation:** for first attempt at Phase F, copy the full
+71 GB. Once a working baseline is established (game launches +
+fires SelfIdent handler), an experiment can subtract individual
+PAKs and observe what breaks. That's a cheap iteration once a
+working baseline exists.
+
+**Why this matters minimally:** the 30–60 min transfer cost is
+real but one-time. Optimizing for a minimum subset first is
+optimization without a baseline — likely to spend more wall-clock
+time debugging "missing PAK" errors than the transfer would have
+cost.
+
+**Phase status update:**
+
+- Phase B: ✅ done (ISO downloaded)
+- Phase C: in progress (UEFI shell hiccup resolved with manual
+  `BOOTAA64.EFI` invocation)
+- Phase D: in progress (Windows install)
+
+**Next** (queue):
+- Wait on maintainer's Phase D/E progress.
+- When Phase F starts, the full-transfer recommendation stands
+  unless they choose otherwise.
+
+**Blockers:** None.
