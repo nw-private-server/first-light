@@ -2195,3 +2195,77 @@ session through the existing Frida hooks and verify whether
 - C7 (final consolidation) — closer to ready now.
 
 **Blockers:** None for the loop.
+
+---
+
+### 2026-05-07 — wake 25: parallel-agent audit of a related public repo
+
+**Did:**
+- Cloned a publicly-shared related private-server simulator (Rust,
+  separate codebase) to a sibling directory (kept outside this
+  repo's tree). Dispatched two parallel general-purpose agents,
+  each read-only:
+  - Agent A: protocol-implementation audit. Read protocol-notes/,
+    docs/, crates/. Looked for SM_CONNECT_ACK, V3 response, post-V3
+    sequence, and wire-format rationale.
+  - Agent B: tasks-history audit. Read the numbered tasks
+    chronologically (001..104+) for the development arc and any
+    fix that closed a V3 retry / state-10 stall.
+
+**Found (both agents converged):**
+
+The other project hasn't actually connected a real client, and by
+its own design policy it never will until it has synthetically
+reproduced everything in a fake-protocol harness first. Specifically:
+
+- Their "real protocol adapter" is a non-operational stub: every
+  inbound/outbound function rejects input or returns nothing. The
+  only executable protocol path in their runtime is a JSON-over-UDP
+  fake.
+- Their "static world entry" milestone (referenced in recent
+  commits) is an in-process synthetic harness, not real-client
+  connectivity. Their MVP-1.5 readiness review explicitly states:
+  "The bytes on the wire are fake-protocol JSON. The real
+  Javelin/REP frame format is not implemented or even parsed."
+- Their tasks (001..104+) contain zero references to V3 retry,
+  state 10, REP-channel acceptance, session teardown, or any of
+  the symptoms we're stuck on.
+- Their protocol docs explicitly forbid adopting real opcodes,
+  message IDs, ACK encoding bytes, etc. as "facts" until
+  reproduced synthetically. Examples of their stance:
+  - "Specific channel IDs / message IDs / opcodes — Unverified —
+    Not listed here on purpose. Not facts."
+  - "Specific keepalive intervals, replay-window sizes, or ACK
+    encoding bytes. Intentionally not catalogued as facts."
+
+**Most important note:** their evidence docs **cite this repo
+(`nw-private-server/first-light`) as the upstream source** for
+their post-V3 understanding. Both agents independently recommended:
+"skip the other project and read `nw-private-server/first-light`
+directly." We are the upstream they're holding at low confidence —
+not the other way around.
+
+**Conclusion:** the other project is not a useful cross-reference
+for the state-10 / V3-retry stall. It's at a different layer
+(synthetic-protocol authoritative-server runtime) and would need
+to do significant real-protocol work to even share a problem space
+with us.
+
+**Why this finding is still valuable:**
+
+- We now know definitively that there is no shortcut from studying
+  the other project. Time spent there would be wasted.
+- The loop's earlier conclusion stands: the most promising next
+  static-RE move is byte-decoding the captured replay's seq 0x14
+  area to confirm whether the gating SelfIdent message is actually
+  in the bytes being replayed.
+- The runtime-hook items remain the long-term answer, but they
+  needed the project's own captures + Frida session, not someone
+  else's code.
+
+**Next** (queue unchanged):
+- Byte-level decode of `info/nw-login-safe-20260502-153840/`
+  seq 0x14 (Phase 9b candidate slot) to verify SelfIdent presence.
+- C7: final consolidation across what's been learned.
+
+**Blockers:** None for the loop.
