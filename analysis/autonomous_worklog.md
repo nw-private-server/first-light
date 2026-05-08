@@ -2911,3 +2911,119 @@ the cross-namespace pairing is unambiguous.
   results.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-07 — wake 33: third V3-retry hypothesis — stubbed character_uuid
+
+**Did:**
+- Read `server/javelin/replay_substitution.py` to look for
+  substitution-side issues that could explain the V3 retry
+  blocker.
+
+**Found:**
+
+The `SubstitutionContext.character_uuid_bytes` is a **deterministic
+UUID5 stub derived from `persona_id`**, not the real character
+UUID from the client's auth flow:
+
+```python
+# Character UUID: stub from persona unless caller provided auth_state
+# with a real value (forward-compat hook).
+if auth_state and isinstance(auth_state.get("character_uuid"), uuid.UUID):
+    character_uuid = auth_state["character_uuid"]
+else:
+    character_uuid = _stub_character_uuid_from_persona(persona_id_text)
+    warnings.append(
+        "character UUID stubbed from persona-id "
+        "(no auth-state bridge available)"
+    )
+```
+
+The `auth_state` parameter is comments-described as
+"reserved for a future bridge to the auth-mock state (so we can
+pull a real character_id once the responder shares state with the
+HTTPS mock). Pass None for now."
+
+`rep_responder.py:_handle_v3_data_record_inner` calls
+`SubstitutionContext.from_v3_and_session(req=req,
+session_token=token, character_display_name=...)` — **with no
+auth_state argument**, so the stub path runs.
+
+**Why this could be the V3 retry root cause:**
+
+The client knows its real character UUID from the auth flow (the
+auth_mock issued it during character creation / login). When the
+server replays post-V3 messages with the character UUID
+substituted to the UUID5 stub, the client may see a UUID it
+doesn't recognize for "its" character and reject the post-V3
+sequence.
+
+That rejection might *look* like a V3-acceptance failure (because
+the replay starts immediately after V3 and the client never
+"completes" the post-V3 phase), causing V3 retry — even though
+V3 itself was technically accepted.
+
+**This is a THIRD hypothesis** for the V3 retry, distinct from:
+
+1. **Correlation-echo** — response's mystery8 field doesn't echo
+   the request's correlation_uuid. (Patch staged at
+   `analysis/proposed_patches/correlation_echo_v3_response.md`.)
+2. **Missing SelfIdent** — capture genuinely lacks the gating
+   message. (Diagnostic Frida hook staged at
+   `tools/client-hooks/frida_self_ident_hook.js`.)
+3. **Stubbed character_uuid mismatch** (this iteration) — replay
+   substitution uses fake character UUID; client sees mismatch
+   and rejects post-V3 traffic.
+
+All three are plausible. They're distinguishable:
+- Hypothesis 1: V3 retries continue regardless of replay quality.
+  Stops only when correlation echo is fixed.
+- Hypothesis 2: V3 stops retrying but state never advances past
+  10 because the gating message simply isn't being sent.
+- Hypothesis 3: V3 stops retrying after correlation fix but state
+  *still* doesn't advance because client rejects substituted
+  identity.
+
+**The Frida hook** (wake 30) actually disambiguates all three:
+- If `FUN_146454c00` (SelfIdent handler) NEVER fires →
+  hypothesis 2 (capture lacks SelfIdent).
+- If it fires but `FUN_145a87010` (onConnectionSuccess) doesn't →
+  hypothesis 3 (handler bails on identity check). The SelfIdent
+  handler decomp shows it iterates an observer list before
+  setting substate=2; if any observer rejects the substituted
+  identity, that path skips onConnectionSuccess.
+- If both fire → V3 retry was hypothesis 1, now resolved.
+
+So the staged experiments cover all three possibilities. Adding
+this hypothesis to the queue documentation makes the maintainer's
+keyboard-time decision tree complete.
+
+**Useful refinement to the patch document:**
+
+`analysis/proposed_patches/correlation_echo_v3_response.md`'s
+"Failure signal" section should mention hypothesis 3 as another
+possibility if the patch alone doesn't resolve V3 retry. (I'll
+leave updating that as a follow-up; the patch doc is already
+written.)
+
+**Bridging the auth_mock to the rep_responder** is the
+project-side fix for hypothesis 3:
+- Auth_mock generates / stores a real character UUID at
+  character-creation time, keyed by persona_id.
+- Rep_responder loads that character UUID and passes it via
+  `auth_state={"character_uuid": ...}` when building the
+  substitution context.
+- Then `replay_substitution.py` uses the real value instead of
+  the stub.
+
+This is a small change but spans two server modules. Marking it
+as a low-priority server-experiment task for the maintainer.
+
+**Next** (queue):
+- Could update the proposed_patches/ doc to note hypothesis 3.
+- Could write a sketch of the auth-state bridge.
+- Otherwise, polish well is genuinely shallow now; pause until
+  the maintainer's experiment results.
+
+**Blockers:** None for the loop.
