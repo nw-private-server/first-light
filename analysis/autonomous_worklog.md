@@ -5786,3 +5786,92 @@ That's the practical payoff of the static-RE thread.
    for the carrier framer to consume.**
 
 **Blockers:** None new.
+
+---
+
+### 2026-05-08 — wake 62: PlayerManagerSelfIdentificationMsg encoder + 14 tests
+
+**Did:**
+
+1. Wrote `server/javelin/self_ident.py` — Python encoder for the
+   PlayerManagerSelfIdentificationMsg body, mirroring the
+   `level_info_changed.py` pattern (dataclass + `encode()` +
+   self-test).
+2. Added 14 pytest cases to `server/javelin/test_codecs.py`
+   covering empty-min-size, each field's byte offset, vector
+   length-prefix + element layout, validation errors (u32/u8/u64
+   ranges), default `debug_flag = 0` for production, and
+   list→tuple normalization.
+3. Ran the suite: **113 passed** (was 99 before this iteration;
+   14 new) in 0.25s.
+
+**Wire format encoded** (per `clientmessagestrait_wire_formats.md`):
+
+```
+[u32 LE: m_field0]
+[u32 LE: m_field08 length][u32 LE × length: elements]
+[u8: m_debugFlag]      (production default = 0)
+[u64 LE: m_field2C]    (no in-memory padding emitted)
+[u32 LE: m_field34]
+```
+
+Min wire size **21 bytes** (empty vector); +4 per vector element.
+
+**Implementation notes:**
+
+- The in-memory u64 at `+0x2C` is unaligned (4-byte struct
+  alignment puts it 1 byte after the u8 + 3 bytes padding). The
+  wire form does NOT emit the padding — fields are packed
+  density-first per AzCore convention.
+- `field_08` accepts list/tuple/sequence via `__post_init__`
+  normalization to a tuple (matches the dataclass-immutability
+  preference).
+- `debug_flag` defaults to 0 — production servers MUST send 0
+  to avoid the handler's debug-only branch.
+- Same caveat as wake 61's encoder: this is a hypothesized wire
+  format from in-memory layout + AzCore conventions, NOT
+  validated against a captured live message.
+
+**Why this matters:**
+
+Both ClientMessagesTrait messages we have wire-format reference
+docs for now have shipping encoders + unit tests. The post-V3
+sequence builder can call either to produce body bytes:
+
+```python
+from server.javelin.self_ident import (
+    PlayerManagerSelfIdentificationMsg, encode as encode_self_ident,
+)
+from server.javelin.level_info_changed import (
+    LevelInfoChangedMsg, encode as encode_level_info,
+)
+```
+
+That's the full payoff of wakes 51-62 (12 iterations of
+static-RE + implementation): **two callable encoders** ready to
+be wired into the post-V3 sequence builder when the maintainer's
+ready to integrate them.
+
+**Files this iteration:**
+
+- `server/javelin/self_ident.py` (new) — 124 lines
+- `server/javelin/test_codecs.py` — added 79 lines of tests
+
+**Commit:** Following.
+
+**Next** (queue, in priority order):
+
+1. **Integration**: find the post-V3 sequence emitter (probably
+   in `server/javelin/` or `server/auth_mock.py`) and wire both
+   new encoders into the appropriate phases per
+   `docs/post-v3-sequence.md`. SelfIdent is Phase 9b;
+   LevelInfoChanged comes later in the state-14 → 13 transition.
+2. **(Optional)** Document the encoder contract in the wire-format
+   reference doc — link from `clientmessagestrait_wire_formats.md`
+   to the encoder modules so they stay in sync.
+3. **(If integration reveals issues)** Add a unit test that wraps
+   both encoded bodies in carrier framing and verifies the full
+   sequence builds correctly. Tests passing locally is one bar;
+   end-to-end byte layout matching expectations is another.
+
+**Blockers:** None new.

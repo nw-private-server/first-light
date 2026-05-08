@@ -214,6 +214,101 @@ def test_level_info_default_flags_match_handler_recipe():
 
 
 # ---------------------------------------------------------------------------
+# PlayerManagerSelfIdentificationMsg
+# ---------------------------------------------------------------------------
+
+from .self_ident import (  # noqa: E402
+    PlayerManagerSelfIdentificationMsg,
+    encode as encode_self_ident,
+    MIN_WIRE_SIZE as SI_MIN_WIRE_SIZE,
+)
+
+
+def test_self_ident_empty_min_size():
+    blob = encode_self_ident(PlayerManagerSelfIdentificationMsg())
+    assert len(blob) == SI_MIN_WIRE_SIZE == 21
+
+
+def test_self_ident_field_0_position():
+    msg = PlayerManagerSelfIdentificationMsg(field_0=0xDEADBEEF)
+    blob = encode_self_ident(msg)
+    assert blob[0:4] == _struct.pack("<I", 0xDEADBEEF)
+
+
+def test_self_ident_empty_vector_length_prefix_zero():
+    blob = encode_self_ident(PlayerManagerSelfIdentificationMsg())
+    # offset 0..3 = field_0, offset 4..7 = vector length
+    assert blob[4:8] == b"\x00\x00\x00\x00"
+
+
+def test_self_ident_vector_length_prefix_and_elements():
+    msg = PlayerManagerSelfIdentificationMsg(field_08=(1, 2, 3))
+    blob = encode_self_ident(msg)
+    assert blob[4:8] == _struct.pack("<I", 3)
+    assert blob[8:12] == _struct.pack("<I", 1)
+    assert blob[12:16] == _struct.pack("<I", 2)
+    assert blob[16:20] == _struct.pack("<I", 3)
+
+
+def test_self_ident_debug_flag_offset_after_vector():
+    msg = PlayerManagerSelfIdentificationMsg(field_08=(0xa, 0xb), debug_flag=1)
+    blob = encode_self_ident(msg)
+    # 4 (field_0) + 4 (length) + 4*2 (two u32s) = 16 bytes before debug_flag
+    assert blob[16:17] == bytes((1,))
+
+
+def test_self_ident_field_2c_after_debug_flag():
+    msg = PlayerManagerSelfIdentificationMsg(field_2c=0x1122334455667788)
+    blob = encode_self_ident(msg)
+    # 4 + 4 + 0 + 1 = 9 bytes before field_2c (no padding on the wire)
+    assert blob[9:17] == _struct.pack("<Q", 0x1122334455667788)
+
+
+def test_self_ident_field_34_at_end():
+    msg = PlayerManagerSelfIdentificationMsg(field_34=0xAABBCCDD)
+    blob = encode_self_ident(msg)
+    # 4 + 4 + 0 + 1 + 8 = 17 bytes before field_34
+    assert blob[17:21] == _struct.pack("<I", 0xAABBCCDD)
+
+
+def test_self_ident_full_size_with_vector():
+    msg = PlayerManagerSelfIdentificationMsg(field_08=(0,) * 5)
+    blob = encode_self_ident(msg)
+    assert len(blob) == SI_MIN_WIRE_SIZE + 4 * 5
+
+
+def test_self_ident_validates_u32_field_0():
+    with pytest.raises(ValueError, match="field_0 must fit in u32"):
+        PlayerManagerSelfIdentificationMsg(field_0=2 ** 32)
+
+
+def test_self_ident_validates_u8_debug_flag():
+    with pytest.raises(ValueError, match="debug_flag must fit in u8"):
+        PlayerManagerSelfIdentificationMsg(debug_flag=256)
+
+
+def test_self_ident_validates_u64_field_2c():
+    with pytest.raises(ValueError, match="field_2c must fit in u64"):
+        PlayerManagerSelfIdentificationMsg(field_2c=2 ** 64)
+
+
+def test_self_ident_validates_vector_element_range():
+    with pytest.raises(ValueError, match=r"field_08\[1\] must fit in u32"):
+        PlayerManagerSelfIdentificationMsg(field_08=(0, 2 ** 32))
+
+
+def test_self_ident_default_debug_flag_is_zero():
+    # Production servers must send debug_flag=0; verify default.
+    assert PlayerManagerSelfIdentificationMsg().debug_flag == 0
+
+
+def test_self_ident_accepts_list_for_field_08():
+    # __post_init__ normalizes list -> tuple
+    msg = PlayerManagerSelfIdentificationMsg(field_08=[10, 20, 30])
+    assert msg.field_08 == (10, 20, 30)
+
+
+# ---------------------------------------------------------------------------
 # v3_request — error paths (no capture file needed)
 # ---------------------------------------------------------------------------
 
