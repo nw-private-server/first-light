@@ -2394,3 +2394,124 @@ direct byte search for `00 01 91 17` returns no hits, period.
 **Blockers:** None for the loop. The state-10 root cause has
 narrowed to two specific possibilities, distinguishable by a
 single Frida observation.
+
+---
+
+### 2026-05-07 — wake 27: Mixed Nuts C↔S framing spec + correlation_uuid hypothesis
+
+**Did:**
+- Documented a 2026-05-07 wire-format spec received from a separate
+  reverser (Mixed Nuts) covering the asymmetric C↔S application-layer
+  framing.
+- Compared the spec against the project's existing V3 request decode
+  (`server/javelin/v3_request.py` and
+  `analysis/v3_request/{HEADER,BODY}_DECODE.md`).
+- Updated `docs/post-v3-sequence.md` to include the C↔S framing
+  asymmetry section.
+
+**Found (Mixed Nuts spec):**
+
+```
+C → S  [crc32:u32 BE][payload_size:u32 BE][correlation_uuid:16][typed_envelope]
+       crc32 covers (correlation_uuid + envelope)
+       payload_size = 16 + len(envelope)
+
+S → C  [message_size:VLQ32][typed_envelope]
+```
+
+The 16-byte `correlation_uuid` matches the community dump's
+`session:8B + peer:8B` decomposition — same wire layout, two
+different naming conventions across independent reversers.
+
+**Where the project's parser stands today:**
+
+The project's V3 request pipeline strips an 11-byte (retry) or
+16-byte (first-attempt) header before passing the 832-byte
+"AzCore body" to `parse_v3_request`. That header is decoded as
+**carrier-record framing** (flags, channel, sequence acks,
+msgID), not as Mixed Nuts's `[crc32][size][correlation]`
+24-byte prefix.
+
+So Mixed Nuts's spec describes either:
+- A different protocol layer than what the project observes
+  (likely an outer DTLS-decrypted-datagram structure that gets
+  stripped before the carrier-record splitting).
+- Or the correlation_uuid is hidden inside the V3 body's "prelude"
+  (33 bytes opaque at body[0..0x21], which contains "u64/handle"
+  at +6..13 and "CRC32-shaped" at +0x14..0x1b — together 16 bytes
+  if read across the 6-byte unknown sub-header gap).
+
+The session_uuid string at body[0xa8] (currently echoed into the
+response's 32-byte session field) is *probably* the correlation
+referent for client request-response matching, just embedded as
+an AzCore string element rather than at the framing layer.
+
+**The actionable hypothesis for the V3 retry blocker:**
+
+The V3 RegistrationResponse template currently in `v3_response.py`
+has an opaque `[8B mystery]` field that's zero-filled. If the
+client expects this field to mirror the first 8 bytes of the
+correlation_uuid (the "u64/handle" at body[6..13] of the request),
+that would explain the V3 retry: the client's request-response
+correlator never matches and it retries indefinitely.
+
+**Concrete next experiment for the maintainer**: take the first 8
+bytes of the V3 request's prelude (the "u64/handle" at body[6..13])
+and stuff them into the response's `[8B mystery]` field instead of
+zero-filling. ~2-line change in `v3_response.py`. If the V3 retry
+stops, this is the V3-retry root cause.
+
+**Why this is a strong hypothesis** (not just a guess):
+
+1. The community dump explicitly says the C→S framing has a
+   correlation field, and Mixed Nuts independently confirms it as
+   16 bytes. Two reversers agree.
+2. Mixed Nuts also says S→C has no correlation in the framing —
+   so if correlation matters for response identity, it must
+   appear inside the response body somewhere.
+3. The V3 response body has exactly one currently-opaque field
+   (`[8B mystery]`) — and 8 bytes is half of a UUID, plausibly
+   the most-significant or signature half.
+4. The other framing details (CRC32 over correlation+msg in C→S)
+   the project doesn't currently validate or compute, but those
+   are server-side concerns; the client doesn't care.
+
+**Why it might NOT be the answer:**
+
+1. The correlation_uuid might not be required for response
+   correlation at all — maybe the carrier reliable-sequence
+   layer handles request matching (each V3 request has a unique
+   `msg_seq`/`rel_seq`, server's response is on the same channel).
+2. The 8-byte "mystery" field might be something completely
+   different (a pad, a flag, a result code, an opaque cookie).
+
+Either way, the test is cheap (~2 lines, single live run).
+
+**Adjacent useful surface from Mixed Nuts's spec:**
+
+The CRC32 covers (correlation + msg). The project's server
+currently doesn't validate incoming CRC32 on V3 requests — it
+just trusts the bytes. Validating the CRC32 would let the server
+reject malformed requests cleanly. This is a *defensive* fix,
+not a project-blocker.
+
+**Updated maintainer queue:**
+
+Top item now reads: try the correlation echo experiment in
+`v3_response.py`. If it fixes V3 retry → root cause confirmed,
+state-10 should advance immediately on next request (since
+SelfIdent or whatever Phase 9b is in this build is already in the
+replay window per wake 26's interpretation B). If it doesn't fix
+V3 retry → either (a) wake 26's interpretation A is right and the
+replay genuinely lacks SelfIdent, or (b) the V3 retry is from
+something else entirely and we need the Frida hook on
+`FUN_146454c00` to disambiguate.
+
+**Next** (queue):
+- C7 (final consolidation) — picture is now sharp enough to
+  write the master synthesis tying state-machine map +
+  protocol layers + open questions into one coherent doc.
+- The maintainer-queued correlation experiment is the highest-
+  value live test once they're at a real keyboard.
+
+**Blockers:** None for the loop.

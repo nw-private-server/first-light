@@ -58,6 +58,37 @@ Some messages use a sub-type extension:
 `[type:u8] = (subtype & 0x3F) | 0x80; [(subtype >> 6) & 0xFF]`
 (e.g. SelfIdentification is `0x91, 0x17` ⇒ subtype 0x17).
 
+### Application-layer C↔S framing (Mixed Nuts spec)
+
+The DTLS-decrypted application bytes are asymmetric between
+directions. Per a 2026-05-07 spec confirmation from a separate
+reverser:
+
+```
+C → S  [crc32:u32 BE][payload_size:u32 BE][correlation_uuid:16][typed_envelope...]
+       crc32 covers (correlation_uuid + typed_envelope)
+       payload_size is len(correlation_uuid + typed_envelope) = 16 + len(envelope)
+
+S → C  [message_size:VLQ32][typed_envelope...]
+       no CRC, no correlation echoed at the framing layer.
+```
+
+The 16-byte `correlation_uuid` matches what the community dump
+(`info/community_22_phase_in_game_dump.txt`) decomposes as
+`session:8B + peer:8B`. Same wire layout, different naming
+conventions across reversers.
+
+**Implication for V3 RegistrationResponse:** the asymmetry means
+the server's response framing is purely `[VLQ32 size][envelope]`
+— matching what `server/javelin/v3_response.py` already produces.
+The correlation_uuid is **not** echoed at the framing layer.
+**Open question** (not yet tested): does the response's typed
+envelope need to include the correlation_uuid in one of its fields
+(e.g. the 8-byte "mystery" field at offset +8 of the V3
+RegistrationResponse body) to satisfy the client's request-response
+matching? See `analysis/autonomous_worklog.md` wake 27 for the
+reasoning.
+
 ## The 22 phases
 
 All delays are relative to the prior phase. Sizes vary by retail vs.
