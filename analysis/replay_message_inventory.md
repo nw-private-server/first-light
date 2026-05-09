@@ -13,6 +13,9 @@
 > `clientmessagestrait_wire_formats.md` for the two ClientMessagesTrait
 > messages that reach static-RE.
 >
+> **Codec module map**: see [`codec_coverage.md`](codec_coverage.md)
+> for the type-ID → codec module table.
+>
 > **The typed envelope before the body is variable-length**:
 >
 > - For type-IDs in **[0x40, 0x3FFF]** (high bit on byte 2 set —
@@ -760,17 +763,19 @@ payloads:
   of the subkey match `0x5b2`'s second_id —
   fingerprint-reporter sub-system identity.
 
-- **`0x09fc`** (102 bytes): subkey + duplicated session_uuid
-  + 26-byte state block + a **16-byte hash matching `0x8e6`'s
-  opaque_blob byte-for-byte** (`e1 63 43 70 30 7b 4d 06 a7 2f
-  d9 df 00 5c d9 42`). Strongly suggests this is the **client
-  confirming receipt of `0x8e6`** — the upper 8 bytes of 0x9fc's
-  subkey also match `0x8e6`'s identity_uuid upper 8 (`4c 0c 0e
-  d6 47 8a 69 da`). So 0x09fc = "client to server: I got your
-  0x8e6, here's the hash echoed back." The 26-byte state block
-  in the middle (`00*8 + 10 00 00 00 10 00 00 00 00 00 a0 10
-  00 00 00 10 10 00 09`) needs more captures to characterize.
-  No codec yet but the cross-codec link to 0x8e6 is captured.
+- **`0x09fc`** (102 bytes): codec shipped wake 80 —
+  `server/javelin/receipt_handshake_9fc.py`. Subkey +
+  duplicated session_uuid + 26-byte state block + a
+  **16-byte hash matching `0x8e6`'s opaque_blob byte-for-byte**
+  (`e1 63 43 70 30 7b 4d 06 a7 2f d9 df 00 5c d9 42`). The
+  upper 8 bytes of 0x9fc's subkey also match `0x8e6`'s
+  identity_uuid upper 8 (`4c 0c 0e d6 47 8a 69 da`). So
+  0x09fc = "client to server: I got your 0x8e6, here's the
+  hash echoed back." The 26-byte state block in the middle
+  is treated as opaque pending more captures. The codec
+  exposes a `verify_8e6_echo(blob)` helper for the
+  cross-codec invariant; a test in `test_codecs.py`
+  verifies the echo against the paired 0x8e6.
 
 - **`0x12f6`** (299 bytes): **client keybinding/control
   configuration** (codec shipped wake 79;

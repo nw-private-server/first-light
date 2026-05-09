@@ -7603,3 +7603,104 @@ already cover them.
    reveal which bytes are flags vs modifiers vs counts.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-09 — wake 80: receipt_handshake_9fc codec + codec coverage map
+
+**Did:**
+
+One codec landed and a comprehensive coverage doc generated.
+Test count: **227 passing** (was 220 — 7 new tests).
+
+1. **`receipt_handshake_9fc.py`** — codec for the 102-byte 0x9fc
+   W singleton. Wire layout cleanly decomposes as:
+   - envelope (28) + subkey (16) + duplicated session_uuid (16)
+     + 26-byte opaque state_block + 16-byte echoed_blob
+
+   The trailing `echoed_blob` is **byte-identical to the paired
+   0x8e6's `opaque_blob`** — the load-bearing cross-codec
+   invariant. The codec exposes a `verify_8e6_echo(paired_blob)`
+   helper, and the test suite has a dedicated invariant test
+   that round-trips both the 0x8e6 and 0x9fc replay messages
+   and verifies the hash echo end-to-end. A second cross-codec
+   test verifies the subkey upper-8 match (receipt-handshake
+   sub-system identity).
+
+   The 26-byte state_block is preserved as opaque since
+   per-byte semantics aren't recoverable from one capture.
+
+2. **`analysis/codec_coverage.md`** — new top-level doc
+   mapping every captured type-ID (40 distinct) to its codec
+   module. Coverage summary:
+   - **40 distinct type-IDs in capture**
+   - **33 codec'd** (20 dedicated + 13 via the generic
+     `subkey_beacon` family)
+   - **7 documented but no codec**: 0x08 (entity-state TLV
+     stream — needs handler-side static-RE for the inner
+     format), 0x13 (V3 RegistrationRequest parser side —
+     handled by `v3_request.py`), 0x651 (4-byte
+     type-header-only signal, no payload), 0x65c (12.7 KB
+     Phase-4 WORLD DATA blob, 224-byte fixed-record skeleton
+     documented), 0x1033 (Merkle-shape blob), 0x1096
+     (spawn-position floats), 0x16a0 large variant
+     (chunked-replay).
+
+   The doc also includes a "When to add a new codec"
+   guideline pointing at the existing patterns — wraps
+   `subkey_beacon` for fixed-shape messages, adds
+   `KNOWN_FAMILY` entries for trailer-only variants, or
+   authors a dedicated codec following the existing module
+   conventions.
+
+   Cross-linked from the inventory's intro section so future
+   codec authors immediately see the coverage map.
+
+**Files this iteration:**
+
+- `server/javelin/receipt_handshake_9fc.py` (new)
+- `server/javelin/test_codecs.py` (7 new tests)
+- `analysis/codec_coverage.md` (new top-level doc)
+- `analysis/replay_message_inventory.md` (intro link to
+  coverage; 0x9fc inline finding updated)
+- This worklog entry
+
+**Library status: 21 dedicated codecs + 1 generic (14-type)
+codec; 227 tests passing. ~34 distinct type-IDs covered out
+of 40 in the capture.**
+
+**0x65c codec deferred** — the (a) + (b) work consumed most
+of the iteration budget. The 224-byte fixed-record skeleton
+is documented in detail; a structural codec extracting
+`(data: bytes, ff_padding: int)` per record would be valuable
+next pass. Bumped to wake 81's task list.
+
+**Cross-codec invariant catalog (now visible across the
+library):** server-side replay must preserve these
+relationships for client-side validation to pass:
+
+| Invariant | R type | W type | Test |
+|---|---|---|---|
+| Counter monotonic 1→2→3→4 (byte-equal subkeys) | 0x18a6 | 0x1a59 | `test_1a59_subkey_matches_18a6_first_16_bytes` |
+| Echoed ping body verbatim at +0x18 | 0x15d ping | 0x15d ack | `test_15d_replay_pings_and_acks_paired` |
+| Hash echo at tail (16 bytes byte-equal) | 0x8e6 | 0x9fc | `test_9fc_echoes_8e6_opaque_blob` |
+| 36-byte signing trailer shared | 0x40a, 0x1be, 0x65c | — | implicit (handshake-76 codec) |
+
+These are **load-bearing invariants** any server emulator
+must satisfy to keep clients happy. The test suite enforces
+them via cross-replay tests using `ReplayStore`.
+
+**Next** (queue):
+
+1. **0x65c structural codec** (deferred from this wake) —
+   extract `[44-byte header, list of (data, ff_padding) records]`
+   from the 224-byte fixed-record skeleton.
+2. **Encoder-side helpers**: many codecs are decoder-focused;
+   convenience helpers for building outgoing messages from
+   higher-level state would simplify server-side code (e.g.
+   `make_subkey_beacon(type_id, subkey_upper, counter)`).
+3. **`server/javelin/__init__.py` re-exports**: surface the
+   most-used dataclasses and encode/decode functions for
+   cleaner import paths in callers.
+
+**Blockers:** None.

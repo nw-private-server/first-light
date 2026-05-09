@@ -2460,6 +2460,109 @@ def test_12f6_round_trip_empty_keybindings():
 
 
 # ---------------------------------------------------------------------------
+# ReceiptHandshake 0x09fc (W direction, 102 bytes)
+# ---------------------------------------------------------------------------
+
+from .receipt_handshake_9fc import (  # noqa: E402
+    ReceiptHandshake9FC,
+    encode as encode_9fc,
+    decode as decode_9fc,
+    TYPED_BODY_SIZE as RH_TYPED_BODY_SIZE,
+)
+
+
+def test_9fc_round_trip_from_replay():
+    """Round-trip the captured 0x09fc W singleton."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    candidates = [m for m in store.messages if m.type_id == 0x09fc]
+    assert len(candidates) == 1
+    msg = decode_9fc(candidates[0].body)
+    # echoed_session_uuid duplicates the envelope session_uuid
+    assert msg.echoed_session_uuid == msg.session_uuid
+    assert encode_9fc(msg) == candidates[0].body
+
+
+def test_9fc_size_is_102():
+    assert RH_TYPED_BODY_SIZE == 102
+
+
+def test_9fc_decode_wrong_size_rejects():
+    with pytest.raises(ValueError, match="102"):
+        decode_9fc(b"\x00" * 100)
+
+
+def test_9fc_decode_wrong_remaining_length_rejects():
+    bad = bytearray(b"\x00" * 102)
+    bad[24:28] = b"\x00\x01\xbc\x27"  # set valid type header
+    bad[7] = 0x99  # corrupt remaining_len
+    with pytest.raises(ValueError, match="remaining-length"):
+        decode_9fc(bytes(bad))
+
+
+def test_9fc_validates_field_sizes():
+    with pytest.raises(ValueError, match="state_block"):
+        ReceiptHandshake9FC(
+            client_hash=b"\x00" * 4,
+            session_uuid=bytes(16),
+            subkey=bytes(16),
+            echoed_session_uuid=bytes(16),
+            state_block=bytes(20),  # wrong size
+            echoed_blob=bytes(16),
+        )
+
+
+def test_9fc_echoes_8e6_opaque_blob():
+    """Cross-codec invariant (the load-bearing test): 0x09fc's
+    echoed_blob is byte-identical to the paired 0x8e6's opaque_blob.
+    Server-side replay must preserve this echo for client validation."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    msg_8e6 = decode_8e6(
+        next(m for m in store.messages if m.type_id == 0x8e6).body
+    )
+    msg_9fc = decode_9fc(
+        next(m for m in store.messages
+             if m.type_id == 0x9fc and m.direction == "W").body
+    )
+    assert msg_9fc.echoed_blob == msg_8e6.opaque_blob
+    # And verify_8e6_echo helper agrees
+    assert msg_9fc.verify_8e6_echo(msg_8e6.opaque_blob) is True
+    # Mismatched blob must fail verification
+    assert msg_9fc.verify_8e6_echo(b"\x00" * 16) is False
+
+
+def test_9fc_subkey_upper_matches_8e6_identity_uuid_upper():
+    """Cross-codec invariant: 0x09fc's subkey upper 8 = 0x8e6's
+    identity_uuid upper 8 (receipt-handshake sub-system id)."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    msg_8e6 = decode_8e6(
+        next(m for m in store.messages if m.type_id == 0x8e6).body
+    )
+    msg_9fc = decode_9fc(
+        next(m for m in store.messages
+             if m.type_id == 0x9fc and m.direction == "W").body
+    )
+    assert msg_9fc.subkey[:8] == msg_8e6.identity_uuid[:8]
+
+
+# ---------------------------------------------------------------------------
 # v3_request — error paths (no capture file needed)
 # ---------------------------------------------------------------------------
 
