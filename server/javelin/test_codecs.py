@@ -1836,6 +1836,69 @@ def test_1067_round_trip_with_arbitrary_strings():
 
 
 # ---------------------------------------------------------------------------
+# IdentityBlob 0x8e6 (R direction, 42 bytes)
+# ---------------------------------------------------------------------------
+
+from .identity_blob_8e6 import (  # noqa: E402
+    IdentityBlob8E6,
+    encode as encode_8e6,
+    decode as decode_8e6,
+    TYPED_BODY_SIZE as IB8E6_TYPED_BODY_SIZE,
+)
+
+
+def test_8e6_round_trip_from_replay():
+    """Round-trip the captured 0x8e6 R singleton."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    candidates = [m for m in store.messages if m.type_id == 0x8e6]
+    assert len(candidates) == 1
+    msg = decode_8e6(candidates[0].body)
+    assert encode_8e6(msg) == candidates[0].body
+    # The identity_uuid lower 8 bytes should match session_uuid_lower
+    assert msg.identity_uuid[8:] == bytes.fromhex("bf85314bbc4a951a")
+
+
+def test_8e6_size_is_42():
+    assert IB8E6_TYPED_BODY_SIZE == 42
+
+
+def test_8e6_decode_wrong_size_rejects():
+    with pytest.raises(ValueError, match="42"):
+        decode_8e6(b"\x00" * 40)
+
+
+def test_8e6_decode_wrong_type_header_rejects():
+    bad = bytearray(b"\x00" * 42)
+    bad[0:4] = b"\x00\x01\xff\xff"
+    with pytest.raises(ValueError, match="type header"):
+        decode_8e6(bytes(bad))
+
+
+def test_8e6_decode_nonzero_pad_rejects():
+    """Nonzero byte in the trailing 6-byte pad span should reject."""
+    msg = IdentityBlob8E6(
+        identity_uuid=b"\x00" * 16, opaque_blob=b"\x00" * 16
+    )
+    encoded = bytearray(encode_8e6(msg))
+    encoded[-1] = 0xFF  # corrupt last pad byte
+    with pytest.raises(ValueError, match="pad"):
+        decode_8e6(bytes(encoded))
+
+
+def test_8e6_validates_field_sizes():
+    with pytest.raises(ValueError, match="identity_uuid"):
+        IdentityBlob8E6(identity_uuid=b"\x00" * 8, opaque_blob=b"\x00" * 16)
+    with pytest.raises(ValueError, match="opaque_blob"):
+        IdentityBlob8E6(identity_uuid=b"\x00" * 16, opaque_blob=b"\x00" * 8)
+
+
+# ---------------------------------------------------------------------------
 # v3_request — error paths (no capture file needed)
 # ---------------------------------------------------------------------------
 

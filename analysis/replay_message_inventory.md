@@ -49,7 +49,8 @@ frequency:
 | `0xa4` | 2 | 20 (fixed) | R | Phase 5 SESSION small per `docs/post-v3-sequence.md`. See below. |
 | `0x663` | 2 | 110 (fixed) | R | |
 | `0x16a0` | 2 | 153 or 99819 | R | One small + one ~98KB chunk. |
-| various | 1 each | various | R/W | Singletons; less useful for variant analysis. |
+| `0x03` | 1 | 88 (fixed) | R | **V3 RegistrationResponse** — handled by `server/javelin/v3_response.py`. See below. |
+| various | 1 each | various | R/W | Other singletons; less useful for variant analysis. |
 
 ## Shared 16-byte identity field (recurring across `0x1b88`, `0xa4`, `0x18a6`)
 
@@ -444,6 +445,94 @@ duplicates are pure wire-level resends.
   should mirror it per emitted frame.
 - The full TLV-stream parser is out of scope for byte-pattern
   analysis; needs handler-side static-RE on the 0x08 dispatcher.
+
+## `0x03` R — V3 RegistrationResponse (88 bytes, 1 capture)
+
+The single 88-byte 0x03 R message at seq 0x1 is the
+**V3 RegistrationResponse** — the server's reply to the V3
+registration request that opens the connection. Its body uses
+the **3-byte envelope** `[00 01 03]` (type 3 fits in 6 bits, no
+high-bit continuation), then the response payload.
+
+Captured layout (with the 32-byte session-token span redacted by
+the upstream maintainer before sharing):
+
+```
++0x00  u8x3   envelope          [00 01 03]
++0x03  u8x4   error_code?       00 00 00 00 (zero in capture)
++0x07  u8x8   mystery8          0b 88 8d 68 70 6c 41 5b
+                                 (= session_clock 0x0b888d68
+                                  + nonce 0x706c415b BE)
++0x0f  u8     token_len         0x20 = 32
++0x10  u8x32  session_token     32 redacted bytes
++0x30  u8     ver_len           0x23 = 35
++0x31  bytes×35  server_version "[RETAIL].Javelin.1.365.6031.6006993"
++0x54  u8x4   trailer           01 00 00 01
+```
+
+Total: 88 bytes. The `mystery8` value matches the `0x14f`
+session-clock-beacon's first 4 bytes — confirming
+`session_clock=0x0b888d68 nonce=0x706c415b` is the cross-codec
+session identifier (see `0x14f` section above).
+
+**Codec already exists**: `server/javelin/v3_response.py` (encoder
+only — `encode(V3RegistrationResponse)`). The encoder's defaults
+match the captured bytes byte-for-byte (modulo the 32-byte
+redacted token, which gets a fresh random per call via
+`make_session_token()`). Use `make_mystery8(session_clock, nonce)`
+and `parse_mystery8(blob)` for the cross-codec session-clock /
+nonce conversions.
+
+## `0x8e6` — 42-byte R identity blob (singleton)
+
+Single 42-byte capture (seq 0x43). Clean fixed-shape body:
+
+```
++0x00  u8x4    type_header        [00 01 a6 23] = type 0x8e6
++0x04  u8x16   identity_uuid      lower 8 = session_uuid_lower
++0x14  u8x16   opaque_blob        16 bytes — UUID-like or hash
++0x24  u8x6    zero_padding       all 0x00
+```
+
+The `identity_uuid` follows the now-familiar
+"upper 8 + session_uuid_lower" convention (same pattern as 0x18a6,
+0x1b88, 0xa4, 0x1067, etc.). The 16-byte `opaque_blob` has no
+shared bytes with any other captured field — could be a second
+UUID, a session-derived hash/MAC, or an asset/entity ID. The
+codec validates the zero padding so future captures that diverge
+will surface as decode errors.
+
+Codec: `server/javelin/identity_blob_8e6.py`.
+
+## `0x1033` — 498-byte R hash/Merkle-like payload (singleton, not yet codec'd)
+
+Single 498-byte capture (seq 0x62). Body shape:
+
+```
++0x00  u8x4    type_header        [00 01 b3 40] = type 0x1033
++0x04  u8x16   identity_uuid      `ce 81 13 6a 2b 7a d3 3e
+                                    bf 85 31 4b bc 4a 95 1a`
+                                   (lower 8 = session_uuid_lower)
++0x14  u8x478  payload            no obvious top-level structure
+                                   from byte patterns alone
+```
+
+**Structural hint found via repeated-substring scan**: the 8-byte
+sequence `43 1d f4 ea 8a 9c fc ac` appears in the payload at
+**offsets 5 and 450** — the only repeated non-trivial 8-byte run.
+The trailing 40 bytes of the payload decompose cleanly into
+**ten 4-byte chunks** (`b1873b49 1c07875d c4c6381e 431df4ea
+8a9cfcac 5829a88f 4a3c5e77 92c45ce5 1c1b7159 5a0981ef`) and
+**at least one of those 4-byte chunks reappears within the
+opening 16 bytes** of the payload. Together these strongly
+suggest a **Merkle-tree-style structure** where leaf hashes (or
+chunked identifiers) at the start are summarized by aggregate
+hashes at the end.
+
+Without more captures or static-RE on the 0x1033 dispatcher we
+can't pin this down further, so no codec yet. Logged here so
+future captures can be checked for the same offset-5/offset-450
+correspondence.
 
 ## `0x1067` — 86-byte R Vivox voice-chat configuration (singleton)
 

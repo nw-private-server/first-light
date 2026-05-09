@@ -7012,3 +7012,97 @@ codec needed.
    length-prefixed structures suitable for a quick codec pass.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-09 — wake 74: 0x03 cross-link + 0x8e6 codec + 0x1033 structural note
+
+**Did:**
+
+Inventory cleanup, one new codec, and one "interesting structural
+finding" worth noting for future. Test count: **177 passing** (was
+171 — 6 new tests).
+
+1. **0x03 R cross-linked to `v3_response.py` in the inventory.**
+   Promoted 0x03 from the "various 1-each" lump to its own
+   section in the frequency table. Documented the captured wire
+   layout (3-byte envelope + payload with mystery8 + token + ver
+   + trailer) and pointed at `server/javelin/v3_response.py`
+   which already encodes it byte-for-byte vs the capture (modulo
+   the redacted 32-byte session token, which gets a fresh random
+   per encode call).
+
+2. **`identity_blob_8e6.py`** — codec for type 0x8e6 R singleton
+   (42 bytes). Clean fixed shape: 4-byte envelope + 16-byte
+   `identity_uuid` (lower 8 = session_uuid_lower) + 16-byte
+   `opaque_blob` + 6-byte zero-padding. Codec validates structure
+   and rejects non-zero padding so future captures that diverge
+   surface as decode errors rather than silent acceptance.
+   Round-trip + identity-uuid-lower invariant validated.
+
+3. **`0x1033` R structural finding (no codec).** 498-byte
+   singleton; the 478-byte opaque payload has a **repeated 8-byte
+   sequence at offsets 5 and 450** (`43 1d f4 ea 8a 9c fc ac`),
+   and the trailing 40 bytes decompose into **ten 4-byte chunks**
+   where at least one reappears in the opening 16 bytes. Pattern
+   strongly suggests a **Merkle-tree-style structure** where
+   chunked leaf identifiers at the start are summarized by
+   aggregate hashes at the end. Without more captures or
+   static-RE on the dispatcher we can't model this with confidence,
+   so it's logged inline in the inventory as a future check
+   point. Future captures should be examined for the same
+   offset-5/offset-450 correspondence.
+
+**Files this iteration:**
+
+- `analysis/replay_message_inventory.md` (0x03 section + frequency
+  table promotion + 0x8e6 section + 0x1033 structural note)
+- `server/javelin/identity_blob_8e6.py` (new)
+- `server/javelin/test_codecs.py` (6 new tests, 177 total)
+- This worklog entry
+
+**Library status: 15 dedicated codecs, 177 tests passing.**
+
+Codec surface area now characterizes:
+- R: 0x03 (V3 response), 0x14f, 0x15d ping, 0x16a0 small,
+  0x18a6, 0x1b88, 0xa4, 0x40a/0x1be (handshake-76), 0x663,
+  0x8e6, 0x1067 (Vivox config)
+- W: 0x15d ack, 0x1a59, 0x5b2, 0x635
+- Plus existing AzCore-style codecs:
+  `LevelInfoChangedMsg`, `PlayerManagerSelfIdentificationMsg`,
+  `V3RegistrationResponse` (0x03 R encoder)
+
+**Patterns visible across the library:**
+
+- **Identity-UUID convention** (16-byte field, lower 8 bytes always
+  `bf 85 31 4b bc 4a 95 1a` in this session) is **universal** for
+  R-direction messages with an identity slot. Confirmed in 0x18a6,
+  0x1b88, 0xa4, 0x663, 0x1067, 0x8e6, 0x16a0. Likely the binary's
+  per-session identity check: any inbound message of these types
+  must carry the matching session UUID's lower 8 bytes or the
+  handler rejects it.
+- **Three distinct `second_id` surfaces** (subsystem identities)
+  also visible: 0x18a6+0x663 share one, 0x635 has its own, 0x5b2
+  has yet another.
+- **Pascal-style u8-prefixed strings** are used by `0x663`
+  (level_name + level_path) and `0x1067` (api_url + realm +
+  issuer). Different from the `AZStd::string` u32-LE-prefixed
+  format used in `LevelInfoChangedMsg`.
+
+**Next** (queue, in priority order):
+
+1. Look at the remaining R singletons not yet covered: `0x0651`,
+   `0x065c`, `0x0ca4`, `0x1096`, `0x1097`, `0x136a`. The
+   1096/1097 pair was documented inline last wake; the others
+   could each get a structural codec or at least a documented
+   wire shape.
+2. The 0x1033 Merkle-like structure deserves a follow-up if any
+   additional captures become available — even a second one
+   would let us identify which fields are session-stable vs
+   per-message.
+3. A short pass through `docs/post-v3-sequence.md` to ensure the
+   codec library is cross-referenced from the sequence table for
+   the types we've now characterized — improves discoverability
+   for anyone reading the docs.
+
+**Blockers:** None.
