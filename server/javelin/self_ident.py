@@ -154,6 +154,60 @@ def encode(msg: PlayerManagerSelfIdentificationMsg) -> bytes:
     return bytes(out)
 
 
+def decode(buf: bytes) -> PlayerManagerSelfIdentificationMsg:
+    """Parse an on-wire PlayerManagerSelfIdentificationMsg body.
+
+    Inverse of `encode()`. Raises `ValueError` on truncation or
+    trailing bytes after the expected end. Vector elements are read
+    as u32 LE; the count comes from the wire prefix.
+    """
+    if len(buf) < MIN_WIRE_SIZE:
+        raise ValueError(
+            f"buffer too short: {len(buf)} bytes, need at least {MIN_WIRE_SIZE}"
+        )
+
+    pos = 0
+    (field_0,) = struct.unpack_from("<I", buf, pos)
+    pos += 4
+
+    (vec_len,) = struct.unpack_from("<I", buf, pos)
+    pos += 4
+
+    if pos + 4 * vec_len > len(buf):
+        raise ValueError(
+            f"truncated vector body at offset {pos}: declared {vec_len} "
+            f"u32 elements ({4 * vec_len} bytes) but only "
+            f"{len(buf) - pos} bytes remain"
+        )
+    field_08 = struct.unpack_from(f"<{vec_len}I", buf, pos)
+    pos += 4 * vec_len
+
+    if pos + 1 + 8 + 4 > len(buf):
+        raise ValueError(f"truncated trailing fields at offset {pos}")
+    debug_flag = buf[pos]
+    pos += 1
+
+    (field_2c,) = struct.unpack_from("<Q", buf, pos)
+    pos += 8
+
+    (field_34,) = struct.unpack_from("<I", buf, pos)
+    pos += 4
+
+    if pos != len(buf):
+        raise ValueError(
+            f"trailing {len(buf) - pos} unexpected bytes after expected end "
+            f"(consumed {pos}, buffer is {len(buf)})"
+        )
+
+    return PlayerManagerSelfIdentificationMsg(
+        field_0=field_0,
+        field_08=field_08,
+        debug_flag=debug_flag,
+        field_2c=field_2c,
+        field_34=field_34,
+    )
+
+
 # ---------------------------------------------------------------------------
 #  Self-test
 # ---------------------------------------------------------------------------

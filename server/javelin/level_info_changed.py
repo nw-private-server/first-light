@@ -158,6 +158,93 @@ def encode(msg: LevelInfoChangedMsg) -> bytes:
     return bytes(out)
 
 
+def _decode_az_string(buf: bytes, offset: int) -> tuple[str, int]:
+    """Read an AzCore-wire AZStd::string starting at offset. Returns
+    (decoded_string, bytes_consumed)."""
+    if offset + 4 > len(buf):
+        raise ValueError(
+            f"truncated string length prefix at offset {offset} "
+            f"(buffer length {len(buf)})"
+        )
+    length = struct.unpack_from("<I", buf, offset)[0]
+    end = offset + 4 + length
+    if end > len(buf):
+        raise ValueError(
+            f"truncated string body at offset {offset}: declared length "
+            f"{length} but only {len(buf) - offset - 4} bytes remain"
+        )
+    text = buf[offset + 4:end].decode("utf-8")
+    return text, 4 + length
+
+
+def decode(buf: bytes) -> LevelInfoChangedMsg:
+    """Parse an on-wire LevelInfoChangedMsg body.
+
+    Inverse of `encode()`. Raises `ValueError` on truncation, encoding
+    errors, or trailing bytes after the expected end. Raises
+    `NotImplementedError` if the buffer declares a non-empty
+    `m_extendedField` (parsing the AZStd::unordered_* element layout
+    is not yet supported — see the encoder's caveat).
+    """
+    pos = 0
+
+    level_name, consumed = _decode_az_string(buf, pos)
+    pos += consumed
+
+    other_name, consumed = _decode_az_string(buf, pos)
+    pos += consumed
+
+    if pos + 16 > len(buf):
+        raise ValueError(f"truncated quad at offset {pos}")
+    quad = struct.unpack_from("<IIII", buf, pos)
+    pos += 16
+
+    if pos + 8 > len(buf):
+        raise ValueError(f"truncated field_60 at offset {pos}")
+    (field_60,) = struct.unpack_from("<Q", buf, pos)
+    pos += 8
+
+    if pos + 4 > len(buf):
+        raise ValueError(f"truncated extended_count at offset {pos}")
+    (extended_count,) = struct.unpack_from("<I", buf, pos)
+    pos += 4
+
+    if extended_count != 0:
+        raise NotImplementedError(
+            "non-empty m_extendedField decoding not yet supported "
+            f"(declared count = {extended_count})"
+        )
+
+    if pos + 4 > len(buf):
+        raise ValueError(f"truncated flag bytes at offset {pos}")
+    field_a0, level_is_loading, is_in_game_transition, field_a3 = buf[pos:pos + 4]
+    pos += 4
+
+    if pos + 8 > len(buf):
+        raise ValueError(f"truncated client_context_instance_id at offset {pos}")
+    (client_context_instance_id,) = struct.unpack_from("<Q", buf, pos)
+    pos += 8
+
+    if pos != len(buf):
+        raise ValueError(
+            f"trailing {len(buf) - pos} unexpected bytes after expected end "
+            f"(consumed {pos}, buffer is {len(buf)})"
+        )
+
+    return LevelInfoChangedMsg(
+        level_name=level_name,
+        other_name=other_name,
+        quad=quad,
+        field_60=field_60,
+        extended_count=extended_count,
+        field_a0=field_a0,
+        level_is_loading=level_is_loading,
+        is_in_game_transition=is_in_game_transition,
+        field_a3=field_a3,
+        client_context_instance_id=client_context_instance_id,
+    )
+
+
 # ---------------------------------------------------------------------------
 #  Self-test
 # ---------------------------------------------------------------------------

@@ -6062,3 +6062,73 @@ PushNotification per the wake-49 closing recipe.
 
 **Blockers:** None new. Genuinely waiting on the maintainer's
 strategic call.
+
+---
+
+### 2026-05-08 — wake 65: loop resumed; SelfIdent + LevelInfoChanged decoders + roundtrip tests
+
+**Did:**
+
+Maintainer asked to resume the loop continuously ("you have several
+days"). Picked up from wake 64's clean stopping state. First
+productive iteration of the resumed loop: added decoders to pair
+with the encoders, plus round-trip tests.
+
+**Changes:**
+
+1. `server/javelin/level_info_changed.py` — added `decode(buf: bytes)`
+   that inverts `encode()`. Handles truncated input (raises ValueError
+   with the offset of the failure), trailing-bytes detection, and
+   non-zero `extended_count` (raises NotImplementedError per the
+   encoder's existing constraint). New helper `_decode_az_string`
+   returns `(text, bytes_consumed)`.
+
+2. `server/javelin/self_ident.py` — added `decode(buf: bytes)`
+   inverting `encode()`. Reads u32 length-prefixed vector, validates
+   min size, validates vector body fits the buffer, rejects trailing
+   bytes.
+
+3. `server/javelin/test_codecs.py` — 13 new tests: round-trip pairs
+   for both encoders (including unicode strings and populated
+   vectors), truncation error paths, trailing-byte rejection,
+   NotImplementedError for non-empty extended container, vector-as-
+   tuple preservation.
+
+**Test suite:** 116 → 129 passing in 0.27s.
+
+**Why this matters:**
+
+The encoders we built in wakes 61 + 62 were write-only. With
+matching decoders, the project can:
+
+- Round-trip-validate any captured message bytes
+- Mutate a captured body (decode → modify → re-encode) without
+  rebuilding from scratch
+- Catch wire-format errors with offset-pointing error messages
+
+Same caveat as before: round-trip-passing tests prove encoder and
+decoder agree with each other, NOT that either matches the game's
+deserializer.
+
+**Files this iteration:**
+
+- `server/javelin/level_info_changed.py` (decoder + helper)
+- `server/javelin/self_ident.py` (decoder)
+- `server/javelin/test_codecs.py` (13 new tests)
+- This worklog entry
+
+**Next** (continuing the loop, several days of runway):
+
+1. Decode more of the existing capture replay (177 msgs across many
+   types; bodies for 0x88 / 0x91 / 0xa4 / 0x9d etc. are not all
+   characterized).
+2. Map more of the connection-class struct fields by decompiling
+   sibling handlers from wake 14's JavelinGame layer or wake 47's
+   audio path.
+3. Decompile FUN_14645c660 — wake 12/13 identified as a message
+   handler but the message identity wasn't pinned down.
+4. Possible polish: a byte-level comparator that diff-prints
+   captured-vs-encoded bodies (will be useful when runtime data
+   eventually lands).
+
+**Blockers:** None new. Several days of productive work in the queue.

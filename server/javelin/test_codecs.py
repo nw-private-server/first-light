@@ -106,6 +106,7 @@ def test_make_session_token_unique():
 from .level_info_changed import (  # noqa: E402
     LevelInfoChangedMsg,
     encode as encode_level_info,
+    decode as decode_level_info,
     MIN_WIRE_SIZE as LIC_MIN_WIRE_SIZE,
 )
 import struct as _struct  # noqa: E402
@@ -220,6 +221,7 @@ def test_level_info_default_flags_match_handler_recipe():
 from .self_ident import (  # noqa: E402
     PlayerManagerSelfIdentificationMsg,
     encode as encode_self_ident,
+    decode as decode_self_ident,
     MIN_WIRE_SIZE as SI_MIN_WIRE_SIZE,
 )
 
@@ -306,6 +308,112 @@ def test_self_ident_accepts_list_for_field_08():
     # __post_init__ normalizes list -> tuple
     msg = PlayerManagerSelfIdentificationMsg(field_08=[10, 20, 30])
     assert msg.field_08 == (10, 20, 30)
+
+
+# ---------------------------------------------------------------------------
+# Round-trip / decoder tests
+# ---------------------------------------------------------------------------
+
+
+def test_level_info_roundtrip_default():
+    msg = LevelInfoChangedMsg()
+    assert decode_level_info(encode_level_info(msg)) == msg
+
+
+def test_level_info_roundtrip_with_strings_and_quad():
+    msg = LevelInfoChangedMsg(
+        level_name="NewWorld_Aeternum",
+        other_name="ServerAlpha-EU",
+        quad=(1, 2, 3, 4),
+        field_60=0x1122334455667788,
+        field_a0=0x10, level_is_loading=0x20,
+        is_in_game_transition=0x30, field_a3=0x40,
+        client_context_instance_id=0x9876543210,
+    )
+    assert decode_level_info(encode_level_info(msg)) == msg
+
+
+def test_level_info_roundtrip_unicode_strings():
+    msg = LevelInfoChangedMsg(level_name="日本語", other_name="emoji-🦄-allowed")
+    assert decode_level_info(encode_level_info(msg)) == msg
+
+
+def test_level_info_decode_truncated_levelname_prefix():
+    with pytest.raises(ValueError, match="truncated string length prefix"):
+        decode_level_info(b"\x00\x00")
+
+
+def test_level_info_decode_truncated_levelname_body():
+    # Declares 100-byte string but only provides 5
+    bad = _struct.pack("<I", 100) + b"hello"
+    with pytest.raises(ValueError, match="truncated string body"):
+        decode_level_info(bad)
+
+
+def test_level_info_decode_trailing_bytes_rejected():
+    blob = encode_level_info(LevelInfoChangedMsg()) + b"\xFF"
+    with pytest.raises(ValueError, match="trailing"):
+        decode_level_info(blob)
+
+
+def test_level_info_decode_nonzero_extended_count_raises():
+    # Build a buffer that decodes through up to extended_count = 5 then errors
+    parts = [
+        _struct.pack("<I", 0),     # m_levelName: empty
+        _struct.pack("<I", 0),     # m_someOtherName: empty
+        _struct.pack("<IIII", 0, 0, 0, 0),
+        _struct.pack("<Q", 0),
+        _struct.pack("<I", 5),     # extended_count = 5 → not yet supported
+        bytes(4),
+        _struct.pack("<Q", 0),
+    ]
+    with pytest.raises(NotImplementedError, match="non-empty m_extendedField"):
+        decode_level_info(b"".join(parts))
+
+
+def test_self_ident_roundtrip_default():
+    msg = PlayerManagerSelfIdentificationMsg()
+    assert decode_self_ident(encode_self_ident(msg)) == msg
+
+
+def test_self_ident_roundtrip_with_vector():
+    msg = PlayerManagerSelfIdentificationMsg(
+        field_0=0xAABBCCDD,
+        field_08=(1, 2, 3, 4, 5),
+        debug_flag=0,
+        field_2c=0xCAFEBABEDEADBEEF,
+        field_34=0x12345678,
+    )
+    assert decode_self_ident(encode_self_ident(msg)) == msg
+
+
+def test_self_ident_decode_too_short():
+    with pytest.raises(ValueError, match="buffer too short"):
+        decode_self_ident(b"\x00" * 10)
+
+
+def test_self_ident_decode_truncated_vector():
+    # Pad to MIN_WIRE_SIZE so the upfront size check passes, then
+    # trigger the targeted vector-body-truncation error: vec_len = 100
+    # claims 400 bytes of u32 elements but the buffer's body is much smaller.
+    bad = _struct.pack("<I", 0) + _struct.pack("<I", 100) + b"\x00" * (
+        SI_MIN_WIRE_SIZE - 8
+    )
+    with pytest.raises(ValueError, match="truncated vector body"):
+        decode_self_ident(bad)
+
+
+def test_self_ident_decode_trailing_bytes_rejected():
+    blob = encode_self_ident(PlayerManagerSelfIdentificationMsg()) + b"\xFF\xFF"
+    with pytest.raises(ValueError, match="trailing"):
+        decode_self_ident(blob)
+
+
+def test_self_ident_decode_preserves_vector_as_tuple():
+    blob = encode_self_ident(PlayerManagerSelfIdentificationMsg(field_08=(7, 8, 9)))
+    decoded = decode_self_ident(blob)
+    assert decoded.field_08 == (7, 8, 9)
+    assert isinstance(decoded.field_08, tuple)
 
 
 # ---------------------------------------------------------------------------
