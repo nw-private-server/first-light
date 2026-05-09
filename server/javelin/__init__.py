@@ -37,9 +37,9 @@ from .subkey_beacon import (
 # R-direction (server → client) message codecs
 from .session_message_a4 import SessionMessageA4
 from .session_clock_beacon import SessionClockBeacon
-from .heartbeat_15d import HeartbeatPing15D, HeartbeatAck15D
+from .heartbeat_15d import HeartbeatPing15D, HeartbeatAck15D, make_ack_for
 from .session_identity_beacon import SessionIdentityBeacon
-from .init_message_18a6 import InitMessage18A6
+from .init_message_18a6 import InitMessage18A6, make_init_message_18a6
 from .level_descriptor_663 import LevelDescriptor663
 from .identity_blob_8e6 import IdentityBlob8E6
 from .vivox_config_1067 import VivoxConfig1067
@@ -85,8 +85,10 @@ __all__ = [
     "SessionClockBeacon",
     "HeartbeatPing15D",
     "HeartbeatAck15D",
+    "make_ack_for",
     "SessionIdentityBeacon",
     "InitMessage18A6",
+    "make_init_message_18a6",
     "LevelDescriptor663",
     "IdentityBlob8E6",
     "VivoxConfig1067",

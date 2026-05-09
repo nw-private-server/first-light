@@ -124,6 +124,29 @@ class HeartbeatAck15D:
             )
 
 
+def make_ack_for(
+    ping: HeartbeatPing15D,
+    *,
+    client_hash: bytes,
+) -> HeartbeatAck15D:
+    """Build the `HeartbeatAck15D` that mirrors a given server ping.
+
+    The ack body wraps the ping body verbatim at +0x18, so any
+    server emitting ping=`(counter, nonce)` should expect to see
+    ack.echoed_ping equal `(counter, nonce)`. Server-side code can
+    use this helper to pre-compute the expected ack and validate
+    incoming acks against it.
+    """
+    if len(client_hash) != 4:
+        raise ValueError(
+            f"client_hash must be exactly 4 bytes; got {len(client_hash)}"
+        )
+    return HeartbeatAck15D(
+        client_hash=client_hash,
+        echoed_ping=ping,
+    )
+
+
 def encode_ack(msg: HeartbeatAck15D) -> bytes:
     """Build the W-direction 36-byte ack."""
     return (

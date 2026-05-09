@@ -2710,6 +2710,93 @@ def test_65c_round_trip_synthetic():
 
 
 # ---------------------------------------------------------------------------
+# Encoder-side convenience helpers
+# ---------------------------------------------------------------------------
+
+from .init_message_18a6 import make_init_message_18a6  # noqa: E402
+from .heartbeat_15d import make_ack_for  # noqa: E402
+from .init_message_18a6 import (  # noqa: E402
+    DEFAULT_FLAGS as IM_DEFAULT_FLAGS,
+    DEFAULT_BUILD_VERSION as IM_DEFAULT_BUILD_VERSION,
+    encode as encode_18a6,
+    decode as decode_18a6_helper,
+)
+
+
+def test_make_init_message_18a6_defaults():
+    msg = make_init_message_18a6(
+        counter=3,
+        first_uuid_half=b"\xaa" * 8,
+        session_uuid_lower=b"\xbb" * 8,
+        second_id=b"\xcc" * 8,
+    )
+    assert msg.counter == 3
+    assert msg.flags == IM_DEFAULT_FLAGS
+    assert msg.build_version == IM_DEFAULT_BUILD_VERSION
+    # Round-trip through wire encoding.
+    decoded = decode_18a6_helper(encode_18a6(msg))
+    assert decoded == msg
+
+
+def test_make_init_message_18a6_overrides():
+    msg = make_init_message_18a6(
+        counter=42,
+        first_uuid_half=b"\x00" * 8,
+        session_uuid_lower=b"\x00" * 8,
+        second_id=b"\x00" * 8,
+        flags=0xDEADBEEF,
+        build_version=0x999,
+    )
+    assert msg.counter == 42
+    assert msg.flags == 0xDEADBEEF
+    assert msg.build_version == 0x999
+
+
+def test_make_ack_for_round_trip():
+    """The ack body should wrap the ping body verbatim — server-side
+    replay can use this helper to pre-compute expected acks."""
+    ping = HeartbeatPing15D(counter=0xCAFE, nonce=0xBABE1234)
+    ack = make_ack_for(ping, client_hash=b"\x01\x02\x03\x04")
+    assert ack.client_hash == b"\x01\x02\x03\x04"
+    assert ack.echoed_ping == ping
+    # Encode and verify the ack body wraps the ping body at +0x18.
+    encoded = encode_15d_ack(ack)
+    assert len(encoded) == 36
+    assert encoded[24:36] == encode_15d_ping(ping)
+
+
+def test_make_ack_for_validates_client_hash():
+    ping = HeartbeatPing15D(counter=1, nonce=2)
+    with pytest.raises(ValueError, match="client_hash"):
+        make_ack_for(ping, client_hash=b"\x00\x00\x00")  # 3 bytes
+
+
+# ---------------------------------------------------------------------------
+# Library exports
+# ---------------------------------------------------------------------------
+
+def test_javelin_package_exports():
+    """Spot-check that the top-level `server.javelin` namespace
+    re-exports the most-used codec classes and helpers."""
+    import server.javelin as j
+    # Wire-framing primitives
+    assert hasattr(j, "BitStream")
+    assert hasattr(j, "MessageFlags")
+    # Generic family + factories
+    assert hasattr(j, "SubkeyBeacon")
+    assert hasattr(j, "make_subkey_beacon")
+    assert hasattr(j, "SUBKEY_FAMILY")
+    # R + W codec classes
+    assert hasattr(j, "InitMessage18A6")
+    assert hasattr(j, "HeartbeatPing15D")
+    assert hasattr(j, "ReceiptHandshake9FC")
+    assert hasattr(j, "WorldDataBlob65C")
+    # New encoder helpers
+    assert hasattr(j, "make_init_message_18a6")
+    assert hasattr(j, "make_ack_for")
+
+
+# ---------------------------------------------------------------------------
 # v3_request — error paths (no capture file needed)
 # ---------------------------------------------------------------------------
 

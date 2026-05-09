@@ -85,6 +85,46 @@ class InitMessage18A6:
             )
 
 
+def make_init_message_18a6(
+    counter: int,
+    *,
+    first_uuid_half: bytes,
+    session_uuid_lower: bytes,
+    second_id: bytes,
+    flags: int = DEFAULT_FLAGS,
+    build_version: int = DEFAULT_BUILD_VERSION,
+) -> InitMessage18A6:
+    """Build an `InitMessage18A6` from the typical sub-system inputs.
+
+    Server-side replay code can call this to mint a fresh 0x18a6 with a
+    given counter, e.g.:
+
+        msg = make_init_message_18a6(
+            counter=session.next_18a6_counter,
+            first_uuid_half=session.subkey_upper_8,
+            session_uuid_lower=session.session_uuid[8:],
+            second_id=session.metadata_block_second_id,
+        )
+
+    The default flags + build_version match the captured Amazon retail
+    session (`0x00000101` flags, build `0x365` = 1.365). Override
+    them when targeting a different build or feature-flag profile.
+
+    Counter starts at 1 in the captured replay; the captured 4-message
+    sequence is 1→2→3→4. Server-side code should bump the counter
+    only after observing the paired 0x1a59 ack with the matching value
+    (see `session_subkey_1a59`).
+    """
+    return InitMessage18A6(
+        first_uuid_half=first_uuid_half,
+        session_uuid_lower=session_uuid_lower,
+        second_id=second_id,
+        counter=counter,
+        flags=flags,
+        build_version=build_version,
+    )
+
+
 def encode(msg: InitMessage18A6) -> bytes:
     """Build the on-wire 0x18a6 body INCLUDING the type header.
 

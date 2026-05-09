@@ -7825,3 +7825,96 @@ re-emit raw bytes).
    shipped" and "server actually uses it for replay emission."
 
 **Blockers:** None.
+
+---
+
+### 2026-05-09 — wake 82: integration survey + 2 more encoder helpers
+
+**Did:**
+
+The "approaching feature-complete" picture is now properly
+documented, plus two more encoder convenience helpers.
+Test count: **242 passing** (was 237 — 5 new tests).
+
+1. **`analysis/integration_status.md`** (new) — codec library
+   ↔ server runtime gap survey. Read `server/rep_responder.py`
+   (1064 lines) and adjacent modules. Findings:
+
+   - Today's responder uses **raw replay-message bytes** with
+     redaction-span substitution for all post-V3 traffic. Only
+     V3 RegistrationRequest / Response codecs are integrated
+     into the runtime path.
+   - Of the 23+ javelin modules, only **6 are imported** by
+     the responder: `frame`, `replay_store`,
+     `replay_substitution`, `v3_request`, `v3_response`, `wire`.
+   - All 22 typed codecs (R + W direction) **except** v3 are
+     shipped but **not consumed at runtime**. They serve as
+     a documented schema, invariant test bed, and future
+     emission scaffolding.
+
+   The doc includes a per-codec "if integrated, would let the
+   responder..." table. High-priority integrations are the
+   counter-coupled R/W pairs (0x18a6↔0x1a59, 0x15d ping↔ack)
+   which encode runtime invariants that the captured replay
+   alone can't drive correctly across multiple sessions.
+
+   **Recommendation**: do not eagerly integrate codecs into
+   the responder. Captured-bytes + substitution is correct for
+   the current scope (single-session replay against a
+   known-good capture). Codec library should slot in when the
+   project graduates to multi-session emulation. Until then
+   it's a schema + invariant checker.
+
+2. **`make_init_message_18a6(counter, *, first_uuid_half,
+   session_uuid_lower, second_id, flags=DEFAULT, build_version=DEFAULT)`**
+   added to `init_message_18a6.py`. Convenience factory for
+   server-side counter-coupled emission. Defaults match the
+   captured Amazon retail session (`flags=0x101`,
+   `build=0x365` = 1.365). Counter is the only required field;
+   the rest have sensible defaults from the captured context.
+
+3. **`make_ack_for(ping, *, client_hash)`** added to
+   `heartbeat_15d.py`. Builds the `HeartbeatAck15D` that
+   would mirror a given server ping — useful for pre-computing
+   the expected ack and validating incoming acks. The ack
+   body wraps the ping body verbatim at +0x18; this helper
+   makes that invariant explicit in the API.
+
+4. **`__init__.py` updated** to re-export both new helpers.
+   Total exports: 41.
+
+**Files this iteration:**
+
+- `analysis/integration_status.md` (new, ~150 lines)
+- `server/javelin/init_message_18a6.py` (+ make_init_message_18a6)
+- `server/javelin/heartbeat_15d.py` (+ make_ack_for)
+- `server/javelin/__init__.py` (+ 2 new re-exports)
+- `server/javelin/test_codecs.py` (5 new tests, 242 total)
+- This worklog entry
+
+**Library status: 22 dedicated codecs + 1 generic (14-type)
+codec; 242 tests passing. ~35 distinct type-IDs covered.**
+
+**Three encoder-side factory helpers now in place:**
+- `make_subkey_beacon(...)` (wake 81) — generic W subkey-bearing
+- `make_init_message_18a6(...)` (wake 82) — R counter beacon
+- `make_ack_for(ping, ...)` (wake 82) — heartbeat ack mirroring
+
+**Next** (queue):
+
+1. The AzCore-style codecs (`level_info_changed`, `self_ident`)
+   have been deferred since wake 51-63 pending static-RE clarity
+   on whether the wire body is much larger than 4 bytes (per
+   `docs/post-v3-sequence.md` Phase 9b note). Still deferred.
+2. Could shape the codec library further by adding more
+   `make_*` factories for high-frequency types (e.g.
+   `make_session_clock_beacon`, `make_session_identity_beacon`).
+   These are simple but useful.
+3. Could add a "session state" higher-level abstraction that
+   tracks counters, identities, etc., across emissions —
+   wraps the existing codecs with counter-bumping logic.
+   Useful when integration day comes.
+
+**Blockers:** None — this is a natural pausing point. The
+codec library is feature-complete for the captured replay,
+documented end-to-end, and the integration story is clear.
