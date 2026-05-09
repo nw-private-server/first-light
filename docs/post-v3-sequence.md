@@ -95,28 +95,34 @@ All delays are relative to the prior phase. Sizes vary by retail vs.
 test-39 build. `dgramSeq` increments per datagram regardless of
 channel.
 
-| # | +Δ | Type | Channel | Size | Notes |
-|---|---|---|---|---|---|
-| 1 | 0ms | VERSION `0x03` | 0 | 89B | first post-V3 |
-| 2 | 50ms | HEARTBEAT `0x9d` | 0 | 13B | |
-| 3 | 80ms | INIT `0x8a` + `0xbe` | 0 | 154B | grouped, 1 carrier msg |
-| 4 | 140ms | WORLD DATA `0x9c` | 0 | 12.7KB | chunked, 12 segs ~1115B each |
-| 5 | 200ms | INIT `0x91(0x19)` + small `0xa4` | 0 | 21B | bundled into Phase 4 tail |
-| 6 | 220ms | SESSION `0xa4` large | 0 | 75B / 195B retail-shape |
-| 7 | 250ms | HEARTBEAT `0x8f` | 0 | 13B | |
-| 8 | 280ms | `0xa6` + `0x88`x2 | 0 | ~120B | grouped |
-| 9 | 300ms | `0x88` + small `0xa4` | 0 | ~60B | grouped |
-| **9b** | **310ms** | **SelfIdentification `0x91(0x17)`** | **0** | **4B¹** | **state 10→11 trigger** |
-| 10 | 320ms | `0x88` x20 | 0 | ~840B | one carrier datagram |
-| 11 | 400ms | SESSION AA `0xaa` | 0 | 29B | |
-| 11a | 420ms | `0xa4` + WORLD SPAWN `0xa3` + HB `0x8f` | 0 | ~130B | retail dseq=26 |
-| 11b | 460ms | CH1 init burst, 47 units | 1 | 285KB | paced 3/batch w/ 300ms gaps; **mandatory** |
-| 12 | 1500ms | SESSION AE `0xae` (trail=`0x02`) | 0 | 22B | |
-| 13 | 3000ms | SESSION AE `0xae` (trail=`0x00`) | 0 | 22B | |
-| 14 | 450ms | ENTITY DEFS `0x95` + `0x9d`-large + `0xa0` | 0 | ~2.5KB | |
-| 15 | 800ms | GAME DATA `0xb3` + VIVOX URL `0xa7` | 0 | ~3KB | |
-| 16 | 1200ms | SPAWN `0x96` + `0x97` | 0 | ~160B | |
-| 17 | 1400ms | continuous `0x08` entity-state stream | 0 | varies | ~30/s |
+**Codec column**: when we've shipped a Python codec for the
+type, the row links to the module under `server/javelin/`.
+Codecs round-trip vs the captured bytes; encoders are usable
+for emulator emission. Inventory of all known type-ids and
+their byte-level structure: `analysis/replay_message_inventory.md`.
+
+| # | +Δ | Type | Channel | Size | Notes | Codec |
+|---|---|---|---|---|---|---|
+| 1 | 0ms | VERSION `0x03` | 0 | 89B | first post-V3 | [`v3_response.py`](../server/javelin/v3_response.py) |
+| 2 | 50ms | HEARTBEAT `0x9d` | 0 | 13B | | [`heartbeat_15d.py`](../server/javelin/heartbeat_15d.py) (R+W) |
+| 3 | 80ms | INIT `0x8a` + `0xbe` | 0 | 154B | grouped, 1 carrier msg | [`handshake_blob_76.py`](../server/javelin/handshake_blob_76.py) (both 76B) |
+| 4 | 140ms | WORLD DATA `0x9c` | 0 | 12.7KB | chunked, 12 segs ~1115B each; type 0x65c carries the same `handshake_blob_76` shared_trailer at offset +64 — see inventory | — |
+| 5 | 200ms | INIT `0x91(0x19)` + small `0xa4` | 0 | 21B | bundled into Phase 4 tail. `0x91(0x19)` = type 0x651 (a 4-byte type-header-only signal). | small `0xa4` → [`session_message_a4.py`](../server/javelin/session_message_a4.py) |
+| 6 | 220ms | SESSION `0xa4` large | 0 | 75B / 195B retail-shape | | [`session_message_a4.py`](../server/javelin/session_message_a4.py) |
+| 7 | 250ms | HEARTBEAT `0x8f` | 0 | 13B | type 0x14f session-clock beacon | [`session_clock_beacon.py`](../server/javelin/session_clock_beacon.py) |
+| 8 | 280ms | `0xa6` + `0x88`x2 | 0 | ~120B | grouped | `0xa6` → [`init_message_18a6.py`](../server/javelin/init_message_18a6.py); `0x88` → [`session_identity_beacon.py`](../server/javelin/session_identity_beacon.py) |
+| 9 | 300ms | `0x88` + small `0xa4` | 0 | ~60B | grouped | as above |
+| **9b** | **310ms** | **SelfIdentification `0x91(0x17)`** | **0** | **4B¹** | **state 10→11 trigger** | [`self_ident.py`](../server/javelin/self_ident.py) (encoder, not yet wired) |
+| 10 | 320ms | `0x88` x20 | 0 | ~840B | one carrier datagram | [`session_identity_beacon.py`](../server/javelin/session_identity_beacon.py) |
+| 11 | 400ms | SESSION AA `0xaa` | 0 | 29B | | — |
+| 11a | 420ms | `0xa4` + WORLD SPAWN `0xa3` + HB `0x8f` | 0 | ~130B | retail dseq=26; `0xa3` = type 0x663 LevelDescriptor | `0xa3` → [`level_descriptor_663.py`](../server/javelin/level_descriptor_663.py) |
+| 11b | 460ms | CH1 init burst, 47 units | 1 | 285KB | paced 3/batch w/ 300ms gaps; **mandatory** | — |
+| 12 | 1500ms | SESSION AE `0xae` (trail=`0x02`) | 0 | 22B | | — |
+| 13 | 3000ms | SESSION AE `0xae` (trail=`0x00`) | 0 | 22B | | — |
+| 14 | 450ms | ENTITY DEFS `0x95` + `0x9d`-large + `0xa0` | 0 | ~2.5KB | | `0x9d`-large → [`heartbeat_15d.py`](../server/javelin/heartbeat_15d.py) |
+| 15 | 800ms | GAME DATA `0xb3` + VIVOX URL `0xa7` | 0 | ~3KB | `0xa7` = type 0x1067 Vivox voice config | `0xa7` → [`vivox_config_1067.py`](../server/javelin/vivox_config_1067.py) |
+| 16 | 1200ms | SPAWN `0x96` + `0x97` | 0 | ~160B | spawn-position floats + companion result token; documented inline in inventory | — |
+| 17 | 1400ms | continuous `0x08` entity-state stream | 0 | varies | ~30/s; 24 byte-identical 46407-byte snapshots are pure transport-layer resends — see inventory | — |
 | 18 | 2000ms | Player data `0xa0` burst #1 | 0 | 234KB | paced, 210 segments |
 | 19 | 800ms | Player data `0xa0` burst #2 | 0 | 171KB | paced, 154 segments |
 | 20 | 7000ms | Entity `0xac` chunked | 0 | 2.6KB | |

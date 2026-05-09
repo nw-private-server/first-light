@@ -1899,6 +1899,143 @@ def test_8e6_validates_field_sizes():
 
 
 # ---------------------------------------------------------------------------
+# AssetCountTable 0xca4 (R direction, variable size)
+# ---------------------------------------------------------------------------
+
+from .asset_count_table_ca4 import (  # noqa: E402
+    AssetCountTableCA4,
+    AssetCountRecord,
+    encode as encode_ca4,
+    decode as decode_ca4,
+    MIN_TYPED_BODY_SIZE as ACT_MIN_TYPED_BODY_SIZE,
+    DEFAULT_TRAILER as ACT_DEFAULT_TRAILER,
+)
+
+
+def test_ca4_round_trip_from_replay():
+    """Round-trip the captured 0xca4 R singleton; verify 10 records
+    and the asset quantities."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    candidates = [m for m in store.messages if m.type_id == 0xca4]
+    assert len(candidates) == 1
+    msg = decode_ca4(candidates[0].body)
+    assert len(msg.records) == 10
+    expected_values = [43, 6, 1, 226, 1304, 24, 16, 1713, 6090, 23]
+    assert [r.value for r in msg.records] == expected_values
+    assert msg.trailer == ACT_DEFAULT_TRAILER
+    assert encode_ca4(msg) == candidates[0].body
+    # identity_uuid lower 8 = session_uuid_lower
+    assert msg.identity_uuid[8:] == bytes.fromhex("bf85314bbc4a951a")
+
+
+def test_ca4_min_size_22_bytes():
+    assert ACT_MIN_TYPED_BODY_SIZE == 22
+
+
+def test_ca4_decode_too_short_rejects():
+    with pytest.raises(ValueError, match="too short"):
+        decode_ca4(b"\x00" * 10)
+
+
+def test_ca4_decode_wrong_type_header_rejects():
+    bad = bytearray(b"\x00\x01\xff\xff" + b"\x00" * 18)
+    with pytest.raises(ValueError, match="type header"):
+        decode_ca4(bytes(bad))
+
+
+def test_ca4_decode_count_size_mismatch_rejects():
+    """Tamper with the count byte without adjusting the buffer length."""
+    msg = AssetCountTableCA4(
+        identity_uuid=b"\x00" * 16,
+        records=(),
+    )
+    encoded = bytearray(encode_ca4(msg))
+    encoded[20] = 0x05  # claim 5 records in a 22-byte buffer
+    with pytest.raises(ValueError, match="size mismatch"):
+        decode_ca4(bytes(encoded))
+
+
+def test_ca4_record_validates_hash_size():
+    with pytest.raises(ValueError, match="hash_id"):
+        AssetCountRecord(hash_id=b"\x00\x00", value=0)
+
+
+def test_ca4_empty_records_round_trip():
+    msg = AssetCountTableCA4(
+        identity_uuid=b"\xff" * 16,
+        records=(),
+        trailer=0x42,
+    )
+    assert decode_ca4(encode_ca4(msg)) == msg
+
+
+# ---------------------------------------------------------------------------
+# ResultToken 0x136a (R direction, 28 bytes)
+# ---------------------------------------------------------------------------
+
+from .result_token_136a import (  # noqa: E402
+    ResultToken136A,
+    encode as encode_136a,
+    decode as decode_136a,
+    TYPED_BODY_SIZE as RT_TYPED_BODY_SIZE,
+)
+
+
+def test_136a_round_trip_from_replay():
+    """Round-trip the captured 0x136a R singleton."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    candidates = [m for m in store.messages if m.type_id == 0x136a]
+    assert len(candidates) == 1
+    msg = decode_136a(candidates[0].body)
+    assert msg.result == 1
+    assert msg.identity_uuid[8:] == bytes.fromhex("bf85314bbc4a951a")
+    assert encode_136a(msg) == candidates[0].body
+
+
+def test_136a_size_is_28():
+    assert RT_TYPED_BODY_SIZE == 28
+
+
+def test_136a_decode_wrong_size_rejects():
+    with pytest.raises(ValueError, match="28"):
+        decode_136a(b"\x00" * 24)
+
+
+def test_136a_decode_wrong_type_header_rejects():
+    bad = bytearray(b"\x00" * 28)
+    bad[0:4] = b"\x00\x01\xff\xff"
+    with pytest.raises(ValueError, match="type header"):
+        decode_136a(bytes(bad))
+
+
+def test_136a_validates_uuid_size():
+    with pytest.raises(ValueError, match="identity_uuid"):
+        ResultToken136A(identity_uuid=b"\x00" * 8, result=0)
+
+
+def test_136a_validates_result_range():
+    with pytest.raises(ValueError, match="result"):
+        ResultToken136A(identity_uuid=b"\x00" * 16, result=2**64)
+
+
+def test_136a_round_trip_max_u64():
+    msg = ResultToken136A(identity_uuid=b"\x42" * 16, result=2**64 - 1)
+    assert decode_136a(encode_136a(msg)) == msg
+
+
+# ---------------------------------------------------------------------------
 # v3_request — error paths (no capture file needed)
 # ---------------------------------------------------------------------------
 

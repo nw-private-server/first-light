@@ -7106,3 +7106,110 @@ Codec surface area now characterizes:
    for anyone reading the docs.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-09 — wake 75: 0xca4 + 0x136a codecs + post-v3 cross-links + 0x65c link
+
+**Did:**
+
+Two new codecs, two interesting structural findings, and a docs
+pass cross-linking the codec library from the post-v3 sequence
+table. Test count: **191 passing** (was 177 — 14 new tests).
+
+1. **`asset_count_table_ca4.py`** — codec for the 0xca4 R
+   singleton (102 bytes). Body is a clean **count-prefixed table
+   of 8-byte records**, each carrying a 4-byte truncated hash
+   and a u32 BE value. The 10 captured records have values
+   `43, 6, 1, 226, 1304, 24, 16, 1713, 6090, 23` — read as
+   inventory / asset-pool quantities. The 4-byte hashes are
+   probably 32-bit truncated hashes of asset / pool / item
+   names. Codec models the variable-length record list cleanly;
+   the trailing `0x01` byte preserved as a configurable trailer.
+
+2. **`result_token_136a.py`** — codec for the 0x136a R singleton
+   (28 bytes). Simple fixed shape: 4-byte envelope + 16-byte
+   identity_uuid + u64 BE result. Result was 1 in the capture.
+   Likely a generic "small response with numeric result" message
+   — same shape family as `0x1097` (which uses u32 BE for the
+   result) but from a different sub-system.
+
+3. **`0x0651` documented inline** — single 4-byte capture, the
+   entire message **is** the typed envelope. Zero-byte payload
+   pure-signal notification. Phase 5 / 0x91(0x19) trigger.
+
+4. **`0x065c` cross-codec finding (no codec yet).** This is a
+   12.7KB R blob (Phase 4 WORLD DATA) sent right after V3 and
+   before the 0x40a/0x1be handshake. **It carries the same
+   `58 61 78 14` sub_id from `handshake_blob_76` at offset +28,
+   and the byte-identical 36-byte shared_trailer at offset +64.**
+   So 0x65c is from the **same family as the 0x40a/0x1be
+   two-step handshake** — possibly a third handshake-class
+   message carrying a much larger payload (cert chain, manifest,
+   permission table) under the same signing trailer. Heavy
+   redaction in the capture prevents structural codec writing
+   from one sample, but this cross-link is a strong constraint
+   for any future characterization.
+
+5. **`docs/post-v3-sequence.md` cross-link pass.** Added a
+   "Codec" column to the 22-phase table and linked each row
+   that maps to a shipped codec module under `server/javelin/`.
+   The Phase 1 row now links to v3_response.py, Phase 7 to
+   session_clock_beacon.py, etc. Improves discoverability for
+   anyone reading the post-v3 doc — they can now jump straight
+   from "phase X uses type 0xN" to the encoder/decoder.
+
+**Findings — patterns getting clearer across the library:**
+
+The captured session has **at least three "handshake-family"
+messages** sharing the `cb d4 a1 8a 40 42 c7 ee a4 62 98 c7
+49 9b a8 26 ef 53 39 aa 29 70 e2 83 fc f3 4b 6f 8f 07 86 d6
+8b f3 ae 45` 36-byte trailer:
+
+- 0x40a R, 76 bytes (handshake_blob_76)
+- 0x1be R, 76 bytes (handshake_blob_76)
+- 0x65c R, 12706 bytes (Phase 4 WORLD DATA — newly-found)
+
+And the `58 61 78 14` 4-byte sub_id is shared by all three. So
+the trailer probably is a **server-side signature/MAC over the
+preceding ephemeral material**, computed once per message
+family and identical across messages because the captured
+session is deterministic in this region.
+
+**Files this iteration:**
+
+- `server/javelin/asset_count_table_ca4.py` (new)
+- `server/javelin/result_token_136a.py` (new)
+- `server/javelin/test_codecs.py` (14 new tests, 191 total)
+- `analysis/replay_message_inventory.md` (4 new sections:
+  0x0651, 0x065c, 0x0ca4, 0x136a)
+- `docs/post-v3-sequence.md` (Codec column added to phase table,
+  per-row codec module links)
+- This worklog entry
+
+**Library status: 17 dedicated codecs, 191 tests passing.**
+
+R-direction: 0x03 (V3 response), 0x14f, 0x15d ping, 0x16a0 small,
+0x18a6, 0x1b88, 0xa4, 0x40a + 0x1be (handshake-76), 0x663,
+0x8e6, 0x1067 (Vivox), 0xca4 (asset count table), 0x136a
+(result token).
+W-direction: 0x15d ack, 0x1a59, 0x5b2, 0x635.
+Plus AzCore-style: `LevelInfoChangedMsg`,
+`PlayerManagerSelfIdentificationMsg`, `V3RegistrationResponse`.
+
+**Next** (queue):
+
+1. Look at the 0x65c WORLD DATA blob more carefully — given the
+   shared signing trailer, can we identify the
+   "ephemeral content" boundaries inside the message even with
+   redactions? A length-distribution of the unredacted spans
+   might surface structural blocks.
+2. Survey the W-side singleton types (`0x09d3`, `0x09fc`,
+   `0x0a95`, `0x0f7f`, `0x101a`, etc.) for any with clean
+   structure. Most are likely reliability acks or per-action
+   notifications.
+3. The 0x1097 R 24-byte message is very small — could ship a
+   parallel `result_token_1097.py` with u32 BE result (vs
+   0x136a's u64 BE).
+
+**Blockers:** None.

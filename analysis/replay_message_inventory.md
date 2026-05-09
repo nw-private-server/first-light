@@ -534,6 +534,82 @@ can't pin this down further, so no codec yet. Logged here so
 future captures can be checked for the same offset-5/offset-450
 correspondence.
 
+## `0x0651` — 4-byte R type-header-only message (singleton)
+
+Single 4-byte capture (seq 0x7). The entire message **is** the
+4-byte typed envelope `[00 01 91 19]` (type 0x651, formula
+matches: `(0x651 & 0x3F) | 0x80 = 0x91`, `0x651 >> 6 = 0x19`).
+Zero-byte payload — purely a typed signal/notification with no
+attached data. Likely a "ping", "ready", or "phase advance"
+notifier where the meaning is entirely in the type-id.
+
+No codec needed; trivially built as `bytes([0x00, 0x01, 0x91, 0x19])`.
+
+## `0x065c` — ~12.7 KB R blob with handshake-trailer link (singleton, redacted)
+
+Single 12706-byte capture (seq 0x6, sent right after the V3
+RegistrationResponse and before the 0x40a/0x1be handshake pair).
+Heavily redacted (long `FF FF...` runs throughout).
+
+**Cross-codec finding**: at offset +28..+31 the body carries the
+`58 61 78 14` sub_id from `handshake_blob_76` (0x40a + 0x1be),
+and at offset +64..+99 it carries the **byte-identical 36-byte
+shared_trailer** that 0x40a + 0x1be also share
+(`cb d4 a1 8a 40 42 c7 ee a4 62 98 c7 49 9b a8 26
+ef 53 39 aa 29 70 e2 83 fc f3 4b 6f 8f 07 86 d6 8b f3 ae 45`).
+So 0x065c is from the **same family as the 0x40a/0x1be
+two-step handshake** — possibly a third handshake message
+carrying a much larger payload (cert chain, asset manifest,
+permission table) under the same signing trailer.
+
+The remainder of the body is interspersed runs of u32 BE values
+and `FF` (redacted) spans. The values that are visible look like
+small integers (0..6 range, occasional larger) suggesting a
+permission-table or feature-flag matrix.
+
+No codec yet — heavy redaction makes structural inference
+unreliable from one capture. Logged for future cross-checking.
+
+## `0x0ca4` — 102-byte R asset count table (singleton)
+
+Single 102-byte capture (seq 0x9). Body is a clean
+**count-prefixed table of 8-byte records**:
+
+```
++0x00  u8x4    type_header        [00 01 a4 32] = type 0xca4
++0x04  u8x16   identity_uuid      lower 8 = session_uuid_lower
++0x14  u8      record_count       0x0a (= 10)
++0x15  records×N                  per-record:
+                                     u8x4    hash_id   truncated hash
+                                     u32 BE  value     u32 BE quantity
++...   u8      trailer            constant 0x01 in capture
+```
+
+The 10 captured records have values 43, 6, 1, 226, 1304, 24, 16,
+1713, 6090, 23 — these read as quantities or counts (asset-pool
+sizes, inventory counts, or similar). The 4-byte hash_ids are
+likely 32-bit truncated hashes of asset / pool / item names.
+
+Codec: `server/javelin/asset_count_table_ca4.py`.
+
+## `0x136a` — 28-byte R result-token message (singleton)
+
+Single 28-byte capture (seq 0x26). Simple fixed shape:
+
+```
++0x00  u8x4    type_header        [00 01 aa 4d] = type 0x136a
++0x04  u8x16   identity_uuid      lower 8 = session_uuid_lower
++0x14  u64 BE  result             0x01 in capture
+```
+
+A small server response carrying a single u64 BE result code or
+sequence token. Structurally similar to the `u32 BE` trailing
+field in `0x1097` (paired with `0x1096`) — both are likely
+generic "small response with numeric result" messages from
+different sub-systems.
+
+Codec: `server/javelin/result_token_136a.py`.
+
 ## `0x1067` — 86-byte R Vivox voice-chat configuration (singleton)
 
 Single capture (seq 0x65). The body is a clean structure of three
