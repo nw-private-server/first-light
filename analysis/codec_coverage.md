@@ -21,7 +21,7 @@
 | `0x5b2` | W | 4 | 45 / 93 | [`identity_fingerprint_5b2.py`](../server/javelin/identity_fingerprint_5b2.py) | Identity fingerprint set; 3 of 4 captures byte-identical (reliable resends) |
 | `0x635` | W | 5 | 93–153 | [`action_history_635.py`](../server/javelin/action_history_635.py) | Action history queue; +15B per new message |
 | `0x651` | R | 1 | 4 | — | 4-byte type-header-only signal (no payload) |
-| `0x65c` | R | 1 | 12706 | — | Phase-4 WORLD DATA blob; 224-byte fixed-record skeleton documented in inventory |
+| `0x65c` | R | 1 | 12706 | [`world_data_blob_65c.py`](../server/javelin/world_data_blob_65c.py) | Phase-4 WORLD DATA blob; structural codec walks 224-byte-ish records as (data, ff_padding) |
 | `0x663` | R | 2 | 110 | [`level_descriptor_663.py`](../server/javelin/level_descriptor_663.py) | Level descriptor |
 | `0x66b` | W | 1 | 44 | [`subkey_beacon.py`](../server/javelin/subkey_beacon.py) (generic, trailer=0) | |
 | `0x8e6` | R | 1 | 42 | [`identity_blob_8e6.py`](../server/javelin/identity_blob_8e6.py) | Receipt-handshake half; paired with 0x9fc |
@@ -54,12 +54,11 @@
 ## Coverage summary
 
 - **Total distinct type-IDs in capture**: 40
-- **Codec'd**: 33 (20 dedicated + 13 via the generic `subkey_beacon` family)
-- **Documented but no codec**: 7
+- **Codec'd**: 34 (21 dedicated + 13 via the generic `subkey_beacon` family)
+- **Documented but no codec**: 6
   - `0x08` — entity-state TLV stream (would need handler-side static-RE for the inner format)
   - `0x13` — V3 RegistrationRequest (parser side; the V3 envelope handling lives in `v3_request.py` for the protocol-framing code path)
   - `0x651` — 4-byte type-header-only signal (no payload to codec)
-  - `0x65c` — 12.7 KB Phase-4 WORLD DATA blob (224-byte fixed-record skeleton documented; codec deferred pending semantic info)
   - `0x1033` — 498-byte Merkle-shape blob
   - `0x1096` — spawn-position floats (no codec; paired companion 0x1097 is codec'd)
   - `0x16a0` large variant (~99 KB, chunked-replay; reassembly handled by `wire.py`)

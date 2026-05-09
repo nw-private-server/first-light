@@ -2105,6 +2105,7 @@ from .subkey_beacon import (  # noqa: E402
     BASE_WIRE_SIZE as SUBKEY_BASE_WIRE_SIZE,
     make_type_header as subkey_make_type_header,
     decode_type_id as subkey_decode_type_id,
+    make_subkey_beacon,
 )
 
 
@@ -2202,6 +2203,49 @@ def test_subkey_make_type_header_rejects_low_types():
         subkey_make_type_header(0x3)
     with pytest.raises(ValueError, match="0x3F"):
         subkey_make_type_header(0x3F)
+
+
+def test_make_subkey_beacon_basic():
+    """Helper builds a fully-formed SubkeyBeacon from sub-system parts."""
+    msg = make_subkey_beacon(
+        type_id=0x1a59,
+        client_hash=b"\x01\x02\x03\x04",
+        session_uuid=b"\xaa" * 8 + b"\xbb" * 8,
+        subkey_upper_8=b"\xcc" * 8,
+        session_uuid_lower_8=b"\xbb" * 8,
+        trailer=b"\x07",
+    )
+    assert msg.type_id == 0x1a59
+    assert msg.subkey == b"\xcc" * 8 + b"\xbb" * 8
+    assert msg.trailer == b"\x07"
+    # Round-trip through wire encoding
+    encoded = encode_subkey(msg)
+    assert len(encoded) == 45
+    assert decode_subkey(encoded) == msg
+
+
+def test_make_subkey_beacon_validates_lower_match():
+    """The session_uuid_lower_8 must match session_uuid[8:]."""
+    with pytest.raises(ValueError, match="lower 8"):
+        make_subkey_beacon(
+            type_id=0x1a59,
+            client_hash=b"\x00" * 4,
+            session_uuid=b"\xaa" * 8 + b"\xbb" * 8,
+            subkey_upper_8=b"\xcc" * 8,
+            session_uuid_lower_8=b"\xdd" * 8,  # mismatch
+            trailer=b"\x00",
+        )
+
+
+def test_make_subkey_beacon_validates_field_sizes():
+    with pytest.raises(ValueError, match="subkey_upper_8"):
+        make_subkey_beacon(
+            type_id=0x1a59,
+            client_hash=b"\x00" * 4,
+            session_uuid=bytes(16),
+            subkey_upper_8=b"\x00" * 4,  # wrong size
+            session_uuid_lower_8=bytes(8),
+        )
 
 
 def test_subkey_all_replay_types_round_trip():
@@ -2560,6 +2604,109 @@ def test_9fc_subkey_upper_matches_8e6_identity_uuid_upper():
              if m.type_id == 0x9fc and m.direction == "W").body
     )
     assert msg_9fc.subkey[:8] == msg_8e6.identity_uuid[:8]
+
+
+# ---------------------------------------------------------------------------
+# WorldDataBlob 0x065c (R direction, structural codec)
+# ---------------------------------------------------------------------------
+
+from .world_data_blob_65c import (  # noqa: E402
+    WorldDataBlob65C,
+    WorldDataRecord,
+    encode as encode_65c,
+    decode as decode_65c,
+    RECORDS_OFFSET as WD_RECORDS_OFFSET,
+)
+from .handshake_blob_76 import (  # noqa: E402
+    DEFAULT_SHARED_TRAILER as HSB_DEFAULT_SHARED_TRAILER_FOR_65C,
+)
+
+
+def test_65c_round_trip_from_replay():
+    """Round-trip the captured 0x065c R singleton (12706 bytes)."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    candidates = [m for m in store.messages if m.type_id == 0x065c]
+    assert len(candidates) == 1
+    msg = decode_65c(candidates[0].body)
+    # 42 records walked from the captured message.
+    assert len(msg.records) == 42
+    # First record: 42 bytes data + 80 FF padding (the leading section).
+    assert len(msg.records[0].data) == 42
+    assert msg.records[0].ff_padding_size == 80
+    # Shared trailer must match handshake_blob_76's DEFAULT — load-bearing
+    # cross-codec invariant.
+    assert msg.shared_trailer == HSB_DEFAULT_SHARED_TRAILER_FOR_65C
+    assert encode_65c(msg) == candidates[0].body
+
+
+def test_65c_records_offset_is_93():
+    assert WD_RECORDS_OFFSET == 93
+
+
+def test_65c_decode_too_short_rejects():
+    with pytest.raises(ValueError, match="too short"):
+        decode_65c(b"\x00" * 50)
+
+
+def test_65c_decode_wrong_sub_id_rejects():
+    """Tamper with the sub_id field; codec should reject."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    body = bytearray(next(m for m in store.messages if m.type_id == 0x065c).body)
+    body[21:25] = b"\xde\xad\xbe\xef"  # corrupt sub_id
+    with pytest.raises(ValueError, match="sub_id mismatch"):
+        decode_65c(bytes(body))
+
+
+def test_65c_decode_wrong_shared_trailer_rejects():
+    """The shared_trailer must match the handshake-family constant
+    by default. Pass validate_shared_trailer=False to accept any."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    body = bytearray(next(m for m in store.messages if m.type_id == 0x065c).body)
+    body[57] ^= 0xFF  # flip a byte in the shared_trailer
+    with pytest.raises(ValueError, match="shared_trailer"):
+        decode_65c(bytes(body))
+    # With validation off, it should still decode
+    msg = decode_65c(bytes(body), validate_shared_trailer=False)
+    assert msg.shared_trailer != HSB_DEFAULT_SHARED_TRAILER_FOR_65C
+
+
+def test_65c_record_validates_no_ff_in_data():
+    with pytest.raises(ValueError, match="0xFF"):
+        WorldDataRecord(data=b"\x01\xff\x02", ff_padding_size=0)
+
+
+def test_65c_round_trip_synthetic():
+    """Round-trip a synthetic 0x65c with a few small records."""
+    msg = WorldDataBlob65C(
+        count=2,
+        redacted_id=b"\x00" * 16,
+        ephemeral_block=b"\xab" * 32,
+        records=(
+            WorldDataRecord(data=b"\x01\x02\x03", ff_padding_size=5),
+            WorldDataRecord(data=b"\x04\x05", ff_padding_size=3),
+        ),
+    )
+    encoded = encode_65c(msg)
+    decoded = decode_65c(encoded)
+    assert decoded == msg
 
 
 # ---------------------------------------------------------------------------

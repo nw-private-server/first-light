@@ -7704,3 +7704,124 @@ them via cross-replay tests using `ReplayStore`.
    cleaner import paths in callers.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-09 — wake 81: world_data_blob_65c codec + make_subkey_beacon helper + __init__.py polish
+
+**Did:**
+
+Three deliverables, all queued from wake 80. Test count: **237
+passing** (was 227 — 10 new tests).
+
+1. **`world_data_blob_65c.py`** — structural codec for the
+   12706-byte 0x65c R singleton (Phase 4 WORLD DATA). Cleanly
+   extracts the **93-byte fixed header** and walks the
+   variable-length records section as a tuple of
+   `WorldDataRecord(data: bytes, ff_padding_size: int)` pairs.
+   In the captured message: 42 records, mostly 224 bytes but
+   several deviating (240, 232, 216 bytes). Round-trips
+   byte-exact (12706 bytes in == 12706 bytes out).
+
+   **Cross-codec validation**: the codec asserts the `sub_id`
+   matches `handshake_blob_76.DEFAULT_SUB_ID` and (by default)
+   the `shared_trailer` matches `handshake_blob_76.DEFAULT_SHARED_TRAILER`
+   — confirming 0x65c is in the handshake/signing family along
+   with 0x40a + 0x1be. Pass `validate_shared_trailer=False`
+   to accept captures from sessions with a different signing
+   scheme (forward-compat for future captures).
+
+   Caught a wake-76 mistake along the way: the original
+   structural skeleton in the inventory had several offsets
+   off by a byte. The actual layout puts a u8 `count=5` at
+   offset +4, redacted_id at +5..+20, sub_id at +21..+24
+   (not +24..+27 as I'd written), ephemeral_block at +25..+56,
+   shared_trailer at +57..+92. Inventory updated and
+   `codec_coverage.md` flipped 0x65c from uncodec'd to
+   codec'd.
+
+2. **`make_subkey_beacon` helper added to `subkey_beacon.py`**.
+   Convenience for server-side replay code:
+
+   ```python
+   make_subkey_beacon(
+       type_id=0x1a59,
+       client_hash=...,
+       session_uuid=...,
+       subkey_upper_8=...,        # the per-sub-system identity
+       session_uuid_lower_8=...,  # = session_uuid[8:]
+       trailer=b"\x05",           # u8 counter for 0x1a59
+   )
+   ```
+
+   Returns a fully-formed `SubkeyBeacon` with the 16-byte
+   subkey field assembled from the upper+lower halves.
+   Validates that `session_uuid_lower_8 == session_uuid[8:]`
+   to catch the common mistake of supplying a mismatched
+   pair. Three new tests cover the happy path, the validation
+   check, and field-size validation.
+
+3. **`server/javelin/__init__.py` polished** to re-export the
+   most-used codec classes and helpers. New imports:
+   - 6 R-direction class names (SessionMessageA4, SessionClockBeacon,
+     HeartbeatPing15D, HeartbeatAck15D, SessionIdentityBeacon,
+     InitMessage18A6, ...)
+   - 6 W-direction class names (SessionSubkeyBeacon1A59,
+     IdentityFingerprintSet5B2, ActionHistory635, PermissionBitmapA95,
+     ReceiptHandshake9FC, KeybindingConfig12F6)
+   - The 14-type generic `SubkeyBeacon` + `KNOWN_FAMILY` +
+     `make_subkey_beacon`
+   - The two AzCore-style codecs (LevelInfoChangedMsg,
+     PlayerManagerSelfIdentificationMsg)
+
+   Total: **39 exports** — full coverage of the codec
+   library's public surface. Caller code can now do
+   `from server.javelin import SubkeyBeacon, make_subkey_beacon, ...`
+   instead of importing each module individually. All existing
+   imports continue to work (the per-module imports remain
+   valid).
+
+**Files this iteration:**
+
+- `server/javelin/world_data_blob_65c.py` (new)
+- `server/javelin/subkey_beacon.py` (+ make_subkey_beacon)
+- `server/javelin/__init__.py` (full re-export pass)
+- `server/javelin/test_codecs.py` (10 new tests)
+- `analysis/replay_message_inventory.md` (0x65c codec link)
+- `analysis/codec_coverage.md` (0x65c moved to codec'd)
+- This worklog entry
+
+**Library status: 22 dedicated codecs + 1 generic (14-type)
+codec; 237 tests passing. ~35 distinct type-IDs covered out
+of 40 in the capture (down from 6 to 5 uncovered).**
+
+The 5 remaining uncovered are:
+- `0x08` (entity-state TLV stream — needs handler-side static-RE)
+- `0x13` (V3 RegistrationRequest — parser-side already in `v3_request.py`)
+- `0x651` (4-byte type-header-only signal, no payload)
+- `0x1033` (Merkle-shape blob)
+- `0x1096` (spawn-position floats; companion 0x1097 is codec'd)
+- `0x16a0` large variant (chunked-replay)
+
+That's **arguably feature-complete for replay-fidelity work** —
+all the message types a server emulator needs to round-trip
+captured wire bytes correctly are covered. The remaining
+uncovered cases are either content streams (need handler-side
+RE), envelope-only signals (no payload), or large blobs
+that just need byte-identical re-emission (which the codec
+library doesn't help with anyway since you'd just store and
+re-emit raw bytes).
+
+**Next** (queue):
+
+1. Implement encoder-side higher-level helpers like
+   `make_subkey_beacon` for other codec families that benefit
+   (e.g. `make_init_message_18a6(counter, subkey_upper_8, ...)`).
+2. Look at the AzCore-style codecs (`LevelInfoChangedMsg`,
+   `PlayerManagerSelfIdentificationMsg`) for any
+   integration / wiring work that's been deferred.
+3. Survey what server-side code (`server/rep_responder.py`?)
+   currently exists and what gap remains between "codec library
+   shipped" and "server actually uses it for replay emission."
+
+**Blockers:** None.

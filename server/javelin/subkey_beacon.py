@@ -142,6 +142,54 @@ class SubkeyBeacon:
         return BASE_WIRE_SIZE + len(self.trailer)
 
 
+def make_subkey_beacon(
+    type_id: int,
+    client_hash: bytes,
+    session_uuid: bytes,
+    subkey_upper_8: bytes,
+    session_uuid_lower_8: bytes,
+    trailer: bytes = b"",
+) -> SubkeyBeacon:
+    """Build a `SubkeyBeacon` from the typical sub-system inputs.
+
+    Server-side replay code can call this with:
+      - `type_id` from the `KNOWN_FAMILY` map (or any [0x40, 0x3FFF] type)
+      - `client_hash`: 4-byte correlation hash for this message
+      - `session_uuid`: full 16-byte session UUID (echoed in envelope)
+      - `subkey_upper_8`: the per-sub-system 8-byte identity (see
+        `analysis/replay_message_inventory.md` cross-codec
+        identity-bundle map)
+      - `session_uuid_lower_8`: lower 8 of the session UUID; must
+        match `session_uuid[8:]` (the codec validates this)
+      - `trailer`: per-type opaque trailer (default empty)
+
+    The convenience is in concatenating the upper+lower into the full
+    16-byte subkey field that wire-level codec consumers expect."""
+    if len(subkey_upper_8) != 8:
+        raise ValueError(
+            f"subkey_upper_8 must be exactly 8 bytes; got {len(subkey_upper_8)}"
+        )
+    if len(session_uuid_lower_8) != 8:
+        raise ValueError(
+            f"session_uuid_lower_8 must be exactly 8 bytes; "
+            f"got {len(session_uuid_lower_8)}"
+        )
+    if len(session_uuid) == SESSION_UUID_SIZE \
+            and session_uuid[8:] != session_uuid_lower_8:
+        raise ValueError(
+            "session_uuid_lower_8 must match the lower 8 bytes of "
+            "session_uuid (the wire format embeds the same lower 8 in "
+            "both the envelope's session_uuid and the subkey)"
+        )
+    return SubkeyBeacon(
+        type_id=type_id,
+        client_hash=client_hash,
+        session_uuid=session_uuid,
+        subkey=subkey_upper_8 + session_uuid_lower_8,
+        trailer=trailer,
+    )
+
+
 def encode(msg: SubkeyBeacon) -> bytes:
     """Build the on-wire bytes for a generic subkey-beacon message."""
     remaining_len = msg.total_wire_size - 8

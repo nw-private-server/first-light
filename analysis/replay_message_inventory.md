@@ -643,12 +643,16 @@ sentinels. The variable per-record data sizes line up with the
 small integer values seen in the captured payload (`0x00000002`,
 `0x00000005`, etc. in 4-byte BE form).
 
-A codec for this would need to either accept arbitrary record
-data sizes or enforce the captured 224-byte slotting; both are
-viable but neither is actionable without semantic info on what
-each field represents. **Documented for future passes**; ship a
-codec only after a second 0x65c capture lets us validate the
-fixed-vs-variable record assumption.
+**Codec shipped wake 81**:
+`server/javelin/world_data_blob_65c.py` — structural codec that
+extracts the 93-byte fixed header and walks records as
+`(data: bytes, ff_padding_size: int)` pairs. Accepts arbitrary
+record sizes (the records section in the capture has 42 records
+totaling 12613 bytes, with most being 224 bytes but several
+deviating). Validates the `sub_id` and `shared_trailer` fields
+against the handshake-family constants for cross-codec
+consistency; pass `validate_shared_trailer=False` to accept
+captures from sessions with a different signing scheme.
 
 ## `0x0ca4` — 102-byte R asset count table (singleton)
 
