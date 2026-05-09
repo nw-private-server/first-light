@@ -87,9 +87,9 @@
 - ~~Server↔client counter pair docs in post-v3-sequence.md~~ —
   **shipped wake 78**.
 - ~~Integration status doc~~ — **shipped wake 82**.
-- **`docs/post-v3-sequence.md` updates** when new structural
-  findings surface (e.g. the 0x65c handshake-trailer link from
-  wake 75 isn't yet reflected in the post-v3 phase 4 row).
+- ~~`docs/post-v3-sequence.md` updates for new structural
+  findings (0x65c handshake-trailer link, Phase 16 codec link)~~
+  — **shipped wake 85**.
 
 ## Static-RE follow-ups (lower priority)
 

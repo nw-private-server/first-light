@@ -8218,3 +8218,128 @@ let the loop go quiet until a real-world signal triggers
 forward motion.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-09 — wake 86: loop wind-down
+
+**Honest assessment:**
+
+Read through `analysis/queued_work.md`. Every remaining item
+has the same shape: it depends on something I can't generate
+from inside the loop.
+
+| Item | Blocker |
+|---|---|
+| Real GPU testing path | Maintainer hardware decision |
+| Phase 9b SelfIdent integration | Captured Phase 9b OR static-RE |
+| 0x08 entity-state TLV stream | Static-RE on the dispatcher |
+| 0x1033 Merkle structure | Static-RE on the receive handler |
+| 0x1096 spawn-position floats | More captures from a different session |
+| 0x65c semantic interpretation | More captures or static-RE |
+| All multi-capture validation | New capture data |
+| Static-RE follow-ups (3 notes written) | Ghidra time on the binary |
+| Cert regeneration noise | Touching server startup behavior — risk/value unclear |
+
+The two candidate "small wins" that remain — the
+`0x9fc` state-block static-RE note and the cert-noise fix —
+both have diminishing returns: a third static-RE speculation
+document adds little when two already exist, and the cert
+fix needs careful auth_mock.py changes that aren't worth the
+failure risk for a cosmetic gain.
+
+**Decision: stop the loop.** The library is feature-complete
+for replay-fidelity work, the documentation is comprehensive,
+the integration story is clear, and the static-RE / capture
+work that would unlock further progress can't be done
+autonomously.
+
+## Where wakes 66-85 landed
+
+**Codec library** (`server/javelin/`):
+- 22 dedicated codecs covering most R-direction and W-direction
+  message types in the captured replay
+- 1 generic `subkey_beacon` codec covering 14 W-direction types
+  via `(type_id, trailer_size)` parameterization
+- 9 `make_*` factory helpers for high-frequency codec
+  construction
+- 1 structure-only `SessionState` dataclass scaffolding the
+  fields a future server-side path would need
+- 49 exports from the package `__init__.py`
+- 252 tests passing in `test_codecs.py`
+
+**Coverage**: ~35 of 40 captured type-IDs covered. The 5
+uncovered are content streams (0x08 entity stream, 0x16a0
+chunked variant) or envelope-only signals (0x651) where a
+codec wouldn't add value over raw bytes.
+
+**Documentation** (`analysis/` + `docs/`):
+- `replay_message_inventory.md` — byte-level reference for
+  every type-ID, with cross-codec identity-bundle map
+- `codec_coverage.md` — type → module table + library health
+  snapshot
+- `integration_status.md` — codec ↔ server gap survey + per-
+  codec "if integrated, would let the responder..." table
+- `queued_work.md` — themed todo list with shipped items
+  struck through
+- `static_re_handshake_signing.md` — investigation note on
+  the 36-byte trailer shared by 0x40a / 0x1be / 0x65c (two
+  hypotheses + Ghidra approach)
+- `static_re_1033_merkle.md` — investigation note on the
+  deduplicated content-hash pool hypothesis (9 of 10 trailing
+  4-byte chunks reappear at specific earlier offsets)
+- `docs/post-v3-sequence.md` — phase table now has a "Codec"
+  column linking each phase to its codec module + a
+  "Server↔client counter pairs" section documenting the
+  load-bearing R/W invariants
+
+**Cross-codec invariants** (validated by tests):
+- 0x18a6 ↔ 0x1a59 counter coupling (1→2→3→4 in capture)
+- 0x15d ping ↔ ack body wrap at +0x18
+- 0x8e6 ↔ 0x9fc 16-byte hash echo
+- 0x40a + 0x1be + 0x65c handshake-family signing trailer
+  byte-identity
+- Identity-bundle upper-8 sub-system identifier convention
+  (5 distinct sub-system IDs catalogued)
+
+**Build infrastructure** (from earlier wakes 45-70):
+- SSH-driven UTM + Parallels VM setup, SCP-pushed game
+  directory, Mac-side servers (auth_mock + rep_responder),
+  portproxy for VM↔host traffic
+- All working end-to-end except for the game itself, which
+  is rejected by both UTM and Parallels Desktop on Apple
+  Silicon (paravirtualized GPU returns
+  VendorId=DeviceId=0). Path forward: physical Windows host
+  or AWS Windows-Gaming GPU VM.
+
+## What unlocks the next phase
+
+When any of these inputs arrive, the loop has clear next
+steps:
+
+1. **A second 0x12f6 / 0x65c / 0x1033 capture from a different
+   session** → resolves the multi-capture validation queue.
+2. **Ghidra time on the binary** → resolves the two static-RE
+   investigation notes (handshake signing + 0x1033 hash pool)
+   and the Phase 9b SelfIdent size question.
+3. **Maintainer hardware decision (physical Windows / AWS)**
+   → unblocks live runtime testing; the codec library is
+   ready to be wired into the responder once a session can
+   actually establish.
+4. **Maintainer signal that the codec library should be
+   integrated into rep_responder** → triggers the work
+   sketched in `analysis/integration_status.md` and the
+   counter-bumping methods on `SessionState`.
+
+None of these are "next loop iteration" tasks; they all
+require external context.
+
+## Final state
+
+Branch `claude/vacation-2026-05-06` is at commit `797b0d2`
+plus this wake-86 entry. Test suite green. No uncommitted
+changes beyond the cert-regeneration noise that has been
+filtered out of every wake's commit. The branch is ready for
+review or merge whenever the maintainer chooses.
+
+**Blockers:** None — and no remaining autonomous work.
