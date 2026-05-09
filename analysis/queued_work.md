@@ -72,9 +72,8 @@
   structure-only sketch in `server/javelin/session_state.py`**.
   Still pending: methods on `SessionState` (`advance_18a6_counter`,
   `mint_session_clock`, etc.) — deferred until integration day.
-- **More factory helpers**: `make_handshake_blob_76(type_id,
-  blob, *, sub_id=DEFAULT, shared_trailer=DEFAULT)` would simplify
-  building 0x40a / 0x1be. Same shape as existing helpers.
+- ~~`make_handshake_blob_76`, `make_result_token_136a`,
+  `make_result_token_1097`~~ — **shipped wake 84**.
 
 ## Documentation polish
 
@@ -98,6 +97,11 @@
   carry the same 36-byte signing trailer (0x40a, 0x1be, 0x65c).
   Static-RE on the verifier would reveal the signing algorithm
   and let us compute fresh trailers for emulator emission.
+  **Investigation note**:
+  [`analysis/static_re_handshake_signing.md`](static_re_handshake_signing.md)
+  (wake 84) — formulates two hypotheses (session-derived constant
+  vs truncated MAC) and lists the Ghidra approach that would
+  distinguish them.
 - **0x1033 Merkle structure** — would benefit from static-RE on
   the receive handler to understand the chunk-aggregation rule.
 - **0x9fc receipt-handshake state block** — the 26-byte middle

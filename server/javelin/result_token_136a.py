@@ -57,6 +57,20 @@ class ResultToken136A:
             raise ValueError(f"result must fit in u64; got {self.result}")
 
 
+def make_result_token_136a(
+    identity_uuid: bytes,
+    result: int = 1,
+) -> ResultToken136A:
+    """Build a `ResultToken136A` (0x136a R) from the identity_uuid and
+    a u64 BE result code.
+
+    The captured value is `1` — likely a generic ack/success code.
+    Server-side replay code can override when emitting different
+    result outcomes.
+    """
+    return ResultToken136A(identity_uuid=identity_uuid, result=result)
+
+
 def encode(msg: ResultToken136A) -> bytes:
     """Build the on-wire 0x136a body (28 bytes total)."""
     return (

@@ -133,6 +133,35 @@ class HandshakeBlob76:
             )
 
 
+def make_handshake_blob_76(
+    type_id: int,
+    blob: bytes,
+    *,
+    sub_id: bytes = DEFAULT_SUB_ID,
+    shared_trailer: bytes = DEFAULT_SHARED_TRAILER,
+) -> HandshakeBlob76:
+    """Build a `HandshakeBlob76` for the given type-id (0x40a or 0x1be).
+
+    The 4-byte `sub_id` and 36-byte `shared_trailer` default to the
+    handshake-family constants observed across the captured 0x40a +
+    0x1be messages (see `analysis/replay_message_inventory.md`
+    "Cross-codec identity-bundle map"). Server-side replay code can
+    override either when targeting a different signing scheme — but
+    for the captured Amazon retail session the defaults are correct.
+
+    The 32-byte `blob` is the per-message ephemeral content; this
+    differs between 0x40a and 0x1be in the capture. Server-side
+    code typically generates fresh ephemeral material for each
+    handshake message of the pair.
+    """
+    return HandshakeBlob76(
+        type_id=type_id,
+        blob=blob,
+        sub_id=sub_id,
+        shared_trailer=shared_trailer,
+    )
+
+
 def encode(msg: HandshakeBlob76) -> bytes:
     """Build the on-wire 76-byte handshake body."""
     return (

@@ -8019,3 +8019,106 @@ ready):
    `mint_session_clock`) — deferred until integration day.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-09 — wake 84: 3 more factory helpers + handshake-signing static-RE note
+
+**Did:**
+
+Three more factory helpers (closing out the major-codec gaps)
+plus a long-form static-RE investigation note for the
+handshake-family signing trailer. Test count: **252 passing**
+(was 248 — 4 new tests).
+
+1. **`make_handshake_blob_76(type_id, blob, *, sub_id=DEFAULT,
+   shared_trailer=DEFAULT)`** in
+   `server/javelin/handshake_blob_76.py`. Defaults match the
+   captured handshake-family `sub_id = 58 61 78 14` and the
+   36-byte shared trailer. Caller can override either when
+   targeting a different signing scheme.
+
+2. **`make_result_token_136a(identity_uuid, result=1)`** and
+   **`make_result_token_1097(identity_uuid, result=2)`** —
+   defaults match captured values. The captured 0x136a result
+   is `1` (likely an ack/success); 0x1097 is `2` (companion
+   to 0x1096 spawn message).
+
+3. **`__init__.py`** updated — 49 total exports.
+
+4. **`analysis/static_re_handshake_signing.md`** (new
+   investigation note). The 36-byte shared_trailer in
+   `handshake_blob_76` (0x40a + 0x1be) is **byte-identical to
+   the trailer at offset +0x39 in 0x65c**, despite all three
+   messages carrying different ephemeral content. So the
+   trailer is **NOT** a per-message signature — it's
+   session-stable. Two hypotheses formulated:
+   - **H1**: a session-derived constant ("certificate") issued
+     once per session and echoed in every handshake-family
+     message. Emulator implication: a private server can pick
+     its own 36-byte constant and the client would accept it.
+   - **H2**: a truncated MAC over a fixed prefix
+     (session_uuid, build_version, sub_id, etc.). Emulator
+     implication: the server needs to replicate the MAC
+     algorithm + key derivation — significantly more work.
+
+   The note lays out the Ghidra approach to distinguish H1 vs
+   H2 (search for the trailer's first 4 bytes as a hardcoded
+   constant; trace from the type-0x40a dispatcher to the
+   verifier; look for either a memcmp against a fixed buffer
+   or a call to a hash/MAC routine). Linked from
+   `analysis/queued_work.md`'s static-RE follow-ups section
+   so it's discoverable when someone returns to RE work.
+
+**Files this iteration:**
+
+- `server/javelin/handshake_blob_76.py` (+ make_handshake_blob_76)
+- `server/javelin/result_token_136a.py` (+ make_result_token_136a)
+- `server/javelin/result_token_1097.py` (+ make_result_token_1097)
+- `server/javelin/__init__.py` (+ 3 new re-exports, 49 total)
+- `server/javelin/test_codecs.py` (4 new tests, 252 total)
+- `analysis/static_re_handshake_signing.md` (new)
+- `analysis/queued_work.md` (marked items shipped, added
+  pointer to static-RE note)
+- This worklog entry
+
+**Library status: 22 dedicated codecs + 1 generic (14-type)
+codec + 9 factory helpers + 1 SessionState sketch; 252 tests
+passing.**
+
+All major codecs now have a `make_*` factory:
+
+| Codec | Factory |
+|---|---|
+| `init_message_18a6` | `make_init_message_18a6` (wake 82) |
+| `heartbeat_15d` | `make_ack_for` (wake 82) |
+| `session_clock_beacon` | `make_session_clock_beacon` (wake 83) |
+| `session_identity_beacon` | `make_session_identity_beacon` (wake 83) |
+| `session_message_a4` | `make_session_message_a4` (wake 83) |
+| `subkey_beacon` (generic) | `make_subkey_beacon` (wake 81) |
+| `handshake_blob_76` | `make_handshake_blob_76` (wake 84) |
+| `result_token_136a` | `make_result_token_136a` (wake 84) |
+| `result_token_1097` | `make_result_token_1097` (wake 84) |
+
+The remaining major codecs without factories
+(`identity_blob_8e6`, `identity_fingerprint_5b2`,
+`asset_count_table_ca4`, `vivox_config_1067`, `level_descriptor_663`,
+`permission_bitmap_a95`, `receipt_handshake_9fc`,
+`keybinding_config_12f6`, `world_data_blob_65c`,
+`asset_blob_16a0`, `action_history_635`) are either rarely
+constructed by server-side code OR the dataclass already takes
+the natural input shape. Skipping them.
+
+**Next** (queue):
+
+The library is genuinely steady-state now. `queued_work.md` is
+the canonical "next" list; the most actionable items are:
+1. Maintainer decision on runtime path (physical / cloud
+   Windows host) — only thing gating live testing.
+2. Static-RE on the handshake signing trailer (per the new
+   investigation note) — would unblock multi-session emulation.
+3. Multi-capture comparison to validate single-capture
+   hypotheses (0x12f6 keybindings, 0x65c records, 0x1033
+   Merkle structure, identity-bundle uppers).
+
+**Blockers:** None.

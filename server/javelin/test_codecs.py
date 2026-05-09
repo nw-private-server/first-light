@@ -2815,6 +2815,63 @@ def test_make_session_message_a4_round_trip():
     assert decode_a4_helper(encoded) == msg
 
 
+from .handshake_blob_76 import (  # noqa: E402
+    make_handshake_blob_76,
+    DEFAULT_SUB_ID as HSB_FACTORY_DEFAULT_SUB_ID,
+    DEFAULT_SHARED_TRAILER as HSB_FACTORY_DEFAULT_TRAILER,
+)
+from .result_token_136a import make_result_token_136a  # noqa: E402
+from .result_token_1097 import make_result_token_1097  # noqa: E402
+
+
+def test_make_handshake_blob_76_defaults():
+    """Factory uses the captured handshake-family sub_id + trailer
+    by default — covers the canonical 0x40a / 0x1be construction."""
+    msg = make_handshake_blob_76(
+        type_id=0x40a,
+        blob=b"\x42" * 32,
+    )
+    assert msg.type_id == 0x40a
+    assert msg.sub_id == HSB_FACTORY_DEFAULT_SUB_ID
+    assert msg.shared_trailer == HSB_FACTORY_DEFAULT_TRAILER
+    assert msg.blob == b"\x42" * 32
+    # Round-trip through wire encoding
+    assert decode_hsb(encode_hsb(msg)) == msg
+
+
+def test_make_handshake_blob_76_overrides():
+    """Caller can override sub_id / trailer for non-handshake-family
+    captures (e.g. a different signing scheme in a future session)."""
+    custom_trailer = bytes(range(36))
+    msg = make_handshake_blob_76(
+        type_id=0x1be,
+        blob=b"\x99" * 32,
+        sub_id=b"\x00\x01\x02\x03",
+        shared_trailer=custom_trailer,
+    )
+    assert msg.type_id == 0x1be
+    assert msg.sub_id == b"\x00\x01\x02\x03"
+    assert msg.shared_trailer == custom_trailer
+
+
+def test_make_result_token_136a_default_result():
+    """Default result=1 matches the captured value."""
+    uuid = b"\xab" * 16
+    msg = make_result_token_136a(uuid)
+    assert msg.result == 1
+    assert msg.identity_uuid == uuid
+    assert decode_136a(encode_136a(msg)) == msg
+
+
+def test_make_result_token_1097_default_result():
+    """Default result=2 matches the captured value (companion to 0x1096)."""
+    uuid = b"\xcd" * 16
+    msg = make_result_token_1097(uuid)
+    assert msg.result == 2
+    assert msg.identity_uuid == uuid
+    assert decode_1097(encode_1097(msg)) == msg
+
+
 # ---------------------------------------------------------------------------
 # SessionState (sketch — runtime-not-consumed structure)
 # ---------------------------------------------------------------------------

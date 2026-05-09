@@ -48,9 +48,9 @@ from .identity_blob_8e6 import IdentityBlob8E6
 from .vivox_config_1067 import VivoxConfig1067
 from .asset_count_table_ca4 import AssetCountTableCA4, AssetCountRecord
 from .asset_blob_16a0 import AssetBlob16A0Small
-from .result_token_136a import ResultToken136A
-from .result_token_1097 import ResultToken1097
-from .handshake_blob_76 import HandshakeBlob76
+from .result_token_136a import ResultToken136A, make_result_token_136a
+from .result_token_1097 import ResultToken1097, make_result_token_1097
+from .handshake_blob_76 import HandshakeBlob76, make_handshake_blob_76
 from .world_data_blob_65c import WorldDataBlob65C, WorldDataRecord
 from .v3_response import V3RegistrationResponse
 
@@ -105,8 +105,11 @@ __all__ = [
     "AssetCountRecord",
     "AssetBlob16A0Small",
     "ResultToken136A",
+    "make_result_token_136a",
     "ResultToken1097",
+    "make_result_token_1097",
     "HandshakeBlob76",
+    "make_handshake_blob_76",
     "WorldDataBlob65C",
     "WorldDataRecord",
     "V3RegistrationResponse",

@@ -59,6 +59,20 @@ class ResultToken1097:
             raise ValueError(f"result must fit in u32; got {self.result}")
 
 
+def make_result_token_1097(
+    identity_uuid: bytes,
+    result: int = 2,
+) -> ResultToken1097:
+    """Build a `ResultToken1097` (0x1097 R) from the identity_uuid and
+    a u32 BE result.
+
+    The captured value is `2` — companion to a 0x1096 spawn message
+    (paired by shared identity_uuid). Server-side replay code mints
+    these alongside the corresponding 0x1096 emission.
+    """
+    return ResultToken1097(identity_uuid=identity_uuid, result=result)
+
+
 def encode(msg: ResultToken1097) -> bytes:
     """Build the on-wire 0x1097 body (24 bytes total)."""
     return (
