@@ -2715,6 +2715,22 @@ def test_65c_round_trip_synthetic():
 
 from .init_message_18a6 import make_init_message_18a6  # noqa: E402
 from .heartbeat_15d import make_ack_for  # noqa: E402
+from .session_clock_beacon import (  # noqa: E402
+    make_session_clock_beacon,
+    encode as encode_14f_helper,
+    decode as decode_14f_helper,
+)
+from .session_identity_beacon import (  # noqa: E402
+    make_session_identity_beacon,
+    encode as encode_1b88_helper,
+    decode as decode_1b88_helper,
+)
+from .session_message_a4 import (  # noqa: E402
+    make_session_message_a4,
+    encode as encode_a4_helper,
+    decode as decode_a4_helper,
+)
+from .session_state import SessionState  # noqa: E402
 from .init_message_18a6 import (  # noqa: E402
     DEFAULT_FLAGS as IM_DEFAULT_FLAGS,
     DEFAULT_BUILD_VERSION as IM_DEFAULT_BUILD_VERSION,
@@ -2769,6 +2785,71 @@ def test_make_ack_for_validates_client_hash():
     ping = HeartbeatPing15D(counter=1, nonce=2)
     with pytest.raises(ValueError, match="client_hash"):
         make_ack_for(ping, client_hash=b"\x00\x00\x00")  # 3 bytes
+
+
+def test_make_session_clock_beacon_round_trip():
+    msg = make_session_clock_beacon(
+        session_clock=0x0b888d68,
+        nonce=0x706c415b,
+    )
+    assert msg.session_clock == 0x0b888d68
+    assert msg.nonce == 0x706c415b
+    assert decode_14f_helper(encode_14f_helper(msg)) == msg
+
+
+def test_make_session_identity_beacon_round_trip():
+    uuid = bytes(range(16))
+    msg = make_session_identity_beacon(uuid)
+    assert msg.session_uuid == uuid
+    encoded = encode_1b88_helper(msg)
+    assert len(encoded) == 42
+    assert decode_1b88_helper(encoded) == msg
+
+
+def test_make_session_message_a4_round_trip():
+    uuid = bytes.fromhex("1a954abc4b3185bfbe37c3d8592618e0")
+    msg = make_session_message_a4(uuid)
+    assert msg.session_uuid == uuid
+    encoded = encode_a4_helper(msg)
+    assert len(encoded) == 20
+    assert decode_a4_helper(encoded) == msg
+
+
+# ---------------------------------------------------------------------------
+# SessionState (sketch — runtime-not-consumed structure)
+# ---------------------------------------------------------------------------
+
+def test_session_state_default_construction():
+    """Default ctor yields a usable empty state."""
+    s = SessionState()
+    assert s.session_uuid == b""
+    assert s.next_18a6_counter == 1
+    assert s.extra == {}
+
+
+def test_session_state_fresh_populates_session_uuid_and_nonce():
+    s = SessionState.fresh()
+    assert len(s.session_uuid) == 16
+    assert 0 < s.session_nonce <= 0xFFFFFFFF
+    # `extra` is per-instance (not shared across instances)
+    s.extra["foo"] = 1
+    assert SessionState.fresh().extra == {}
+
+
+def test_session_state_can_drive_make_init_message_18a6():
+    """Roundtrip: SessionState → make_init_message_18a6 → wire bytes."""
+    s = SessionState.fresh()
+    s.subkey_upper_8 = b"\xaa" * 8
+    s.metadata_block_second_id = b"\xbb" * 8
+    msg = make_init_message_18a6(
+        counter=s.next_18a6_counter,
+        first_uuid_half=s.subkey_upper_8,
+        session_uuid_lower=s.session_uuid[8:],
+        second_id=s.metadata_block_second_id,
+    )
+    assert msg.counter == 1
+    encoded = encode_18a6(msg)
+    assert decode_18a6_helper(encoded) == msg
 
 
 # ---------------------------------------------------------------------------

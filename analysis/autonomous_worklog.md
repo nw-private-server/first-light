@@ -7918,3 +7918,104 @@ codec; 242 tests passing. ~35 distinct type-IDs covered.**
 **Blockers:** None — this is a natural pausing point. The
 codec library is feature-complete for the captured replay,
 documented end-to-end, and the integration story is clear.
+
+---
+
+### 2026-05-09 — wake 83: 3 more factory helpers + SessionState sketch + queued_work.md
+
+**Did:**
+
+A polish iteration: more encoder helpers, the SessionState
+scaffolding (sketch only — methods deferred), and a consolidation
+of deferred items so they're not buried in the worklog. Test
+count: **248 passing** (was 242 — 6 new tests).
+
+1. **3 new factory helpers** for high-frequency codecs:
+   - `make_session_clock_beacon(session_clock, nonce)` for 0x14f
+   - `make_session_identity_beacon(session_uuid)` for 0x1b88
+   - `make_session_message_a4(session_uuid)` for 0xa4
+
+   Each is a thin wrapper around the existing dataclass that
+   carries a brief docstring linking the field to its
+   sub-system role (e.g. session_clock pairs with V3 mystery8;
+   0x1b88 is rebroadcast periodically with byte-identical
+   payload). Each round-trips through encode→decode.
+
+2. **`server/javelin/session_state.py`** (new, structure-only
+   sketch). A `SessionState` dataclass with the runtime fields
+   a future server-side path needs:
+   - core identity (session_uuid, persona_id, build_version)
+   - session_clock + session_nonce (from V3 RegistrationResponse)
+   - 5 sub-system identity bundles named after the
+     `analysis/replay_message_inventory.md` cross-codec map
+     (subkey_upper_8, metadata_block_second_id,
+     action_queue_second_id, fingerprint_reporter_second_id,
+     receipt_handshake_id_upper)
+   - per-family counters (next_18a6, next_635, next_15d_ping)
+   - 0x8e6↔0x9fc receipt blob
+   - vivox config strings
+   - extension `extra` dict
+   - `SessionState.fresh()` classmethod that randomizes
+     session_uuid + nonce
+
+   **Methods deliberately not added** — that's a layer of policy
+   that should be agreed with the maintainer before being
+   committed. Today's responder doesn't consume this; per
+   `analysis/integration_status.md` the codec library and
+   responder are intentionally decoupled. SessionState is the
+   contract for when integration day comes.
+
+3. **`analysis/queued_work.md`** (new). Consolidates "next
+   steps" / "deferred" items mentioned across wakes 66-83 in
+   the worklog, organized by theme:
+   - Runtime / VM (blocked on hardware)
+   - Codec library content-stream gaps
+   - Multi-capture validation opportunities
+   - Codec library small enhancements
+   - Documentation polish (mostly already done)
+   - Static-RE follow-ups
+   - Long-running maintenance
+
+   Items shipped during 66-83 are marked **shipped wake N**
+   inline so the doc shows what's done vs what's still queued.
+   Future wakes can pick from this list rather than re-reading
+   the whole worklog.
+
+4. **`server/javelin/__init__.py`** updated to re-export the 3
+   new factories + `SessionState`. Total exports: 46.
+
+**Files this iteration:**
+
+- `server/javelin/session_clock_beacon.py` (+ make_session_clock_beacon)
+- `server/javelin/session_identity_beacon.py` (+ make_session_identity_beacon)
+- `server/javelin/session_message_a4.py` (+ make_session_message_a4)
+- `server/javelin/session_state.py` (new — structure-only sketch)
+- `server/javelin/__init__.py` (+ 4 new re-exports)
+- `server/javelin/test_codecs.py` (6 new tests, 248 total)
+- `analysis/queued_work.md` (new)
+- This worklog entry
+
+**Library status: 22 dedicated codecs + 1 generic (14-type)
+codec + 6 factory helpers + 1 SessionState sketch; 248 tests
+passing.**
+
+**Six factory helpers in place** (all server-side emission
+ready):
+- `make_subkey_beacon(...)` (wake 81) — generic W subkey beacon
+- `make_init_message_18a6(...)` (wake 82) — R counter beacon
+- `make_ack_for(ping, ...)` (wake 82) — heartbeat ack mirror
+- `make_session_clock_beacon(...)` (wake 83)
+- `make_session_identity_beacon(...)` (wake 83)
+- `make_session_message_a4(...)` (wake 83)
+
+**Next** (queue, see `queued_work.md` for the full list):
+
+1. Maintainer decision on runtime path (physical / cloud Windows
+   host) — only thing gating live testing.
+2. Optional: more `make_*` factories for the remaining
+   high-frequency codecs (0x40a/0x1be `make_handshake_blob_76`,
+   0xa95 `make_permission_bitmap_a95`, etc.).
+3. Optional: methods on `SessionState` (`advance_18a6_counter`,
+   `mint_session_clock`) — deferred until integration day.
+
+**Blockers:** None.

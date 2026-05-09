@@ -54,6 +54,17 @@ class SessionIdentityBeacon:
             )
 
 
+def make_session_identity_beacon(session_uuid: bytes) -> SessionIdentityBeacon:
+    """Build a `SessionIdentityBeacon` (0x1b88) from the live session UUID.
+
+    Captures showed 23 byte-identical 42-byte messages — this beacon
+    is rebroadcast periodically with the same payload. Server-side
+    code emits a single instance and re-sends at the
+    captured cadence.
+    """
+    return SessionIdentityBeacon(session_uuid=session_uuid)
+
+
 def encode(msg: SessionIdentityBeacon) -> bytes:
     """Build the on-wire SessionIdentityBeacon body INCLUDING the
     4-byte typed envelope header.

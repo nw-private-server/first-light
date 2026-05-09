@@ -50,6 +50,17 @@ class SessionMessageA4:
             )
 
 
+def make_session_message_a4(session_uuid: bytes) -> SessionMessageA4:
+    """Build a `SessionMessageA4` (0xa4 small) from the live session UUID.
+
+    Phase-5 SESSION small per `docs/post-v3-sequence.md`. The body is
+    just the 16-byte session UUID; this helper exists for symmetry
+    with the other `make_*` factories so server-side code can build
+    all session-bringup messages from a single `session_uuid` value.
+    """
+    return SessionMessageA4(session_uuid=session_uuid)
+
+
 def encode(msg: SessionMessageA4) -> bytes:
     """Build the on-wire 0xa4 small body INCLUDING the type header.
 

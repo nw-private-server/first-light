@@ -55,6 +55,22 @@ class SessionClockBeacon:
             raise ValueError(f"nonce must fit in u32; got {self.nonce}")
 
 
+def make_session_clock_beacon(
+    session_clock: int,
+    nonce: int,
+) -> SessionClockBeacon:
+    """Build a `SessionClockBeacon` from session-state values.
+
+    Server-side replay code can call this to mint a fresh 0x14f with
+    the live session_clock + a per-message nonce (e.g. `os.urandom(4)`
+    folded to u32). The 4-byte session_clock is the same field
+    embedded in the V3 RegistrationResponse's `mystery8[0..4]` —
+    server-side code should keep both in sync (a single
+    `session_clock` u32 used by both emission paths).
+    """
+    return SessionClockBeacon(session_clock=session_clock, nonce=nonce)
+
+
 def encode(msg: SessionClockBeacon) -> bytes:
     """Build the on-wire 0x14f body INCLUDING the type header.
 

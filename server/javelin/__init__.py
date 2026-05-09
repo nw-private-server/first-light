@@ -35,10 +35,13 @@ from .subkey_beacon import (
 )
 
 # R-direction (server → client) message codecs
-from .session_message_a4 import SessionMessageA4
-from .session_clock_beacon import SessionClockBeacon
+from .session_message_a4 import SessionMessageA4, make_session_message_a4
+from .session_clock_beacon import SessionClockBeacon, make_session_clock_beacon
 from .heartbeat_15d import HeartbeatPing15D, HeartbeatAck15D, make_ack_for
-from .session_identity_beacon import SessionIdentityBeacon
+from .session_identity_beacon import (
+    SessionIdentityBeacon,
+    make_session_identity_beacon,
+)
 from .init_message_18a6 import InitMessage18A6, make_init_message_18a6
 from .level_descriptor_663 import LevelDescriptor663
 from .identity_blob_8e6 import IdentityBlob8E6
@@ -63,6 +66,9 @@ from .keybinding_config_12f6 import KeybindingConfig12F6
 from .level_info_changed import LevelInfoChangedMsg
 from .self_ident import PlayerManagerSelfIdentificationMsg
 
+# Session-state scaffolding (sketch — not consumed by runtime today)
+from .session_state import SessionState
+
 
 __all__ = [
     # Low-level wire framing
@@ -82,11 +88,14 @@ __all__ = [
     "make_subkey_beacon",
     # R-direction codecs
     "SessionMessageA4",
+    "make_session_message_a4",
     "SessionClockBeacon",
+    "make_session_clock_beacon",
     "HeartbeatPing15D",
     "HeartbeatAck15D",
     "make_ack_for",
     "SessionIdentityBeacon",
+    "make_session_identity_beacon",
     "InitMessage18A6",
     "make_init_message_18a6",
     "LevelDescriptor663",
@@ -111,4 +120,6 @@ __all__ = [
     # AzCore-style codecs
     "LevelInfoChangedMsg",
     "PlayerManagerSelfIdentificationMsg",
+    # Session-state scaffolding
+    "SessionState",
 ]
