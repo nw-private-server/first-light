@@ -782,6 +782,143 @@ def test_18a6_session_uuid_lower_matches_a4_lower_half():
 
 
 # ---------------------------------------------------------------------------
+# SessionClockBeacon (type 0x14f)
+# ---------------------------------------------------------------------------
+
+from .session_clock_beacon import (  # noqa: E402
+    SessionClockBeacon,
+    encode as encode_clock,
+    decode as decode_clock,
+    TYPED_BODY_SIZE as CLOCK_TYPED_BODY_SIZE,
+    TYPE_HEADER as CLOCK_TYPE_HEADER,
+)
+
+
+_CAPTURED_CLOCK = bytes.fromhex("00018f05" "0b888d68" "7b13001a")
+
+
+def test_clock_decode_captured_first_message():
+    msg = decode_clock(_CAPTURED_CLOCK)
+    assert msg.session_clock == 0x0b888d68
+    assert msg.nonce == 0x7b13001a
+
+
+def test_clock_round_trip():
+    msg = decode_clock(_CAPTURED_CLOCK)
+    assert encode_clock(msg) == _CAPTURED_CLOCK
+
+
+def test_clock_encode_size_12():
+    blob = encode_clock(SessionClockBeacon(session_clock=0, nonce=0))
+    assert len(blob) == CLOCK_TYPED_BODY_SIZE == 12
+    assert blob[:4] == CLOCK_TYPE_HEADER
+
+
+def test_clock_validates_u32_range():
+    with pytest.raises(ValueError, match="session_clock"):
+        SessionClockBeacon(session_clock=2**32, nonce=0)
+    with pytest.raises(ValueError, match="nonce"):
+        SessionClockBeacon(session_clock=0, nonce=2**32)
+
+
+def test_clock_decode_wrong_size_rejects():
+    with pytest.raises(ValueError, match="12 bytes"):
+        decode_clock(_CAPTURED_CLOCK + b"\x00")
+
+
+def test_clock_decode_wrong_type_header():
+    bad = b"\x00\x01\x99\x99" + _CAPTURED_CLOCK[4:]
+    with pytest.raises(ValueError, match="type header"):
+        decode_clock(bad)
+
+
+def test_clock_replay_session_clock_progression():
+    """The 4 captured copies of 0x14f should decode with session_clock
+    values [0x0b888d68, 0x0b888d68, 0x0b888d69, 0x0b888d69] — the value
+    transitions between seqs 0x27 and 0x3c. This confirms the wake-66
+    finding that 0x14f's payload bytes 0..3 are a slow-incrementing
+    per-session timer."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    msgs = sorted(
+        (m for m in store.messages if m.type_id == 0x14f),
+        key=lambda m: m.seq,
+    )
+    clocks = [decode_clock(m.body).session_clock for m in msgs]
+    assert clocks == [0x0b888d68, 0x0b888d68, 0x0b888d69, 0x0b888d69]
+
+
+def test_clock_replay_nonces_all_different():
+    """The 4 captured 0x14f nonces should all be distinct — each
+    message carries a fresh nonce."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    msgs = [m for m in store.messages if m.type_id == 0x14f]
+    nonces = [decode_clock(m.body).nonce for m in msgs]
+    assert len(set(nonces)) == len(nonces)
+
+
+# ---------------------------------------------------------------------------
+# mystery8 decomposition (V3 response field +0x07..+0x0e)
+# ---------------------------------------------------------------------------
+
+from .v3_response import (  # noqa: E402
+    DEFAULT_MYSTERY8,
+    DEFAULT_MYSTERY8_SESSION_CLOCK,
+    DEFAULT_MYSTERY8_NONCE,
+    make_mystery8,
+    parse_mystery8,
+)
+
+
+def test_mystery8_default_unchanged():
+    """Backward compat: the default 8-byte value must equal the
+    captured bytes that v3_response.py shipped with."""
+    assert DEFAULT_MYSTERY8.hex() == "0b888d68706c415b"
+
+
+def test_mystery8_make_then_parse_roundtrip():
+    blob = make_mystery8(0x0b888d68, 0x706c415b)
+    assert blob == DEFAULT_MYSTERY8
+    clock, nonce = parse_mystery8(blob)
+    assert clock == DEFAULT_MYSTERY8_SESSION_CLOCK == 0x0b888d68
+    assert nonce == DEFAULT_MYSTERY8_NONCE == 0x706c415b
+
+
+def test_mystery8_make_validates_u32():
+    with pytest.raises(ValueError, match="session_clock"):
+        make_mystery8(2**32, 0)
+    with pytest.raises(ValueError, match="nonce"):
+        make_mystery8(0, 2**32)
+
+
+def test_mystery8_parse_validates_length():
+    with pytest.raises(ValueError, match="8 bytes"):
+        parse_mystery8(b"\x00" * 7)
+
+
+def test_mystery8_session_clock_matches_clock_beacon():
+    """Cross-codec invariant: the V3 response's mystery8 session_clock
+    is the same value 0x14f's first capture carries. This is the
+    wake-66 finding made testable."""
+    from .session_clock_beacon import decode as decode_clock_local
+    captured_clock_msg = bytes.fromhex("00018f05" "0b888d68" "7b13001a")
+    clock_msg = decode_clock_local(captured_clock_msg)
+    mystery8_clock, _ = parse_mystery8(DEFAULT_MYSTERY8)
+    assert clock_msg.session_clock == mystery8_clock == 0x0b888d68
+
+
+# ---------------------------------------------------------------------------
 # v3_request — error paths (no capture file needed)
 # ---------------------------------------------------------------------------
 

@@ -6328,3 +6328,100 @@ next wake.
    payload; will exercise more of the wire-format conventions.
 
 **Blockers:** None new. Replay-mining vein remains productive.
+
+---
+
+### 2026-05-08 — wake 68: mystery8 refactor + 0x14f codec; cross-codec invariant test
+
+**Did:**
+
+1. **`server/javelin/v3_response.py`** — applied the wake-66 mystery8
+   finding. Replaced the hardcoded `DEFAULT_MYSTERY8` byte literal
+   with two named constants (`DEFAULT_MYSTERY8_SESSION_CLOCK = 0x0b888d68`,
+   `DEFAULT_MYSTERY8_NONCE = 0x706c415b`) plus helper functions
+   `make_mystery8(session_clock, nonce)` and `parse_mystery8(blob)`.
+   The default value is now derived from the constants, with a
+   module-level `assert` enforcing backward-compat byte identity.
+   No existing tests need changes; the old `mystery8: bytes` field
+   on the dataclass and its validator are unchanged.
+
+2. **`server/javelin/session_clock_beacon.py`** — codec for type
+   0x14f. 12 bytes total: `[type header (4)][session_clock u32 BE
+   (4)][nonce u32 BE (4)]`.
+
+3. **`server/javelin/test_codecs.py`** — 13 new tests:
+   - 7 for the 0x14f codec: decode the first captured message,
+     round-trip, encode size, validate u32 ranges, reject wrong
+     size, reject wrong type header, AND a `test_clock_replay_session_clock_progression`
+     test that loads all 4 captured copies and asserts the clock
+     values decode as `[0x0b888d68, 0x0b888d68, 0x0b888d69, 0x0b888d69]`,
+     `test_clock_replay_nonces_all_different` confirms the 4 nonces
+     are distinct.
+   - 4 for the mystery8 helpers: default-unchanged backward-compat
+     check, make/parse round-trip, u32 validation, length validation.
+   - 1 cross-codec invariant: `test_mystery8_session_clock_matches_clock_beacon`
+     decodes both the V3 response's `DEFAULT_MYSTERY8` and the
+     0x14f beacon's first captured copy, then asserts the
+     session_clock values are equal — this is the wake-66
+     observation made testable.
+
+**Test suite:** 153 → **166 passing in 1.55s**.
+
+**Why this matters:**
+
+Two clean wins this iteration:
+
+1. **The V3 response's `mystery8` is no longer "magic bytes".**
+   It's now `[u32 BE session_clock][u32 BE nonce]` with helper
+   functions. The captured value is preserved as the default, so
+   no behavior change, but a maintainer can now build a
+   custom V3 response with `make_mystery8(my_clock, my_nonce)` and
+   the meaning is documented inline.
+
+2. **Cross-codec invariant test.** Two independently-derived codecs
+   (V3 response + 0x14f beacon) both encode the same logical
+   "session clock" value. The test that asserts they match is
+   automatic regression protection: if either codec drifts in a
+   way that breaks the invariant, the test fails.
+
+**Library coverage now:**
+
+| Type | Codec | Notes |
+|---|---|---|
+| V3 RegistrationRequest (parser) | `v3_request.py` | already shipped, no changes |
+| V3 RegistrationResponse (encoder) | `v3_response.py` | mystery8 refactor this wake |
+| `0x14f` SessionClockBeacon | `session_clock_beacon.py` | new this wake |
+| `0xa4` SessionMessageA4 (small) | `session_message_a4.py` | wake 67 |
+| `0x18a6` InitMessage18A6 | `init_message_18a6.py` | wake 67 |
+| `0x1b88` SessionIdentityBeacon | `session_identity_beacon.py` | wake 66 |
+| `PlayerManagerSelfIdentificationMsg` | `self_ident.py` | wake 62 |
+| `LevelInfoChangedMsg` | `level_info_changed.py` | wake 61 |
+
+**6 dedicated codecs** plus the V3 request parser + response encoder.
+
+**Files this iteration:**
+
+- `server/javelin/v3_response.py` (mystery8 refactor)
+- `server/javelin/session_clock_beacon.py` (new codec)
+- `server/javelin/test_codecs.py` (13 new tests)
+- This worklog entry
+
+**Commit:** Following.
+
+**Next** (continuing the loop):
+
+1. **Multi-size variant for type 0x15d** — 20 captures, sizes 12 and
+   36, RW direction. Different sizes likely mean two distinct
+   wire shapes; see if I can characterize each.
+2. **Codec for type 0x663** — 2 captures, 110 bytes fixed. Larger
+   payload exercises more layout patterns.
+3. **Codec for type 0x18 / 0x40a / 0x1be** — singletons in the
+   replay (one capture each). Less variant-analysis power but
+   useful as documented wire-shape entries.
+4. **Cross-link the wire-format reference doc** to the new codecs
+   alongside the existing `clientmessagestrait_wire_formats.md`
+   pointer. Maybe rename to a more generic
+   `wire_format_reference.md` since 4 of the 6 codecs aren't
+   ClientMessagesTrait.
+
+**Blockers:** None new.
