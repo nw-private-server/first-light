@@ -34,35 +34,90 @@ Cross-validation against the baseline `info/nw-login-safe-20260502-153840/` capt
 
 ## How to capture
 
-### Option A — The `cap` tool (if you have it)
+Pick the path that matches what you have:
 
-The `info/nw-login-safe-20260502-153840/` capture was made with a local `cap` tool that produces a per-message binary dump. If you have access to a capture tool that produces per-message files keyed by sequence number, use it and export with:
+| You have... | Use this |
+|---|---|
+| A non-EAC New World binary you can launch | **Recommended:** Frida + this project's capture stack — produces decrypted Javelin messages directly. See "A: Frida capture (recommended)" below. |
+| The live Steam build only | Frida won't attach (EAC). You can still capture pcap-level traffic + your game log. See "B: pcap + game log". |
+| Just the game log | Submit it on its own. See "C: game log only". |
 
+### A — Frida capture (recommended)
+
+This is the primary path the project uses, and it's the source of
+`info/nw-login-safe-20260502-153840/`. It produces **decrypted
+Javelin packets** in a structured `capture/<timestamp>/` directory.
+
+**Quick command (assumes you've set up the stack once):**
+
+```powershell
+# Three terminals from the repo root with the venv activated:
+
+# Terminal A — auth mock (admin PowerShell, binds 443)
+python -m server.auth_mock --port 443
+
+# Terminal B — DTLS REP server
+python -m server.rep_responder
+
+# Terminal C — the game itself, spawned under Frida
+python tools\client-hooks\frida_capture.py `
+    --exe "C:\path\to\NewWorld\Bin64\NewWorld.exe" `
+    --name session_descriptor
 ```
-cap list                              # verify sequence range
-cap export --range 0x0-0x<max> --redact
-```
 
-### Option B — Wireshark / pcapng
+**The full walkthrough** — venv setup, cert generation,
+`certutil -addstore` for the CA, `setup_hosts.py`, what `success`
+looks like, and common gotchas — is in
+[../tools/client-hooks/README.md](../tools/client-hooks/README.md).
+Read that the first time you set this up; come back here when you
+have a `capture/<timestamp>/` directory and want to know what to
+redact before sharing.
 
-If you can capture at the UDP level before DTLS decryption, a `pcapng` file is useful even if the payload is encrypted. We can extract:
-- DTLS handshake details (cipher, certificate, timing)
-- Packet sizes and timing for each epoch-1 burst (lets us identify message boundaries)
-- Correlation with game log timestamps
+When the session ends:
 
-Capture filter: `udp and host <game-server-ip>`. The game server IP appears in your game log around `StartREPConnection`.
+- `capture/<timestamp>_<name>/packets/` has one `.bin` file per packet
+- `packets.jsonl` has one JSON object per packet (direction, type,
+  size, hookName, hexHead, filename)
+- `session.log` is the human-readable event timeline
+- `hooks.log` shows which Frida hooks installed (success / not_found
+  / error)
 
-Save as `.pcapng` (not `.pcap`). Compress with gzip before submitting if large.
+The `messages-redacted.txt` format the project uses for
+community-shared captures is built from this directory — see
+"Submission format" below.
 
-### Option C — Game log only
+### B — pcap + game log (for live-EAC builds)
 
-Even if you cannot capture network traffic, your game log (`Game.log` in the New World installation) contains:
-- The exact server IP and port used each session
-- Timestamps for every state transition (StartREPConnection, WaitingForREPConnection, WaitingForActorGameConnection, etc.)
-- The server version string
+If your only access is the live Steam build, Frida runtime
+instrumentation won't attach. You can still produce useful
+captures:
+
+- **`pcapng`** at the UDP level. Even though the payload is
+  encrypted, we extract from it: DTLS handshake details (cipher,
+  certificate, timing), packet sizes and timing for each
+  epoch-1 burst (this lets us identify message boundaries), and
+  correlation with game-log timestamps.
+  - Capture filter: `udp and host <game-server-ip>`
+  - The game server IP appears in your `Game.log` around
+    `StartREPConnection`
+  - Save as `.pcapng` (not `.pcap`); gzip if large.
+- **Game log** (see C below) alongside the pcap so the timeline
+  can be aligned.
+
+### C — Game log only
+
+Even if you cannot capture network traffic at all, your game log
+(`Game.log` in the New World installation) is useful on its own:
+
+- Exact server IP and port for the session
+- Timestamps for every state transition
+  (`StartREPConnection`, `WaitingForREPConnection`,
+  `WaitingForActorGameConnection`, …)
+- Server version string
 - Error messages and disconnect reasons
 
-A game log from a successful world-load session is useful on its own.
+A `Game.log` from a session that successfully reached an
+in-world state is informative even without any network capture.
 
 ---
 
