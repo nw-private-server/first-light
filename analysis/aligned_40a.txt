@@ -1,0 +1,23 @@
+# searching for 0x40a in DATA sections at 4-byte alignment
+
+found 17 aligned hits
+
+  148e8a264  block=.rdata  ctx=(ctx fail)
+  148ef6624  block=.rdata  ctx=(ctx fail)
+  148f04d04  block=.rdata  ctx=(ctx fail)
+  1493d27ec  block=.rdata  ctx=(ctx fail)
+  1493d47fc  block=.rdata  ctx=(ctx fail)
+  14955def0  block=.rdata  ctx=(ctx fail)
+  14955fc78  block=.rdata  ctx=(ctx fail)
+  149560d5c  block=.rdata  ctx=(ctx fail)
+  149561d90  block=.rdata  ctx=(ctx fail)
+  14958b780  block=.rdata  ctx=(ctx fail)
+  14958b784  block=.rdata  ctx=(ctx fail)
+  14958bc00  block=.rdata  ctx=(ctx fail)
+  1495c30f0  block=.rdata  ctx=(ctx fail)
+  1495ebdc8  block=.rdata  ctx=(ctx fail)
+  149a51940  block=.rdata  ctx=(ctx fail)
+  149ae8e30  block=.rdata  ctx=(ctx fail)
+  149f42f28  block=.data  ctx=(ctx fail)
+
+# end

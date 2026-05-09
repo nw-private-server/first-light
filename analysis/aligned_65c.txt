@@ -1,0 +1,13 @@
+# searching for 0x65c in DATA sections at 4-byte alignment
+
+found 7 aligned hits
+
+  148d23dc8  block=.rdata  ctx=(ctx fail)
+  1495eb808  block=.rdata  ctx=(ctx fail)
+  149833338  block=.rdata  ctx=(ctx fail)
+  14996a99c  block=.rdata  ctx=(ctx fail)
+  1499d5b1c  block=.rdata  ctx=(ctx fail)
+  149be2e7c  block=.rdata  ctx=(ctx fail)
+  149ca68fc  block=.rdata  ctx=(ctx fail)
+
+# end

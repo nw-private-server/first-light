@@ -8474,3 +8474,135 @@ runtime work.
 
 **Blockers:** None — there's still tractable static-RE work,
 just lower-yield than runtime hooks would be.
+
+---
+
+### 2026-05-09 — wake 87: dispatcher is table-based; found type-id catalog tables in .data + .rdata
+
+**Did:**
+
+Pursued the handshake-family dispatcher question further. Three
+new Ghidra scripts and several concrete structural findings.
+
+1. **Confirmed dispatcher is NOT switch-statement-based.**
+
+   New script: `tools/ghidra_scripts/FindConstantIntersection.py`.
+   Searches for multiple 32-bit constants in parallel and reports
+   which functions reference all of them. With a hit cap of 1000
+   per constant (vs the existing FindConstant.py's 50):
+   - 0x40a: 149 total hits, 79 unique enclosing functions
+   - 0x1be: 1000 hits (capped), 977 unique functions
+   - 0x65c: 65 total hits, 35 unique functions
+   - **Intersection: 0 functions**
+
+   So no function references all three handshake-family type-ids
+   as 32-bit immediates. Combined with the wake-86 finding that
+   the typed envelope u32 forms (`00018a10`, `0001be06`, `00019c19`)
+   have 0 hits anywhere in the binary, this confirms the dispatch
+   uses a **runtime-computed lookup** (vtable / function-pointer
+   table / hash) rather than a switch statement.
+
+2. **Found a `.rdata` u32 list of registered type-IDs near
+   `0x14955fxxx`.** New script:
+   `tools/ghidra_scripts/FindAlignedDataConstant.py` (4-byte and
+   8-byte aligned scans of `.data`/`.rdata` blocks). Confirmed that
+   captured type-IDs 0x40a, 0x1be, 0x65c, 0x18a6, 0x1b88 all have
+   hits in this region.
+
+   The list is **flat u32-per-entry** (no pairing). Looks like a
+   registry of all valid type-IDs — about 200+ entries in
+   seemingly arbitrary order. Used for validation
+   ("is this type-id known?") or as keys into a parallel array.
+
+3. **Found a paired `.data` table near `0x149f4xxxx`.** Each
+   entry is **8 bytes**: `(type_id: u32, related_value: u32)`.
+   Type-IDs are **dense within sub-ranges** (e.g. consecutive
+   entries 0x18a3, 0x18a4, 0x18a5, 0x18a6, 0x18a7, 0x18a8) but
+   the table has gaps (0x18a8 → 0x18aa skips 0x18a9).
+
+   The "related_value" is mostly **0xffffffff** for our captured
+   types (all single-direction R messages), but for some
+   sub-ranges it's another type-id with a consistent offset:
+   - 0x40a → 0x45a (offset +0x50)
+   - 0x40b → 0x45b
+   - 0x40c → 0x45c
+   - ... pattern continues
+   - Then 0x410 → 0x430 (different offset, +0x20)
+
+   So sub-ranges have **per-segment type-id pairings** with
+   varying offsets. The semantic meaning isn't yet clear:
+   - NOT R/W message pairs (0x18a6 ↔ 0x1a59 known counter pair
+     would map 0x18a6 → 0x1a59, but 0x18a6 → 0xffffffff in the
+     table)
+   - Could be an alias / version-migration map, a serializer
+     counterpart, or an AZ Bus topic ID
+
+   This table doesn't include 0x65c — the 0x65c hits are all in
+   `.rdata`, not `.data`. So `.data` covers a sub-set of types.
+
+4. **Tooling added:**
+   - `FindConstantIntersection.py` — multi-constant intersection
+     scan with configurable hit cap
+   - `FindAlignedDataConstant.py` — alignment-filtered data-block
+     scan
+   - `FindMemcmpCalls.py` — find `MOV R8, <size>; CALL` patterns
+     (66 hits for size=36, too noisy without further filtering)
+
+**Files this iteration:**
+
+- `tools/ghidra_scripts/FindConstantIntersection.py` (new)
+- `tools/ghidra_scripts/FindAlignedDataConstant.py` (new)
+- `tools/ghidra_scripts/FindMemcmpCalls.py` (new)
+- `analysis/find_dispatcher_intersection.txt` — empty intersection
+- `analysis/typeid_table_0x14955fc78.txt` — `.rdata` u32 list
+- `analysis/aligned_40a.txt`, `aligned_1be.txt`, `aligned_65c.txt`
+  — alignment-filtered hits
+- `analysis/find_memcmp_36.txt` — 66 candidate memcmp sites
+- This worklog entry
+
+**Status of static-RE on the handshake family:**
+
+The dispatcher question is now **conclusively answered**: the
+binary uses a registered-type catalog plus a runtime lookup
+mechanism. The two tables found (`.rdata` flat list around
+`0x14955fxxx`, `.data` paired table around `0x149f4xxxx`) are
+parts of that mechanism but neither IS the dispatcher itself
+— they're metadata structures the dispatcher consults.
+
+Finding the dispatcher requires either:
+- Locating the function that READS from these tables (xref scan
+  on the table base addresses)
+- Or locating a known handler (like FUN_146454c00 for SelfIdent)
+  and tracing back through its callers
+
+The latter dead-ends at the MSVC virtual-base thunk and a
+single DATA xref (the earlier dispatch-table-like region at
+`0x14abcc15c`). That table is the AZ-style typed registry from
+wake 6 — not directly indexed by wire type-id.
+
+**Honest assessment**: further static-RE on the dispatcher is
+high-effort and possibly a dead end without runtime tracing.
+The findings so far are useful **structural context** but
+don't unblock the original questions (trailer signing scheme,
+1033 chunk semantics).
+
+**Still tractable autonomously:**
+
+- Find xrefs to addresses inside the `.data` paired table at
+  `0x149f4xxxx` — the dispatcher must read from this region
+- Decompile suspected dispatcher functions surfaced via xref
+- Look at 0x9fc state-block — the third deferred RE note from
+  wake 84
+
+**Next** (queued for next loop iteration):
+
+1. Find xrefs to a few addresses inside the `.data` table at
+   `0x149f4xxxx`. The dispatcher MUST read from this region;
+   if Ghidra's auto-analysis caught any of those reads, the
+   dispatcher's address shows up.
+2. If (1) yields a candidate, decompile it and verify it's the
+   message dispatcher.
+
+**Blockers:** None autonomously, but every thread has lower
+marginal value than the runtime-trace path (which needs real
+GPU hardware).

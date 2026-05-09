@@ -1,0 +1,10 @@
+# searching for intersection of: 0x40a, 0x1be, 0x65c
+# (per-constant hit cap: 1000)
+
+# 0x40a: 149 total hits, 79 unique enclosing funcs
+# 0x1be: 1000 total hits, 977 unique enclosing funcs
+# 0x65c: 65 total hits, 35 unique enclosing funcs
+
+## intersection: 0 functions reference ALL 3 constants
+
+# end

@@ -1,0 +1,71 @@
+# scanning for `MOV R8/R8D, 36` followed within 24 bytes by a CALL
+
+## hit 1: MOV at 14074ce7a in FUN_14074c040 -> CALL 0x14046ca30 at 14074ce8a
+## hit 2: MOV at 140759fab in FUN_140759cf0 -> CALL 0x14067db40 at 140759fbd
+## hit 3: MOV at 14075a04e in FUN_140759cf0 -> CALL 0x14067d7e0 at 14075a060
+## hit 4: MOV at 140d0ff2e in FUN_140d0fbf0 -> CALL 0x14046c760 at 140d0ff43
+## hit 5: MOV at 140d175c6 in FUN_140d170a0 -> CALL 0x14046c760 at 140d175db
+## hit 6: MOV at 140d1dcea in FUN_140d1d880 -> CALL 0x14046c760 at 140d1dcff
+## hit 7: MOV at 140d23d5f in FUN_140d237b0 -> CALL 0x14046cc60 at 140d23d6f
+## hit 8: MOV at 140d2f93c in FUN_140d2f480 -> CALL 0x14046c760 at 140d2f94c
+## hit 9: MOV at 140d32c04 in FUN_140d329a0 -> CALL 0x14046c760 at 140d32c19
+## hit 10: MOV at 140d3d7b9 in FUN_140d3d500 -> CALL 0x14046c760 at 140d3d7ce
+## hit 11: MOV at 140ef38f3 in FUN_140ef3640 -> CALL 0x14046c760 at 140ef3903
+## hit 12: MOV at 140ef7219 in FUN_140ef6f00 -> CALL 0x14046c760 at 140ef7229
+## hit 13: MOV at 141003f98 in FUN_141003d40 -> CALL 0x147aad055 at 141003fac
+## hit 14: MOV at 14145fb0c in FUN_14145f910 -> CALL 0x14143b250 at 14145fb16
+## hit 15: MOV at 141512ac6 in FUN_141512a20 -> CALL qword ptr [RAX + 0x10] at 141512acf
+## hit 16: MOV at 141678a0c in FUN_141678940 -> CALL 0x147aad055 at 141678a20
+## hit 17: MOV at 1416b836c in FUN_1416b7a90 -> CALL 0x1402b8100 at 1416b837e
+## hit 18: MOV at 14176a585 in FUN_141769ef0 -> CALL 0x14046d160 at 14176a597
+## hit 19: MOV at 1426abea9 in FUN_1426aba50 -> CALL 0x14046c760 at 1426abebe
+## hit 20: MOV at 142de2ac7 in FUN_142de26d0 -> CALL 0x14046c940 at 142de2adc
+## hit 21: MOV at 1436e0535 in FUN_1436dfb00 -> CALL 0x1436b4780 at 1436e0548
+## hit 22: MOV at 1438b409d in FUN_1438b3910 -> CALL 0x1438912d0 at 1438b40af
+## hit 23: MOV at 1439a09a3 in FUN_1439a06f0 -> CALL 0x14046c760 at 1439a09b8
+## hit 24: MOV at 1439a287e in FUN_1439a2620 -> CALL 0x14046c760 at 1439a2893
+## hit 25: MOV at 143aa5fe6 in FUN_143aa5390 -> CALL 0x14371ee50 at 143aa5ffe
+## hit 26: MOV at 143aa8835 in FUN_143aa8060 -> CALL 0x14046c940 at 143aa8845
+## hit 27: MOV at 143f90c67 in FUN_143f905f0 -> CALL 0x143f83ed0 at 143f90c77
+## hit 28: MOV at 143f9149b in FUN_143f90e20 -> CALL 0x143f84110 at 143f914ab
+## hit 29: MOV at 14413547c in FUN_1441351e0 -> CALL 0x14046c760 at 144135491
+## hit 30: MOV at 14416b283 in FUN_14416afd0 -> CALL 0x14046c760 at 14416b298
+## hit 31: MOV at 1441fa881 in FUN_1441fa340 -> CALL 0x147aad055 at 1441fa895
+## hit 32: MOV at 1445bf9e9 in FUN_1445bd7b0 -> CALL 0x1402b8100 at 1445bf9fd
+## hit 33: MOV at 14465a87c in FUN_14465a630 -> CALL 0x14371ee50 at 14465a891
+## hit 34: MOV at 145c9c230 in FUN_145c9bfe0 -> CALL 0x14046c940 at 145c9c245
+## hit 35: MOV at 145cab843 in FUN_145cab250 -> CALL 0x145b5c1a0 at 145cab853
+## hit 36: MOV at 145cabe92 in FUN_145cab250 -> CALL 0x145b5c3e0 at 145cabea2
+## hit 37: MOV at 145cae52b in FUN_145cad110 -> CALL 0x14046c760 at 145cae53b
+## hit 38: MOV at 145cb25a1 in FUN_145cb2310 -> CALL 0x14046c760 at 145cb25b6
+## hit 39: MOV at 145cb4b1b in FUN_145cb4770 -> CALL 0x145b5afa0 at 145cb4b24
+## hit 40: MOV at 145cb81d6 in FUN_145cb7f20 -> CALL 0x14046c760 at 145cb81e6
+## hit 41: MOV at 145cb888f in FUN_145cb8660 -> CALL 0x14046c760 at 145cb88a4
+## hit 42: MOV at 145cc00d4 in FUN_145cbfea0 -> CALL 0x14046d160 at 145cc00e9
+## hit 43: MOV at 145e0cac2 in FUN_145e0c9e0 -> CALL 0x1472030e0 at 145e0cad6
+## hit 44: MOV at 145f93d29 in FUN_145f93cb0 -> CALL 0x145e70910 at 145f93d32
+## hit 45: MOV at 14600a9f4 in FUN_14600a790 -> CALL 0x14602af10 at 14600a9fd
+## hit 46: MOV at 14631be1f in FUN_14631bc60 -> CALL 0x14143b250 at 14631be29
+## hit 47: MOV at 1464cc80a in FUN_1464cbfb0 -> CALL 0x146502e00 at 1464cc815
+## hit 48: MOV at 1468de2b0 in FUN_1468ddda0 -> CALL 0x146662690 at 1468de2c8
+## hit 49: MOV at 1468ea800 in FUN_1468ea5b0 -> CALL 0x14046c760 at 1468ea815
+## hit 50: MOV at 1468f1c6d in FUN_1468f1980 -> CALL 0x14371ee50 at 1468f1c7d
+## hit 51: MOV at 14691db8e in FUN_14691d090 -> CALL 0x1407940b0 at 14691dba0
+## hit 52: MOV at 14691df97 in FUN_14691d090 -> CALL 0x1407940b0 at 14691dfa9
+## hit 53: MOV at 146aec756 in FUN_146aec630 -> CALL 0x1402c43b0 at 146aec768
+## hit 54: MOV at 146b00f49 in FUN_146b00a80 -> CALL 0x1402c43b0 at 146b00f5b
+## hit 55: MOV at 146cf6d2a in FUN_146cf6c10 -> CALL 0x14078e9f0 at 146cf6d41
+## hit 56: MOV at 146d4d1b9 in FUN_146d4d0d0 -> CALL 0x14143b250 at 146d4d1c6
+## hit 57: MOV at 14703f0a5 in FUN_14703ef30 -> CALL qword ptr [RAX + 0x10] at 14703f0ae
+## hit 58: MOV at 147213a1a in FUN_147213960 -> CALL 0x1472030e0 at 147213a34
+## hit 59: MOV at 1472d4739 in FUN_1472d46a0 -> CALL 0x1472d3e90 at 1472d473f
+## hit 60: MOV at 1475e21d7 in FUN_1475e1950 -> CALL 0x1402c43b0 at 1475e21e8
+## hit 61: MOV at 14768ac21 in FUN_14768aa60 -> CALL qword ptr [0x147ec99f8] at 14768ac3d
+## hit 62: MOV at 147778dbf in FUN_147778c30 -> CALL 0x147aad055 at 147778dcb
+## hit 63: MOV at 1477d7e15 in FUN_1477d7d80 -> CALL 0x147780cd0 at 1477d7e25
+## hit 64: MOV at 1477d9479 in FUN_1477d9450 -> CALL 0x147780cd0 at 1477d9489
+## hit 65: MOV at 1478ea8e1 in FUN_1478ea850 -> CALL qword ptr [0x147eca328] at 1478ea8f4
+## hit 66: MOV at 14792c5f4 in FUN_14792c560 -> CALL 0x147910b40 at 14792c601
+
+# total hits: 66
+# end
