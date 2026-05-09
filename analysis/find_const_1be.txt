@@ -1,0 +1,154 @@
+# searching for constant 0x000001be (LE bytes: be 01 00 00)
+
+## hit 1: 140298204  in FUN_140298060
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 2: 1402a6c91  in FUN_1402a6310
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 3: 1402a6e3c  in FUN_1402a6310
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 4: 1402bff45  in FUN_1402bff10
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 5: 1402c3c7d  in FUN_1402c3c60
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 6: 140320660  in FUN_140320590
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 7: 140327c00  in FUN_140327b30
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 8: 1405041fb  in FUN_140504130
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 9: 14050444b  in FUN_140504380
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 10: 1405047fb  in FUN_140504730
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 11: 140504a4b  in FUN_140504980
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 12: 1405063ad  in FUN_1405062a0
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 13: 140509179  in FUN_140509060
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 14: 14050a99b  in FUN_14050a8d0
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 15: 14050b411  in FUN_14050b2e0
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 16: 14050c7be  in FUN_14050c6d0
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 17: 14050d169  in FUN_14050d040
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 18: 14050da9c  in FUN_14050da10
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 19: 14050dcdb  in FUN_14050dc10
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 20: 14050df2b  in FUN_14050de60
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 21: 14050e17b  in FUN_14050e0b0
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 22: 14050e69b  in FUN_14050e5c0
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 23: 140510476  in FUN_1405101c0
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 24: 1405107a6  in FUN_1405104f0
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 25: 140510ad6  in FUN_140510820
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 26: 140510e06  in FUN_140510b50
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 27: 140511136  in FUN_140510e80
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 28: 140511466  in FUN_1405111b0
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 29: 140511796  in FUN_1405114e0
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 30: 140524814  in FUN_140524670
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 31: 140524cc4  in FUN_140524b20
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 32: 140525164  in FUN_140524fc0
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 33: 140525604  in FUN_140525460
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 34: 140527424  in FUN_140527280
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 35: 1405278d4  in FUN_140527730
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 36: 140527d84  in FUN_140527be0
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 37: 140528234  in FUN_140528090
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 38: 1405286e4  in FUN_140528540
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 39: 140528b84  in FUN_1405289e0
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 40: 140529f64  in FUN_140529dc0
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 41: 14052adb4  in FUN_14052ac10
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 42: 14052bc24  in FUN_14052ba80
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 43: 14052c0c4  in FUN_14052bf20
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 44: 1405d62af  in FUN_1405d6290
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 45: 1405e27e7  in FUN_1405e2470
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 46: 1405ef854  in FUN_1405ef560
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 47: 1405efa23  in FUN_1405ef560
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 48: 1405f1556  in FUN_1405f1300
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 49: 1405f19a6  in FUN_1405f1750
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+## hit 50: 1405f2f6a  in FUN_1405f2d20
+  (context fetch failed: getBytes(): 2nd arg can't be coerced to byte[])
+
+# total hits: 50
+# end

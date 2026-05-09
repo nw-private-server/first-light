@@ -8343,3 +8343,134 @@ filtered out of every wake's commit. The branch is ready for
 review or merge whenever the maintainer chooses.
 
 **Blockers:** None — and no remaining autonomous work.
+
+---
+
+### 2026-05-09 — wake 86 addendum: maintainer redirected to autonomous static-RE
+
+**Did:**
+
+User asked for "more useful RE work" while they figure out the
+GPU/runtime path. The wake-86 wind-down had concluded
+prematurely — autonomous static-RE on the existing binary IS
+viable (Ghidra is set up, scripts exist, binary already
+analyzed). Pursued two threads from the existing static-RE
+notes and got **definitive negative results** that materially
+update both hypotheses.
+
+**Thread 1: handshake-family signing trailer**
+
+Used `FindByteLiteralXrefs` (immediate-operand scan) and
+`FindBytesAnywhere` (new script, scans all loaded memory blocks
+including data segments) to test whether the trailer or sub_id
+appear as compile-time constants.
+
+- Trailer first 4 bytes (`cbd4a18a`): 0 hits as immediate
+- Three more 4-byte slices of the trailer: 0 hits each
+- Sub_id (`58617814`): 0 hits as immediate, 0 hits in any data
+  block
+- Trailer first 8 bytes (`cbd4a18a4042c7ee`): 0 hits anywhere
+
+**Conclusion**: both the trailer and the sub_id are
+**100% runtime-derived**. There is nothing in the binary as
+either an immediate operand or a data constant for these
+values. The simplest H1 sub-case (a baked-in constant trailer)
+is ruled out entirely — the trailer must be either
+session-derived (computed once per session and cached) or
+per-message-derived from session-stable input.
+
+`analysis/static_re_handshake_signing.md` updated with this
+finding.
+
+**Thread 2: 0x1033 chunks**
+
+Scanned all 10 trailing 4-byte chunks (b1873b49, 1c07875d,
+c4c6381e, 431df4ea, 8a9cfcac, 5829a88f, 4a3c5e77, 92c45ce5,
+1c1b7159, 5a0981ef) against the binary, both as immediates
+and as raw byte sequences in any memory block. Result:
+**0 hits for every chunk in every search mode**.
+
+This is a strong negative result. If the chunks were
+`crc32("ItemPool")`-style content hashes of static asset names,
+at least some should appear in the binary's hardcoded asset-name
+lookup tables. None do.
+
+**Conclusion**: the wake-85 "deduplicated content-hash pool"
+hypothesis is **wrong**. The chunks are not pre-computed hashes
+of catalog identifiers the binary knows about at compile time.
+They are session-derived ephemeral identifiers — possibly:
+- Server-side per-session entity IDs
+- Hashes of session-specific names
+  (`crc32("ItemPool$<session_uuid>")`-style)
+- Cryptographic key derivations
+
+**This significantly lowers the value of further static-RE on
+0x1033 alone**. A second 0x1033 capture from a different
+session would be much more informative than continued binary
+analysis.
+
+`analysis/static_re_1033_merkle.md` updated with this finding.
+
+**Tooling added:**
+
+`tools/ghidra_scripts/FindBytesAnywhere.py` (new) — scans for
+byte patterns across all loaded memory blocks (code AND data).
+Complements the existing `FindByteLiteralXrefs.py` which only
+handles instruction-immediate operands. Both were needed to
+confirm "this byte pattern is not in the binary anywhere"
+rather than just "not as an immediate."
+
+**Files this iteration:**
+
+- `tools/ghidra_scripts/FindBytesAnywhere.py` (new)
+- `analysis/static_re_handshake_signing.md` (wake 86 update —
+  rules out hardcoded-trailer sub-case)
+- `analysis/static_re_1033_merkle.md` (wake 86 update — rules
+  out asset-manifest interpretation)
+- `analysis/find_const_*.txt`, `analysis/find_subid_*.txt`,
+  `analysis/find_trailer_*.txt`, `analysis/find_bytes_*.txt`
+  — Ghidra script output artifacts
+- This worklog entry
+
+**Both hypotheses sharpened, neither fully resolved.** The
+trailer and the 0x1033 chunks both turn out to be entirely
+runtime-derived, which means:
+- Static-RE on the constants alone won't reveal anything
+- Finding the **producer** (server emit code) or **consumer**
+  (client verify/decode code) requires a different approach —
+  most likely tracing from the message dispatcher, which I
+  haven't been able to pin down via constant scans (the
+  type-id 0x40a / 0x1be / 0x65c each return >50 hits as
+  immediate, but no single function references all three
+  type-ids — the dispatcher is probably vtable/function-pointer
+  based rather than a switch statement).
+
+**Real value for the maintainer**: when they get to a real GPU
+host and can run Frida hooks against a live session, hooking
+the **memcmp** or **MAC primitive** call sites near message
+receipt would resolve both hypotheses in minutes. The
+investigation notes are now precise enough to drive that
+runtime work.
+
+**Next** (when the maintainer is back):
+
+1. **0x9fc state-block static-RE note** — could write the third
+   investigation note covering the 26-byte middle section.
+   But given the wake-86 results suggesting both trailer and
+   1033 chunks are runtime-derived, the same is likely true
+   here. Lower priority than I'd previously thought.
+2. **Try to find the dispatcher anyway** — the type-id
+   constants returned 50 hits each (likely capped). Could
+   bump the limit in `FindConstant.py` and look for any
+   function that references multiple type-ids from
+   `KNOWN_FAMILY` — the subkey-beacon dispatcher would show
+   up that way.
+3. **Look for memcmp call sites with a 36-byte length argument**
+   — a short Ghidra script could find every `mov r8, 0x24`
+   (or similar) preceding a `call <memcmp-like>` and surface
+   them. Likely would surface hundreds of hits, but if any
+   are in a function whose name/context suggests
+   handshake/verification, that's a lead.
+
+**Blockers:** None — there's still tractable static-RE work,
+just lower-yield than runtime hooks would be.

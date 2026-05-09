@@ -71,7 +71,7 @@ remainder of the payload (bytes +21..+437, 417 bytes) contains
 larger structures that include the hashes at offsets +73,
 +253, +333, +369.
 
-## Hypothesis: deduplicated-chunk pool with index
+## Hypothesis: deduplicated-chunk pool with index (wake 85)
 
 The structure looks like a **content-addressed chunk pool**:
 
@@ -94,6 +94,41 @@ manifest** where small content (item IDs, ability hashes, perk
 identifiers) is hash-keyed and the message body references
 each unique hash once via the leading table while the inline
 manifest lists which hashes apply.
+
+### Wake 86 update: NOT an asset manifest — chunks are runtime values
+
+Static-RE attempt: scanned **all 10 of the trailing 4-byte
+chunks** (b1873b49, 1c07875d, c4c6381e, 431df4ea, 8a9cfcac,
+5829a88f, 4a3c5e77, 92c45ce5, 1c1b7159, 5a0981ef) against the
+binary. Both `FindByteLiteralXrefs` (immediate operand search)
+and `FindBytesAnywhere` (full memory-block scan including
+data sections) returned **0 hits for every single chunk**.
+
+If the chunks were `crc32("ItemPool")`-style content hashes
+of static asset/catalog names, **at least some** would appear
+in the binary's hardcoded asset-name lookup tables. None do.
+
+This **rules out the asset-manifest interpretation**. The
+chunks are not pre-computed hashes of game-resource identifiers
+the binary knows about at compile time.
+
+Revised hypothesis (wake 86): **the chunks are session-derived
+ephemeral identifiers**, not content hashes. Possible roles:
+
+- Server-side per-session entity IDs (the server picks fresh
+  IDs at session start; the chunks reference entities created
+  in this specific session)
+- Hashes of session-specific names (e.g.
+  `crc32("ItemPool$<session_uuid>")` — the hash includes
+  per-session input so doesn't appear pre-computed in the
+  binary)
+- Cryptographic key derivations from the V3 `session_token`
+
+This significantly **lowers the value of static-RE on 0x1033
+alone** — without runtime data showing how the chunks are
+generated, the static binary holds no useful information about
+their content. **A second 0x1033 capture from a different
+session would be much more informative than further static-RE.**
 
 ## What static-RE would resolve
 

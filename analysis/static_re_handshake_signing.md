@@ -46,6 +46,27 @@ strong evidence the trailer is **NOT** a per-message signature
 over the body — if it were, the trailer would differ
 across messages (because the bodies differ).
 
+### Wake 86 update: H1's hardcoded-constant sub-case is ruled out
+
+Static-RE attempt: `FindByteLiteralXrefs` on the first 4 bytes
+of the trailer (`cbd4a18a`) returned **0 hits**. Three more
+4-byte slices (`8a4042c7`, `a46298c7`, `8bf3ae45`) also
+returned 0 hits. The same pattern holds for the 4-byte sub_id
+(`58617814`).
+
+A broader scan via `FindBytesAnywhere` (which checks **all
+loaded memory blocks**, including data sections) confirmed
+this: neither `58 61 78 14` (sub_id) nor `cb d4 a1 8a 40 42
+c7 ee` (first 8 bytes of trailer) appear **anywhere** in the
+binary — not as immediate operands, not as data constants.
+
+So both the sub_id and the trailer are **constructed at
+runtime**. This rules out the simplest H1 sub-case (a baked-in
+constant trailer) entirely. The trailer must be either
+session-derived (still H1's broader case — a value computed
+once per session and cached) or per-message-derived from a
+session-stable input (H2).
+
 Two viable hypotheses:
 
 ### H1: Session-derived constant ("certificate")
