@@ -8606,3 +8606,133 @@ don't unblock the original questions (trailer signing scheme,
 **Blockers:** None autonomously, but every thread has lower
 marginal value than the runtime-trace path (which needs real
 GPU hardware).
+
+---
+
+### 2026-05-09 — wake 88: dispatch-table chase was a red herring — found Unicode case-folding instead
+
+**Did:**
+
+Pursued the wake-87 lead (the .data table at 0x149f41880 with
+paired entries) by xref-scanning the table region. Wrote a new
+Ghidra script to find code that targets specific address
+ranges. **Found the table's reader functions, decompiled them,
+and discovered the table is Unicode case-folding data — NOT a
+protocol type-ID catalog.**
+
+This is a major correction to wake 87's interpretation.
+
+**What actually happened:**
+
+1. **`tools/ghidra_scripts/FindLEAToRange.py`** (new) — scans
+   all instructions for memory operands targeting a specified
+   address range. Useful when Ghidra's xref database missed
+   RIP-relative references.
+
+2. **Scan result**: 260 instructions in 6 functions targeting
+   `[0x149f41000, 0x149f4b000]`:
+   - 2 large initialization functions (139 + 102 hits each)
+     in the `0x140238xxx` range
+   - **3 small "reader" functions** with 7, 7, and 3 hits each
+   - These small readers had the pattern `CMP dword ptr
+     [R8 + RCX*0x8], R9D` — 8-byte stride table lookup,
+     matching our paired-entry observation
+
+3. **Decompiled `FUN_1462426b0`** (the smallest reader, 7
+   hits). It's a **table normalizer with five binary searches**:
+   - Table 1 at `0x1484df2e0`, 0x230 entries × 3 bytes
+     (u16 key → u8 value)
+   - Table 2 at `0x149f63f90`, 0x1a entries × 4 bytes
+   - **Table 3 at `0x149f41880`, 0x4240 entries × 8 bytes**
+     (16960 entries — our paired table)
+   - Table 4 at `0x149f62a80`, 0x542 entries × 4 bytes
+   - Table 5 at `0x149f64000`, 0x2b0 entries × 4 bytes
+
+4. **Decompiled `FUN_1462419c0`** (called by the wrapper). It
+   does **classic UTF-8 multi-byte decoding** based on a
+   length prefix. The length=2 case is
+   `(byte0 & 0x1f) << 6 | (byte1 & 0x3f)` — that's the
+   standard UTF-8 2-byte sequence decoder.
+
+5. **Realization**: 16960 entries is way too many for protocol
+   type-IDs (we have ~40 captured + maybe 200-500 in the full
+   game). It IS the right size for a Unicode property table.
+   And the captured "pairings" we saw (`0x40a → 0x45a`,
+   `0x40b → 0x45b`) are **Cyrillic capital → lowercase
+   case-folding mappings**. The protocol type-IDs we've been
+   tracking happened to land in valid Unicode codepoint ranges
+   (Cyrillic capital Tshe, Latin inverted glottal stop, etc.),
+   making the false signal extremely convincing.
+
+   `FUN_1462426b0` is a **Unicode case-fold / character
+   normalizer**, called by string-processing code. Both
+   `FUN_146240d70` and `FUN_1462426b0` are AZStd::string
+   methods (note the `AZStd::allocator` references in the
+   decompile and the string-iteration shape of the outer
+   function).
+
+**What the wake-87 findings actually were:**
+
+- The `.data` paired table at `0x149f41880` is the binary's
+  Unicode case-folding lookup, not a protocol type-ID catalog.
+- The `.rdata` flat list at `~0x14955fxxx` (which I
+  characterized as "registered type-IDs") is similarly likely
+  Unicode-related data (probably another property table).
+- Both tables are **unrelated to the message dispatcher.**
+
+**Net for the static-RE thread:**
+
+- The actual message dispatcher remains unfound.
+- The "table-based dispatch" finding from wake 87 still holds
+  (no function references all 3 handshake type-IDs as
+  immediates), just we haven't found the actual dispatch table.
+- Constants 0x40a, 0x1be, 0x65c are sufficiently common as
+  ordinary integers (loop bounds, small struct sizes, Unicode
+  codepoints) that scanning for them is a high-noise approach.
+
+**Tooling kept:**
+
+`FindLEAToRange.py` is genuinely useful — it found the right
+functions for a different question (Unicode case-fold) and
+the methodology is sound. The scripts will work for finding
+the actual dispatcher when we have a better starting address.
+
+**Files this iteration:**
+
+- `tools/ghidra_scripts/FindLEAToRange.py` (new — kept,
+  generally useful)
+- `analysis/lea_to_data_table.txt` — 260 hits at the Unicode
+  table region
+- `analysis/decomp_FUN_146240d70.txt` — AZStd::string-shaped
+  iterator that calls the case-fold normalizer per character
+- `analysis/decomp_FUN_146240d70.txt`,
+  `analysis/decomp_FUN_1462426b0.txt`,
+  `analysis/decomp_FUN_1462419c0.txt` — decompiles
+- This worklog entry
+
+**The honest assessment**: I chased the wake-87 lead for a
+full iteration before realizing it was Unicode infrastructure.
+That's the kind of mistake static-RE-from-byte-patterns is
+prone to — type-ID-shaped values exist everywhere. The
+correct next step is **runtime tracing** against a real
+session: hooking `Carrier::ParseMessages` with Frida would
+show the actual dispatch path in milliseconds.
+
+**Next** (queue):
+
+The static-RE path is genuinely hitting diminishing returns.
+The actionable items are mostly runtime-dependent now:
+
+1. Wait for the real-GPU host (AWS / physical) — Frida hooks
+   on receiver functions will resolve dispatcher questions
+   much faster than continued static analysis.
+2. Look for the `Carrier::ParseMessages` function by string
+   xrefs (if Mixed Nuts' or community dumps reference its
+   address, we could trace from there).
+3. Try `JavelinHunt.py` (existing pre-existing script) which
+   automates the hunt list — might find handlers we haven't
+   considered.
+
+**Blockers:** Static-RE genuinely yielding less per loop
+iteration. The maintainer's runtime path remains the highest-
+value unblock.

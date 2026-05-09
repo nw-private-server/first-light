@@ -1,0 +1,74 @@
+// FUN_1462419c0 @ 1462419c0
+
+int FUN_1462419c0(undefined8 *param_1,longlong param_2,longlong *param_3)
+
+{
+  byte bVar1;
+  undefined8 *puVar2;
+  uint uVar3;
+  int iVar4;
+  longlong lVar5;
+  undefined8 uVar6;
+  uint uVar7;
+  byte *pbVar8;
+  byte *pbVar9;
+  char *local_res18 [2];
+  undefined1 local_58 [40];
+  undefined1 local_30 [40];
+  
+  lVar5 = FUN_146241b40();
+  *param_3 = lVar5;
+  if (lVar5 == 1) {
+    if (0xf < (ulonglong)param_1[3]) {
+      param_1 = (undefined8 *)*param_1;
+    }
+    return (int)*(char *)((longlong)param_1 + param_2);
+  }
+  if (lVar5 == 2) {
+    puVar2 = param_1;
+    if (0xf < (ulonglong)param_1[3]) {
+      puVar2 = (undefined8 *)*param_1;
+      param_1 = (undefined8 *)*param_1;
+    }
+    uVar3 = *(byte *)((longlong)param_1 + param_2 + 1) & 0x3f;
+    uVar7 = (*(byte *)((longlong)puVar2 + param_2) & 0x1f) << 6;
+  }
+  else {
+    if (lVar5 == 3) {
+      if ((ulonglong)param_1[3] < 0x10) {
+        pbVar8 = (byte *)((longlong)param_1 + param_2 + 1);
+      }
+      else {
+        param_1 = (undefined8 *)*param_1;
+        pbVar8 = (byte *)(param_2 + 1 + (longlong)param_1);
+      }
+      iVar4 = (*(byte *)(param_2 + (longlong)param_1) & 0xf) * 0x40 + (*pbVar8 & 0x3f);
+      bVar1 = *(byte *)((longlong)param_1 + param_2 + 2);
+    }
+    else {
+      if (lVar5 != 4) {
+        local_res18[0] = "AZStd::allocator";
+        uVar6 = FUN_140298e80(local_58,"index does not refer to a valid code point",local_res18);
+        FUN_146237080(local_30,uVar6);
+                    /* WARNING: Subroutine does not return */
+        _CxxThrowException(local_30,(ThrowInfo *)&DAT_149e63de0);
+      }
+      if ((ulonglong)param_1[3] < 0x10) {
+        pbVar8 = (byte *)((longlong)param_1 + param_2 + 1);
+        pbVar9 = (byte *)((longlong)param_1 + param_2 + 2);
+      }
+      else {
+        param_1 = (undefined8 *)*param_1;
+        pbVar8 = (byte *)(param_2 + 1 + (longlong)param_1);
+        pbVar9 = (byte *)(param_2 + 2 + (longlong)param_1);
+      }
+      iVar4 = ((*(byte *)(param_2 + (longlong)param_1) & 7) * 0x40 + (*pbVar8 & 0x3f)) * 0x40 +
+              (*pbVar9 & 0x3f);
+      bVar1 = *(byte *)((longlong)param_1 + param_2 + 3);
+    }
+    uVar3 = iVar4 * 0x40;
+    uVar7 = bVar1 & 0x3f;
+  }
+  return uVar3 + uVar7;
+}
+
