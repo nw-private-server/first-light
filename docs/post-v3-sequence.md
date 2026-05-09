@@ -139,6 +139,34 @@ session state. Unresolved without a captured Phase 9b — the
 hypothesized 21+ byte encoder lives at `server/javelin/self_ident.py`
 but is not yet wired into emission.
 
+## Server↔client counter pairs
+
+Replay-mining (worklog wakes 66-78) surfaced several
+**counter-coupled R/W pairs** where the server emits a message
+of one type and the client immediately replies with another type
+echoing or incrementing a counter. Server-side replay code that
+re-emits the R messages must mirror these exact counter
+sequences to satisfy the client's request-response matching.
+
+| R type (server → client) | W type (client → server) | Counter behavior | Codecs |
+|---|---|---|---|
+| `0x18a6` (40 B) | `0x1a59` (45 B) | Server emits 0x18a6 with a u8 counter; client replies 0x1a59 with the same counter. Captured sequence: 1 → 2 → 3 → 4. The 16-byte subkey in 0x1a59's payload is identical to the first 16 bytes of 0x18a6's body (both encode `[first_uuid_half:8][session_uuid_lower:8]`). | [`init_message_18a6.py`](../server/javelin/init_message_18a6.py) ↔ [`session_subkey_1a59.py`](../server/javelin/session_subkey_1a59.py) (R/W pair, cross-codec test) |
+| `0x15d` ping | `0x15d` ack | Server emits `HeartbeatPing15D` (12 B) with `(counter, nonce)`; client replies `HeartbeatAck15D` (36 B) **wrapping the ping body verbatim** at offset +0x18 in the ack. Server replay can verify the ack's `echoed_ping` byte-matches the sent ping. | [`heartbeat_15d.py`](../server/javelin/heartbeat_15d.py) (single module, R+W) |
+| `0x14f` periodic | (none observed) | Server emits a 12-byte session-clock beacon; the captured replay shows 4 of these but no W reply. The clock value (`0x0b888d68`) matches `mystery8`'s first 4 bytes in the V3 RegistrationResponse — same session clock baseline. | [`session_clock_beacon.py`](../server/javelin/session_clock_beacon.py) |
+| `0x8e6` blob | `0x9fc` echo | Server emits a 42-byte 0x8e6 with a 16-byte `opaque_blob`; client's 0x9fc reply (102 B) carries that same 16-byte hash at its tail. Cross-codec invariant for replay fidelity. | [`identity_blob_8e6.py`](../server/javelin/identity_blob_8e6.py) ↔ no codec yet for 0x9fc |
+
+The 0x1a59↔0x18a6 pair is the most explicitly counter-coupled.
+Server-side emission for an emulator must:
+1. Emit 0x18a6 with `counter=N` (`init_message_18a6.encode`)
+2. Wait for 0x1a59 with matching `counter=N`
+3. Emit 0x18a6 with `counter=N+1` (...)
+
+If the server sends `counter=N+1` before receiving the
+client's ack at `counter=N`, the client may reject the message
+or reset its state. The captured replay shows clean monotonic
+1→2→3→4 increments with no gaps, suggesting the client
+acknowledges promptly and the server only increments on receipt.
+
 ## Cross-link to the GameConnection state machine
 
 From `analysis/state_machine_summary.md`:

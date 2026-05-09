@@ -31,6 +31,41 @@
 >
 > "Payload" sizes below exclude the 3- or 4-byte envelope.
 
+## Cross-codec identity-bundle map
+
+Many captured types carry a 16-byte "identity bundle" of the
+form `[upper_8:8][lower_8:8]`. The lower 8 bytes are **always**
+`bf 85 31 4b bc 4a 95 1a` in the captured session — the
+session_uuid_lower. The upper 8 bytes identify the **sub-system**
+or "identity surface" the message belongs to:
+
+| Upper 8 (sub-system identifier) | Codecs / types using it | Likely role |
+|---|---|---|
+| `f8 cb ed 57 c6 8b 18 f4` | 0x18a6 first_uuid_half, 0x1a59 subkey, several 1-byte-trailer subkey-beacons | session-manager subkey |
+| `9c fa 58 61 78 14 69 f2` | 0x18a6 + 0x663 second_id | metadata-block id |
+| `fb de 4b 9a 60 0d 42 8f` | 0x635 second_id | action-queue id |
+| `18 0f 8d 4e 57 36 97 c6` | 0x5b2 + 0x0a95 second_id | fingerprint-reporter id |
+| `4c 0c 0e d6 47 8a 69 da` | 0x8e6 + 0x9fc identity_uuid upper | receipt-handshake id |
+| `9e 92 1a 15 49 71 f6 b7` | 0x12f6 subkey | keybinding-config sub-system id |
+| `93 a3 e4 77 cb 5f d5 1e` | 0x1096 + 0x1097 identity_uuid | spawn-confirmation pair id |
+| `ce 81 13 6a 2b 7a d3 3e` | 0x1033 identity_uuid | (unnamed — 1033 Merkle-shape blob) |
+| `a0 b4 5f fb d9 b3 26 4b` | 0xca4 identity_uuid | asset-count-table sub-system id |
+| `4d 6b 64 a4 c7 da 53 fa` | 0x136a identity_uuid | result-token sub-system id |
+| `d8 c9 c8 af 5e 7a 35 3c` | 0x1067 identity_uuid | Vivox-config sub-system id |
+
+**Convention to apply when authoring new codecs**: when a
+message carries a 16-byte identity-shaped field, check whether
+the upper 8 bytes match any row in this table — if they do, the
+message belongs to that sub-system family and the codec should
+either reuse the existing dataclass or note the cross-link. The
+**lower 8 bytes serve as the per-session validity check** (any
+inbound message with mismatching lower 8 should be rejected by
+the handler).
+
+This map grew organically through wakes 66-77; future captures
+or sessions may surface new sub-system IDs (each new game
+session presumably picks fresh upper-8 values).
+
 ## Replay frequency table
 
 177 messages total in the capture (seq 0x0..0xb0). Top types by
@@ -737,8 +772,49 @@ payloads:
   00 00 00 10 10 00 09`) needs more captures to characterize.
   No codec yet but the cross-codec link to 0x8e6 is captured.
 
-- **`0x12f6`** (299 bytes): the largest W singleton. Subkey +
-  ~270-byte payload — needs focused analysis next pass.
+- **`0x12f6`** (299 bytes): **client keybinding/control
+  configuration** (wake 78 finding). Body breakdown:
+
+  ```
+  envelope (28)
+  + subkey (16) — upper 8 = `9e 92 1a 15 49 71 f6 b7`
+                  (keybinding-config sub-system id)
+  + state block A (16 bytes) at +44..+59
+                  small flags `01 00 01 01 01 00 01 00 01 00
+                  00 00 01 05 00 03` — possibly per-binding
+                  enable flags
+  + state block B (15 bytes) at +60..+74
+                  mostly `03` modifiers — probably per-binding
+                  modifier-key enums
+  + keybinding string list at +75 onwards: u8-prefixed UTF-8
+    strings with the recognizable @cc_ control-config tokens:
+       "@cc_f3", "@cc_e", "@cc_tab", "" (empty), "@cc_c", "",
+       "@cc_e", "@cc_mouse2", "@cc_f3", "@cc_y", "@cc_3",
+       "@cc_4", "@cc_5", "@cc_6", "@cc_q", "@cc_r", "@cc_f",
+       "@cc_m"
+  + 5 zero bytes
+  + two version blocks of the form
+       u8 length=0x37 (= 55)
+       string with embedded nulls:
+          "{0.0.0.00000000}.{<32 nulls>}"
+          "{0.0.1.00000000}.{<32 nulls>}"
+       — looks like versioned identifier slots reserved for a
+       UUID-like field that's all-zero (unbound) in this capture.
+  + 5 trailing zero bytes
+  ```
+
+  The `@cc_*` strings are recognizable **keyboard/mouse
+  binding tokens** the client is reporting back to the server
+  (function-key bindings F3/F4/F5/F6, number keys 3-6,
+  letter keys Q/R/F/M/Y, mouse2, tab, e, c). So 0x12f6 is the
+  client's keybinding-state dump — possibly sent on session
+  start so the server can mirror or validate the bindings.
+
+  No codec yet — the structure is rich enough that pinning down
+  the per-binding-slot vs free-list semantics would benefit
+  from a second capture (different session with different
+  user-configured bindings). Logged in detail for that future
+  pass.
 
 ## `0x1067` — 86-byte R Vivox voice-chat configuration (singleton)
 

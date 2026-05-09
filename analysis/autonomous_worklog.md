@@ -7433,3 +7433,97 @@ The W-direction protocol has a clear **three-tier structure**:
    to look for the upper-8-byte sub-system match.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-09 — wake 78: 0x12f6 keybinding-config finding + identity map + R/W pairs docs
+
+**Did:**
+
+Documentation-heavy iteration. Three pieces of long-running
+context now properly captured in the inventory + docs.
+
+1. **`0x12f6` W structural finding** — the last bulky W
+   singleton (299 bytes) characterized. Body decomposes into:
+   - envelope (28) + subkey (16, upper 8 = new sub-system ID)
+   - 16-byte enable-flags block + 15-byte modifier block
+   - **u8-prefixed UTF-8 string list** with recognizable
+     keyboard-binding tokens:
+     `@cc_f3, @cc_e, @cc_tab, @cc_c, @cc_e, @cc_mouse2, @cc_f3,
+     @cc_y, @cc_3, @cc_4, @cc_5, @cc_6, @cc_q, @cc_r, @cc_f,
+     @cc_m` (18 strings total, 2 of which are empty).
+   - Two trailing **version-block strings** of length 0x37 (55):
+     `{0.0.0.00000000}.{<32 nulls>}` and
+     `{0.0.1.00000000}.{<32 nulls>}` — versioned identifier
+     slots reserved for UUIDs that are unbound (all-zero) in
+     this capture.
+
+   So 0x12f6 is the **client's keybinding/control-config dump**
+   sent to the server early in the session (Function-key F3-F6,
+   number keys 3-6, letters Q/R/F/M/Y, mouse2, tab, etc.).
+   No codec yet — multi-capture comparison would be needed to
+   pin down per-binding-slot semantics confidently. Logged in
+   detail in the inventory.
+
+2. **Cross-codec identity-bundle map** added as a top-level
+   section near the start of `analysis/replay_message_inventory.md`.
+   Tabulates all 11 distinct upper-8-byte sub-system identities
+   found across the codec library, mapping each to the
+   types/codecs that use it and a name for the sub-system role.
+   Also documents the convention for new codec authors:
+   - Lower 8 bytes are always `bf 85 31 4b bc 4a 95 1a` in this
+     session (= `session_uuid_lower`)
+   - Upper 8 bytes identify the sub-system; matching them to
+     existing entries surfaces cross-codec relationships.
+   This is the "house style guide" for any future codec work.
+
+3. **`docs/post-v3-sequence.md` "Server↔client counter pairs"**
+   section added. Documents the four R/W (or R/-) coupled
+   message families:
+   - 0x18a6 R ↔ 0x1a59 W (counter-coupled, captured 1→2→3→4)
+   - 0x15d ping R ↔ 0x15d ack W (verbatim ping echo at +0x18)
+   - 0x14f R (no W observed; clock baseline matches mystery8)
+   - 0x8e6 R ↔ 0x9fc W (16-byte hash echo at tail)
+
+   Each row links to the codec module(s) and explains the
+   counter/echo invariant the server-side replay must preserve.
+   Particular emphasis on the 0x18a6↔0x1a59 pair where the
+   captured sequence is monotonic 1→2→3→4 with no gaps,
+   suggesting the server only increments on ack receipt.
+
+**Files this iteration:**
+
+- `analysis/replay_message_inventory.md` (+ identity-bundle
+  map at top + 0x12f6 inline finding)
+- `docs/post-v3-sequence.md` (+ Server↔client counter pairs
+  section before state-machine cross-link)
+- This worklog entry
+
+**No codec changes; no new tests.** This iteration consolidates
+runtime invariants and cross-codec relationships into the
+standing documentation so they're not lost in the worklog.
+
+**Library status: 19 dedicated codecs + 1 generic (13-type)
+codec; 213 tests passing.**
+
+**Next** (queue):
+
+1. **0x12f6 codec attempt** — would need a structural codec
+   that walks the keybinding string list. If a future capture
+   shows different bindings, the slot vs free-list semantics
+   become testable.
+2. The 0x65c WORLD-DATA blob still has the 224-byte
+   fixed-record skeleton documented but no codec; the
+   shared-trailer link to handshake-76 family hints at a
+   server-side signing scheme worth more analysis.
+3. **W direction: 4 unaccounted message types** still in the
+   replay (not in `KNOWN_FAMILY`, not yet codec'd):
+   - 0x09fc (pending — the 0x9fc-↔-0x8e6 echo)
+   - 0x12f6 (keybindings — wake 78)
+   - 0x192c (54-byte; subkey + 10-byte trailer — could be
+     handled by widening `subkey_beacon` to accept 10-byte
+     trailer, or codec'd separately)
+   - 0x102e (46-byte 2-byte-trailer subkey beacon — already
+     covered by generic; just needs explicit test)
+
+**Blockers:** None.
