@@ -2036,6 +2036,64 @@ def test_136a_round_trip_max_u64():
 
 
 # ---------------------------------------------------------------------------
+# ResultToken 0x1097 (R direction, 24 bytes)
+# ---------------------------------------------------------------------------
+
+from .result_token_1097 import (  # noqa: E402
+    ResultToken1097,
+    encode as encode_1097,
+    decode as decode_1097,
+    TYPED_BODY_SIZE as RT1097_TYPED_BODY_SIZE,
+)
+
+
+def test_1097_round_trip_from_replay():
+    """Round-trip the captured 0x1097 R singleton; verify it pairs
+    with 0x1096 by sharing identity_uuid."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    candidates = [m for m in store.messages if m.type_id == 0x1097]
+    assert len(candidates) == 1
+    msg = decode_1097(candidates[0].body)
+    assert msg.result == 2
+    assert encode_1097(msg) == candidates[0].body
+    # Should share the same 16-byte identity_uuid as 0x1096
+    msg_1096 = next(m for m in store.messages if m.type_id == 0x1096)
+    assert msg.identity_uuid == msg_1096.body[4:20]
+
+
+def test_1097_size_is_24():
+    assert RT1097_TYPED_BODY_SIZE == 24
+
+
+def test_1097_decode_wrong_size_rejects():
+    with pytest.raises(ValueError, match="24"):
+        decode_1097(b"\x00" * 20)
+
+
+def test_1097_decode_wrong_type_header_rejects():
+    bad = bytearray(b"\x00" * 24)
+    bad[0:4] = b"\x00\x01\xff\xff"
+    with pytest.raises(ValueError, match="type header"):
+        decode_1097(bytes(bad))
+
+
+def test_1097_validates_result_range():
+    with pytest.raises(ValueError, match="result"):
+        ResultToken1097(identity_uuid=b"\x00" * 16, result=2**32)
+
+
+def test_1097_round_trip_max_u32():
+    msg = ResultToken1097(identity_uuid=b"\x42" * 16, result=2**32 - 1)
+    assert decode_1097(encode_1097(msg)) == msg
+
+
+# ---------------------------------------------------------------------------
 # v3_request — error paths (no capture file needed)
 # ---------------------------------------------------------------------------
 

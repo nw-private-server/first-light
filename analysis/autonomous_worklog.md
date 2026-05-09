@@ -7213,3 +7213,107 @@ Plus AzCore-style: `LevelInfoChangedMsg`,
    0x136a's u64 BE).
 
 **Blockers:** None.
+
+---
+
+### 2026-05-09 — wake 76: 0x65c structural skeleton + 0x1097 codec + W singleton survey
+
+**Did:**
+
+One small codec, one major structural finding on the largest
+captured message, and a comprehensive survey of 16 W-direction
+singletons that surfaced a clean codec-refactor opportunity.
+Test count: **197 passing** (was 191 — 6 new tests).
+
+1. **0x065c structural skeleton (the major finding).** With
+   careful FF-vs-data span analysis, the 12706-byte 0x65c blob
+   decomposes into:
+   - 44-byte header section (envelope + redacted-id + sub_id +
+     ephemeral block + handshake-family shared_trailer + zero
+     pad + small constant marker)
+   - **A table of fixed 224-byte records** — 34 of the gaps
+     between consecutive non-FF span starts are exactly 224
+     bytes. Within each 224-byte slot, the data portion is
+     variable size (80, 88, 96, or 104 bytes seen, all
+     8-byte-aligned) padded out with literal `FF` bytes.
+
+   Total non-FF data: 5841 bytes. Total `FF` padding: 6865 bytes.
+
+   **Interpretation**: a permission-table or feature-flag
+   matrix where each 224-byte slot holds a variable-length
+   record (different number of 8-byte fields) with `FF FF FF...`
+   sentinels filling the unused tail. Visible u32 BE values in
+   the records are small integers (`0x00000002`, `0x00000005`)
+   consistent with permission masks or capability counts.
+
+   The replay-tool only redacted **two 16-byte spans** (offsets
+   5 and 12690) in this 12.7KB message — the rest is fully
+   captured. So the structure is well-grounded, even if the
+   semantics aren't decoded.
+
+   **No codec yet** because the variable-record-data sizes
+   would need to be either accepted arbitrarily or enforced
+   against the 224-byte slotting; both are viable but neither
+   is actionable without semantic info on what each field
+   represents. Logged in full structural detail in the
+   inventory for future passes (e.g. when a second 0x65c
+   capture from a different session shows up).
+
+2. **`result_token_1097.py`** (codec). Tiny 24-byte sibling of
+   `result_token_136a`: 4-byte envelope + 16-byte identity_uuid
+   + u32 BE result (= 2 in capture). Pairs with `0x1096` by
+   sharing `identity_uuid` — verified in the cross-replay test.
+
+3. **W-side singleton survey (16 types).** All 16 share the
+   same outer envelope `[client_hash:4][len_BE:4][session_uuid:16]
+   [type_hdr:4]` and **most carry the same 16-byte session-subkey
+   shape that `session_subkey_1a59` already models**. Trailer-size
+   classes:
+   - **0 (44 bytes total)**: 3 types — 0x066b, 0x102f, 0x1098
+   - **1 byte (45 bytes)**: 8 types — 0x0f7f, 0x101a, 0x101d,
+     0x10b0, 0x143d, 0x187c, 0x187f, **plus existing 0x1a59**
+   - **2 bytes (46 bytes)**: 1 type — 0x102e
+   - **4 bytes (48 bytes)**: 1 type — 0x09d3
+   - **10 bytes (54 bytes)**: 1 type — 0x192c
+   - **larger (81/102/299 bytes)**: 3 types — 0x0a95, 0x09fc, 0x12f6
+
+   Twelve of the sixteen could be consolidated under a single
+   **`SubkeyBeacon`** codec parameterized by `(type_id,
+   trailer_size)` — would generalize the existing
+   `session_subkey_1a59` cleanly. The remaining four (81/102/299-
+   byte ones) carry richer payloads and need individual
+   analysis. Specifically:
+
+   - **0x0a95 (81 B)**: subkey + u8 count (`0x24` = 36) +
+     36-byte flag array `01 01 01 01 01 01 00 01...` — looks
+     like a per-session **permission/feature flag bitmap**.
+   - **0x09fc (102 B)**: subkey + 16-byte additional UUID +
+     duplicated session_uuid + small structured payload — looks
+     like a **client "confirm session-id pair" handshake**.
+   - **0x12f6 (299 B)**: the largest W singleton — requires
+     focused analysis.
+
+**Files this iteration:**
+
+- `server/javelin/result_token_1097.py` (new)
+- `server/javelin/test_codecs.py` (6 new tests, 197 total)
+- `analysis/replay_message_inventory.md` (0x65c skeleton +
+  0x1097 section + W singleton family overview)
+- This worklog entry
+
+**Library status: 18 dedicated codecs, 197 tests passing.**
+
+**Next** (queue):
+
+1. **SubkeyBeacon refactor**: pull `session_subkey_1a59` into a
+   generic `subkey_beacon.py` parameterized by
+   `(type_id, trailer)` and add the 12 trailer-class W
+   singletons under it. Big consolidation win — one codec
+   covers a dozen types.
+2. Look at 0x0a95 specifically — small, clean, captured fully —
+   the 36-byte flag array is a clean structure worth a codec.
+3. The 0x65c follow-up needs additional captures or static-RE;
+   queue it as a "pending more data" note.
+4. Investigate 0x09fc and 0x12f6 individually next pass.
+
+**Blockers:** None.

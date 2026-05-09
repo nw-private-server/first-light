@@ -545,30 +545,72 @@ notifier where the meaning is entirely in the type-id.
 
 No codec needed; trivially built as `bytes([0x00, 0x01, 0x91, 0x19])`.
 
-## `0x065c` — ~12.7 KB R blob with handshake-trailer link (singleton, redacted)
+## `0x065c` — ~12.7 KB R blob: 224-byte fixed-record table (singleton)
 
-Single 12706-byte capture (seq 0x6, sent right after the V3
-RegistrationResponse and before the 0x40a/0x1be handshake pair).
-Heavily redacted (long `FF FF...` runs throughout).
+Single 12706-byte capture (seq 0x6, Phase 4 WORLD DATA — sent
+right after the V3 RegistrationResponse and before the
+0x40a/0x1be handshake pair). The replay-tool only redacted **two
+spans of 16 bytes each** (offsets 5 and 12690); the bulk of the
+body is captured. The `FF FF...` runs in the body are **literal
+0xFF data bytes**, not redactions.
 
-**Cross-codec finding**: at offset +28..+31 the body carries the
-`58 61 78 14` sub_id from `handshake_blob_76` (0x40a + 0x1be),
-and at offset +64..+99 it carries the **byte-identical 36-byte
-shared_trailer** that 0x40a + 0x1be also share
-(`cb d4 a1 8a 40 42 c7 ee a4 62 98 c7 49 9b a8 26
+**Cross-codec finding (wake 75)**: at offset +28..+31 the body
+carries the `58 61 78 14` sub_id from `handshake_blob_76`
+(0x40a + 0x1be), and at offset +64..+99 it carries the
+**byte-identical 36-byte shared_trailer** that 0x40a + 0x1be
+also share (`cb d4 a1 8a 40 42 c7 ee a4 62 98 c7 49 9b a8 26
 ef 53 39 aa 29 70 e2 83 fc f3 4b 6f 8f 07 86 d6 8b f3 ae 45`).
-So 0x065c is from the **same family as the 0x40a/0x1be
-two-step handshake** — possibly a third handshake message
-carrying a much larger payload (cert chain, asset manifest,
-permission table) under the same signing trailer.
+So 0x65c is from the **same family as the 0x40a/0x1be two-step
+handshake** — possibly a third handshake-class message carrying
+a much larger payload (cert chain, manifest, permission table)
+under the same signing trailer.
 
-The remainder of the body is interspersed runs of u32 BE values
-and `FF` (redacted) spans. The values that are visible look like
-small integers (0..6 range, occasional larger) suggesting a
-permission-table or feature-flag matrix.
+**Structural skeleton (wake 76)**: after a 44-byte header
+section (envelope + redacted-id + sub_id + ephemeral block +
+shared_trailer + zero pad), the remainder of the body decomposes
+into **a table of fixed 224-byte records**:
 
-No codec yet — heavy redaction makes structural inference
-unreliable from one capture. Logged for future cross-checking.
+```
++0x000  u8x4    type_header        [00 01 9c 19] = type 0x65c
++0x004  u8x16   redacted_id_a      16 bytes redacted
++0x018  u8x4    constant_zero      00 00 00 00
++0x01c  u8x4    sub_id             58 61 78 14 (handshake family)
++0x020  u8x32   ephemeral_block    32 bytes per-message material
++0x040  u8x36   shared_trailer     handshake-family signing trailer
++0x064  u8x16   zero_pad           00 00 00 00 ...
++0x074  u8x4    constant?          00 00 00 38
++0x078  u8      ???                0x80
++0x079  u8      records_marker?    0x31
++0x07a  records×N (each 224 bytes) per-record:
+                                     u8x(K)   data (variable, K
+                                              bytes; 80, 88, 96,
+                                              104 in capture)
+                                     u8x(224-K) FF padding
++...    tail                       ~80-byte trailer with the
+                                     second 16-byte redaction
+```
+
+Of 56 records visible in the body, **34 fit exactly the 224-byte
+fixed-cadence pattern** (the gap between consecutive non-FF span
+starts is exactly 224). The data-block sizes within records vary
+in 8-byte multiples (80, 88, 96, 104 bytes seen) — consistent
+with each record holding a different number of 8-byte data
+fields, padded out with `FF FF FF...` to the fixed 224-byte
+slot. Total non-FF bytes: 5841; total FF padding: 6865.
+
+**Interpretation**: a permission-table or feature-flag matrix,
+where each 224-byte record holds a variable number of small
+integer fields with the slot's unused tail filled with FF
+sentinels. The variable per-record data sizes line up with the
+small integer values seen in the captured payload (`0x00000002`,
+`0x00000005`, etc. in 4-byte BE form).
+
+A codec for this would need to either accept arbitrary record
+data sizes or enforce the captured 224-byte slotting; both are
+viable but neither is actionable without semantic info on what
+each field represents. **Documented for future passes**; ship a
+codec only after a second 0x65c capture lets us validate the
+fixed-vs-variable record assumption.
 
 ## `0x0ca4` — 102-byte R asset count table (singleton)
 
@@ -609,6 +651,81 @@ generic "small response with numeric result" messages from
 different sub-systems.
 
 Codec: `server/javelin/result_token_136a.py`.
+
+## `0x1097` — 24-byte R spawn-confirmation result token (singleton)
+
+Single 24-byte capture (seq 0x76). Paired with `0x1096` (seq 0x75)
+by a shared 16-byte `identity_uuid` — both messages reference the
+same spawn entity. 0x1097 is the smaller "result / confirmation"
+half of that pair.
+
+```
++0x00  u8x4    type_header        [00 01 97 42] = type 0x1097
++0x04  u8x16   identity_uuid      shared with 0x1096
++0x14  u32 BE  result             0x00000002 in capture
+```
+
+Structurally identical to `result_token_136a` modulo result
+field width (u32 BE here vs u64 BE in 0x136a) — both are
+"server response with numeric result" messages from different
+sub-systems.
+
+Codec: `server/javelin/result_token_1097.py`.
+
+## W-side singleton family — session-subkey-bearing reliability acks
+
+A large family of 16 W-direction singletons share the same
+**outer envelope + 16-byte session-subkey** structure as
+`session_subkey_1a59`. They differ only in:
+
+- The type-id (each from a different sub-system)
+- The "first_uuid_half" upper 8 bytes of the subkey (per
+  sub-system; e.g. `9e 92 1a 15 49 71 f6 b7` for 0xf7f,
+  `d1 a9 4c cc 87 06 60 0b` for 0x9d3)
+- The trailer field (none, 1-byte counter, 2-byte flag, or longer)
+
+Common envelope across all 16 (24-byte prefix):
+
+```
++0x00  u8x4    client_hash       per-message correlation hash
++0x04  u32 BE  remaining_len     total - 8
++0x08  u8x16   session_uuid      full session UUID (matches 0xa4)
++0x18  u8x4    type_header       per-type
++0x1c  u8x16   subkey            [first_uuid_half:8][session_uuid_lower:8]
++0x2c  trailer (variable)
+```
+
+**Trailer-length classes observed:**
+
+| Trailer size | Count | Type IDs |
+|---|---|---|
+| 0 (no trailer; 44 bytes total) | 3 | `0x066b`, `0x102f`, `0x1098` |
+| 1 byte (45 bytes total)        | 8 | `0x0f7f`, `0x101a`, `0x101d`, `0x10b0`, `0x143d`, `0x187c`, `0x187f`, **`0x1a59`** |
+| 2 bytes (46 bytes total)       | 1 | `0x102e` |
+| 4 bytes (48 bytes total)       | 1 | `0x09d3` |
+| 10 bytes (54 bytes total)      | 1 | `0x192c` |
+| larger (81 / 102 / 299 bytes)  | 3 | `0x0a95`, `0x09fc`, `0x12f6` |
+
+The existing `session_subkey_1a59.py` codec handles the 45-byte
+case (1-byte trailer) cleanly and could be generalized to a
+**`SubkeyBeacon`** parameterized by `(type_id, trailer_size)`
+to handle the 0-trailer / 2-byte / 4-byte variants too. Worth
+revisiting as a single-codec refactor — would consolidate 12 of
+the 16 W singletons under one implementation. Logged for next
+pass.
+
+The larger W singletons (81 / 102 / 299 bytes) carry richer
+payloads and need individual analysis:
+
+- **`0x0a95`** (81 bytes): subkey + u8 count (`0x24` = 36) +
+  36-byte flag array `01 01 01 01 01 01 00 01 01 01...` —
+  looks like a **per-session permission/feature flag bitmap**.
+- **`0x09fc`** (102 bytes): subkey + 16-byte additional UUID
+  + duplicated session_uuid + small structured payload — the
+  duplication of the session_uuid suggests a "client confirms
+  session-id-pair X→Y" handshake message.
+- **`0x12f6`** (299 bytes): the largest W singleton. Subkey +
+  ~270-byte payload — needs focused analysis.
 
 ## `0x1067` — 86-byte R Vivox voice-chat configuration (singleton)
 
