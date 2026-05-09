@@ -6921,3 +6921,94 @@ correct for them.
 **Blockers:** None — replay-mining continues to yield findings.
 The runtime-path decision is still the only thing gating live
 testing.
+
+---
+
+### 2026-05-09 — wake 73: envelope clarification + Vivox codec + 1096/1097 docs
+
+**Did:**
+
+1. **Caught a documentation mistake from wake 72.** I'd called the
+   typed-envelope behavior for low-type messages a "correction" of
+   the docs, but `docs/post-v3-sequence.md` lines 50-59 already had
+   the rule right: types in `[0x00, 0x3F]` use a **3-byte
+   envelope** `[00 01 type]`, types in `[0x40, 0x3FFF]` use a
+   **4-byte envelope** `[00 01 (type & 0x3F) | 0x80 (type >> 6)]`,
+   the high bit on byte 2 is a continuation flag. The wrong claim
+   was in `analysis/replay_message_inventory.md`'s blanket
+   intro ("4-byte typed envelope header"). Fixed the inventory
+   intro to describe both forms and cross-link to the post-v3
+   doc.
+
+2. **Confirmed via systematic header check** (printed in this
+   wake's analysis): of 40 distinct type IDs in the replay, every
+   R-direction message's first 4 bytes match the formula —
+   including the supposedly-anomalous low types:
+   - `0x03` R: `00 01 03 00` — but the `00` at byte 3 is **the
+     first byte of the V3 RegistrationResponse body**, not part
+     of the envelope.
+   - `0x08` R: `00 01 08 01` — likewise the `01` is the first
+     byte of the entity-state-stream payload.
+   - All ≥0x40 R types match formulaically.
+   - W messages "don't match" only because the W envelope is
+     `[client_hash:4][len:4][session_uuid:16][typed_envelope:4]`
+     — the typed envelope is at bytes 24..27, not bytes 0..3.
+
+3. **Snapshot diff for 0x08 R 46407-byte cluster.** sha256 across
+   all 24 messages produces a single hash. **The 24 messages are
+   byte-identical end-to-end**, not just first 32 bytes. So the
+   captured "snapshot cluster" is **literally the same 46407
+   bytes retransmitted 24 times** — pure transport-layer resends
+   with zero per-message variation. Inventory updated.
+
+4. **`vivox_config_1067.py`** — codec for type 0x1067 R singleton
+   (86 bytes). Body is three Pascal-style u8-prefixed UTF-8
+   strings carrying voice-chat config: `api_url`
+   (`"https://nwxp.www.vivox.com/api2/"`), `realm`
+   (`"amazon9050-ne83"`), `issuer` (`"@nwxp.vivox.com"`). Plus a
+   16-byte `identity_uuid` (lower 8 = session_uuid_lower) and a
+   `00` terminator. Round-trip + cross-replay validated; arbitrary
+   string lengths supported via the standard u8-length encoding.
+   These are the externally documented Vivox SDK config strings
+   for Amazon's North America region.
+
+5. **`0x1096`+`0x1097` R pair documented inline in inventory** —
+   they share a 16-byte `identity_uuid` (different upper, same
+   lower). 0x1096 (80 bytes) carries 60 bytes of float-looking
+   data (first floats decode to 6.0 and -1.0 BE), looks like
+   spawn position + rotation. 0x1097 (24 bytes) carries a single
+   u32 BE = 2 — "response token" or "state-stage indicator"
+   companion to 0x1096. No codec yet (singletons can't
+   variant-validate); documented as wire-shape reference for
+   future captures.
+
+**Files this iteration:**
+
+- `analysis/replay_message_inventory.md` (envelope rule fix +
+  0x08 retitled + 0x1067 codec section + 0x1096/0x1097 inline)
+- `server/javelin/vivox_config_1067.py` (new)
+- `server/javelin/test_codecs.py` (7 new tests, 171 total)
+- This worklog entry
+
+**Library status: 14 dedicated codecs, 171 tests passing.**
+
+**Found — `0x03` R body interpretation:** the 88-byte 0x03 R
+message at seq 0x1 is the **V3 RegistrationResponse**. The body
+after the 3-byte envelope starts with `00 00 00 0b 88 8d 68 70
+6c 41 5b 20 ...` and contains the `[RETAIL].Javelin.1.365.6031.6006993`
+build version string. The `0b 88 8d 68 70 6c 41 5b` substring is
+exactly the `mystery8` value baked into `v3_response.py` —
+`session_clock=0x0b888d68 nonce=0x706c415b`. So 0x03 IS V3-R
+and the existing v3_response codec already handles it; no new
+codec needed.
+
+**Next** (queue):
+
+1. Cross-link `v3_response.py` from the inventory under a `0x03`
+   section and remove it from the "various 1-each" lump.
+2. Look at `0x08e6` R (42-byte fixed-shape singleton, has a clean
+   structure: 16-byte UUID + 22-byte payload).
+3. Survey the remaining ~10 R singletons for any that have clean
+   length-prefixed structures suitable for a quick codec pass.
+
+**Blockers:** None.

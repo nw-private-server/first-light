@@ -1735,6 +1735,107 @@ def test_hsb_type_id_round_trip():
 
 
 # ---------------------------------------------------------------------------
+# VivoxConfig1067 (R direction, 86 bytes)
+# ---------------------------------------------------------------------------
+
+from .vivox_config_1067 import (  # noqa: E402
+    VivoxConfig1067,
+    encode as encode_vc1067,
+    decode as decode_vc1067,
+    CAPTURED_API_URL,
+    CAPTURED_REALM,
+    CAPTURED_ISSUER,
+)
+
+
+def test_1067_round_trip_from_replay():
+    """Round-trip the captured 0x1067 R message. Should decode to
+    the Amazon NA Vivox voice-chat config."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    candidates = [m for m in store.messages if m.type_id == 0x1067]
+    assert len(candidates) == 1
+    msg = decode_vc1067(candidates[0].body)
+    assert msg.api_url == CAPTURED_API_URL
+    assert msg.realm == CAPTURED_REALM
+    assert msg.issuer == CAPTURED_ISSUER
+    assert encode_vc1067(msg) == candidates[0].body
+
+
+def test_1067_decode_wrong_type_header_rejects():
+    bad = bytearray(b"\x00\x01\xff\xff" + b"\x00" * 80)
+    with pytest.raises(ValueError, match="type header"):
+        decode_vc1067(bytes(bad))
+
+
+def test_1067_decode_string_overrun_rejects():
+    """Length prefix claims more bytes than the buffer holds."""
+    bad = (
+        b"\x00\x01\xa7\x41"           # type header
+        + b"\x00" * 16                # identity_uuid
+        + b"\xff"                     # claim 255 bytes for first string
+        + b"X" * 4                    # only 4 bytes available
+    )
+    with pytest.raises(ValueError, match="overruns"):
+        decode_vc1067(bad)
+
+
+def test_1067_decode_missing_terminator_rejects():
+    """Drop the trailing 0x00 terminator."""
+    encoded = encode_vc1067(
+        VivoxConfig1067(
+            identity_uuid=b"\x00" * 16,
+            api_url="a",
+            realm="b",
+            issuer="c",
+        )
+    )
+    bad = encoded[:-1]  # drop terminator
+    with pytest.raises(ValueError, match="terminator|too short"):
+        decode_vc1067(bad)
+
+
+def test_1067_decode_wrong_terminator_rejects():
+    encoded = encode_vc1067(
+        VivoxConfig1067(
+            identity_uuid=b"\x00" * 16,
+            api_url="a",
+            realm="b",
+            issuer="c",
+        )
+    )
+    bad = bytearray(encoded)
+    bad[-1] = 0xFF  # corrupt terminator
+    with pytest.raises(ValueError, match="terminator"):
+        decode_vc1067(bytes(bad))
+
+
+def test_1067_validates_identity_uuid_size():
+    with pytest.raises(ValueError, match="identity_uuid"):
+        VivoxConfig1067(
+            identity_uuid=b"\x00" * 8,
+            api_url="x",
+            realm="y",
+            issuer="z",
+        )
+
+
+def test_1067_round_trip_with_arbitrary_strings():
+    msg = VivoxConfig1067(
+        identity_uuid=bytes(range(16)),
+        api_url="https://example.test/api/",
+        realm="region-1",
+        issuer="@example.test",
+    )
+    assert decode_vc1067(encode_vc1067(msg)) == msg
+
+
+# ---------------------------------------------------------------------------
 # v3_request — error paths (no capture file needed)
 # ---------------------------------------------------------------------------
 

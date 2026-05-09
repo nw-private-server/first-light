@@ -13,9 +13,23 @@
 > `clientmessagestrait_wire_formats.md` for the two ClientMessagesTrait
 > messages that reach static-RE.
 >
-> **All bodies are length-prefixed by a 4-byte typed envelope header**:
-> `[0x00, 0x01, (type & 0x3F) | 0x80, (type >> 6) & 0xFF]`. The
-> "payload" sizes below exclude this 4-byte header.
+> **The typed envelope before the body is variable-length**:
+>
+> - For type-IDs in **[0x40, 0x3FFF]** (high bit on byte 2 set —
+>   "byte 3 follows" continuation): **4 bytes** —
+>   `[0x00, 0x01, (type & 0x3F) | 0x80, (type >> 6) & 0xFF]`.
+> - For type-IDs in **[0x00, 0x3F]** (single-byte type): **3 bytes** —
+>   `[0x00, 0x01, type]`. The byte that would be byte 3 in the
+>   high-type case is the **first byte of the type-specific
+>   payload**, not part of the envelope.
+>
+> See `docs/post-v3-sequence.md` lines 50-59 — the existing
+> reference doc has the correct rule (the high bit on byte 2 is
+> a continuation flag in a VLQ-style encoding). All codecs in
+> `server/javelin/` so far are for types ≥ 0x40 so the 4-byte
+> form has been correct for them.
+>
+> "Payload" sizes below exclude the 3- or 4-byte envelope.
 
 ## Replay frequency table
 
@@ -367,12 +381,11 @@ Codec: `server/javelin/handshake_blob_76.py`.
 
 ## `0x08` R — 79-message entity-state stream (length + first-byte survey)
 
-The 79 0x08 R messages are 78..46423 bytes (median 1013). These
-do **not** use the standard typed envelope — instead all 78 of 79
-that share the `0001` marker have a 4-byte prefix
-`00 01 08 01` (rather than `00 01 88 00` that the standard
-envelope formula gives for type 0x08). The encoding for type-id
-< 0x40 evidently doesn't set the high bit on byte 2.
+The 79 0x08 R messages are 78..46423 bytes (median 1013). Type
+0x08 fits in a single byte so these use the **3-byte envelope**
+`[00 01 08]`. The byte at offset +3 (the first byte of the
+type-specific payload) is `0x01` in all 78 of 79 captures that
+share the `0001` marker.
 
 **Bimodal size distribution:**
 
@@ -397,30 +410,97 @@ same `01 08 01 01 01 01 01 01 00 00 d9 a9 05 01 30...` payload —
 a chunked-replay envelope wrapping the standard 46407-byte
 payload.
 
-**Byte-position 4 sub-counter:**
+**Per-frame sub-counter at payload offset +1 (= absolute byte 4):**
 
-Each 0x08 R message has byte 4 = 0x01..0x35 (1..53), and that
-value is **unique across messages** (except 24 of them all have
-0x01 — the snapshot retransmits — and 3 of them share 0x22). So
-byte 4 is a **per-stream sub-counter / frame number** that
-increments once per logical entity-state frame.
+Each 0x08 R message has the byte at payload offset +1 in
+`0x01..0x35` (1..53), and that value is **unique across
+messages** (except 24 of them all have 0x01 — the snapshot
+retransmits — and 3 of them share 0x22). So payload[+1] is a
+**per-stream frame number** that increments once per logical
+entity-state frame.
 
 **Smallest 0x08 R messages (78..158 bytes) all start with
-`00 01 08 01 <byte_4> 01 01 01 01 00 00 ...`** — the constant `01`s
-at bytes 5..8 plus a 2-byte zero gap suggest a fixed-shape
-"stream header" of about 11 bytes followed by a variable-length
-per-frame payload.
+`00 01 08` then payload `01 <frame_no> 01 01 01 01 00 00 ...`** —
+the constant `01`s at payload[+2..+5] plus a 2-byte zero gap
+suggest a fixed-shape "stream header" of about 10 bytes
+following the envelope, then a variable-length per-frame body.
+
+**Snapshot retransmissions are byte-identical end-to-end (not
+just first 32 bytes):** sha256 across all 24 of the 46407-byte
+0x08 R messages produces a single hash. So the captured
+"snapshot cluster" is **literally the same 46407 bytes
+retransmitted 24 times** — there is zero per-message variation
+within the cluster. For replay fidelity the server only needs
+to emit ONE of these per snapshot interval; the captured
+duplicates are pure wire-level resends.
 
 **Implications:**
 
 - Treat the 24 identical 46407-byte messages as the periodic
-  full-state snapshot. For replay fidelity the server only needs
-  to emit ONE of these per snapshot interval — the captured
-  duplicates are the wire-level retransmission cluster.
-- Byte 4 increments monotonically; emulator should mirror it
-  per emitted frame.
+  full-state snapshot. Server emits one per snapshot interval;
+  the wire-level retransmission cluster is purely transport
+  redelivery and need not be replicated semantically.
+- Payload[+1] (frame number) increments monotonically; emulator
+  should mirror it per emitted frame.
 - The full TLV-stream parser is out of scope for byte-pattern
   analysis; needs handler-side static-RE on the 0x08 dispatcher.
+
+## `0x1067` — 86-byte R Vivox voice-chat configuration (singleton)
+
+Single capture (seq 0x65). The body is a clean structure of three
+length-prefixed UTF-8 strings carrying voice-service config:
+
+  - `api_url` (32 bytes) = `"https://nwxp.www.vivox.com/api2/"`
+  - `realm` (15 bytes) = `"amazon9050-ne83"`
+  - `issuer` (15 bytes) = `"@nwxp.vivox.com"`
+
+All three are u8-prefixed (Pascal-style) — same convention as
+`level_descriptor_663`'s level_name + level_path. Total wire
+size: 4 (envelope) + 16 (identity_uuid) + 1+L1 + 1+L2 + 1+L3 + 1
+(terminator). For an emulator, these three strings are the
+concrete values the captured server returned for Amazon's North
+America region; they're externally documented as Vivox SDK
+configuration.
+
+Codec: `server/javelin/vivox_config_1067.py`.
+
+## `0x1096` + `0x1097` R — paired spawn-related messages (singletons)
+
+Sent at seq 0x75 and 0x76, both R direction. They share the same
+**16-byte identity_uuid** prefix (`93 a3 e4 77 cb 5f d5 1e
+bf 85 31 4b bc 4a 95 1a`, lower 8 = session_uuid_lower) which
+strongly suggests they're a **request/response or
+"main-and-confirmation"** pair.
+
+`0x1096` (80 bytes typed body, 60 bytes after the identity):
+
+```
++0x00  u8x4    type_header        [00 01 96 42] = type 0x1096
++0x04  u8x16   identity_uuid      shared with 0x1097
++0x14  bytes×60  payload          interpreted as f32 BE values
+                                   begins `40 c0 00 00` = 6.0,
+                                   `bf 80 00 00` = -1.0, then
+                                   smaller floats — looks like a
+                                   spawn-position + rotation +
+                                   maybe scale/velocity vector
+```
+
+`0x1097` (24 bytes typed body, 4 bytes after the identity):
+
+```
++0x00  u8x4    type_header        [00 01 97 42] = type 0x1097
++0x04  u8x16   identity_uuid      same as 0x1096
++0x14  u32 BE  value              0x00000002 in capture
+```
+
+The 0x1097 looks like a tiny "response token" or "confirmation
+counter" paired to the 0x1096 spawn message; the small u32 (= 2)
+might be a state-stage indicator. Variant analysis would need
+more captures.
+
+No codec yet — singletons with one un-redacted byte sequence each
+don't have enough variation to distinguish "constant payload" from
+"per-message data". Documented for future cross-checking.
 
 ## Next message types worth a similar pass
 
