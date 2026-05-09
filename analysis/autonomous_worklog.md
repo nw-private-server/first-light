@@ -6132,3 +6132,105 @@ deserializer.
    eventually lands).
 
 **Blockers:** None new. Several days of productive work in the queue.
+
+---
+
+### 2026-05-08 — wake 66: replay-message inventory + first non-CMT codec (`0x1b88` SessionIdentityBeacon)
+
+**Did:**
+
+1. Surveyed all 177 captured messages in
+   `info/nw-login-safe-20260502-153840/` by type-id frequency,
+   body size, and direction.
+2. Picked the most tractable target — type `0x1b88` (23 occurrences,
+   all byte-identical, fixed 42 bytes) — and characterized it
+   directly from byte patterns.
+3. Cross-compared `0x1b88`, `0x14f`, `0xa4`, `0x18a6` and found
+   shared identity fields. Wrote up the cross-type analysis.
+4. Shipped a Python codec (encoder + decoder + 8 tests) for `0x1b88`.
+
+**Found — cross-type session-identity field:**
+
+The same lower 8 bytes of a 16-byte UUID (`bf 85 31 4b bc 4a 95 1a`)
+appear in three different message types: `0xa4`, `0x1b88`, `0x18a6`.
+This is most likely a shared session-or-server identifier the
+server echoes across multiple beacons.
+
+**Found — V3 response `mystery8` partly resolved:**
+
+Type `0x14f` (4 captured messages, 12 bytes each) carries an 8-byte
+payload whose first 4 bytes match the V3 response's `mystery8`
+prefix:
+
+| `mystery8` (from `v3_response.py`) | `0x14f` payload bytes 0..3 |
+|---|---|
+| `0b 88 8d 68 70 6c 41 5b` | `0b 88 8d 68` (seq 0xa) |
+|   | `0b 88 8d 68` (seq 0x27, identical) |
+|   | `0b 88 8d 69` (seq 0x3c, +1 BE) |
+|   | `0b 88 8d 69` (seq 0x54, identical to prev) |
+
+So `mystery8` bytes 0..3 are a slowly-incrementing **session clock**
+the server sets at registration. Bytes 4..7 are likely a per-session
+nonce (different in each `0x14f` capture).
+
+This unlocks the V3 response encoder: instead of emitting the
+captured `0x0b888d68706c415b` blob verbatim, future versions can
+build it as `[clock_u32_BE][nonce_u32]`.
+
+**Found — `0x18a6` carries the build version:**
+
+Bytes +0x1c..+0x1f of the 36-byte payload are
+`65 03 00 00` LE = `0x365` = **869**, matching the docs' game
+version `[RETAIL].Javelin.1.365.6031.6006993`. Trailing byte
+counts (+0x23) are 1, 2, 3, 4 across the 4 captured copies — a
+per-broadcast counter.
+
+**Files this iteration:**
+
+- `analysis/replay_message_inventory.md` (new) — frequency table,
+  cross-type byte analysis, per-type layout for `0x1b88`,
+  `0x14f`, `0x18a6`, `0xa4`. Documents the V3 `mystery8` finding.
+- `server/javelin/session_identity_beacon.py` (new) — codec for
+  `0x1b88` (84 lines). Includes the 4-byte typed envelope header in
+  `encode()` output (this is a "complete on-wire body" rather than
+  the body-only convention the ClientMessagesTrait codecs use,
+  because `0x1b88` doesn't go through that dispatcher path).
+- `server/javelin/test_codecs.py` — 8 new tests covering: decode
+  the captured bytes, round-trip, encode default 42-byte size,
+  validate UUID length, reject wrong size / wrong type header /
+  non-zero padding, **decode all 23 replay copies and assert they
+  all decode to a single UUID**.
+
+**Test suite:** 129 → 137 passing in 0.49s.
+
+**Why this matters:**
+
+For replay-stack realism, `0x1b88` was being replayed verbatim
+from captured bytes. With a structured codec, the server can:
+
+- Substitute a fresh per-session UUID instead of echoing the
+  captured one
+- Align the payload's UUID with what the V3 response advertises
+  (consistency check)
+- Verify replay correctness by decoding the on-wire bytes back
+  to the original UUID
+
+Plus the `mystery8` partial-decode is independently useful — it
+removes a "captured magic number" from `v3_response.py` that
+predated this analysis.
+
+**Next** (continuing the loop):
+
+1. Apply the `mystery8` finding to `v3_response.py` —
+   parameterize the session-clock + nonce instead of the
+   hardcoded byte string.
+2. Ship a codec for `0xa4` (the next-simplest fixed-size type;
+   20 bytes, 2 occurrences, just the session UUID).
+3. Ship a codec for `0x18a6` (40 bytes, includes build version
+   and per-message counter).
+4. Ship a codec for `0x14f` (12 bytes, session-clock beacon).
+5. Multi-capture variant analysis for `0x15d` and `0x635` (the
+   other recurring types) — needs more data ideally; without it,
+   document the byte patterns we have.
+
+**Blockers:** None new. Solid runway.

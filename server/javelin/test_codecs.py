@@ -493,6 +493,86 @@ def test_combined_sequence_min_total_size():
 
 
 # ---------------------------------------------------------------------------
+# SessionIdentityBeacon (type 0x1b88)
+# ---------------------------------------------------------------------------
+
+from .session_identity_beacon import (  # noqa: E402
+    SessionIdentityBeacon,
+    encode as encode_sib,
+    decode as decode_sib,
+    TYPED_BODY_SIZE as SIB_TYPED_BODY_SIZE,
+    TYPE_HEADER as SIB_TYPE_HEADER,
+)
+
+
+_CAPTURED_SIB = bytes.fromhex(
+    "0001886e"
+    "e2640b7ce5408036bf85314bbc4a951a"
+    + "00" * 22
+)
+
+
+def test_sib_decode_captured_bytes():
+    """The 23 identical captures in the replay all decode to the same UUID."""
+    msg = decode_sib(_CAPTURED_SIB)
+    assert msg.session_uuid.hex() == "e2640b7ce5408036bf85314bbc4a951a"
+
+
+def test_sib_round_trip():
+    msg = decode_sib(_CAPTURED_SIB)
+    assert encode_sib(msg) == _CAPTURED_SIB
+
+
+def test_sib_encode_default_size_42():
+    uuid = bytes(range(16))
+    blob = encode_sib(SessionIdentityBeacon(session_uuid=uuid))
+    assert len(blob) == SIB_TYPED_BODY_SIZE == 42
+    assert blob[:4] == SIB_TYPE_HEADER
+    assert blob[4:20] == uuid
+    assert blob[20:42] == bytes(22)
+
+
+def test_sib_validates_uuid_length():
+    with pytest.raises(ValueError, match="session_uuid"):
+        SessionIdentityBeacon(session_uuid=b"\x00" * 15)
+    with pytest.raises(ValueError, match="session_uuid"):
+        SessionIdentityBeacon(session_uuid=b"\x00" * 17)
+
+
+def test_sib_decode_wrong_size():
+    with pytest.raises(ValueError, match="expected exactly 42"):
+        decode_sib(_CAPTURED_SIB + b"\xFF")
+
+
+def test_sib_decode_wrong_type_header():
+    bad = b"\x00\x01\x99\x99" + _CAPTURED_SIB[4:]
+    with pytest.raises(ValueError, match="type header mismatch"):
+        decode_sib(bad)
+
+
+def test_sib_decode_nonzero_padding():
+    bad = _CAPTURED_SIB[:41] + b"\xFF"
+    with pytest.raises(ValueError, match="padding non-zero"):
+        decode_sib(bad)
+
+
+def test_sib_decode_all_23_replay_copies_identical():
+    """All 23 captures of this type in the replay are byte-identical;
+    decoding any of them must give the same UUID."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    sibs = [m for m in store.messages if m.type_id == 0x1b88]
+    assert len(sibs) > 0
+    uuids = {decode_sib(m.body).session_uuid for m in sibs}
+    assert len(uuids) == 1, f"expected 1 unique UUID, got {len(uuids)}"
+
+
+# ---------------------------------------------------------------------------
 # v3_request — error paths (no capture file needed)
 # ---------------------------------------------------------------------------
 
