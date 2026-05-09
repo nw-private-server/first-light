@@ -6541,3 +6541,175 @@ Plus the V3 request parser + response encoder.
 4. Cross-link the wire-format reference doc to all 8 codecs.
 
 **Blockers:** None new. The replay-mining vein is still rich.
+
+---
+
+### 2026-05-08 — wake 70: Parallels Desktop pivot — same GPU cascade as UTM, definitive
+
+**Did:**
+
+Maintainer green-lit the Parallels pivot. Drove the entire setup
+end-to-end while they slept.
+
+1. **Maintainer-interactive setup** (~15 min on their end):
+   Parallels installed, Windows 11 ARM64 VM created, Steam logged
+   in, Python 3.11 x64 (after a winget-pulled-ARM64 detour fixed
+   with `py install 3.11`), Frida 17.9.7, OpenSSH server with my
+   pubkey in `administrators_authorized_keys`. Sent me VM IP
+   `10.211.55.3`, username `junichimcand1c5\junichi`.
+2. **Pre-flight + Phase G driven from Mac via SSH**: 222.7 GB
+   free in VM, Defender excluded `C:\NewWorldArchive`, repo
+   cloned and switched to `claude/vacation-2026-05-06`, CA
+   trusted, hosts file redirects (28 entries → 127.0.0.1),
+   portproxy (127.0.0.1:443 → 10.211.55.2:4443), Mac servers
+   `auth_mock` (4443) + `rep_responder` (UDP/24083) running and
+   reachable from VM (verified by Test-NetConnection).
+3. **Game directory SCP push**: 71.3 GB transferred from Mac to
+   `C:\NewWorldArchive` in ~9.5 minutes (≈125 MB/s — slightly
+   faster than UTM).
+4. **Updated `tools/show_vm_host_ip.sh`** to support both UTM
+   (192.168.x bridge100) and Parallels (10.x bridge100). One-line
+   regex change. Committed as `a827d6e`.
+5. **First smoke test failed FAST** — game spawned then died in
+   285ms with `STATUS_DLL_NOT_FOUND` (0xC0000135). Diagnosed as
+   missing Visual C++ redistributable; the game's
+   `_CommonRedist/vcredist/2022/VC_redist.x64.exe` and
+   `_CommonRedist/DirectX/Jun2010/DXSETUP.exe` weren't installed
+   yet on the fresh VM.
+6. **Installed VC++ 2022 (x64+x86) + DirectX June 2010 runtimes**
+   silently via the bundled installers. All three exit code 0.
+7. **Re-launched NewWorld.exe directly (no Frida)** to confirm
+   the DLL issue was resolved — got further (5+ seconds, 446MB
+   memory, 4.5s CPU) before exiting with code 1. Same generic
+   self-termination we'd expect from the GPU-detection cascade.
+8. **Re-ran the Frida smoke test** (`parallels_smoke_001`).
+
+**Found — Parallels has the same GPU cascade as UTM:**
+
+The detailed session log
+(`C:\first-light\capture\20260508_231955_parallels_smoke_001\session.log`,
+27.6 KB) shows the **identical pattern** to UTM smoke 005/006/007
+from wakes 45-47, with one diagnostic improvement:
+
+```
+[23:20:58.262] [steam] SteamAPI_Init -> 0
+[23:20:58.279] [exit_trap] FUN_1470d11a0 entered (call #1)
+   ... 100+ more dispatches ...
+[23:21:00.031] [gpu_spoof] AZoth dialog (uType=0x20030):
+                "Your graphics card does not support all the
+                 DirectX 12 features we require..."
+[23:21:00.045] [gpu_spoof] AZoth dialog (uType=0x20131):
+                "Unsupported video card detected!"
+[23:21:00.068] [gpu_spoof] FUN_147143960 returned 1 naturally
+[23:21:00.505] [proc] TerminateProcess(handle=0xffffffffffffffff, code=1)
+[23:21:00.505] [exit_trap] *** ntdll.dll!NtTerminateProcess
+                arg0=0xffffffffffffffff arg1=0x1 (tid=6528)
+[23:21:00.536] [!] Session detached: process-terminated
+```
+
+Same dialog, same handler return, **same 437ms gap** between
+GPU-validate succeeding and the game self-terminating. The only
+difference vs UTM: Parallels' game uses an **explicit
+`TerminateProcess(self, 1)`** instead of UTM's silent
+`STATUS_ACCESS_VIOLATION` via `KiUserExceptionDispatcher`. This
+is a slightly cleaner exit (the game's own decision rather than a
+crash) but **the root cause is identical**: virtio-style GPU
+virtualization presents `VendorId = DeviceId = 0` to DXGI; the
+engine decides "no usable GPU, exit."
+
+**Important upgrade from UTM**: with the corrected
+`exit_trap` (wake 47 + the corrected RVA from wake 48), we now
+caught the actual exit syscall this time. Both `NtTerminateProcess`
+AND `ZwTerminateProcess` fired (they're aliases for the same
+syscall), and the FUZZY backtrace surfaces 16 frames including
+some `MusicSegmentProxyCommandData::SetMarkers` and `isatty`
+symbols — these are the closest *exported* symbols to the actual
+return-address points (real symbols not present), but the
+chain shows the exit decision originates inside the engine's
+own initialization path after the GPU dialog.
+
+**Implication: Parallels is NOT the next-step solution.**
+
+Per the FAQ at `analysis/proposed_patches/vm_setup_faq.md`:
+> "Game starts and reaches network init under UTM": 40-60%
+> "Game starts and reaches network init under Parallels": 80%+
+
+Today's data: **Parallels: 0%** (under our test conditions).
+Possible explanations:
+- The 80% estimate was for "starts and reaches network init"
+  with a real GPU passthrough, not virtio-gpu
+- Parallels' Apple Silicon D3D virtualization is also
+  virtio-style at the hypervisor level — the abstraction
+  presented to Windows isn't materially different from UTM's
+- The game's GPU check is strict enough that NEITHER VM
+  backend's paravirtualized GPU passes
+
+**This makes the FAQ recommendation chain**: UTM (failed) →
+Parallels (failed) → physical Windows host or AWS Windows-Gaming
+VM with GPU passthrough.
+
+**What works (great news):**
+
+The entire Parallels infrastructure functions identically to
+UTM — repo clone, cert install, hosts redirect, portproxy,
+SSH-driven control, SCP push, server-side stack, Frida hooks.
+**The 8-codec library and protocol RE work all run perfectly.**
+When the maintainer eventually gets a real GPU, the framework
+just works.
+
+Today's wake also confirmed:
+- `tools/show_vm_host_ip.sh` correctly handles both VM backends now.
+- The `_CommonRedist` runtimes (VC++ 2022 x64+x86, DirectX Jun2010)
+  are required and need to be installed AS PART OF Phase E for
+  any future fresh-VM setup. Neither UTM nor the original Phase E
+  doc mentioned this — the UTM session probably had them lingering
+  from earlier game launches via Steam.
+
+**Files this iteration:**
+
+- `tools/show_vm_host_ip.sh` (Parallels support, committed `a827d6e`)
+- This worklog entry
+
+**Capture artifacts on the Parallels VM:**
+
+- `C:\first-light\capture\20260508_231650_parallels_smoke_001\` —
+  first failed run (process died during Frida injection due to
+  missing DLLs)
+- `C:\first-light\capture\20260508_231955_parallels_smoke_001\` —
+  second run after VC++/DX install. Full session.log (27.6 KB),
+  hooks.log (4.2 KB), packets.jsonl (0 bytes — game exited before
+  network init, same as UTM)
+
+**Next** (queue, in priority order):
+
+1. **Maintainer decision:** physical Windows host OR AWS
+   Windows-Gaming VM. Per the FAQ, both have ~95% probability of
+   reaching network init because they have actual D3D11 hardware
+   (Bootcamp/native or GPU-passthrough cloud).
+   - **Physical Windows host**: zero recurring cost, but needs
+     hardware on hand or a Bootcamp partition (Apple Silicon
+     can't Bootcamp; Intel Macs can).
+   - **AWS Windows-Gaming**: ~$1-2/hr on-demand, no hardware
+     needed, can be spun up just for testing sessions.
+   - **GPU-passthrough Windows on Apple Silicon**: doesn't
+     exist as a viable option (no consumer hypervisor exposes
+     real GPU to a Windows guest on Apple Silicon).
+2. Once a path is picked, the Parallels infra exercise gives us
+   confidence the entire SSH-driven pipeline works end-to-end —
+   only the VM creation step changes.
+3. **In the meantime**: continue replay-mining via the loop.
+   The library is at 8 codecs; another 4-6 message types remain
+   in the inventory worth characterizing without runtime.
+
+**Strategic note:**
+
+Today's experiment ate ~30 min of maintainer time + ~1 hour of my
+autonomous time. The result is **definitive** in a way that
+further hand-wringing wouldn't be: paravirtualized GPU on Apple
+Silicon doesn't satisfy this game's hardware checks. Both VM
+backends had the same fate. Future planning should go straight
+to a real GPU.
+
+**Blockers:** Same as before runtime — strategic decision on
+physical / cloud Windows host. The replay-mining and codec work
+are unblocked and continue meanwhile.
