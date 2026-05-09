@@ -8736,3 +8736,66 @@ The actionable items are mostly runtime-dependent now:
 **Blockers:** Static-RE genuinely yielding less per loop
 iteration. The maintainer's runtime path remains the highest-
 value unblock.
+
+---
+
+### 2026-05-09 — wake 89: registry xref-scan empty; loop stops again
+
+**Did (briefly):**
+
+- (a) `FindLEAToRange` on `[0x14abcb000, 0x14abcd000]` (the AZ
+  typed registry containing SelfIdent's entry from wake 6)
+  returned **0 hits** — no instructions directly target that
+  region. Widened to `[0x14abc0000, 0x14abf0000]`: still 0 hits.
+  The registry is reached via runtime pointer-chasing (load
+  global ptr → index by id → read), not via compile-time
+  instruction-encoded addresses.
+- (b) Skipped — no candidate functions surfaced.
+- (c) Checked `analysis/ghidra_findings.txt` (existing
+  JavelinHunt output from May 6, 3014 lines). Coverage is
+  DTLS/Carrier-layer strings (cipher, carrier_thread,
+  cs_disconnected, etc.). Doesn't reach the message-type
+  dispatcher question. Re-running won't add signal — the
+  binary hasn't changed.
+
+**Conclusion**: per option (d) of the loop prompt, stopping
+again. The autonomous static-RE thread genuinely has no more
+high-value moves available without external inputs.
+
+The **unblocking inputs** in priority order:
+1. **Real-GPU Windows host** (AWS / physical) — Frida hooks
+   against a live session resolve the dispatcher question and
+   the trailer/1033 hypotheses in minutes
+2. **A second capture** from a different session — distinguishes
+   session-derived from session-stable structural elements
+3. **Ghidra GUI time** with full UI tools — the headless scripts
+   can't easily explore vtables, class hierarchies, or
+   pointer-chasing patterns interactively
+
+None of these are autonomous-loop tasks. Letting the loop go
+quiet is the right call.
+
+**Wakes 86-89 in summary**:
+- Wake 86: confirmed trailer + sub_id + 0x1033 chunks are 100%
+  runtime-derived (no compile-time constants)
+- Wake 87: investigated dispatcher; found "table-based not
+  switch-based" but mistook Unicode case-folding tables for
+  protocol catalog tables
+- Wake 88: corrected the wake-87 mistake (the table is
+  Unicode case-folding, decompiled `FUN_1462426b0` /
+  `FUN_1462419c0` to confirm)
+- Wake 89: AZ typed registry xref-scan empty; JavelinHunt
+  already-run output doesn't help; stopping
+
+Total tooling shipped during this RE thread (kept):
+- `FindBytesAnywhere.py`
+- `FindConstantIntersection.py`
+- `FindAlignedDataConstant.py`
+- `FindMemcmpCalls.py`
+- `FindLEAToRange.py`
+
+These will be useful for the next pass when runtime inputs are
+available.
+
+**Blockers:** None autonomously, no remaining high-value
+threads. Stopping until the maintainer signals next steps.
