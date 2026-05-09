@@ -573,6 +573,215 @@ def test_sib_decode_all_23_replay_copies_identical():
 
 
 # ---------------------------------------------------------------------------
+# SessionMessageA4 (type 0xa4 small variant)
+# ---------------------------------------------------------------------------
+
+from .session_message_a4 import (  # noqa: E402
+    SessionMessageA4,
+    encode as encode_a4,
+    decode as decode_a4,
+    TYPED_BODY_SIZE as A4_TYPED_BODY_SIZE,
+    TYPE_HEADER as A4_TYPE_HEADER,
+)
+
+_CAPTURED_A4 = bytes.fromhex(
+    "0001a402"
+    "1a954abc4b3185bfbe37c3d8592618e0"
+)
+
+
+def test_a4_decode_captured_bytes():
+    msg = decode_a4(_CAPTURED_A4)
+    assert msg.session_uuid.hex() == "1a954abc4b3185bfbe37c3d8592618e0"
+
+
+def test_a4_round_trip():
+    msg = decode_a4(_CAPTURED_A4)
+    assert encode_a4(msg) == _CAPTURED_A4
+
+
+def test_a4_encode_size_20():
+    blob = encode_a4(SessionMessageA4(session_uuid=bytes(range(16))))
+    assert len(blob) == A4_TYPED_BODY_SIZE == 20
+    assert blob[:4] == A4_TYPE_HEADER
+    assert blob[4:20] == bytes(range(16))
+
+
+def test_a4_validates_uuid_length():
+    with pytest.raises(ValueError, match="session_uuid"):
+        SessionMessageA4(session_uuid=b"\x00" * 15)
+
+
+def test_a4_decode_wrong_size_rejects():
+    with pytest.raises(ValueError, match="20 bytes"):
+        decode_a4(_CAPTURED_A4 + b"\xFF")
+
+
+def test_a4_decode_wrong_type_header():
+    bad = b"\x00\x01\x99\x99" + _CAPTURED_A4[4:]
+    with pytest.raises(ValueError, match="type header"):
+        decode_a4(bad)
+
+
+def test_a4_both_replay_copies_decode_to_same_uuid():
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    a4s = [m for m in store.messages if m.type_id == 0xa4]
+    assert len(a4s) == 2
+    uuids = {decode_a4(m.body).session_uuid for m in a4s}
+    assert len(uuids) == 1
+
+
+# ---------------------------------------------------------------------------
+# InitMessage18A6 (type 0x18a6)
+# ---------------------------------------------------------------------------
+
+from .init_message_18a6 import (  # noqa: E402
+    InitMessage18A6,
+    encode as encode_18a6,
+    decode as decode_18a6,
+    TYPED_BODY_SIZE as I18A6_TYPED_BODY_SIZE,
+    TYPE_HEADER as I18A6_TYPE_HEADER,
+    DEFAULT_BUILD_VERSION as I18A6_DEFAULT_BUILD_VERSION,
+    DEFAULT_FLAGS as I18A6_DEFAULT_FLAGS,
+)
+
+_CAPTURED_18A6_C1 = bytes.fromhex(
+    "0001a662"
+    "f8cbed57c68b18f4"
+    "bf85314bbc4a951a"
+    "01010000"
+    "9cfa58617814 69f2".replace(" ", "")
+    + "65030000"
+    + "000002"
+    + "01"
+)
+
+
+def test_18a6_decode_captured_bytes():
+    msg = decode_18a6(_CAPTURED_18A6_C1)
+    assert msg.first_uuid_half.hex() == "f8cbed57c68b18f4"
+    assert msg.session_uuid_lower.hex() == "bf85314bbc4a951a"
+    assert msg.second_id.hex() == "9cfa58617814 69f2".replace(" ", "")
+    assert msg.flags == I18A6_DEFAULT_FLAGS
+    assert msg.build_version == I18A6_DEFAULT_BUILD_VERSION  # 0x365 = 869
+    assert msg.counter == 1
+
+
+def test_18a6_round_trip():
+    msg = decode_18a6(_CAPTURED_18A6_C1)
+    assert encode_18a6(msg) == _CAPTURED_18A6_C1
+
+
+def test_18a6_encode_size_40():
+    blob = encode_18a6(InitMessage18A6(
+        first_uuid_half=bytes(8),
+        session_uuid_lower=bytes(8),
+        second_id=bytes(8),
+        counter=1,
+    ))
+    assert len(blob) == I18A6_TYPED_BODY_SIZE == 40
+    assert blob[:4] == I18A6_TYPE_HEADER
+
+
+def test_18a6_counter_increments_in_replay():
+    """The 4 captured copies have counters 1, 2, 3, 4 — verify the
+    decoder reads them correctly."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    msgs = [m for m in store.messages if m.type_id == 0x18a6]
+    counters = [decode_18a6(m.body).counter for m in msgs]
+    assert counters == [1, 2, 3, 4]
+
+
+def test_18a6_validates_field_widths():
+    with pytest.raises(ValueError, match="first_uuid_half"):
+        InitMessage18A6(
+            first_uuid_half=bytes(7),
+            session_uuid_lower=bytes(8),
+            second_id=bytes(8),
+        )
+    with pytest.raises(ValueError, match="session_uuid_lower"):
+        InitMessage18A6(
+            first_uuid_half=bytes(8),
+            session_uuid_lower=bytes(9),
+            second_id=bytes(8),
+        )
+    with pytest.raises(ValueError, match="second_id"):
+        InitMessage18A6(
+            first_uuid_half=bytes(8),
+            session_uuid_lower=bytes(8),
+            second_id=bytes(7),
+        )
+
+
+def test_18a6_validates_counter_fits_u8():
+    with pytest.raises(ValueError, match="counter"):
+        InitMessage18A6(
+            first_uuid_half=bytes(8),
+            session_uuid_lower=bytes(8),
+            second_id=bytes(8),
+            counter=256,
+        )
+
+
+def test_18a6_decode_wrong_size_rejects():
+    with pytest.raises(ValueError, match="40"):
+        decode_18a6(_CAPTURED_18A6_C1 + b"\xFF")
+
+
+def test_18a6_decode_wrong_type_header():
+    bad = b"\x00\x01\x99\x99" + _CAPTURED_18A6_C1[4:]
+    with pytest.raises(ValueError, match="type header"):
+        decode_18a6(bad)
+
+
+def test_18a6_session_uuid_lower_matches_a4_lower_half():
+    """Cross-codec invariant: 0x18a6's session_uuid_lower (bytes
+    +0x08..+0x0F of payload) must match the lower 8 bytes of
+    0xa4's session_uuid in the same capture. This is the
+    "shared session-family identifier" finding from
+    analysis/replay_message_inventory.md."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    a4 = next(m for m in store.messages if m.type_id == 0xa4)
+    i18a6 = next(m for m in store.messages if m.type_id == 0x18a6)
+
+    a4_msg = decode_a4(a4.body)
+    i18a6_msg = decode_18a6(i18a6.body)
+
+    # The 0xa4 session_uuid is 16 bytes laid out [upper8][lower8].
+    # The 0x18a6 session_uuid_lower is the same lower 8 bytes.
+    # Per the captures: 0xa4 session_uuid =
+    #   1a954abc4b3185bf  be37c3d8592618e0
+    # 0x18a6 session_uuid_lower = bf85314bbc4a951a
+    # That's the FIRST 8 bytes of 0xa4's UUID, BYTE-REVERSED:
+    #   1a954abc4b3185bf -> bf85314bbc4a951a
+    # i.e. the session UUID stored in 0xa4 in big-endian / mixed-endian
+    # form is reversed in the 0x18a6 payload (or vice versa).
+    a4_first8 = a4_msg.session_uuid[:8]
+    assert a4_first8 == bytes(reversed(i18a6_msg.session_uuid_lower)), (
+        f"expected 0x18a6 session_uuid_lower ({i18a6_msg.session_uuid_lower.hex()}) "
+        f"to be byte-reversal of 0xa4's first 8 bytes ({a4_first8.hex()})"
+    )
+
+
+# ---------------------------------------------------------------------------
 # v3_request — error paths (no capture file needed)
 # ---------------------------------------------------------------------------
 

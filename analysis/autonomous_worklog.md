@@ -6234,3 +6234,97 @@ predated this analysis.
    document the byte patterns we have.
 
 **Blockers:** None new. Solid runway.
+
+---
+
+### 2026-05-08 — wake 67: 0xa4 + 0x18a6 codecs + cross-codec invariant test
+
+**Did:**
+
+1. `server/javelin/session_message_a4.py` — codec for the small
+   variant of type 0xa4 (20 bytes total, 16-byte session UUID).
+   Caveat documented: Phase 6's "0xa4 large" (75 / 195 bytes) is
+   a different layout, not covered.
+2. `server/javelin/init_message_18a6.py` — codec for type 0x18a6
+   (40 bytes total). Fields: `first_uuid_half` (8B),
+   `session_uuid_lower` (8B), `flags` (u32 LE = `0x00000101` in
+   captures), `second_id` (8B), `build_version` (u32 LE,
+   default 0x365 = 869), 3 bytes reserved (`00 00 02`),
+   `counter` (u8). Decoder doesn't enforce equality on the
+   reserved bytes so future captures with variation parse cleanly.
+3. `server/javelin/test_codecs.py` — 16 new tests across both
+   codecs: round-trip, captured-bytes-decode, encode size,
+   wrong-size + wrong-type-header rejection, validation paths
+   for field widths + counter range.
+4. **Notable test:** `test_18a6_counter_increments_in_replay`
+   reads all 4 captured 0x18a6 messages and asserts their
+   counters decode as `[1, 2, 3, 4]` — exactly what we expect
+   from the per-broadcast counter.
+5. **Cross-codec invariant test:**
+   `test_18a6_session_uuid_lower_matches_a4_lower_half` reads
+   one 0xa4 and one 0x18a6 message from the replay and verifies
+   that 0x18a6's `session_uuid_lower` is the byte-reversal of
+   0xa4's session UUID first 8 bytes — this is the
+   "shared session-family identifier" finding from
+   `analysis/replay_message_inventory.md`. Surfaced an extra
+   detail: the two payloads encode the SAME 8 bytes in opposite
+   byte order. Probably reflects mixed-endian UUID display vs
+   raw RFC4122 layout.
+
+**Test suite:** 137 → **153 passing in 1.10s.**
+
+**Why this matters:**
+
+Three of the highest-frequency / smallest message types in the
+replay now have shipping codecs:
+
+- 0x1b88 (23 captures, 42 bytes) — wake 66
+- 0xa4 (2 captures, 20 bytes) — this iteration
+- 0x18a6 (4 captures, 40 bytes) — this iteration
+
+Combined with the ClientMessagesTrait codecs (SelfIdent +
+LevelInfoChanged), the project's Python wire-format library now
+covers 5 distinct message types with full encode + decode +
+round-trip-tested coverage.
+
+**Note on the cross-codec invariant:**
+
+The byte-reversal between 0xa4's UUID first half and 0x18a6's
+`session_uuid_lower` is interesting — it suggests one of these
+encodings stores the UUID in canonical little-endian (raw
+RFC4122 byte order) and the other stores it as a reversed
+form (perhaps because the receiving code re-interprets it as
+Microsoft GUID format). Future RE work could nail down which is
+which; for now the codecs preserve the bytes-as-captured.
+
+**Mystery8 refactor — deferred.** Wake 66's queue had
+"parameterize V3 response's `mystery8` based on the session-clock
+finding" as a possible follow-up. Skipped this iteration to keep
+scope tight on shipping the two codecs cleanly. Scheduling for
+next wake.
+
+**Files this iteration:**
+
+- `server/javelin/session_message_a4.py` (new)
+- `server/javelin/init_message_18a6.py` (new)
+- `server/javelin/test_codecs.py` (16 new tests)
+- This worklog entry
+
+**Commit:** Following.
+
+**Next** (continuing the loop):
+
+1. **Mystery8 refactor in `v3_response.py`** — replace the
+   hardcoded `DEFAULT_MYSTERY8` byte string with parameterized
+   `[session_clock_u32_BE][nonce_u32]`. Default value preserves
+   the captured bytes for backward compat.
+2. **Codec for type 0x14f** (12 bytes, 4 captures, the session-
+   clock beacon). Each capture has a different last-4-byte
+   nonce, so this is a good "fields actually vary" test case.
+3. **Variant analysis for 0x15d** (20 captures, 12 or 36 bytes,
+   bidirectional). Different sizes likely mean two distinct
+   wire shapes — try to characterize each.
+4. **Codec for type 0x663** (2 captures, 110 bytes fixed). Larger
+   payload; will exercise more of the wire-format conventions.
+
+**Blockers:** None new. Replay-mining vein remains productive.
