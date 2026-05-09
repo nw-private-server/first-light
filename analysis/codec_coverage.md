@@ -92,3 +92,58 @@ For any new codec:
   test using `ReplayStore`.
 - Add cross-codec invariant tests if the type shares fields with
   others (e.g. matching `second_id`, hash echoes, counter pairs).
+
+## Library health snapshot (wake 85)
+
+- **35 Python modules** in `server/javelin/`
+- **~10072 lines total** (codecs + tests + replay infra)
+- **22 dedicated codecs** + **1 generic** (`subkey_beacon`,
+  covering 14 W-direction types) + **1 SessionState sketch**
+- **9 factory helpers** (`make_*`):
+  `make_subkey_beacon`, `make_init_message_18a6`,
+  `make_ack_for`, `make_session_clock_beacon`,
+  `make_session_identity_beacon`, `make_session_message_a4`,
+  `make_handshake_blob_76`, `make_result_token_136a`,
+  `make_result_token_1097`
+- **49 exports** from `server/javelin/__init__.py`
+- **252 tests passing** in `test_codecs.py`
+- **~35 of 40 captured type-IDs covered**
+
+### Larger codec modules (≥ 200 lines)
+
+| Module | Lines | Notes |
+|---|---|---|
+| `keybinding_config_12f6.py` | 303 | Most complex codec; walks variable-length string list |
+| `subkey_beacon.py` | 283 | Generic family (14 types) |
+| `level_info_changed.py` | 263 | AzCore-style with `AZStd::string` + `AZStd::vector` |
+| `world_data_blob_65c.py` | 254 | Structural codec for the 12.7 KB WORLD DATA blob |
+| `self_ident.py` | 228 | AzCore-style; not yet wired to runtime |
+| `level_descriptor_663.py` | 220 | Pascal-style strings + level metadata |
+| `receipt_handshake_9fc.py` | 209 | 0x8e6 echo invariant |
+| `vivox_config_1067.py` | 178 | Three Pascal-prefixed strings |
+
+### Smaller codec modules (< 200 lines)
+
+Most simple message types fit in 100-170 lines including
+docstrings, dataclass, validators, encode/decode, and self-test.
+Generic shape: docstring + dataclass + encode/decode + an
+optional `make_*` factory.
+
+### Test density
+
+`test_codecs.py` is **3149 lines** and contains 252 tests —
+about ~12 lines per test on average. Most tests are
+round-trip verifications against captured bytes, plus a few
+cross-codec invariant tests (counter pairs, hash echoes,
+identity-bundle uppers).
+
+### Documentation footprint
+
+- `analysis/replay_message_inventory.md` — byte-level structural
+  reference for every type-ID
+- `analysis/codec_coverage.md` — this file (type → module map)
+- `analysis/integration_status.md` — codec ↔ server gap
+- `analysis/queued_work.md` — themed todo list
+- `analysis/static_re_handshake_signing.md` — RE note
+- `analysis/static_re_1033_merkle.md` — RE note
+- `docs/post-v3-sequence.md` — phase table with codec column

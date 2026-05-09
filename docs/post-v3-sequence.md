@@ -106,7 +106,7 @@ their byte-level structure: `analysis/replay_message_inventory.md`.
 | 1 | 0ms | VERSION `0x03` | 0 | 89B | first post-V3 | [`v3_response.py`](../server/javelin/v3_response.py) |
 | 2 | 50ms | HEARTBEAT `0x9d` | 0 | 13B | | [`heartbeat_15d.py`](../server/javelin/heartbeat_15d.py) (R+W) |
 | 3 | 80ms | INIT `0x8a` + `0xbe` | 0 | 154B | grouped, 1 carrier msg | [`handshake_blob_76.py`](../server/javelin/handshake_blob_76.py) (both 76B) |
-| 4 | 140ms | WORLD DATA `0x9c` | 0 | 12.7KB | chunked, 12 segs ~1115B each; type 0x65c carries the same `handshake_blob_76` shared_trailer at offset +64 — see inventory | — |
+| 4 | 140ms | WORLD DATA `0x9c` | 0 | 12.7KB | chunked, 12 segs ~1115B each; type 0x65c is in the **same handshake-family** as 0x40a/0x1be — carries the byte-identical 36-byte signing trailer at offset +0x39 and `sub_id=58 61 78 14` at +0x15. See `analysis/static_re_handshake_signing.md` for the open question on the trailer's signing scheme. | [`world_data_blob_65c.py`](../server/javelin/world_data_blob_65c.py) (structural) |
 | 5 | 200ms | INIT `0x91(0x19)` + small `0xa4` | 0 | 21B | bundled into Phase 4 tail. `0x91(0x19)` = type 0x651 (a 4-byte type-header-only signal). | small `0xa4` → [`session_message_a4.py`](../server/javelin/session_message_a4.py) |
 | 6 | 220ms | SESSION `0xa4` large | 0 | 75B / 195B retail-shape | | [`session_message_a4.py`](../server/javelin/session_message_a4.py) |
 | 7 | 250ms | HEARTBEAT `0x8f` | 0 | 13B | type 0x14f session-clock beacon | [`session_clock_beacon.py`](../server/javelin/session_clock_beacon.py) |
@@ -121,7 +121,7 @@ their byte-level structure: `analysis/replay_message_inventory.md`.
 | 13 | 3000ms | SESSION AE `0xae` (trail=`0x00`) | 0 | 22B | | — |
 | 14 | 450ms | ENTITY DEFS `0x95` + `0x9d`-large + `0xa0` | 0 | ~2.5KB | | `0x9d`-large → [`heartbeat_15d.py`](../server/javelin/heartbeat_15d.py) |
 | 15 | 800ms | GAME DATA `0xb3` + VIVOX URL `0xa7` | 0 | ~3KB | `0xa7` = type 0x1067 Vivox voice config | `0xa7` → [`vivox_config_1067.py`](../server/javelin/vivox_config_1067.py) |
-| 16 | 1200ms | SPAWN `0x96` + `0x97` | 0 | ~160B | spawn-position floats + companion result token; documented inline in inventory | — |
+| 16 | 1200ms | SPAWN `0x96` + `0x97` | 0 | ~160B | `0x96` = type 0x1096 spawn-position floats (no codec); `0x97` = type 0x1097 result-token companion paired by shared identity_uuid | `0x97` → [`result_token_1097.py`](../server/javelin/result_token_1097.py) |
 | 17 | 1400ms | continuous `0x08` entity-state stream | 0 | varies | ~30/s; 24 byte-identical 46407-byte snapshots are pure transport-layer resends — see inventory | — |
 | 18 | 2000ms | Player data `0xa0` burst #1 | 0 | 234KB | paced, 210 segments |
 | 19 | 800ms | Player data `0xa0` burst #2 | 0 | 171KB | paced, 154 segments |

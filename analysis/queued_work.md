@@ -104,6 +104,12 @@
   distinguish them.
 - **0x1033 Merkle structure** — would benefit from static-RE on
   the receive handler to understand the chunk-aggregation rule.
+  **Investigation note**:
+  [`analysis/static_re_1033_merkle.md`](static_re_1033_merkle.md)
+  (wake 85) — wake 85 found that 9 of the trailing 40 bytes'
+  ten 4-byte chunks reappear at specific earlier offsets in the
+  body. Strong evidence of a deduplicated content-hash pool with
+  trailing manifest. Hypothesis + Ghidra approach laid out.
 - **0x9fc receipt-handshake state block** — the 26-byte middle
   section's per-byte semantics are unclear; static-RE on the
   client-side encoder would resolve it.

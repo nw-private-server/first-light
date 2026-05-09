@@ -8122,3 +8122,99 @@ the canonical "next" list; the most actionable items are:
    Merkle structure, identity-bundle uppers).
 
 **Blockers:** None.
+
+---
+
+### 2026-05-09 — wake 85: 0x1033 Merkle static-RE note + post-v3 doc patches + library health
+
+**Did:**
+
+Documentation polish + a strong new structural finding on
+0x1033 that significantly clarifies its shape. No new codecs,
+no new tests (252 passing).
+
+1. **`analysis/static_re_1033_merkle.md`** (new investigation
+   note). Wake-74's "8-byte sequence repeats at offsets 5 and
+   450" finding is now joined by a much stronger
+   wake-85 result:
+
+   **9 of the 10 trailing 4-byte chunks (the last 40 bytes of
+   the 0x1033 payload) reappear at specific earlier offsets in
+   the body.** Specifically, chunks point at offsets {1, 5, 9,
+   13, 17, 73, 253, 333, 369}. The first five align as a
+   4-byte-aligned strip in the **opening 21 bytes** (after a
+   single header byte); the next four are scattered through
+   the middle. The 10th chunk doesn't appear elsewhere — likely
+   a terminator.
+
+   **Hypothesis**: 0x1033 is a **deduplicated content-hash
+   pool** where small content (item IDs, ability hashes, etc.)
+   is hash-keyed, the message body references each unique hash
+   once via the leading table, and a trailing manifest
+   enumerates which hashes apply.
+
+   The note lays out the Ghidra approach to confirm:
+   - Find the type-0x1033 dispatcher → handler
+   - Identify the loop that walks the payload
+   - Map the captured bytes against the loop's offset progression
+
+2. **`docs/post-v3-sequence.md` Phase 4 row patched**. The row
+   now correctly references:
+   - The actual trailer offset (+0x39, was +64 in the prior
+     entry)
+   - The new `world_data_blob_65c.py` codec (was — previously)
+   - A cross-link to `static_re_handshake_signing.md` for the
+     open question on the trailer's signing scheme
+
+   **Phase 16 row patched** to link the SPAWN `0x97` to
+   `result_token_1097.py` (was — previously).
+
+3. **`analysis/queued_work.md` updated** to point the 0x1033
+   static-RE follow-up at the new note.
+
+4. **Library health snapshot appended to
+   `analysis/codec_coverage.md`** documenting the current
+   shape:
+   - 35 Python modules, ~10072 lines total
+   - 22 dedicated codecs + 1 generic + 1 SessionState
+   - 9 factory helpers
+   - 49 exports
+   - 252 tests
+   - ~35 of 40 type-IDs covered
+   - Module-by-module size breakdown for the larger codecs
+   - Documentation inventory
+
+**Files this iteration:**
+
+- `analysis/static_re_1033_merkle.md` (new)
+- `docs/post-v3-sequence.md` (Phase 4 + Phase 16 rows patched)
+- `analysis/queued_work.md` (cross-link to new note)
+- `analysis/codec_coverage.md` (+ library health snapshot)
+- This worklog entry
+
+**Library status: unchanged from wake 84.** 22 dedicated
+codecs + 1 generic (14-type) + 9 factory helpers + 1
+SessionState sketch; 252 tests passing.
+
+**Two static-RE investigation notes now in place** (wakes 84 +
+85). Both formulate hypotheses + Ghidra approaches; together
+they cover the most interesting structural unknowns in the
+captured replay (handshake-family signing trailer + 0x1033
+hash-pool structure).
+
+**Next** (queue):
+
+The library is genuinely steady-state. The remaining
+`queued_work.md` items either need:
+- maintainer decisions (runtime path)
+- additional captures from a different session (multi-capture
+  validation)
+- Ghidra time on the binary (the two static-RE notes)
+- integration-day work (responder ↔ codec bridge)
+
+None of which is a "next loop iteration" task. Will run a few
+more low-cost wakes to see if anything else surfaces, then
+let the loop go quiet until a real-world signal triggers
+forward motion.
+
+**Blockers:** None.
