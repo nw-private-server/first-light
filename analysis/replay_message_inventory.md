@@ -773,7 +773,8 @@ payloads:
   No codec yet but the cross-codec link to 0x8e6 is captured.
 
 - **`0x12f6`** (299 bytes): **client keybinding/control
-  configuration** (wake 78 finding). Body breakdown:
+  configuration** (codec shipped wake 79;
+  `server/javelin/keybinding_config_12f6.py`). Body breakdown:
 
   ```
   envelope (28)
@@ -810,11 +811,14 @@ payloads:
   client's keybinding-state dump — possibly sent on session
   start so the server can mirror or validate the bindings.
 
-  No codec yet — the structure is rich enough that pinning down
-  the per-binding-slot vs free-list semantics would benefit
-  from a second capture (different session with different
-  user-configured bindings). Logged in detail for that future
-  pass.
+  Wake-79 codec preserves the full structure for byte-exact
+  round-trips: the `state_region` (26 bytes) is treated as
+  opaque (per-byte semantics still unclear from one capture);
+  the keybinding string list is exposed as a `tuple[str, ...]`
+  walked from u8-prefixed entries; the version blocks are
+  exposed as 55-byte content fields. Future captures with
+  different user-configured bindings will validate the slot
+  vs free-list assumption.
 
 ## `0x1067` — 86-byte R Vivox voice-chat configuration (singleton)
 

@@ -62,6 +62,7 @@ KNOWN_FAMILY: dict[int, int] = {
     0x1a59: 1,
     0x102e: 2,
     0x09d3: 4,
+    0x192c: 10,
 }
 
 

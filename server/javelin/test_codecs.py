@@ -2112,12 +2112,13 @@ def test_subkey_base_size_44():
     assert SUBKEY_BASE_WIRE_SIZE == 44
 
 
-def test_subkey_known_family_has_13_types():
-    """Spot-check: the family covers the 13 captured-replay types
-    (12 W-singletons + 0x1a59 with 3 captures)."""
-    assert len(KNOWN_FAMILY) == 13
+def test_subkey_known_family_has_14_types():
+    """Spot-check: the family covers the 14 captured-replay types
+    (13 W-singletons + 0x1a59 with 3 captures)."""
+    assert len(KNOWN_FAMILY) == 14
     assert KNOWN_FAMILY[0x1a59] == 1
     assert KNOWN_FAMILY[0x09d3] == 4
+    assert KNOWN_FAMILY[0x192c] == 10
 
 
 def test_subkey_round_trip_zero_trailer():
@@ -2312,6 +2313,150 @@ def test_a95_subkey_upper_matches_5b2_second_id():
         next(m for m in store.messages if m.type_id == 0x5b2).body
     )
     assert msg_a95.subkey[:8] == msg_5b2.second_id
+
+
+# ---------------------------------------------------------------------------
+# KeybindingConfig 0x12f6 (W direction, variable size)
+# ---------------------------------------------------------------------------
+
+from .keybinding_config_12f6 import (  # noqa: E402
+    KeybindingConfig12F6,
+    encode as encode_12f6,
+    decode as decode_12f6,
+    DEFAULT_TRANSITION as KC_DEFAULT_TRANSITION,
+    DEFAULT_TRAILER as KC_DEFAULT_TRAILER,
+)
+
+
+def test_12f6_round_trip_from_replay():
+    """Round-trip the captured 0x12f6 W singleton; verify the 18
+    captured keybindings (with 2 empty entries)."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    candidates = [m for m in store.messages if m.type_id == 0x12f6]
+    assert len(candidates) == 1
+    msg = decode_12f6(candidates[0].body)
+    assert len(msg.keybindings) == 18
+    # Spot-check several recognizable keybindings.
+    assert "@cc_f3" in msg.keybindings
+    assert "@cc_mouse2" in msg.keybindings
+    assert "@cc_q" in msg.keybindings
+    # Two empty bindings in the captured layout.
+    assert msg.keybindings.count("") == 2
+    # The trailing version blocks open with `{0.0.0.` and `{0.0.1.`
+    assert msg.version_block_1.startswith(b"{0.0.0.")
+    assert msg.version_block_2.startswith(b"{0.0.1.")
+    assert encode_12f6(msg) == candidates[0].body
+
+
+def test_12f6_subkey_upper_is_keybinding_config_id():
+    """The subkey upper 8 bytes match the keybinding-config sub-system
+    identity from the cross-codec identity-bundle map."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    msg = decode_12f6(
+        next(m for m in store.messages if m.type_id == 0x12f6).body
+    )
+    assert msg.subkey[:8] == bytes.fromhex("9e921a154971f6b7")
+    # Lower 8 bytes are session_uuid_lower.
+    assert msg.subkey[8:] == bytes.fromhex("bf85314bbc4a951a")
+
+
+def test_12f6_decode_wrong_type_header_rejects():
+    msg = KeybindingConfig12F6(
+        client_hash=b"\x00" * 4,
+        session_uuid=bytes(16),
+        subkey=bytes(16),
+        state_region=bytes(26),
+        keybindings=("@cc_x",),
+        version_block_1=b"x" * 55,
+        version_block_2=b"y" * 55,
+    )
+    encoded = bytearray(encode_12f6(msg))
+    encoded[26] = 0xFF  # corrupt the type header
+    with pytest.raises(ValueError, match="type header"):
+        decode_12f6(bytes(encoded))
+
+
+def test_12f6_decode_wrong_version_block_prefix_rejects():
+    msg = KeybindingConfig12F6(
+        client_hash=b"\x00" * 4,
+        session_uuid=bytes(16),
+        subkey=bytes(16),
+        state_region=bytes(26),
+        keybindings=("@cc_x",),
+        version_block_1=b"x" * 55,
+        version_block_2=b"y" * 55,
+    )
+    encoded = bytearray(encode_12f6(msg))
+    # Find vb1 length prefix and corrupt it.
+    # transition (5) starts at offset suffix_start; vb1 prefix is at +5
+    suffix_start = len(encoded) - 122
+    encoded[suffix_start + 5] = 0xFF
+    with pytest.raises(ValueError, match="version_block_1 length"):
+        decode_12f6(bytes(encoded))
+
+
+def test_12f6_validates_field_sizes():
+    with pytest.raises(ValueError, match="state_region"):
+        KeybindingConfig12F6(
+            client_hash=b"\x00" * 4,
+            session_uuid=bytes(16),
+            subkey=bytes(16),
+            state_region=bytes(20),  # wrong size
+            keybindings=(),
+            version_block_1=b"x" * 55,
+            version_block_2=b"y" * 55,
+        )
+    with pytest.raises(ValueError, match="version_block_1"):
+        KeybindingConfig12F6(
+            client_hash=b"\x00" * 4,
+            session_uuid=bytes(16),
+            subkey=bytes(16),
+            state_region=bytes(26),
+            keybindings=(),
+            version_block_1=b"x" * 50,  # wrong size
+            version_block_2=b"y" * 55,
+        )
+
+
+def test_12f6_round_trip_arbitrary_keybindings():
+    """Round-trip with a different number of keybindings than the capture."""
+    msg = KeybindingConfig12F6(
+        client_hash=b"\x42" * 4,
+        session_uuid=bytes(range(16)),
+        subkey=bytes(range(16, 32)),
+        state_region=bytes(range(26)),
+        keybindings=("@cc_a", "@cc_b", "@cc_c"),
+        version_block_1=b"{1.2.3.45678901}.{" + b"\x00" * 36 + b"}",
+        version_block_2=b"{9.8.7.65432101}.{" + b"\x00" * 36 + b"}",
+    )
+    encoded = encode_12f6(msg)
+    decoded = decode_12f6(encoded)
+    assert decoded == msg
+
+
+def test_12f6_round_trip_empty_keybindings():
+    msg = KeybindingConfig12F6(
+        client_hash=b"\x00" * 4,
+        session_uuid=bytes(16),
+        subkey=bytes(16),
+        state_region=bytes(26),
+        keybindings=(),
+        version_block_1=b"x" * 55,
+        version_block_2=b"y" * 55,
+    )
+    assert decode_12f6(encode_12f6(msg)) == msg
 
 
 # ---------------------------------------------------------------------------

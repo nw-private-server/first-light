@@ -7527,3 +7527,79 @@ codec; 213 tests passing.**
      covered by generic; just needs explicit test)
 
 **Blockers:** None.
+
+---
+
+### 2026-05-09 — wake 79: keybinding_config_12f6 codec + 0x192c family expansion
+
+**Did:**
+
+Two concrete codec wins. Test count: **220 passing** (was 213 —
+7 new tests).
+
+1. **`keybinding_config_12f6.py`** — structural codec for the
+   299-byte 0x12f6 W keybinding-config. Walks the u8-prefixed
+   UTF-8 string list robustly using **byte-counting from the
+   end**: the trailing suffix is a fixed 122 bytes (5-byte
+   transition + 2 × 56-byte version-blocks + 5-byte trailer),
+   so the keybinding region must occupy exactly
+   `(total - prefix - suffix)` bytes. The decoder walks
+   strings from the start until it reaches the suffix
+   boundary; if the walk doesn't land cleanly, it raises.
+
+   Rebuilt the captured 18 keybindings byte-exact:
+   `@cc_f3, @cc_e, @cc_tab, "", @cc_c, "", @cc_e, @cc_mouse2,
+   @cc_f3, @cc_y, @cc_3, @cc_4, @cc_5, @cc_6, @cc_q, @cc_r,
+   @cc_f, @cc_m`. The `state_region` (26 bytes) is treated as
+   opaque since per-byte semantics aren't recoverable from one
+   capture; can be revisited if/when a second capture lands.
+
+   Wake-78's wire breakdown was off by 5 bytes — corrected
+   here: the state region after the subkey is 26 bytes (16
+   flag bytes + 10 modifier bytes) rather than the 31 I'd
+   originally guessed. Inventory entry updated.
+
+2. **`0x192c` added to `subkey_beacon.KNOWN_FAMILY`** with
+   `trailer_size=10`. Family now covers **14 distinct types**
+   (was 13). Existing test `test_subkey_all_replay_types_round_trip`
+   automatically picks up the new entry — no test change
+   needed there since the test iterates `KNOWN_FAMILY`. Updated
+   the count assertion in the helper test from 13 to 14.
+
+**Files this iteration:**
+
+- `server/javelin/keybinding_config_12f6.py` (new)
+- `server/javelin/subkey_beacon.py` (+ 0x192c entry)
+- `server/javelin/test_codecs.py` (7 new tests + count
+  assertion update)
+- `analysis/replay_message_inventory.md` (0x12f6 inline
+  finding updated to point at the new codec)
+- This worklog entry
+
+**Library status: 20 dedicated codecs + 1 generic (14-type)
+codec; 220 tests passing.**
+
+The library now characterizes effectively **34 distinct
+type-IDs** between dedicated and generic codecs. Out of 40
+total types in the replay, the remaining 6 uncharacterized are
+either chunked-replay variants (`0x16a0` large), the
+0x65c-style fixed-record table (224-byte slots), the 0x9fc
+echo (linked but not codec'd), or paired with codecs that
+already cover them.
+
+**Next** (queue):
+
+1. **Codec library polish**: `server/javelin/__init__.py`
+   could re-export the codec classes for easier imports.
+   Inventory could grow a "codec coverage" table mapping each
+   captured type-id to its codec module.
+2. **`0x09fc` codec** — given the wake-77 finding that it's
+   "0x8e6 receipt confirmation" with a 16-byte hash echo, a
+   codec is now relatively low-risk: subkey + duplicated
+   session_uuid + 26-byte state + 16-byte hash matching
+   `0x8e6`'s opaque_blob.
+3. The keybinding_config_12f6 `state_region` could be more
+   richly modeled if a second 0x12f6 capture surfaces — would
+   reveal which bytes are flags vs modifiers vs counts.
+
+**Blockers:** None.
