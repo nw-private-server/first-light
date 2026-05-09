@@ -305,20 +305,132 @@ consistent with each major sub-system (session manager, action
 queue, fingerprint reporter) carrying its own opaque
 identity-bundle ID alongside the shared session UUID.
 
+## `0x16a0` — 153 / ~99 KB R asset blob (2 occurrences)
+
+Two captures: a 153-byte small variant (analyzed) and a ~99 KB
+large variant that's the chunked-replay path handled by
+`wire.py`'s `chunk_replay_payload`.
+
+The 153-byte body carries an embedded asset-pool reference as a
+length-prefixed UTF-8 string (`"ItemPool"` in the capture), a
+`$`-delimited 36-character UUID-like asset identifier (redacted),
+and a 21-byte tail (8-byte counter-style prefix + 16 bytes of
+hash/UUID + 1-byte terminator). The variable middle section
+holds two 16-byte UUID-like blocks plus several u32 fields that
+look like enums or counts but can't be fully named from one
+capture alone.
+
+The codec validates the type header, exposes the leading 16-byte
+asset_uuid (whose lower 8 bytes match `session_uuid_lower`), and
+preserves the rest as opaque bytes for byte-exact round-trips. A
+helper `find_asset_class()` locates the embedded
+`[u16 BE length][UTF-8 string]` marker — useful for triaging
+later captures without a full handler-side parser.
+
+Codec: `server/javelin/asset_blob_16a0.py`.
+
+## `0x40a` + `0x1be` — 76-byte handshake-shaped R singletons
+
+Two singletons sent at seq 0x4 and 0x5 — right after the V3
+registration response and before any session beacons. Same wire
+shape; we model both with a single `HandshakeBlob76` parameterized
+by `type_id`.
+
+Wire layout (76 bytes):
+
+```
++0x00  u8x4   type_header        type-dependent
++0x04  u8x4   sub_id             58 61 78 14   (constant)
++0x08  u8x32  blob               per-message ephemeral content
++0x28  u8x36  shared_trailer     cb d4 a1 8a 40 42 c7 ee
+                                 a4 62 98 c7 49 9b a8 26
+                                 ef 53 39 aa 29 70 e2 83
+                                 fc f3 4b 6f 8f 07 86 d6
+                                 8b f3 ae 45    (constant)
+```
+
+The `sub_id` is bytes 2..5 of the
+`9c fa 58 61 78 14 69 f2` metadata-block second_id from
+`0x18a6`/`0x663` — same bytes, different role (a fixed sub-system
+identifier here).
+
+The 36-byte trailer is **byte-identical** between the two
+messages — almost certainly a hash, MAC, or signature over a
+fixed-shape header/cert. Sequence position (0x4 + 0x5, two
+messages immediately after V3 response) plus the constant
+trailer + variable 32-byte ephemeral block strongly suggest a
+**two-step server-side handshake / key-exchange**: server emits
+0x40a then 0x1be carrying paired ephemeral material under a
+common signature.
+
+Codec: `server/javelin/handshake_blob_76.py`.
+
+## `0x08` R — 79-message entity-state stream (length + first-byte survey)
+
+The 79 0x08 R messages are 78..46423 bytes (median 1013). These
+do **not** use the standard typed envelope — instead all 78 of 79
+that share the `0001` marker have a 4-byte prefix
+`00 01 08 01` (rather than `00 01 88 00` that the standard
+envelope formula gives for type 0x08). The encoding for type-id
+< 0x40 evidently doesn't set the high bit on byte 2.
+
+**Bimodal size distribution:**
+
+| Size band     | Count | % of 0x08 R |
+|---------------|-------|-------------|
+| 78..200 B     | 5     | 6.3%        |
+| 200..2000 B   | 43    | 54.4%       |
+| 2000..10000 B | 6     | 7.6%        |
+| 46407 B       | 24    | 30.4%       |
+| 46423 B       | 1     | 1.3%        |
+
+The 24 messages at exactly 46407 bytes have **byte-identical
+first 32 bytes** (`0001080101010101010000d9a9050130
+478e4c030100000000ffffffff060000`) — these are clearly the **same
+chunked-replay payload retransmitted 24 times**, almost certainly
+a periodic full-state snapshot for late joiners or a baseline
+re-broadcast.
+
+The single 46423-byte outlier (seq 0x25) starts with
+`0387942a661f85431d458b40d21f3b260d` (16 bytes) followed by the
+same `01 08 01 01 01 01 01 01 00 00 d9 a9 05 01 30...` payload —
+a chunked-replay envelope wrapping the standard 46407-byte
+payload.
+
+**Byte-position 4 sub-counter:**
+
+Each 0x08 R message has byte 4 = 0x01..0x35 (1..53), and that
+value is **unique across messages** (except 24 of them all have
+0x01 — the snapshot retransmits — and 3 of them share 0x22). So
+byte 4 is a **per-stream sub-counter / frame number** that
+increments once per logical entity-state frame.
+
+**Smallest 0x08 R messages (78..158 bytes) all start with
+`00 01 08 01 <byte_4> 01 01 01 01 00 00 ...`** — the constant `01`s
+at bytes 5..8 plus a 2-byte zero gap suggest a fixed-shape
+"stream header" of about 11 bytes followed by a variable-length
+per-frame payload.
+
+**Implications:**
+
+- Treat the 24 identical 46407-byte messages as the periodic
+  full-state snapshot. For replay fidelity the server only needs
+  to emit ONE of these per snapshot interval — the captured
+  duplicates are the wire-level retransmission cluster.
+- Byte 4 increments monotonically; emulator should mirror it
+  per emitted frame.
+- The full TLV-stream parser is out of scope for byte-pattern
+  analysis; needs handler-side static-RE on the 0x08 dispatcher.
+
 ## Next message types worth a similar pass
 
-- `0x16a0` (2 R, 153 / 99819 bytes) — small one is tractable; the
-  ~98KB chunk is the chunked-replay path we already characterize
-  in `wire.py`'s `chunk_replay_payload`.
-- Singleton W messages (`0x40a`, `0x1be`, etc., 76 bytes) — useful
-  as known wire-shape entries even though variant analysis isn't
-  possible from a single sample.
-- `0x08` R (79 occurrences, 78..46423 bytes) — the continuous
-  entity-state stream. Variable size needs an actual parser
-  (probably a TLV stream); can't characterize from byte patterns
-  alone but worth surveying the lengths to see if there are
-  natural cluster sizes.
-
-Adding these to the inventory needs comparable variant data;
-ideally another capture or two from different sessions to
-cross-validate.
+- `0x15d` (20 occurrences, 12 or 36 bytes, RW) — already covered
+  by `heartbeat_15d.py`.
+- Larger captures from a longer or busier session would let us
+  cross-validate the 0x08 byte-4 counter wraparound behavior and
+  check whether the "snapshot" payload contents change across
+  snapshot intervals (they're identical within a single capture
+  here).
+- The 1-occurrence singleton types (~10 of them in the inventory)
+  could be characterized for wire shape but variant analysis
+  needs additional captures.

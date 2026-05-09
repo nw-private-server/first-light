@@ -6816,3 +6816,108 @@ The codec surface area now characterizes:
 on runtime path (physical / cloud Windows host) remains the only
 blocker for live testing, and it's not on this iteration's
 critical path.
+
+---
+
+### 2026-05-09 — wake 72: 0x16a0 small + handshake-76 + 0x08 stream survey
+
+**Did:**
+
+Two new codecs and a quantitative survey of the 0x08 R stream.
+Test count: **164 passing** (10 new tests this wake).
+
+1. **`asset_blob_16a0.py`** — codec for the small variant of
+   0x16a0 R (153 bytes, 1 capture; the ~99 KB chunked variant is
+   handled by `wire.py`'s existing `chunk_replay_payload`).
+   Conservative model: validates the type header, extracts the
+   leading 16-byte `asset_uuid` (whose lower 8 bytes match
+   `session_uuid_lower`), preserves the rest as opaque bytes for
+   byte-exact round-trips. A `find_asset_class()` helper locates
+   the embedded `[u16 BE length][UTF-8 string]` marker — decodes
+   to `"ItemPool"` in the capture. The `$`-delimited 36-char
+   asset id after "ItemPool" is redacted in the public capture
+   so we can't validate handler-side semantic fields, but the
+   structural codec round-trips byte-exact.
+
+2. **`handshake_blob_76.py`** — single codec parameterized by
+   `type_id` for the two 76-byte R singletons (0x40a + 0x1be).
+   Both share a 4-byte `sub_id = 58 61 78 14` (bytes 2..5 of the
+   `9c fa 58 61 78 14 69 f2` metadata-block second_id from 0x18a6
+   / 0x663) and a **byte-identical 36-byte shared_trailer**.
+   Sequence position (seq 0x4 + 0x5, right after the V3 response)
+   plus the constant trailer + variable 32-byte ephemeral block
+   strongly suggest a **two-step server-side handshake /
+   key-exchange**: server emits 0x40a then 0x1be with paired
+   ephemeral material under a common signature.
+
+3. **0x08 R stream survey** — quantitative analysis without
+   trying to fully parse:
+   - **Bimodal size distribution**: 53 messages at 78..2000 bytes
+     (entity-state frames) plus 25 messages at 46407..46423 bytes
+     (chunked-replay snapshots). Median 1013 bytes.
+   - **24 of the 25 snapshot-sized messages have byte-identical
+     first 32 bytes** — they're retransmissions of the same
+     periodic full-state snapshot. For replay fidelity the server
+     only needs to emit ONE of these per snapshot interval.
+   - **The 25th snapshot is 46423 bytes** with a different prefix
+     (`03 87 94 2a 66 1f 85 43 1d 45 8b 40 d2 1f 3b 26 0d`)
+     followed by the same 46407-byte payload — a chunked-replay
+     envelope wrapping the standard payload.
+   - **The 0x08 envelope is non-standard**: standard formula
+     gives `[00 01 88 00]` for type 0x08, but actual messages
+     start with `[00 01 08 01]`. Type-IDs < 0x40 evidently don't
+     set the high bit on byte 2.
+   - **Byte 4 of every 0x08 R message is a per-frame
+     sub-counter** ranging 0x01..0x35; values are unique except
+     the snapshot cluster which all use 0x01.
+   - Smallest 0x08 R messages (78..158 bytes) all share an
+     11-byte fixed prefix `[00 01 08 01 <counter>
+     01 01 01 01 00 00]` followed by variable per-frame data.
+
+**Files this iteration:**
+
+- `server/javelin/asset_blob_16a0.py` (new)
+- `server/javelin/handshake_blob_76.py` (new)
+- `server/javelin/test_codecs.py` (10 new tests, 174 total)
+- `analysis/replay_message_inventory.md` (3 new sections + 0x08 survey)
+- This worklog entry
+
+**Library status: 13 dedicated codecs, 164 tests passing.**
+
+**Found — 0x08 envelope encoding clarifies the V3 envelope rule:**
+
+Until now the inventory described the typed envelope as
+`[0x00, 0x01, (type & 0x3F) | 0x80, (type >> 6) & 0xFF]` with
+the third byte's high bit always set. The 0x08 R survey shows
+this is wrong for **types < 0x40**: the third byte is just the
+type-id directly, with no high bit. So the actual envelope rule is
+probably:
+
+- Types in [0x40, 0x3FFF]: `[0x00, 0x01, (type & 0x3F) | 0x80,
+  (type >> 6) & 0xFF]` (the high bit on byte 2 is a "byte 3
+  follows" continuation flag)
+- Types in [0x00, 0x3F]: `[0x00, 0x01, type, ?]` (single-byte
+  type; the 4th byte may be a sub-type, frame counter, or
+  other metadata depending on the message family)
+
+This is consistent with VLQ-style encoding. Worth a note in the
+post-v3 reference doc, though not blocking — every codec built so
+far is for types ≥ 0x80 so the standard formula has been
+correct for them.
+
+**Next** (queue):
+
+1. Update `docs/post-v3-sequence.md` with the typed-envelope
+   correction for low-type-id messages.
+2. Investigate the 0x08 byte-position-9..10 region — is the
+   `00 00` gap a length prefix or just padding? A short Frida
+   capture from a real session would resolve it but isn't
+   available; can also try cross-byte alignment within the
+   captured data.
+3. Variant analysis on more singleton types (`0x16` R, `0x1d` R,
+   etc.) — at least document wire shapes and constant fields so
+   future captures can be checked against them.
+
+**Blockers:** None — replay-mining continues to yield findings.
+The runtime-path decision is still the only thing gating live
+testing.

@@ -1601,6 +1601,140 @@ def test_635_history_records_descend_from_n_minus_1_to_1():
 
 
 # ---------------------------------------------------------------------------
+# AssetBlob 0x16a0 (R direction, small variant)
+# ---------------------------------------------------------------------------
+
+from .asset_blob_16a0 import (  # noqa: E402
+    AssetBlob16A0Small,
+    encode as encode_16a0,
+    decode as decode_16a0,
+    SMALL_TYPED_BODY_SIZE as AB_SMALL_TYPED_BODY_SIZE,
+)
+
+
+def test_16a0_round_trip_from_replay():
+    """Round-trip the captured small 0x16a0 R message. Asset class
+    should decode to "ItemPool". Cannot validate handler-side semantic
+    fields because the asset-id span is redacted in the capture."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    candidates = [
+        m for m in store.messages
+        if m.type_id == 0x16a0 and m.direction == "R" and len(m.body) == 153
+    ]
+    assert len(candidates) == 1
+    msg = decode_16a0(candidates[0].body)
+    assert encode_16a0(msg) == candidates[0].body
+    found = msg.find_asset_class()
+    assert found is not None
+    name, _offset = found
+    assert name == "ItemPool"
+
+
+def test_16a0_size_is_153():
+    assert AB_SMALL_TYPED_BODY_SIZE == 153
+
+
+def test_16a0_decode_wrong_size_rejects():
+    with pytest.raises(ValueError, match="153"):
+        decode_16a0(b"\x00" * 100)
+
+
+def test_16a0_decode_wrong_type_header_rejects():
+    bad = bytearray(b"\x00" * 153)
+    bad[0:4] = b"\x00\x01\xff\xff"  # wrong type header
+    with pytest.raises(ValueError, match="type header"):
+        decode_16a0(bytes(bad))
+
+
+def test_16a0_validates_field_sizes():
+    with pytest.raises(ValueError, match="asset_uuid"):
+        AssetBlob16A0Small(asset_uuid=b"\x00" * 8, payload_bytes=b"\x00" * 133)
+    with pytest.raises(ValueError, match="payload_bytes"):
+        AssetBlob16A0Small(asset_uuid=b"\x00" * 16, payload_bytes=b"\x00" * 100)
+
+
+# ---------------------------------------------------------------------------
+# HandshakeBlob76 — type 0x40a + type 0x1be (R direction, 76 bytes)
+# ---------------------------------------------------------------------------
+
+from .handshake_blob_76 import (  # noqa: E402
+    HandshakeBlob76,
+    encode as encode_hsb,
+    decode as decode_hsb,
+    TYPED_BODY_SIZE as HSB_TYPED_BODY_SIZE,
+    DEFAULT_SUB_ID as HSB_DEFAULT_SUB_ID,
+    DEFAULT_SHARED_TRAILER as HSB_DEFAULT_SHARED_TRAILER,
+)
+
+
+def test_hsb_size_is_76():
+    assert HSB_TYPED_BODY_SIZE == 76
+    assert len(HSB_DEFAULT_SUB_ID) == 4
+    assert len(HSB_DEFAULT_SHARED_TRAILER) == 36
+
+
+def test_hsb_decode_wrong_size_rejects():
+    with pytest.raises(ValueError, match="76"):
+        decode_hsb(b"\x00" * 50)
+
+
+def test_hsb_decode_wrong_marker_rejects():
+    bad = bytearray(b"\x00" * 76)
+    bad[0:2] = b"\x99\x99"
+    with pytest.raises(ValueError, match="marker"):
+        decode_hsb(bytes(bad))
+
+
+def test_hsb_validates_blob_size():
+    with pytest.raises(ValueError, match="blob"):
+        HandshakeBlob76(type_id=0x40a, blob=b"\x00" * 16)
+
+
+def test_hsb_round_trip_both_singletons():
+    """Both 76-byte singletons (0x40a and 0x1be) should round-trip.
+    They share the same 4-byte sub_id and 36-byte trailer."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    msgs = [
+        m for m in store.messages
+        if m.type_id in (0x40a, 0x1be) and m.direction == "R"
+    ]
+    assert len(msgs) == 2
+    decoded = [(m.type_id, decode_hsb(m.body)) for m in msgs]
+    type_ids = {tid for tid, _ in decoded}
+    assert type_ids == {0x40a, 0x1be}
+    # All decoded messages share the same sub_id and trailer
+    sub_ids = {d.sub_id for _, d in decoded}
+    trailers = {d.shared_trailer for _, d in decoded}
+    assert len(sub_ids) == 1
+    assert sub_ids.pop() == HSB_DEFAULT_SUB_ID
+    assert len(trailers) == 1
+    assert trailers.pop() == HSB_DEFAULT_SHARED_TRAILER
+    # Round-trip
+    for src, (_tid, dec) in zip(msgs, decoded):
+        assert encode_hsb(dec) == src.body
+
+
+def test_hsb_type_id_round_trip():
+    """Encoding then decoding should preserve the type_id exactly,
+    even for arbitrary in-range values."""
+    for tid in (0x40a, 0x1be, 0x000, 0x123, 0x3fff):
+        msg = HandshakeBlob76(type_id=tid, blob=b"\x42" * 32)
+        assert decode_hsb(encode_hsb(msg)).type_id == tid
+
+
+# ---------------------------------------------------------------------------
 # v3_request — error paths (no capture file needed)
 # ---------------------------------------------------------------------------
 
