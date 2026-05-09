@@ -185,16 +185,140 @@ flag word and `02` byte before the counter) need either more captures
 to vary against, or static-RE on the binary's dispatch table — the
 latter being blocked at the moment per wake 59.
 
+## `0x1a59` — 45-byte W session-subkey beacon (3 occurrences)
+
+All 3 messages 45 bytes, share the same W-direction envelope
+shape: `[client_hash:4][len_BE:4][session_uuid:16][type_hdr:4]
+[payload]`. The payload (17 bytes) is:
+
+```
++0x00  u8x16  subkey            f8 cb ed 57 c6 8b 18 f4
+                                bf 85 31 4b bc 4a 95 1a
++0x10  u8     counter           02 / 03 / 04 across 3 captures
+```
+
+The 16-byte subkey is **byte-identical to the first 16 bytes of
+0x18a6's body** (first_uuid_half + session_uuid_lower). So 0x1a59
+is the W-direction "client confirms session subkey, counter=N"
+beacon paired with the R-direction `0x18a6` server-to-client.
+
+Counter values 2, 3, 4 align with the 0x18a6 R-direction counter
+sequence — this is a paired R/W counter dance.
+
+Codec: `server/javelin/session_subkey_1a59.py`.
+
+## `0x5b2` — 45 / 93-byte W identity-fingerprint set (4 occurrences)
+
+3 of 4 messages are **byte-identical 45-byte messages** including
+the 4-byte client_hash (`f9 b3 ea 55`) — this is the same logical
+message resent at the wire level (reliable-delivery
+retransmission, or periodic "no fingerprints to report" beacon).
+The 4th message is 93 bytes, carrying 6 fingerprints.
+
+Wire layout (variable; `total = 45 + 8*count`):
+
+```
+[envelope: 28 bytes]
++0x00  u8x8   second_id              18 0f 8d 4e 57 36 97 c6
++0x08  u8x8   session_uuid_lower     bf 85 31 4b bc 4a 95 1a
++0x10  u8     count                  0..N (1 byte)
++0x11  u8x(8*count)  fingerprints   opaque 8-byte values
+```
+
+The `second_id` here is **distinct** from the `second_id` carried
+by `0x18a6` and `0x635`. So this message references a different
+identity surface — perhaps a fingerprint-bundle origin or a
+sub-system instance ID.
+
+Codec: `server/javelin/identity_fingerprint_5b2.py`.
+
+## `0x635` — 93..153-byte W action-history beacon (5 occurrences)
+
+Each new 0x635 message **adds exactly 15 bytes at the tail** while
+keeping all previous content intact. So this is a client-side
+reliable input/action queue: each message increments a u8 counter
+and appends another "history record" for the new action; older
+unacknowledged actions get re-broadcast.
+
+Captured pattern across the 5 messages:
+
+| Seq | Counter | History records | Total bytes |
+|---|---|---|---|
+| 0x6e | 1 | 0 | 93 |
+| 0x6f | 2 | 1 | 108 |
+| 0x70 | 3 | 2 | 123 |
+| 0x71 | 4 | 3 | 138 |
+| 0x72 | 5 | 4 | 153 |
+
+Wire layout (envelope + 65 fixed body bytes + N×15 history bytes):
+
+```
+[envelope: 28 bytes]
++0x00  u8x8   second_id              fb de 4b 9a 60 0d 42 8f
++0x08  u8x8   session_uuid_lower     bf 85 31 4b bc 4a 95 1a
++0x10  u8x4   first_send_flag        00 01 00 00 on first message
+                                     00 00 00 00 thereafter
++0x14  u8x4   const_a                91 02 06 00
++0x18  u8x12  const_b                00 01 01 00 00 00 00 00
+                                     00 00 00 01
++0x24  u8x4   second_id_b            20 07 19 4b
++0x28  u8x6   const_c                00 00 00 ac 0f 01
++0x2e  u8     counter_u8             1, 2, 3, ...
++0x2f  u8     const_d                01
++0x30  u32 BE counter_u32            equals counter_u8
++0x34  u8x13  trailer                c0 80 20 00 80 80 80 80
+                                     03 00 00 00 01
+
+Then 0..N history records (15 bytes each), in DESCENDING counter
+order — message with counter=N carries records for counters
+N-1, N-2, ..., 1:
++0x00  u8x4   record_prefix          00 00 00 00
++0x04  u8     record_counter         u8
++0x05  u8     record_infix           00
++0x06  u8x9   record_tail            80 80 80 80 03 00 00 00 01
+```
+
+The trailer `c0 80 20 00 ...` and per-record `80 80 80 80
+03 00 00 00 01` patterns clearly encode some structured value (not
+random noise) — but without semantic context we treat them as
+constants the captured session happened to use.
+
+Codec: `server/javelin/action_history_635.py`.
+
+## Cross-codec invariants in the captured session
+
+The captured session weaves three different identity surfaces
+across the codecs:
+
+| ID | Length | Used by | Notes |
+|---|---|---|---|
+| `1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0` | 16 | session_uuid in 0x1a59, 0x5b2, 0x635 envelopes; `0xa4` body | full session UUID |
+| `bf 85 31 4b bc 4a 95 1a` | 8 | session_uuid_lower in 0x18a6, 0x1a59 subkey, 0x5b2, 0x635, 0x663, 0x1b88 | lower half — appears EVERYWHERE |
+| `f8 cb ed 57 c6 8b 18 f4` | 8 | first_uuid_half in 0x18a6, 0x1a59 subkey | session subkey upper |
+| `9c fa 58 61 78 14 69 f2` | 8 | second_id in 0x18a6, 0x663 | metadata-block second id |
+| `fb de 4b 9a 60 0d 42 8f` | 8 | second_id in 0x635 | distinct from 0x18a6's |
+| `18 0f 8d 4e 57 36 97 c6` | 8 | second_id in 0x5b2 | yet another |
+
+So the session has **(at least) three different "second ID"
+surfaces**, each tied to a specific message family. This is
+consistent with each major sub-system (session manager, action
+queue, fingerprint reporter) carrying its own opaque
+identity-bundle ID alongside the shared session UUID.
+
 ## Next message types worth a similar pass
 
-- `0x15d` (20 occurrences, 12 or 36 bytes, RW) — bidirectional, two
-  size classes; probably a small request/response or two distinct
-  variants under one type-id.
-- `0x635` (5 W, 93..153 bytes) — client-side, variable size; likely
-  request encoding worth comparing across multiple captures.
-- `0x663` (2 R, 110 bytes fixed) — small enough to characterize.
-- `0x40a`, `0x1be` (1 each, 76 bytes) — singletons; not great for
-  variant analysis but useful as known wire-shape entries.
+- `0x16a0` (2 R, 153 / 99819 bytes) — small one is tractable; the
+  ~98KB chunk is the chunked-replay path we already characterize
+  in `wire.py`'s `chunk_replay_payload`.
+- Singleton W messages (`0x40a`, `0x1be`, etc., 76 bytes) — useful
+  as known wire-shape entries even though variant analysis isn't
+  possible from a single sample.
+- `0x08` R (79 occurrences, 78..46423 bytes) — the continuous
+  entity-state stream. Variable size needs an actual parser
+  (probably a TLV stream); can't characterize from byte patterns
+  alone but worth surveying the lengths to see if there are
+  natural cluster sizes.
 
 Adding these to the inventory needs comparable variant data;
-ideally another capture or two from different sessions.
+ideally another capture or two from different sessions to
+cross-validate.

@@ -1143,6 +1143,464 @@ def test_663_metadata_block_matches_18a6():
 
 
 # ---------------------------------------------------------------------------
+# SessionSubkeyBeacon 0x1a59 (W direction)
+# ---------------------------------------------------------------------------
+
+from .session_subkey_1a59 import (  # noqa: E402
+    SessionSubkeyBeacon1A59,
+    encode as encode_1a59,
+    decode as decode_1a59,
+    TOTAL_WIRE_SIZE as SSB_TOTAL_WIRE_SIZE,
+)
+
+_CAPTURED_1A59_SEQ_69 = bytes.fromhex(
+    "ea7d8adf"
+    "00000025"
+    "1a954abc4b3185bfbe37c3d8592618e0"
+    "00019969"
+    "f8cbed57c68b18f4bf85314bbc4a951a"
+    "02"
+)
+
+
+def test_1a59_round_trip():
+    msg = decode_1a59(_CAPTURED_1A59_SEQ_69)
+    assert encode_1a59(msg) == _CAPTURED_1A59_SEQ_69
+
+
+def test_1a59_size_is_45():
+    assert SSB_TOTAL_WIRE_SIZE == 45
+    assert len(_CAPTURED_1A59_SEQ_69) == 45
+
+
+def test_1a59_decode_wrong_size_rejects():
+    with pytest.raises(ValueError, match="45"):
+        decode_1a59(_CAPTURED_1A59_SEQ_69 + b"\x00")
+
+
+def test_1a59_decode_wrong_remaining_length_rejects():
+    bad = bytearray(_CAPTURED_1A59_SEQ_69)
+    bad[7] = 0x99  # corrupt the BE remaining_len
+    with pytest.raises(ValueError, match="remaining-length"):
+        decode_1a59(bytes(bad))
+
+
+def test_1a59_decode_wrong_type_header_rejects():
+    bad = bytearray(_CAPTURED_1A59_SEQ_69)
+    bad[26] = 0xFF  # corrupt the type header
+    with pytest.raises(ValueError, match="type header"):
+        decode_1a59(bytes(bad))
+
+
+def test_1a59_validates_lengths():
+    with pytest.raises(ValueError, match="client_hash"):
+        SessionSubkeyBeacon1A59(
+            client_hash=b"\x00\x00\x00",  # 3 bytes
+            session_uuid=b"\x00" * 16,
+            subkey=b"\x00" * 16,
+            counter=0,
+        )
+    with pytest.raises(ValueError, match="session_uuid"):
+        SessionSubkeyBeacon1A59(
+            client_hash=b"\x00\x00\x00\x00",
+            session_uuid=b"\x00" * 8,  # wrong size
+            subkey=b"\x00" * 16,
+            counter=0,
+        )
+    with pytest.raises(ValueError, match="subkey"):
+        SessionSubkeyBeacon1A59(
+            client_hash=b"\x00\x00\x00\x00",
+            session_uuid=b"\x00" * 16,
+            subkey=b"\x00" * 8,  # wrong size
+            counter=0,
+        )
+    with pytest.raises(ValueError, match="counter"):
+        SessionSubkeyBeacon1A59(
+            client_hash=b"\x00\x00\x00\x00",
+            session_uuid=b"\x00" * 16,
+            subkey=b"\x00" * 16,
+            counter=256,  # >u8
+        )
+
+
+def test_1a59_all_replay_copies_round_trip():
+    """All 3 captured 0x1a59 W messages should round-trip identically.
+    Counters should be 2, 3, 4 (matching the 0x18a6 R-direction
+    counter sequence)."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    msgs = sorted(
+        (m for m in store.messages if m.type_id == 0x1a59 and m.direction == "W"),
+        key=lambda m: m.seq,
+    )
+    assert len(msgs) == 3
+    decoded = [decode_1a59(m.body) for m in msgs]
+    counters = [d.counter for d in decoded]
+    assert counters == [2, 3, 4]
+    # Subkey should be identical across all three (same session)
+    subkeys = {d.subkey for d in decoded}
+    assert len(subkeys) == 1, "subkey should be constant across 0x1a59 captures"
+    # Each should round-trip
+    for src, dec in zip(msgs, decoded):
+        assert encode_1a59(dec) == src.body
+
+
+def test_1a59_subkey_matches_18a6_first_16_bytes():
+    """Cross-codec invariant: 0x1a59's 16-byte subkey is byte-identical
+    to the first 16 bytes of 0x18a6's body (first_uuid_half +
+    session_uuid_lower). Same session ⇒ same subkey."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    m_1a59 = decode_1a59(
+        next(m for m in store.messages
+             if m.type_id == 0x1a59 and m.direction == "W").body
+    )
+    m_18a6 = decode_18a6(
+        next(m for m in store.messages if m.type_id == 0x18a6).body
+    )
+    # 0x18a6 stores it as first_uuid_half + session_uuid_lower
+    assert m_1a59.subkey == m_18a6.first_uuid_half + m_18a6.session_uuid_lower
+
+
+# ---------------------------------------------------------------------------
+# IdentityFingerprintSet 0x5b2 (W direction)
+# ---------------------------------------------------------------------------
+
+from .identity_fingerprint_5b2 import (  # noqa: E402
+    IdentityFingerprintSet5B2,
+    encode as encode_5b2,
+    decode as decode_5b2,
+    MIN_TOTAL_WIRE_SIZE as IFS_MIN_TOTAL_WIRE_SIZE,
+    FINGERPRINT_SIZE as IFS_FINGERPRINT_SIZE,
+)
+
+_CAPTURED_5B2_SMALL = bytes.fromhex(
+    "f9b3ea55"
+    "00000025"
+    "1a954abc4b3185bfbe37c3d8592618e0"
+    "0001b216"
+    "180f8d4e573697c6"
+    "bf85314bbc4a951a"
+    "00"
+)
+
+_CAPTURED_5B2_LARGE = bytes.fromhex(
+    "c468b848"
+    "00000055"
+    "1a954abc4b3185bfbe37c3d8592618e0"
+    "0001b216"
+    "180f8d4e573697c6"
+    "bf85314bbc4a951a"
+    "06"
+    "1e4e63891491 99c8"
+    "c44e4b804e09 a0fd"
+    "ac4fe4f4cbb0 c2ff"
+    "2644e72b17b4 794c"
+    "e24816dee8a3 9546"
+    "dd464d7541fa f5a5".replace(" ", "")
+)
+
+
+def test_5b2_small_round_trip():
+    msg = decode_5b2(_CAPTURED_5B2_SMALL)
+    assert len(msg.fingerprints) == 0
+    assert encode_5b2(msg) == _CAPTURED_5B2_SMALL
+
+
+def test_5b2_large_round_trip():
+    msg = decode_5b2(_CAPTURED_5B2_LARGE)
+    assert len(msg.fingerprints) == 6
+    for fp in msg.fingerprints:
+        assert len(fp) == IFS_FINGERPRINT_SIZE
+    assert encode_5b2(msg) == _CAPTURED_5B2_LARGE
+
+
+def test_5b2_min_size_is_45():
+    assert IFS_MIN_TOTAL_WIRE_SIZE == 45
+    assert len(_CAPTURED_5B2_SMALL) == IFS_MIN_TOTAL_WIRE_SIZE
+
+
+def test_5b2_decode_too_short_rejects():
+    with pytest.raises(ValueError, match="too short"):
+        decode_5b2(_CAPTURED_5B2_SMALL[:-1])
+
+
+def test_5b2_decode_count_size_mismatch_rejects():
+    """Tamper with the count byte without adding fingerprints — the size
+    field then doesn't match the implied buffer length."""
+    bad = bytearray(_CAPTURED_5B2_SMALL)
+    bad[44] = 0x01  # claim 1 fingerprint without padding
+    with pytest.raises(ValueError, match="size mismatch"):
+        decode_5b2(bytes(bad))
+
+
+def test_5b2_decode_wrong_type_header_rejects():
+    bad = bytearray(_CAPTURED_5B2_SMALL)
+    bad[26] = 0xFF
+    with pytest.raises(ValueError, match="type header"):
+        decode_5b2(bytes(bad))
+
+
+def test_5b2_validates_fingerprint_size():
+    with pytest.raises(ValueError, match="fingerprint"):
+        IdentityFingerprintSet5B2(
+            client_hash=b"\x00" * 4,
+            session_uuid=b"\x00" * 16,
+            second_id=b"\x00" * 8,
+            session_uuid_lower=b"\x00" * 8,
+            fingerprints=(b"\x00" * 7,),  # wrong size
+        )
+
+
+def test_5b2_three_small_replay_copies_are_identical():
+    """The 3 small-variant 0x5b2 messages (seq 0x92, 0x99, 0x9b) are
+    byte-identical including client_hash — strong evidence of
+    reliable-delivery resends of the same logical message."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    msgs = [
+        m for m in store.messages
+        if m.type_id == 0x5b2 and m.direction == "W" and len(m.body) == 45
+    ]
+    assert len(msgs) == 3
+    bodies = {m.body for m in msgs}
+    assert len(bodies) == 1, "the 3 small 0x5b2 messages should be identical bytes"
+
+
+def test_5b2_all_replay_copies_round_trip():
+    """All 4 captured 0x5b2 W messages should round-trip; share the
+    same second_id and session_uuid (same session)."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    msgs = [m for m in store.messages if m.type_id == 0x5b2 and m.direction == "W"]
+    assert len(msgs) == 4
+    decoded = [decode_5b2(m.body) for m in msgs]
+    second_ids = {d.second_id for d in decoded}
+    session_uuids = {d.session_uuid for d in decoded}
+    assert len(second_ids) == 1
+    assert len(session_uuids) == 1
+    counts = sorted(len(d.fingerprints) for d in decoded)
+    assert counts == [0, 0, 0, 6]
+    for src, dec in zip(msgs, decoded):
+        assert encode_5b2(dec) == src.body
+
+
+# ---------------------------------------------------------------------------
+# ActionHistory 0x635 (W direction)
+# ---------------------------------------------------------------------------
+
+from .action_history_635 import (  # noqa: E402
+    ActionHistory635,
+    encode as encode_635,
+    decode as decode_635,
+    MIN_TOTAL_WIRE_SIZE as AH_MIN_TOTAL_WIRE_SIZE,
+    HISTORY_RECORD_SIZE as AH_HISTORY_RECORD_SIZE,
+    DEFAULT_TRAILER as AH_DEFAULT_TRAILER,
+)
+
+
+def test_635_first_send_round_trip():
+    """seq 0x6e — counter=1, first_send=True, no history records.
+    Total 93 bytes."""
+    seq6e = bytes.fromhex(
+        "a24e2975"
+        "00000055"
+        "1a954abc4b3185bfbe37c3d8592618e0"
+        "0001b518"
+        "fbde4b9a600d428f"
+        "bf85314bbc4a951a"
+        "00010000"
+        "91020600"
+        "000101000000000000000001"
+        "2007194b"
+        "000000ac0f01"
+        "01" "01" "00000001"
+        "c0802000808080800300000001"
+    )
+    msg = decode_635(seq6e)
+    assert msg.counter == 1
+    assert msg.first_send is True
+    assert msg.history_counters == ()
+    assert encode_635(msg) == seq6e
+
+
+def test_635_largest_round_trip():
+    """seq 0x72 — counter=5, 4 history records (4, 3, 2, 1).
+    Total 153 bytes."""
+    seq72 = bytes.fromhex(
+        "b1c10229"
+        "00000091"
+        "1a954abc4b3185bfbe37c3d8592618e0"
+        "0001b518"
+        "fbde4b9a600d428f"
+        "bf85314bbc4a951a"
+        "00000000"
+        "91020600"
+        "000101000000000000000001"
+        "2007194b"
+        "000000ac0f01"
+        "05" "01" "00000005"
+        "c0802000808080800300000001"
+        "00000000" "04" "00" "808080800300000001"
+        "00000000" "03" "00" "808080800300000001"
+        "00000000" "02" "00" "808080800300000001"
+        "00000000" "01" "00" "808080800300000001"
+    )
+    msg = decode_635(seq72)
+    assert msg.counter == 5
+    assert msg.first_send is False
+    assert msg.history_counters == (4, 3, 2, 1)
+    assert encode_635(msg) == seq72
+
+
+def test_635_min_size_is_93():
+    assert AH_MIN_TOTAL_WIRE_SIZE == 93
+    assert AH_HISTORY_RECORD_SIZE == 15
+    assert len(AH_DEFAULT_TRAILER) == 13
+
+
+def test_635_decode_too_short_rejects():
+    with pytest.raises(ValueError, match="too short"):
+        decode_635(b"\x00" * 50)
+
+
+def test_635_decode_unaligned_history_rejects():
+    """Truncate one byte off a valid message — leaves a body that
+    isn't a clean multiple of HISTORY_RECORD_SIZE."""
+    seq6f = bytes.fromhex(
+        "98404b17"
+        "00000064"
+        "1a954abc4b3185bfbe37c3d8592618e0"
+        "0001b518"
+        "fbde4b9a600d428f"
+        "bf85314bbc4a951a"
+        "00000000"
+        "91020600"
+        "000101000000000000000001"
+        "2007194b"
+        "000000ac0f01"
+        "02" "01" "00000002"
+        "c0802000808080800300000001"
+        "00000000" "01" "00" "808080800300000001"
+    )
+    # Drop the last byte and patch remaining_len so we hit the alignment check
+    # (rather than the remaining-length check).
+    truncated = bytearray(seq6f[:-1])
+    truncated[7] = seq6f[7] - 1  # decrement remaining_len BE byte
+    with pytest.raises(ValueError, match="multiple of"):
+        decode_635(bytes(truncated))
+
+
+def test_635_decode_counter_mismatch_rejects():
+    """If the u32 LE counter doesn't equal the u8 counter, decode rejects."""
+    seq6e = bytes.fromhex(
+        "a24e2975"
+        "00000055"
+        "1a954abc4b3185bfbe37c3d8592618e0"
+        "0001b518"
+        "fbde4b9a600d428f"
+        "bf85314bbc4a951a"
+        "00010000"
+        "91020600"
+        "000101000000000000000001"
+        "2007194b"
+        "000000ac0f01"
+        "01" "01" "00000002"   # u8=1, u32=2 — mismatch!
+        "c0802000808080800300000001"
+    )
+    with pytest.raises(ValueError, match="counter u8/u32 mismatch"):
+        decode_635(seq6e)
+
+
+def test_635_encoder_default_history_for_counter_n():
+    """When history_counters is empty and counter > 1, encoder should
+    auto-generate (counter-1, ..., 1) — matching captured behavior."""
+    msg = ActionHistory635(
+        client_hash=b"\xb1\xc1\x02\x29",
+        session_uuid=bytes.fromhex("1a954abc4b3185bfbe37c3d8592618e0"),
+        second_id=bytes.fromhex("fbde4b9a600d428f"),
+        session_uuid_lower=bytes.fromhex("bf85314bbc4a951a"),
+        counter=5,
+        first_send=False,
+        history_counters=(),  # let the encoder fill this in
+    )
+    encoded = encode_635(msg)
+    redecoded = decode_635(encoded)
+    assert redecoded.history_counters == (4, 3, 2, 1)
+
+
+def test_635_all_replay_copies_round_trip():
+    """All 5 captured 0x635 W messages should round-trip and exhibit
+    the expected counter / history pattern."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    msgs = sorted(
+        (m for m in store.messages if m.type_id == 0x635 and m.direction == "W"),
+        key=lambda m: m.seq,
+    )
+    assert len(msgs) == 5
+    decoded = [decode_635(m.body) for m in msgs]
+    # Counters: 1..5
+    assert [d.counter for d in decoded] == [1, 2, 3, 4, 5]
+    # first_send only on the first message
+    assert [d.first_send for d in decoded] == [True, False, False, False, False]
+    # history grows monotonically: 0, 1, 2, 3, 4 records
+    assert [len(d.history_counters) for d in decoded] == [0, 1, 2, 3, 4]
+    # All messages share the same session_uuid + second_id
+    assert len({d.session_uuid for d in decoded}) == 1
+    assert len({d.second_id for d in decoded}) == 1
+    # Round-trip
+    for src, dec in zip(msgs, decoded):
+        assert encode_635(dec) == src.body
+
+
+def test_635_history_records_descend_from_n_minus_1_to_1():
+    """Captured 0x635 history records always run counter-1, counter-2,
+    ..., 1. Document this invariant."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    for m in store.messages:
+        if m.type_id != 0x635 or m.direction != "W":
+            continue
+        d = decode_635(m.body)
+        if d.counter > 1:
+            expected = tuple(range(d.counter - 1, 0, -1))
+            assert d.history_counters == expected, (
+                f"seq 0x{m.seq:x}: counter={d.counter} but history={d.history_counters}"
+            )
+
+
+# ---------------------------------------------------------------------------
 # v3_request — error paths (no capture file needed)
 # ---------------------------------------------------------------------------
 

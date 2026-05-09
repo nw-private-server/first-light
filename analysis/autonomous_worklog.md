@@ -6713,3 +6713,106 @@ to a real GPU.
 **Blockers:** Same as before runtime — strategic decision on
 physical / cloud Windows host. The replay-mining and codec work
 are unblocked and continue meanwhile.
+
+---
+
+### 2026-05-08 — wake 71: three more replay codecs (0x1a59, 0x5b2, 0x635)
+
+**Did:**
+
+Three new W-direction codecs, all with round-trip + cross-replay
+validation. Test count up to **165 passing** (was 153 — 12 new tests
+added).
+
+1. **`session_subkey_1a59.py`** — 45-byte fixed message. The
+   16-byte payload is the **same `[first_uuid_half +
+   session_uuid_lower]` subkey that appears at the start of
+   `0x18a6`'s body**, plus a 1-byte counter. Counters in the 3
+   replay copies are 2, 3, 4 — **paired with the 0x18a6 R-direction
+   counter sequence** (cross-codec invariant test verifies this).
+   So 0x1a59 is the W-direction "client confirms session subkey,
+   counter=N" beacon paired with 0x18a6 from the server.
+
+2. **`identity_fingerprint_5b2.py`** — variable-size message
+   (45 + 8*N bytes). Carries 0..N opaque 8-byte fingerprints. The
+   replay has **3 byte-identical 45-byte messages** (same
+   client_hash and all) plus one 93-byte message with 6
+   fingerprints. The triplicate identical messages are strong
+   evidence of reliable-delivery resends at the wire level. The
+   `second_id` here (`18 0f 8d 4e 57 36 97 c6`) is **distinct**
+   from the `second_id` in 0x18a6/0x663 and from the one in 0x635
+   — three different sub-system identities in the same session.
+
+3. **`action_history_635.py`** — variable-size message
+   (93 + 15*N bytes). The interesting one: each message adds
+   exactly 15 bytes at the tail while keeping prior content
+   intact. This is a **client input/action queue with
+   reliable-broadcast semantics** — each new action gets a fresh
+   counter (u8 + u32 BE redundantly), and old unacknowledged
+   actions are re-broadcast as 15-byte history records in
+   descending counter order. Captured pattern:
+   - seq 0x6e: counter=1, 0 history records, `first_send_flag=true`
+   - seq 0x6f..0x72: counter=N, N-1 history records, flag=false
+
+   The "current state" trailer `c0 80 20 00 80 80 80 80
+   03 00 00 00 01` and the per-record `80 80 80 80 03 00 00 00 01`
+   structurally look like serialized state values, but without
+   handler-side context we model them as captured constants. The
+   codec exposes an "auto-fill history_counters when empty and
+   counter > 1" convenience that mirrors the captured behavior.
+
+**One small mistake fixed during the test pass:** initially I
+modeled the counter_u32 as little-endian (since `build_version`
+in 0x18a6 is u32 LE), but the actual capture encodes it BE. The
+self-test passed because encode/decode were consistent, but the
+replay-cross-validation test caught it. Fixed to u32 BE in both
+directions.
+
+**Found — three different "second ID" surfaces in one session:**
+
+A useful structural finding now visible across the codec library:
+
+| ID bytes (8 bytes)            | Used by      | Likely role                            |
+|-------------------------------|--------------|----------------------------------------|
+| `9c fa 58 61 78 14 69 f2`     | 0x18a6, 0x663 | metadata-block "second id"            |
+| `fb de 4b 9a 60 0d 42 8f`     | 0x635        | action-queue identity                  |
+| `18 0f 8d 4e 57 36 97 c6`     | 0x5b2        | fingerprint-reporter identity          |
+
+So the binary keeps **separate sub-system identities** alongside
+the shared session UUID. Each major sub-system (session manager,
+action queue, fingerprint reporter) carries its own opaque
+identity-bundle ID.
+
+**Library status: 11 dedicated codecs, 165 tests passing.**
+
+The codec surface area now characterizes:
+- R: 0x14f, 0x15d ping, 0x18a6, 0x1b88, 0xa4, 0x663
+- W: 0x15d ack, 0x1a59, 0x5b2, 0x635
+- Plus the existing `LevelInfoChangedMsg` and
+  `PlayerManagerSelfIdentificationMsg` which use AzCore-style
+  `AZStd::string`/`AZStd::vector` serialization.
+
+**Files this iteration:**
+
+- `server/javelin/session_subkey_1a59.py` (new)
+- `server/javelin/identity_fingerprint_5b2.py` (new)
+- `server/javelin/action_history_635.py` (new)
+- `server/javelin/test_codecs.py` (12 new tests, 165 total)
+- `analysis/replay_message_inventory.md` (3 new sections + cross-codec invariants table)
+- This worklog entry
+
+**Next** (queue):
+
+1. Look at `0x16a0` — 2 captures (153 + 99819 bytes). Small one is
+   tractable; large one is the chunked-replay we already handle.
+2. Survey the 79 `0x08` R messages (variable 78..46423 bytes) —
+   even without a TLV parser, a length-distribution + first-byte
+   histogram could identify sub-types within the entity-state
+   stream.
+3. Singleton W types (`0x40a`, `0x1be`, 76-byte fixed) — document
+   the wire shapes for completeness.
+
+**Blockers:** None — replay-mining is healthy. Strategic decision
+on runtime path (physical / cloud Windows host) remains the only
+blocker for live testing, and it's not on this iteration's
+critical path.
