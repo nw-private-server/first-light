@@ -7317,3 +7317,119 @@ Test count: **197 passing** (was 191 — 6 new tests).
 4. Investigate 0x09fc and 0x12f6 individually next pass.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-09 — wake 77: SubkeyBeacon refactor + 0xa95 codec + 0x9fc/0x8e6 link
+
+**Did:**
+
+Big consolidation win plus one new codec and one cross-codec
+finding. Test count: **213 passing** (was 197 — 16 new tests).
+
+1. **`subkey_beacon.py`** — generic `SubkeyBeacon` codec
+   parameterized by `(type_id, trailer_size)`. Encodes/decodes
+   the full W-direction envelope `[client_hash + len + session_uuid
+   + type_hdr + subkey + trailer]` with the trailer kept as
+   opaque bytes (different types interpret it differently).
+   Optional `expected_type_id` and `expected_trailer_size`
+   pinning at decode-time. Exposes `make_type_header` /
+   `decode_type_id` helpers and a `KNOWN_FAMILY` map (13 types
+   from the captured replay).
+
+2. **`session_subkey_1a59.py` refactored as a thin wrapper.**
+   Public API preserved (`SessionSubkeyBeacon1A59`,
+   `encode`, `decode`, layout constants) — all existing 7 tests
+   still pass. The refactor delegates wire-format work to the
+   generic codec; the wrapper just adapts the typed dataclass
+   (1-byte trailer → u8 counter field). One existing test had
+   to widen its regex to accept the generic codec's
+   "type_id mismatch" message in addition to the prior
+   "type header" message — semantically equivalent rejection,
+   different wording.
+
+3. **9 new generic tests** covering:
+   - Round-trip with 0-byte, 1-byte, 4-byte trailers
+   - `expected_type_id` / `expected_trailer_size` pinning
+   - `make_type_header` round-trip for various type-IDs
+   - Rejection of low-type-IDs (< 0x40) since they use the
+     3-byte envelope
+   - **Cross-replay round-trip for all 13 KNOWN_FAMILY types**
+     (`0x066b`, `0x102f`, `0x1098`, `0x0f7f`, `0x101a`,
+     `0x101d`, `0x10b0`, `0x143d`, `0x187c`, `0x187f`,
+     `0x102e`, `0x09d3`, `0x1a59`) — each captured W message
+     decodes and re-encodes byte-for-byte.
+
+4. **`permission_bitmap_a95.py`** — codec for 0x0a95 W
+   singleton (variable size: subkey + u8 count + count-byte
+   flag array). The captured 36-flag bitmap has all flags set
+   to 0x01 except index 6 (= 0x00) — looks like a **per-session
+   feature/permission bitmap with one feature disabled**. The
+   upper 8 bytes of the subkey match `0x5b2`'s second_id, so
+   this is the **fingerprint-reporter sub-system's flag
+   table**. Cross-codec invariant test added.
+
+5. **`0x09fc` cross-codec link to `0x8e6`** (no codec yet, but
+   significant finding): 0x09fc carries a 16-byte hash at the
+   end (`e1 63 43 70 30 7b 4d 06 a7 2f d9 df 00 5c d9 42`) that
+   is **byte-for-byte identical to `0x8e6`'s opaque_blob**. The
+   upper 8 bytes of 0x9fc's subkey **also match** 0x8e6's
+   identity_uuid upper 8. So 0x09fc = "client confirms receipt
+   of 0x8e6 and echoes back its content hash". The 26-byte
+   middle section's structure remains unclear — codec deferred
+   pending more captures. Cross-link documented inline in
+   inventory.
+
+**Files this iteration:**
+
+- `server/javelin/subkey_beacon.py` (new — generic codec)
+- `server/javelin/session_subkey_1a59.py` (refactored — thin
+  wrapper, public API preserved)
+- `server/javelin/permission_bitmap_a95.py` (new)
+- `server/javelin/test_codecs.py` (16 new tests, 213 total;
+  one existing 0x1a59 test regex widened)
+- `analysis/replay_message_inventory.md` (W-singleton family
+  summary updated; 0x9fc → 0x8e6 cross-link)
+- This worklog entry
+
+**Library status: 19 dedicated codecs + 1 generic codec
+covering 13 types; 213 tests passing.**
+
+**Big-picture pattern surfaced:**
+
+The W-direction protocol has a clear **three-tier structure**:
+
+- **Tier 1: subkey-beacon family** (12 + 1 = 13 captured types)
+  — small reliability-ack / state-notification messages with a
+  16-byte sub-system identity bundle and a small typed trailer.
+  All consolidated under `SubkeyBeacon`. The sub-system is
+  identified by the **upper 8 bytes** of the subkey.
+- **Tier 2: subkey + structured payload** — 0x0a95
+  (permission bitmap), 0x5b2 (fingerprint set), 0x9fc
+  (subkey + 16-byte cross-message hash echo), 0x635 (action
+  history), 0x1a59-as-counter (in tier 1).
+- **Tier 3: bulky messages** — 0x12f6 (299 B) is the only
+  remaining W singleton in this tier; needs focused analysis.
+
+**Cross-codec identity-bundle map** (collated from all wakes):
+
+| 8-byte upper half (= sub-system ID) | Used by | Likely role |
+|---|---|---|
+| `f8 cb ed 57 c6 8b 18 f4` | 0x18a6 first_uuid_half, 0x1a59 subkey | session-manager subkey |
+| `9c fa 58 61 78 14 69 f2` | 0x18a6 + 0x663 second_id | metadata block id |
+| `fb de 4b 9a 60 0d 42 8f` | 0x635 second_id | action-queue identity |
+| `18 0f 8d 4e 57 36 97 c6` | 0x5b2 + 0x0a95 second_id | fingerprint-reporter id |
+| `4c 0c 0e d6 47 8a 69 da` | 0x8e6 + 0x9fc identity_uuid upper | (newly named — receipt-handshake id) |
+
+**Next** (queue):
+
+1. Look at 0x12f6 W (299 B) — last bulky W singleton.
+2. The 0x1a59 / 0x18a6 counter sequence is now well understood
+   (R 0x18a6 server → W 0x1a59 client, counters 1→2→3→4 in
+   capture). Worth writing a brief docs section linking the
+   pair semantics.
+3. Generalize/document the cross-codec identity-bundle map in
+   the inventory's intro section so future codec authors know
+   to look for the upper-8-byte sub-system match.
+
+**Blockers:** None.

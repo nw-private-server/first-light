@@ -1188,7 +1188,7 @@ def test_1a59_decode_wrong_remaining_length_rejects():
 def test_1a59_decode_wrong_type_header_rejects():
     bad = bytearray(_CAPTURED_1A59_SEQ_69)
     bad[26] = 0xFF  # corrupt the type header
-    with pytest.raises(ValueError, match="type header"):
+    with pytest.raises(ValueError, match="type_id mismatch|type header"):
         decode_1a59(bytes(bad))
 
 
@@ -2091,6 +2091,227 @@ def test_1097_validates_result_range():
 def test_1097_round_trip_max_u32():
     msg = ResultToken1097(identity_uuid=b"\x42" * 16, result=2**32 - 1)
     assert decode_1097(encode_1097(msg)) == msg
+
+
+# ---------------------------------------------------------------------------
+# Generic SubkeyBeacon — covers 12 W-singleton types + 0x1a59
+# ---------------------------------------------------------------------------
+
+from .subkey_beacon import (  # noqa: E402
+    SubkeyBeacon,
+    encode as encode_subkey,
+    decode as decode_subkey,
+    KNOWN_FAMILY,
+    BASE_WIRE_SIZE as SUBKEY_BASE_WIRE_SIZE,
+    make_type_header as subkey_make_type_header,
+    decode_type_id as subkey_decode_type_id,
+)
+
+
+def test_subkey_base_size_44():
+    assert SUBKEY_BASE_WIRE_SIZE == 44
+
+
+def test_subkey_known_family_has_13_types():
+    """Spot-check: the family covers the 13 captured-replay types
+    (12 W-singletons + 0x1a59 with 3 captures)."""
+    assert len(KNOWN_FAMILY) == 13
+    assert KNOWN_FAMILY[0x1a59] == 1
+    assert KNOWN_FAMILY[0x09d3] == 4
+
+
+def test_subkey_round_trip_zero_trailer():
+    msg = SubkeyBeacon(
+        type_id=0x102f,
+        client_hash=b"\x4b\x45\x10\x1a",
+        session_uuid=bytes(range(16)),
+        subkey=bytes(range(16, 32)),
+        trailer=b"",
+    )
+    encoded = encode_subkey(msg)
+    assert len(encoded) == 44
+    decoded = decode_subkey(encoded)
+    assert decoded == msg
+
+
+def test_subkey_round_trip_4_byte_trailer():
+    msg = SubkeyBeacon(
+        type_id=0x09d3,
+        client_hash=b"\x3f\x0d\xea\x49",
+        session_uuid=bytes(range(16)),
+        subkey=bytes(range(16, 32)),
+        trailer=b"\xde\xad\xbe\xef",
+    )
+    encoded = encode_subkey(msg)
+    assert len(encoded) == 48
+    decoded = decode_subkey(encoded)
+    assert decoded == msg
+
+
+def test_subkey_decode_validates_remaining_length():
+    msg = SubkeyBeacon(
+        type_id=0x1a59,
+        client_hash=b"\x00" * 4,
+        session_uuid=bytes(16),
+        subkey=bytes(16),
+        trailer=b"\x00",
+    )
+    encoded = bytearray(encode_subkey(msg))
+    encoded[7] = 0x99  # corrupt remaining_len
+    with pytest.raises(ValueError, match="remaining-length"):
+        decode_subkey(bytes(encoded))
+
+
+def test_subkey_decode_expected_type_id_mismatch_rejects():
+    msg = SubkeyBeacon(
+        type_id=0x1a59,
+        client_hash=b"\x00" * 4,
+        session_uuid=bytes(16),
+        subkey=bytes(16),
+        trailer=b"\x00",
+    )
+    encoded = encode_subkey(msg)
+    with pytest.raises(ValueError, match="type_id mismatch"):
+        decode_subkey(encoded, expected_type_id=0x102f)
+
+
+def test_subkey_decode_expected_trailer_size_mismatch_rejects():
+    msg = SubkeyBeacon(
+        type_id=0x1a59,
+        client_hash=b"\x00" * 4,
+        session_uuid=bytes(16),
+        subkey=bytes(16),
+        trailer=b"\x00",
+    )
+    encoded = encode_subkey(msg)
+    with pytest.raises(ValueError, match="trailer size"):
+        decode_subkey(encoded, expected_trailer_size=4)
+
+
+def test_subkey_make_type_header_round_trip():
+    for tid in (0x40, 0x1a59, 0x3FFF, 0x102e):
+        hdr = subkey_make_type_header(tid)
+        assert subkey_decode_type_id(hdr) == tid
+
+
+def test_subkey_make_type_header_rejects_low_types():
+    """The 4-byte typed envelope is for type-IDs in [0x40, 0x3FFF].
+    Lower types use the 3-byte form — see post-v3-sequence.md."""
+    with pytest.raises(ValueError, match="0x3"):
+        subkey_make_type_header(0x3)
+    with pytest.raises(ValueError, match="0x3F"):
+        subkey_make_type_header(0x3F)
+
+
+def test_subkey_all_replay_types_round_trip():
+    """Round-trip every W-direction replay message that fits the
+    subkey-beacon family. Verifies the generic codec handles all
+    13 captured types end-to-end."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    seen_types: set[int] = set()
+    for m in store.messages:
+        if m.type_id not in KNOWN_FAMILY or m.direction != "W":
+            continue
+        expected_trailer = KNOWN_FAMILY[m.type_id]
+        decoded = decode_subkey(
+            m.body,
+            expected_type_id=m.type_id,
+            expected_trailer_size=expected_trailer,
+        )
+        assert encode_subkey(decoded) == m.body
+        seen_types.add(m.type_id)
+    # The 0x1a59 has 3 captures, the rest are singletons → 13 total types.
+    assert seen_types == set(KNOWN_FAMILY.keys())
+
+
+# ---------------------------------------------------------------------------
+# PermissionBitmap 0x0a95 (W direction, variable-size)
+# ---------------------------------------------------------------------------
+
+from .permission_bitmap_a95 import (  # noqa: E402
+    PermissionBitmapA95,
+    encode as encode_a95,
+    decode as decode_a95,
+    MIN_TOTAL_WIRE_SIZE as PB_MIN_WIRE_SIZE,
+)
+
+
+def test_a95_round_trip_from_replay():
+    """Round-trip the captured 0x0a95 W singleton; verify 36 flags
+    with one disabled at index 6."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    candidates = [m for m in store.messages if m.type_id == 0x0a95]
+    assert len(candidates) == 1
+    msg = decode_a95(candidates[0].body)
+    assert len(msg.flags) == 36
+    disabled = [i for i, f in enumerate(msg.flags) if f == 0]
+    assert disabled == [6]
+    assert encode_a95(msg) == candidates[0].body
+
+
+def test_a95_min_size_45():
+    assert PB_MIN_WIRE_SIZE == 45
+
+
+def test_a95_decode_too_short_rejects():
+    with pytest.raises(ValueError, match="too short"):
+        decode_a95(b"\x00" * 30)
+
+
+def test_a95_decode_count_size_mismatch_rejects():
+    """Tamper with the flag-count without resizing the buffer."""
+    msg = PermissionBitmapA95(
+        client_hash=b"\x00" * 4,
+        session_uuid=bytes(16),
+        subkey=bytes(16),
+        flags=b"",
+    )
+    encoded = bytearray(encode_a95(msg))
+    encoded[44] = 0x05  # claim 5 flags but the buffer has none
+    with pytest.raises(ValueError, match="size mismatch"):
+        decode_a95(bytes(encoded))
+
+
+def test_a95_round_trip_empty_flags():
+    msg = PermissionBitmapA95(
+        client_hash=b"\xff" * 4,
+        session_uuid=bytes(range(16)),
+        subkey=bytes(range(16, 32)),
+        flags=b"",
+    )
+    assert decode_a95(encode_a95(msg)) == msg
+
+
+def test_a95_subkey_upper_matches_5b2_second_id():
+    """Cross-codec finding: the upper 8 bytes of 0x0a95's subkey
+    match 0x5b2's second_id — same fingerprint-reporter sub-system
+    identity."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    msg_a95 = decode_a95(
+        next(m for m in store.messages if m.type_id == 0x0a95).body
+    )
+    msg_5b2 = decode_5b2(
+        next(m for m in store.messages if m.type_id == 0x5b2).body
+    )
+    assert msg_a95.subkey[:8] == msg_5b2.second_id
 
 
 # ---------------------------------------------------------------------------

@@ -715,17 +715,30 @@ the 16 W singletons under one implementation. Logged for next
 pass.
 
 The larger W singletons (81 / 102 / 299 bytes) carry richer
-payloads and need individual analysis:
+payloads:
 
 - **`0x0a95`** (81 bytes): subkey + u8 count (`0x24` = 36) +
   36-byte flag array `01 01 01 01 01 01 00 01 01 01...` —
-  looks like a **per-session permission/feature flag bitmap**.
-- **`0x09fc`** (102 bytes): subkey + 16-byte additional UUID
-  + duplicated session_uuid + small structured payload — the
-  duplication of the session_uuid suggests a "client confirms
-  session-id-pair X→Y" handshake message.
+  per-session **permission/feature flag bitmap**, exactly one
+  feature disabled (index 6). Codec:
+  `server/javelin/permission_bitmap_a95.py`. The upper 8 bytes
+  of the subkey match `0x5b2`'s second_id —
+  fingerprint-reporter sub-system identity.
+
+- **`0x09fc`** (102 bytes): subkey + duplicated session_uuid
+  + 26-byte state block + a **16-byte hash matching `0x8e6`'s
+  opaque_blob byte-for-byte** (`e1 63 43 70 30 7b 4d 06 a7 2f
+  d9 df 00 5c d9 42`). Strongly suggests this is the **client
+  confirming receipt of `0x8e6`** — the upper 8 bytes of 0x9fc's
+  subkey also match `0x8e6`'s identity_uuid upper 8 (`4c 0c 0e
+  d6 47 8a 69 da`). So 0x09fc = "client to server: I got your
+  0x8e6, here's the hash echoed back." The 26-byte state block
+  in the middle (`00*8 + 10 00 00 00 10 00 00 00 00 00 a0 10
+  00 00 00 10 10 00 09`) needs more captures to characterize.
+  No codec yet but the cross-codec link to 0x8e6 is captured.
+
 - **`0x12f6`** (299 bytes): the largest W singleton. Subkey +
-  ~270-byte payload — needs focused analysis.
+  ~270-byte payload — needs focused analysis next pass.
 
 ## `0x1067` — 86-byte R Vivox voice-chat configuration (singleton)
 

@@ -11,15 +11,11 @@ same 16-byte "session subkey" that appears at the start of `0x18a6`
 across the captured copies (0x02 → 0x03 → 0x04), matching the
 `0x18a6` counter pattern.
 
-Wire layout (full 45-byte W-direction message):
-
-  +0x00  u8x4    client_hash       per-message correlation/hash
-  +0x04  u32 BE  remaining_len     0x25 = 37 = total - 8
-  +0x08  u8x16   session_uuid      full session UUID (matches 0xa4)
-  +0x18  u8x4    type_header       [00 01 99 69] = type 0x1a59
-  +0x1c  u8x16   subkey            [first_uuid_half:8][session_uuid_lower:8]
-                                    matches 0x18a6's first 16 payload bytes
-  +0x2c  u8      counter           1-byte counter (matches 0x18a6 counter)
+This module is now a **thin wrapper** over `subkey_beacon` — the
+generic codec handles 12 W-singleton types fitting the same shape
+(see `subkey_beacon.KNOWN_FAMILY`); 0x1a59 is the canonical
+1-byte-trailer case where the trailer is interpreted as a u8
+counter.
 
 The 16-byte subkey is structurally identical to the first 16 bytes
 of `init_message_18a6` body: the first 8 bytes are a "session
@@ -35,28 +31,28 @@ server.
 
 from __future__ import annotations
 
-import struct
 from dataclasses import dataclass
 
+from . import subkey_beacon as _generic
 
-# Total wire size of a full 0x1a59 W message.
-TOTAL_WIRE_SIZE = 45
 
-# Layout constants.
-SESSION_UUID_OFFSET = 8
-SESSION_UUID_SIZE = 16
-TYPE_HEADER_OFFSET = 24
-SUBKEY_OFFSET = 28
-SUBKEY_SIZE = 16
-COUNTER_OFFSET = 44
+# Canonical type-id and total wire size — public constants for callers.
+TYPE_ID = 0x1a59
+TOTAL_WIRE_SIZE = 45  # base 44 + 1-byte counter trailer
+TRAILER_SIZE = 1
 
-# 4-byte typed envelope header for type 0x1a59:
-#   marker [0x00, 0x01], then ((0x1a59 & 0x3f) | 0x80) = 0x99,
-#   then ((0x1a59 >> 6) & 0xff) = 0x69
-TYPE_HEADER = bytes((0x00, 0x01, 0x99, 0x69))
+# Layout constants (preserved for backward compatibility with prior callers).
+SESSION_UUID_OFFSET = _generic.SESSION_UUID_OFFSET
+SESSION_UUID_SIZE = _generic.SESSION_UUID_SIZE
+TYPE_HEADER_OFFSET = _generic.TYPE_HEADER_OFFSET
+SUBKEY_OFFSET = _generic.SUBKEY_OFFSET
+SUBKEY_SIZE = _generic.SUBKEY_SIZE
+COUNTER_OFFSET = _generic.TRAILER_OFFSET
 
-# Value of the BE remaining-length field — total wire size minus
-# the 8-byte header (client_hash + remaining_len).
+# 4-byte typed envelope header for type 0x1a59.
+TYPE_HEADER = _generic.make_type_header(TYPE_ID)
+
+# Value of the BE remaining-length field for a 45-byte 0x1a59 message.
 REMAINING_LEN = TOTAL_WIRE_SIZE - 8  # 37 = 0x25
 
 
@@ -90,14 +86,13 @@ class SessionSubkeyBeacon1A59:
 
 def encode(msg: SessionSubkeyBeacon1A59) -> bytes:
     """Build the on-wire 0x1a59 W message (45 bytes total)."""
-    return (
-        msg.client_hash
-        + struct.pack(">I", REMAINING_LEN)
-        + msg.session_uuid
-        + TYPE_HEADER
-        + msg.subkey
-        + bytes((msg.counter,))
-    )
+    return _generic.encode(_generic.SubkeyBeacon(
+        type_id=TYPE_ID,
+        client_hash=msg.client_hash,
+        session_uuid=msg.session_uuid,
+        subkey=msg.subkey,
+        trailer=bytes((msg.counter,)),
+    ))
 
 
 def decode(buf: bytes) -> SessionSubkeyBeacon1A59:
@@ -107,27 +102,16 @@ def decode(buf: bytes) -> SessionSubkeyBeacon1A59:
         raise ValueError(
             f"expected exactly {TOTAL_WIRE_SIZE} bytes; got {len(buf)}"
         )
-    client_hash = buf[0:4]
-    (remaining,) = struct.unpack_from(">I", buf, 4)
-    if remaining != REMAINING_LEN:
-        raise ValueError(
-            f"remaining-length field mismatch: expected 0x{REMAINING_LEN:x}, "
-            f"got 0x{remaining:x}"
-        )
-    session_uuid = buf[SESSION_UUID_OFFSET:SESSION_UUID_OFFSET + SESSION_UUID_SIZE]
-    type_header = buf[TYPE_HEADER_OFFSET:TYPE_HEADER_OFFSET + 4]
-    if type_header != TYPE_HEADER:
-        raise ValueError(
-            f"type header mismatch: expected {TYPE_HEADER.hex()}, "
-            f"got {type_header.hex()}"
-        )
-    subkey = buf[SUBKEY_OFFSET:SUBKEY_OFFSET + SUBKEY_SIZE]
-    counter = buf[COUNTER_OFFSET]
+    generic = _generic.decode(
+        buf,
+        expected_type_id=TYPE_ID,
+        expected_trailer_size=TRAILER_SIZE,
+    )
     return SessionSubkeyBeacon1A59(
-        client_hash=client_hash,
-        session_uuid=session_uuid,
-        subkey=subkey,
-        counter=counter,
+        client_hash=generic.client_hash,
+        session_uuid=generic.session_uuid,
+        subkey=generic.subkey,
+        counter=generic.trailer[0],
     )
 
 
