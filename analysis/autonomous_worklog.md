@@ -6425,3 +6425,119 @@ Two clean wins this iteration:
    ClientMessagesTrait.
 
 **Blockers:** None new.
+
+---
+
+### 2026-05-08 — wake 69: Heartbeat 0x15d (R/W pair) + LevelDescriptor 0x663
+
+**Did:**
+
+1. Surveyed both target types from `analysis/replay_message_inventory.md`.
+2. Shipped `server/javelin/heartbeat_15d.py` — codecs for the 0x15d
+   request/ack pattern. Server emits a 12-byte ping (`R` direction);
+   client replies with a 36-byte ack (`W` direction) that wraps the
+   server's ping body verbatim.
+3. Shipped `server/javelin/level_descriptor_663.py` — codec for the
+   110-byte 0x663 level-descriptor message containing two
+   length-prefixed strings, 4 IEEE-754 BE floats (level geometry),
+   and the same `flags` / `second_id` / `build_version` metadata
+   block found in `0x18a6`.
+4. 16 new tests covering both codecs + cross-codec invariants
+   against the replay.
+
+**Found — 0x15d is a request/ack heartbeat pattern:**
+
+The 20 captures of 0x15d split cleanly into two shapes:
+
+- **R direction, 12 bytes**: `[type header (4)][u32 BE counter][u32 nonce]`
+- **W direction, 36 bytes**: `[u32 client_hash][u32 BE remaining_len=0x1c]
+  [16 zero bytes][12 bytes echoed ping with its own type header]`
+
+The W message's last 12 bytes are byte-identical to the matching R
+message's body (paired by seq order). The W message does NOT start
+with a type-envelope header — `client_hash` is at byte 0 — so the
+"this is a 0x15d" identification only comes from the wrapped echoed
+ping at offset +0x18. This breaks the convention of the other types
+in the library.
+
+The 10 R counter values across the 10 ping captures are slowly
+incrementing (similar pattern to `0x14f`'s session_clock):
+`0x36ef6, 0x36ef6, 0x36ef7, 0x36ef7, ...` etc. The 10 W
+client_hash values are all distinct.
+
+**Found — 0x663 reuses 0x18a6's metadata block:**
+
+The 0x663 level-descriptor contains a "session metadata footer"
+identical to `0x18a6`'s middle section:
+
+- 4 bytes flags (`01 01 00 00`)
+- 8 bytes second_id (`9c fa 58 61 78 14 69 f2`)
+- 4 bytes build_version (`0x365` = 869, matches game build)
+
+The cross-codec invariant test
+`test_663_metadata_block_matches_18a6` decodes one capture of each
+type and asserts these three fields are equal. Confirms that the
+project's "session-metadata footer" pattern is shared across at
+least two distinct message types.
+
+**Found — 0x663 uses u8-prefixed strings, not AZStd::string:**
+
+The two strings in 0x663 use a 1-byte length prefix ("Pascal-style"),
+NOT the 4-byte LE length used by `AZStd::string` in
+`LevelInfoChangedMsg`. So the project's wire format includes at
+least TWO distinct string conventions:
+
+- AZStd::string: `[u32 LE length][bytes]` (used in
+  `LevelInfoChangedMsg`)
+- u8-prefixed string: `[u8 length][bytes]` (used in `0x663`)
+
+Worth flagging in future codec design — pick the right convention
+based on the message family.
+
+**Found — 0x663 captured geometry values:**
+
+`(2048.0, 16.0, 12272.0, 10250.0)` — looks like
+`(scale, height, x, y)` or `(width, height, x_offset, y_offset)`
+for the `NewWorld_VitaeEterna` level. The values 12272 and 10250
+are roughly the in-game map coordinates of the area.
+
+**Test suite:** 166 → **182 passing in 2.22s.**
+
+**Library coverage now:**
+
+8 dedicated codecs:
+
+| Type | Codec | Direction | Size |
+|---|---|---|---|
+| `PlayerManagerSelfIdentificationMsg` | `self_ident.py` | (handler-side) | 21+ |
+| `LevelInfoChangedMsg` | `level_info_changed.py` | (handler-side) | 176+ |
+| `0x14f` SessionClockBeacon | `session_clock_beacon.py` | R | 12 |
+| `0x15d` HeartbeatPing15D + Ack15D | `heartbeat_15d.py` | R/W | 12 / 36 |
+| `0x663` LevelDescriptor663 | `level_descriptor_663.py` | R | 110 |
+| `0xa4` SessionMessageA4 | `session_message_a4.py` | R | 20 |
+| `0x18a6` InitMessage18A6 | `init_message_18a6.py` | R | 40 |
+| `0x1b88` SessionIdentityBeacon | `session_identity_beacon.py` | R | 42 |
+
+Plus the V3 request parser + response encoder.
+
+**Files this iteration:**
+
+- `server/javelin/heartbeat_15d.py` (new)
+- `server/javelin/level_descriptor_663.py` (new)
+- `server/javelin/test_codecs.py` (16 new tests)
+- This worklog entry
+
+**Commit:** Following.
+
+**Next** (continuing the loop):
+
+1. Type `0x635` — 5 W captures, 93 or 153 bytes. Two size classes
+   like 0x15d, but client-side. Could be request bodies of two
+   different shapes.
+2. Type `0x5b2` — 4 W captures, 45 or 93 bytes. Similar shape
+   bifurcation.
+3. Type `0x1a59` — 3 W captures, 45 bytes. Smaller, possibly
+   request-counter pattern.
+4. Cross-link the wire-format reference doc to all 8 codecs.
+
+**Blockers:** None new. The replay-mining vein is still rich.

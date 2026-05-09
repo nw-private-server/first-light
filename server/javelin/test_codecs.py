@@ -919,6 +919,230 @@ def test_mystery8_session_clock_matches_clock_beacon():
 
 
 # ---------------------------------------------------------------------------
+# Heartbeat 0x15d (R ping + W ack pair)
+# ---------------------------------------------------------------------------
+
+from .heartbeat_15d import (  # noqa: E402
+    HeartbeatPing15D,
+    HeartbeatAck15D,
+    encode_ping as encode_15d_ping,
+    decode_ping as decode_15d_ping,
+    encode_ack as encode_15d_ack,
+    decode_ack as decode_15d_ack,
+    PING_TYPED_BODY_SIZE,
+    ACK_TYPED_BODY_SIZE,
+)
+
+
+def test_15d_ping_round_trip():
+    captured = bytes.fromhex("00019d05" "00036ef6" "af912d74")
+    msg = decode_15d_ping(captured)
+    assert msg.counter == 0x36ef6
+    assert msg.nonce == 0xaf912d74
+    assert encode_15d_ping(msg) == captured
+
+
+def test_15d_ping_validates_u32():
+    with pytest.raises(ValueError, match="counter"):
+        HeartbeatPing15D(counter=2**32, nonce=0)
+    with pytest.raises(ValueError, match="nonce"):
+        HeartbeatPing15D(counter=0, nonce=2**32)
+
+
+def test_15d_ping_decode_wrong_type_header():
+    bad = b"\x00\x01\x99\x99" + b"\x00" * 8
+    with pytest.raises(ValueError, match="type header"):
+        decode_15d_ping(bad)
+
+
+def test_15d_ack_round_trip():
+    captured = bytes.fromhex(
+        "65c50b2b"
+        "0000001c"
+        + "00" * 16
+        + "00019d05"
+        "00036ef6"
+        "af912d74"
+    )
+    msg = decode_15d_ack(captured)
+    assert msg.client_hash.hex() == "65c50b2b"
+    assert msg.echoed_ping.counter == 0x36ef6
+    assert msg.echoed_ping.nonce == 0xaf912d74
+    assert encode_15d_ack(msg) == captured
+
+
+def test_15d_ack_rejects_wrong_remaining_length():
+    bad = (
+        b"\x65\xc5\x0b\x2b"
+        + b"\x00\x00\x00\x99"  # length = 0x99 instead of 0x1c
+        + b"\x00" * 16
+        + b"\x00\x01\x9d\x05" b"\x00\x03\x6e\xf6" b"\xaf\x91\x2d\x74"
+    )
+    with pytest.raises(ValueError, match="remaining-length"):
+        decode_15d_ack(bad)
+
+
+def test_15d_ack_rejects_nonzero_padding():
+    captured = bytes.fromhex(
+        "65c50b2b"
+        "0000001c"
+        + "00" * 15 + "ff"  # one non-zero padding byte
+        + "00019d05"
+        "00036ef6"
+        "af912d74"
+    )
+    with pytest.raises(ValueError, match="padding non-zero"):
+        decode_15d_ack(captured)
+
+
+def test_15d_ack_validates_client_hash_length():
+    with pytest.raises(ValueError, match="client_hash"):
+        HeartbeatAck15D(
+            client_hash=b"\x00\x00\x00",  # 3 bytes
+            echoed_ping=HeartbeatPing15D(counter=0, nonce=0),
+        )
+
+
+def test_15d_replay_pings_and_acks_paired():
+    """All 10 R pings should pair 1:1 with the 10 W acks; the W's
+    echoed_ping body must equal the R's body."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    pings = sorted(
+        (m for m in store.messages if m.type_id == 0x15d and m.direction == "R"),
+        key=lambda m: m.seq,
+    )
+    acks = sorted(
+        (m for m in store.messages if m.type_id == 0x15d and m.direction == "W"),
+        key=lambda m: m.seq,
+    )
+    assert len(pings) == len(acks) == 10
+    for ping_msg, ack_msg in zip(pings, acks):
+        # The W ack should follow the R ping in seq
+        assert ack_msg.seq > ping_msg.seq
+        ping = decode_15d_ping(ping_msg.body)
+        ack = decode_15d_ack(ack_msg.body)
+        assert ack.echoed_ping.counter == ping.counter
+        assert ack.echoed_ping.nonce == ping.nonce
+
+
+# ---------------------------------------------------------------------------
+# LevelDescriptor 0x663
+# ---------------------------------------------------------------------------
+
+from .level_descriptor_663 import (  # noqa: E402
+    LevelDescriptor663,
+    encode as encode_663,
+    decode as decode_663,
+    TYPED_BODY_SIZE as LD663_TYPED_BODY_SIZE,
+    DEFAULT_BUILD_VERSION as LD663_DEFAULT_BUILD_VERSION,
+)
+
+
+_CAPTURED_663 = bytes.fromhex(
+    "0001a319"
+    "14"
+    + "4e6577576f726c645f5669746165457465726e61"
+    + "1e"
+    + "636f61746c696375652f4e6577576f726c645f5669746165457465726e61"
+    + "45000000" "41800000" "463fc000" "46202800"
+    + "00" * 8
+    + "01010000"
+    + "9cfa58617814 69f2".replace(" ", "")
+    + "65030000"
+    + "000001010100000000c17f9be48f"
+)
+
+
+def test_663_decode_captured_bytes():
+    msg = decode_663(_CAPTURED_663)
+    assert msg.level_name == "NewWorld_VitaeEterna"
+    assert msg.level_path == "coatlicue/NewWorld_VitaeEterna"
+    assert msg.geometry == (2048.0, 16.0, 12272.0, 10250.0)
+    assert msg.second_id.hex() == "9cfa58617814" + "69f2"
+    assert msg.flags == 0x00000101
+    assert msg.build_version == LD663_DEFAULT_BUILD_VERSION  # 0x365
+
+
+def test_663_round_trip():
+    msg = decode_663(_CAPTURED_663)
+    assert encode_663(msg) == _CAPTURED_663
+
+
+def test_663_size_is_110():
+    assert len(_CAPTURED_663) == LD663_TYPED_BODY_SIZE == 110
+
+
+def test_663_validates_string_lengths_sum_to_50():
+    """The fixed total wire size requires level_name + level_path == 50 bytes."""
+    with pytest.raises(ValueError, match="must sum to 50"):
+        LevelDescriptor663(
+            level_name="too short",  # 9 bytes
+            level_path="also short",  # 10 bytes
+            geometry=(0.0, 0.0, 0.0, 0.0),
+            second_id=bytes(8),
+        )
+
+
+def test_663_validates_geometry_arity():
+    with pytest.raises(ValueError, match="must have 4 floats"):
+        LevelDescriptor663(
+            level_name="x" * 20,
+            level_path="y" * 30,
+            geometry=(1.0, 2.0, 3.0),  # only 3
+            second_id=bytes(8),
+        )
+
+
+def test_663_decode_wrong_size_rejects():
+    with pytest.raises(ValueError, match="110"):
+        decode_663(_CAPTURED_663 + b"\x00")
+
+
+def test_663_both_replay_copies_decode_identically():
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    msgs = [m for m in store.messages if m.type_id == 0x663]
+    assert len(msgs) == 2
+    decoded = [decode_663(m.body) for m in msgs]
+    assert decoded[0] == decoded[1]
+    assert decoded[0].level_name == "NewWorld_VitaeEterna"
+
+
+def test_663_metadata_block_matches_18a6():
+    """Cross-codec invariant: 0x663's `flags`, `second_id`, and
+    `build_version` are the same metadata footer that 0x18a6 carries.
+    Verify by decoding one capture of each and comparing the fields."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+
+    msg_663 = decode_663(
+        next(m for m in store.messages if m.type_id == 0x663).body
+    )
+    msg_18a6 = decode_18a6(
+        next(m for m in store.messages if m.type_id == 0x18a6).body
+    )
+    assert msg_663.flags == msg_18a6.flags == 0x00000101
+    assert msg_663.second_id == msg_18a6.second_id
+    assert msg_663.build_version == msg_18a6.build_version
+
+
+# ---------------------------------------------------------------------------
 # v3_request — error paths (no capture file needed)
 # ---------------------------------------------------------------------------
 
