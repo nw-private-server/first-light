@@ -11,15 +11,24 @@ cd site && python3 -m http.server 8000   # browse http://localhost:8000
 
 ## Hosting (free options)
 
-### GitHub Pages (recommended — already on GitHub)
+### GitHub Pages — wired up via Actions
 
-Repo settings → Pages:
-- Source: branch `claude/vacation-2026-05-06`
-- Folder: `/site`
+Live at: **https://nw-private-server.github.io/first-light/**
 
-Pages auto-redeploys on push. URL will be:
-`https://nw-private-server.github.io/first-light/` (or similar — check the
-Pages settings page after enabling).
+GitHub Pages can only serve from `/` or `/docs` directly, so deploys
+go through `.github/workflows/pages.yml` instead. The workflow runs
+on every push to `claude/vacation-2026-05-06` that touches `site/`,
+`tools/build_site.py`, the analysis inputs, or the codec library —
+regenerates `site/data.json` on the runner, uploads `site/` as the
+Pages artifact, and deploys.
+
+Trigger a deploy manually with:
+```
+gh workflow run pages.yml --ref claude/vacation-2026-05-06
+```
+
+To switch which branch deploys, edit the `branches:` list in the
+workflow.
 
 ### Cloudflare Pages
 
