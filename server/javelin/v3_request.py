@@ -157,6 +157,82 @@ def parse_v3_request(body: bytes) -> V3RegistrationRequest:
     return msg
 
 
+def parse_v3_request_lenient(body: bytes) -> V3RegistrationRequest | None:
+    """Best-effort identity extraction from a V3 body that doesn't match
+    the strict 832-byte form (e.g. retries with chunked replay payloads,
+    or the 835-byte live first-attempt).
+
+    Recovers `session_uuid` and `persona_id` by regex, since those two
+    identity fields are the only ones the runtime needs from a retry.
+    Returns a `V3RegistrationRequest` with just those fields populated,
+    or `None` when neither field is recoverable.
+
+    The parser does **not** populate `auth_blob`, `prelude`, `gaps`, or
+    any other strict-mode field — pass the result back through
+    `serialize_v3_request` only after re-populating those.
+
+    Used by `dispatch.decode_replay_message` as the fallback when
+    `parse_v3_request` rejects a body. Promoted from
+    `rep_responder._lenient_v3_extract` (wake 106).
+    """
+    import re
+
+    # session_uuid is a normal UUID preceded by a `$` (0x24) length byte
+    # (0x24 == 36, the UUID's length).
+    session_uuid = ""
+    for u in re.finditer(
+        rb'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-'
+        rb'[0-9a-f]{4}-[0-9a-f]{12}',
+        body,
+    ):
+        # Skip occurrences inside the auth signature blob ("sig:") or
+        # inside `naId.<uuid>` runs.
+        pre = body[max(0, u.start() - 8):u.start()].decode(
+            "latin-1", errors="replace"
+        )
+        if "sig:" in pre or "naId." in pre:
+            continue
+        if u.start() > 0 and body[u.start() - 1] == 0x24:
+            session_uuid = u.group(0).decode("ascii")
+            break
+
+    # persona_id is `amzn1.developerPersonaId.<uuid>` (61 chars).
+    persona_id = ""
+    m = re.search(
+        rb'amzn1\.developerPersonaId\.[0-9a-f-]{36}',
+        body,
+    )
+    if m:
+        persona_id = m.group(0).decode("ascii")
+
+    if not session_uuid and not persona_id:
+        return None
+    out = V3RegistrationRequest()
+    out.session_uuid = session_uuid
+    out.persona_id = persona_id
+    return out
+
+
+def parse_v3_request_or_lenient(body: bytes) -> V3RegistrationRequest:
+    """Try the strict parser first; on failure fall back to lenient.
+
+    Raises `ValueError` only when both parsers fail (typical for a body
+    with no recognizable identity material). The strict parser's full
+    error is wrapped into the lenient-failure message for diagnostics.
+
+    This is the entry point the dispatcher uses for type 0x13.
+    """
+    try:
+        return parse_v3_request(body)
+    except ValueError as strict_err:
+        out = parse_v3_request_lenient(body)
+        if out is None:
+            raise ValueError(
+                f"v3 lenient fallback also failed; strict error: {strict_err}"
+            )
+        return out
+
+
 def serialize_v3_request(msg: V3RegistrationRequest) -> bytes:
     """Re-emit a V3 body from a parsed dataclass.
 

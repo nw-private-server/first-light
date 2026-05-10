@@ -91,7 +91,7 @@ def _subkey_beacon(type_id: int) -> DecoderFn:
 DECODERS: dict[int, DecoderFn] = {
     # 0x03: V3RegistrationResponse — server-emit-only, intentionally absent
     0x08: _direction_agnostic(chunked_stream_08.decode_either),
-    0x13: _direction_agnostic(v3_request.parse_v3_request),
+    0x13: _direction_agnostic(v3_request.parse_v3_request_or_lenient),
     0xa4: _direction_agnostic(session_message_a4.decode),
     0x14f: _direction_agnostic(session_clock_beacon.decode),
     0x15d: _heartbeat_15d,

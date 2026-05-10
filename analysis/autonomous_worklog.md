@@ -10038,3 +10038,68 @@ now reflects test_count=291. Codec module count unchanged at
 `dispatch.py`).
 
 **Blockers:** None.
+
+## Wake 106 — V3 lenient codec promoted into the library
+
+**Goal**: shrink the dispatcher's documented decode-failure
+count by promoting the regex-based lenient V3 extractor (which
+already lived as `_lenient_v3_extract` inside `rep_responder.py`)
+into the codec library and wiring the dispatcher to try strict
+first, then lenient.
+
+**Built**:
+
+- `server/javelin/v3_request.py`:
+  - `parse_v3_request_lenient(body)` — best-effort identity
+    extraction (session_uuid + persona_id) by regex, returns a
+    minimal `V3RegistrationRequest` or `None`. Skips UUIDs
+    embedded in `sig:` (auth signature) or `naId.` (account-id)
+    runs.
+  - `parse_v3_request_or_lenient(body)` — chain function: try
+    strict first; on failure fall back to lenient; raise
+    `ValueError` only if both fail.
+- `server/javelin/dispatch.py`: `0x13` decoder now routes through
+  `parse_v3_request_or_lenient` instead of strict-only.
+- `server/rep_responder.py`: deleted the duplicated
+  `_lenient_v3_extract` method (~40 LOC); the V3 retry handler
+  now imports `parse_v3_request_lenient` from the codec module.
+- 5 new tests (1 deliberately skipped) in `test_codecs.py`:
+  - synthetic-body extraction works
+  - empty/random body returns None
+  - UUIDs inside `sig:` runs are skipped
+  - chain function falls back to lenient
+  - chain function raises when both fail
+  Test total: **291 → 296 (+5)**.
+
+**Honest finding on the dispatcher decode-failure count**:
+expected to drop from 2 → 1 by handling the captured 0x13 retry,
+but the count stays at 2. Reason:
+
+- The captured 0x13 W message (2750 bytes, the only one in the
+  replay) is **redacted** (`has_redaction=True`). Privacy
+  redaction stripped the session_uuid and persona_id from the
+  committed replay file, so neither parser can recover identity
+  from `<REDACTED>` placeholders.
+- Beyond redaction, the 2750-byte body uses a **different wire
+  format** than the 832-byte first-attempt — `[u32 BE
+  type_id][u8 length][string]` records (visible at the start:
+  type 4 + "6031", type 3 + "400", type 1 + "Javelin", type 0 +
+  "[RETAIL]"). This is closer to AzCore's tagged element-list
+  serialization than the position-fixed first-attempt format.
+  Properly parsing it would mean writing a separate
+  `parse_v3_request_retry()` for the tagged format — a
+  follow-up wake's worth of work.
+
+The promotion still has real value:
+1. The lenient extractor now lives where it belongs (codec
+   library, importable from anywhere) instead of buried inside
+   the runtime responder.
+2. Future fixes (tagged-format parser) can extend the chain
+   function rather than touching `rep_responder.py`.
+3. The `rep_responder` runtime gets the same behavior with one
+   import instead of an inlined ~40-LOC method.
+
+**Site rebuild**: `tools/build_site.py` regenerated; data.json
+reflects test_count=297 (296 passing + 1 skipped).
+
+**Blockers:** None.

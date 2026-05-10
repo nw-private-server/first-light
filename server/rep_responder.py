@@ -417,7 +417,8 @@ class PeerSession:
             # The strict parser fails when body length diverges from 832 B
             # (live first-attempt is 835 B, retries are 829-838 B), but the
             # identity fields are still recoverable by regex.
-            req = self._lenient_v3_extract(m.payload)
+            from server.javelin.v3_request import parse_v3_request_lenient
+            req = parse_v3_request_lenient(m.payload)
             if req and req.session_uuid:
                 sess_uuid_no_dashes = req.session_uuid.replace("-", "")
                 if len(sess_uuid_no_dashes) == 32:
@@ -550,47 +551,6 @@ class PeerSession:
         )
         self.drain_outbound()
         self._start_replay()
-
-    def _lenient_v3_extract(self, payload: bytes) -> "V3RegistrationRequest | None":
-        """Extract session_uuid + persona_id from a V3 payload by regex.
-
-        Used when `parse_v3_request` rejects the body (live first-attempt is
-        835 B, not the strict 832 B). Returns a minimal V3RegistrationRequest
-        with only the identity fields populated, or None if neither could be
-        recovered.
-        """
-        import re
-        uuids = list(re.finditer(
-            rb'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',
-            payload,
-        ))
-        session_uuid = ""
-        for u in uuids:
-            pre = payload[max(0, u.start() - 8):u.start()].decode(
-                "latin-1", errors="replace"
-            )
-            if "sig:" in pre or "naId." in pre:
-                continue
-            if u.start() > 0 and payload[u.start() - 1] == 0x24:
-                session_uuid = u.group(0).decode("ascii")
-                break
-
-        # persona_id is "amzn1.developerPersonaId.<uuid>" (61 chars), preceded
-        # by a length byte 0x3d (61).
-        persona_id = ""
-        m = re.search(
-            rb'amzn1\.developerPersonaId\.[0-9a-f-]{36}',
-            payload,
-        )
-        if m:
-            persona_id = m.group(0).decode("ascii")
-
-        if not session_uuid and not persona_id:
-            return None
-        out = V3RegistrationRequest()
-        out.session_uuid = session_uuid
-        out.persona_id = persona_id
-        return out
 
     def _start_replay(self) -> None:
         """Queue post-V3 captured messages for paced replay."""
