@@ -118,3 +118,38 @@ Three options to crack this further:
 Until then, the framing-only codec correctly identifies the
 subtype, validates the wire-level anchor, and round-trips all
 79 captured bodies.
+
+## Wake 114 update — subtype clustering is closed
+
+Investigated whether the 24 captures with `subtype=0x01` could
+be cross-compared to extract a richer codec for that subtype.
+Result: **all 24 captures are byte-identical** (46 407 bytes
+each, longest common prefix = full body). They are a single
+message resent 24 times — the server's retry behavior when the
+client never ACKs the bulk init message.
+
+A wider audit confirmed:
+
+| Subtype | Captures | Distinct bodies |
+|---|---|---|
+| `0x01` | 24 | **1** (the same 46.4 KB body resent) |
+| `0x22` | 3 | **1** (3 retries of the same body) |
+| `0x02..0x35` (51 other values) | 1 each | 1 each |
+
+So the 78 standard-form captures resolve to **53 distinct
+messages**, each with at most a single instance (after dedup).
+There is no inter-instance variability to mine for structural
+patterns within any single subtype — subtype clustering as a
+codec-depth strategy is closed.
+
+What WOULD still work:
+- **A second session capture**, especially one where the same
+  subtype is observed multiple times with different content
+  (e.g. another player joining, a different world load).
+- **Static-RE on the per-subtype handler**. Each subtype likely
+  routes to a different handler in the binary; decompiling the
+  handler for the heavy `subtype=0x01` would reveal the body
+  schema for the bulk init message.
+
+The framing-only codec from wake 103 remains correct and
+sufficient for replay use cases.

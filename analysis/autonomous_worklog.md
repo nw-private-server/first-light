@@ -10525,3 +10525,48 @@ grew from ~30 KB to ~60 KB (the new timeline records). Pages
 auto-redeploy will fire on push.
 
 **Blockers:** None.
+
+## Wake 114 — 0x08 subtype clustering: negative result, documented
+
+**Goal**: investigate whether the 24 captures with
+`subtype=0x01` (the dominant cluster identified in wake 103)
+share enough sub-structure to write a richer per-subtype codec.
+
+**Method**: Python script over the captured replay — extract the
+24 subtype=0x01 bodies, compute longest common prefix, per-offset
+variability, and SHA-256 hash distribution. Then audit the same
+across all 78 standard-form 0x08 captures.
+
+**Finding (negative)**:
+
+- **All 24 captures with `subtype=0x01` are byte-identical**:
+  46 407 bytes each, longest common prefix = full body. They are
+  a single message resent 24 times — server retry behavior when
+  the client doesn't ACK the bulk init message.
+- The 3-capture `subtype=0x22` cluster is the same shape: 3
+  identical bodies = 3 retries of one message.
+- The other 51 subtypes have one capture each.
+- **78 captures resolve to 53 distinct messages**, with at most
+  one distinct instance per subtype.
+- **No inter-instance variability to mine** — subtype clustering
+  as a codec-depth strategy is closed for this replay.
+
+**Built**:
+
+- Appended a "Wake 114 update" section to
+  `analysis/wire_type_0x08.md` documenting the audit and the
+  closed strategy. Listed what WOULD work (a second session
+  capture with multiple instances per subtype, OR static-RE on
+  the per-subtype handlers in the binary).
+
+**No code changes** this wake. The wake-103 framing-only codec
+remains correct and sufficient. Tests still 316 (+1 skipped).
+
+**Wake retrospective**: a negative result delivered in ~10 min,
+saving subsequent wakes from re-investigating the same dead end.
+Single-threaded was the right call here — no parallel sub-tasks.
+
+**Site rebuild**: not strictly needed (analysis-only change), but
+ran for consistency. data.json unchanged.
+
+**Blockers:** None.
