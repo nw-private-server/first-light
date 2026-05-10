@@ -9974,3 +9974,67 @@ follow-ups.
 **Blockers:** None autonomously. The codec edge cases (V3 retry
 bodies, large 0x16a0 blobs) are documented and won't break the
 test suite when fixed.
+
+## Wake 105 — encode-side dispatcher
+
+**Goal**: complement wake 104's `decode_replay_message` with an
+`encode_replay_message(type_id, msg)` so the dispatcher is
+symmetrical. Validate that the entire codec library round-trips
+through the dispatcher.
+
+**Built**:
+
+- `server/javelin/dispatch.py` extended (~80 LOC added):
+  - `ENCODERS: dict[int, EncoderFn]` covers every captured
+    type-id, including `0x03` (V3RegistrationResponse — server-
+    emit-only, decoder-side intentionally skips it but the
+    encoder is needed).
+  - `encode_replay_message(type_id, msg)` raises `KeyError` for
+    unregistered types; encoder-internal `TypeError`/`ValueError`
+    propagates.
+  - Heartbeat encoder uses `isinstance` to pick ping vs ack.
+  - Subkey-beacon family routes to the shared
+    `subkey_beacon.encode` (the type-id is carried in the
+    `SubkeyBeacon` dataclass).
+  - 0x13 wires to `serialize_v3_request` (the project's existing
+    name for the request encoder).
+- 5 new tests in `test_codecs.py`:
+  - `test_dispatch_encoders_cover_every_captured_type` — every
+    captured type-id (including 0x03) has an encoder.
+  - `test_dispatch_encode_decode_round_trip_full_replay` —
+    decode every captured body, re-encode, expect byte-identical
+    wire. Pins the documented decode failures to
+    `{(0x13, "W"), (0x16a0, "R")}`.
+  - `test_dispatch_encode_unknown_type_raises`.
+  - `test_dispatch_encode_heartbeat_dispatches_by_msg_type` —
+    isinstance routing.
+  - `test_dispatch_encode_heartbeat_rejects_wrong_msg_type`.
+  Test total: **286 → 291 (+5)**.
+
+**Smoke-test results across the full replay** (177 messages):
+
+| Outcome | Count |
+|---|---|
+| Decode → encode round-trip byte-identical | **174** |
+| Decode skipped (0x03) | 1 |
+| Decode failures (documented) | 2 |
+| Encode failures | 0 |
+| Wire mismatches | 0 |
+
+The codec library is now wire-compatible end-to-end for every
+captured message it accepts on the decode side. Any new round-
+trip mismatch in any codec will surface as a single failing
+test rather than silent drift.
+
+**What this enables**: the `rep_responder.py` runtime (and any
+future replay/emulation tooling) can use a single
+`encode_replay_message` / `decode_replay_message` pair to
+serialize any captured wire-type, without per-call switch
+statements.
+
+**Site rebuild**: `tools/build_site.py` regenerated; data.json
+now reflects test_count=291. Codec module count unchanged at
+36 (no new module — the encoder side is added to existing
+`dispatch.py`).
+
+**Blockers:** None.

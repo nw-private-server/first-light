@@ -50,6 +50,7 @@ from . import (
     session_identity_beacon,
     session_clock_beacon,
     v3_request,
+    v3_response,
 )
 
 
@@ -145,3 +146,83 @@ def decode_replay_message(
 def supported_type_ids() -> frozenset[int]:
     """The set of type-ids the dispatcher knows how to decode."""
     return frozenset(DECODERS)
+
+
+# ---------------------------------------------------------------------------
+#  Encode side (wake 105)
+# ---------------------------------------------------------------------------
+
+# Encoder signature: (msg) -> bytes. Encoders take the codec dataclass
+# and return the wire bytes. Direction is not needed at the parameter
+# level because for the one direction-split codec (heartbeat) the
+# message dataclass type itself disambiguates ping vs ack.
+EncoderFn = Callable[[Any], bytes]
+
+
+def _heartbeat_15d_encode(msg: Any) -> bytes:
+    """Pick ping vs ack by isinstance."""
+    if isinstance(msg, heartbeat_15d.HeartbeatPing15D):
+        return heartbeat_15d.encode_ping(msg)
+    if isinstance(msg, heartbeat_15d.HeartbeatAck15D):
+        return heartbeat_15d.encode_ack(msg)
+    raise TypeError(
+        f"heartbeat 0x15d: unsupported msg type {type(msg).__name__}; "
+        f"expected HeartbeatPing15D or HeartbeatAck15D"
+    )
+
+
+ENCODERS: dict[int, EncoderFn] = {
+    0x03: v3_response.encode,
+    0x08: chunked_stream_08.encode_either,
+    0x13: v3_request.serialize_v3_request,
+    0xa4: session_message_a4.encode,
+    0x14f: session_clock_beacon.encode,
+    0x15d: _heartbeat_15d_encode,
+    0x1be: handshake_blob_76.encode,
+    0x40a: handshake_blob_76.encode,
+    0x5b2: identity_fingerprint_5b2.encode,
+    0x635: action_history_635.encode,
+    0x651: empty_marker_651.encode,
+    0x65c: world_data_blob_65c.encode,
+    0x663: level_descriptor_663.encode,
+    0x8e6: identity_blob_8e6.encode,
+    0x9fc: receipt_handshake_9fc.encode,
+    0xa95: permission_bitmap_a95.encode,
+    0xca4: asset_count_table_ca4.encode,
+    0x1033: opaque_blob_1033.encode,
+    0x1067: vivox_config_1067.encode,
+    0x1096: frame_config_1096.encode,
+    0x1097: result_token_1097.encode,
+    0x12f6: keybinding_config_12f6.encode,
+    0x136a: result_token_136a.encode,
+    0x16a0: asset_blob_16a0.encode,
+    0x18a6: init_message_18a6.encode,
+    0x1a59: session_subkey_1a59.encode,
+    0x1b88: session_identity_beacon.encode,
+}
+
+# Subkey-beacon family: every type-id in KNOWN_FAMILY shares the same
+# encoder; the type_id is carried inside the SubkeyBeacon dataclass.
+for _tid in SUBKEY_FAMILY_TYPE_IDS:
+    ENCODERS[_tid] = subkey_beacon.encode
+
+
+def encode_replay_message(type_id: int, msg: Any) -> bytes:
+    """Encode a codec dataclass back into wire bytes.
+
+    Returns the wire body (typed envelope header + payload as the
+    codec produces it). Raises `KeyError` if `type_id` has no
+    registered encoder, or `TypeError` from the encoder if `msg` is
+    the wrong dataclass for the type.
+    """
+    encoder = ENCODERS.get(type_id)
+    if encoder is None:
+        raise KeyError(
+            f"no encoder registered for type 0x{type_id:x}"
+        )
+    return encoder(msg)
+
+
+def encodable_type_ids() -> frozenset[int]:
+    """The set of type-ids the dispatcher knows how to encode."""
+    return frozenset(ENCODERS)

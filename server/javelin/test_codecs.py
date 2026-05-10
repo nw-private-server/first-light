@@ -3599,6 +3599,97 @@ def test_dispatch_routes_heartbeat_by_direction():
     assert decoded_ack == ack
 
 
+# ---------------------------------------------------------------------------
+# Encode-side dispatch (wake 105)
+# ---------------------------------------------------------------------------
+
+
+def test_dispatch_encoders_cover_every_captured_type():
+    """The encoder side must cover every captured wire-type-id —
+    including 0x03, which is server-emit-only (decode skips it,
+    but we still need to encode it)."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    captured_types = {m.type_id for m in store.messages}
+    encodable = dispatch.encodable_type_ids()
+    missing = captured_types - encodable
+    assert not missing, f"types without encoders: {sorted(missing)}"
+
+
+def test_dispatch_encode_decode_round_trip_full_replay():
+    """Decode every captured message, re-encode, expect byte-identical
+    wire. Skips the 0x03 (decode-side skipped) and the 2 documented
+    decode failures."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+
+    ok = 0
+    decode_skipped = 0
+    decode_failures: set[tuple[int, str]] = set()
+    encode_failures: list[tuple[int, str, str]] = []
+    mismatches: list[tuple[int, str, int, int]] = []
+
+    for m in store.messages:
+        try:
+            decoded = dispatch.decode_replay_message(
+                m.type_id, m.direction, m.body
+            )
+        except Exception:
+            decode_failures.add((m.type_id, m.direction))
+            continue
+        if decoded is None:
+            decode_skipped += 1
+            continue
+        try:
+            wire = dispatch.encode_replay_message(m.type_id, decoded)
+        except Exception as e:
+            encode_failures.append((m.type_id, m.direction, repr(e)))
+            continue
+        if wire == m.body:
+            ok += 1
+        else:
+            mismatches.append(
+                (m.type_id, m.direction, len(m.body), len(wire))
+            )
+
+    # Strong guarantees: zero encode failures, zero wire mismatches
+    assert not encode_failures, encode_failures
+    assert not mismatches, mismatches
+    # Decode failures stay pinned to the documented set
+    assert decode_failures == {(0x13, "W"), (0x16a0, "R")}
+    # The number of round-trips is the count of captured messages minus
+    # decode skips (0x03 captures) and decode failures.
+    assert ok > 170
+
+
+def test_dispatch_encode_unknown_type_raises():
+    with pytest.raises(KeyError, match="no encoder registered"):
+        dispatch.encode_replay_message(0xffff, object())
+
+
+def test_dispatch_encode_heartbeat_dispatches_by_msg_type():
+    from .heartbeat_15d import HeartbeatPing15D, HeartbeatAck15D, encode_ping, encode_ack
+    ping = HeartbeatPing15D(counter=7, nonce=42)
+    ack = HeartbeatAck15D(client_hash=b"abcd", echoed_ping=ping)
+    assert dispatch.encode_replay_message(0x15d, ping) == encode_ping(ping)
+    assert dispatch.encode_replay_message(0x15d, ack) == encode_ack(ack)
+
+
+def test_dispatch_encode_heartbeat_rejects_wrong_msg_type():
+    with pytest.raises(TypeError, match="unsupported msg type"):
+        dispatch.encode_replay_message(0x15d, "not a heartbeat")
+
+
 def test_replay_messages_after_v3_filters_correctly():
     # type 0x15d R marker: byte2=(0x1d|0x80)=0x9d, byte3=(0x15d>>6)=0x05
     dump = """\
