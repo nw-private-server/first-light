@@ -10612,3 +10612,32 @@ HeartbeatPing15D(counter=225014, nonce=2945527156)
 **Site rebuild**: regenerated; test_count=320.
 
 **Blockers:** None.
+
+## Wake 116 — CONTRIBUTING.md quick-start + cross-references
+
+**Goal**: with the recent shipped artifacts (Pages dashboard, codec
+library overview, decode_message.py CLI, state-10 unblock
+synthesis), update CONTRIBUTING.md so first-time contributors can
+find them and ramp up faster.
+
+**Built**:
+
+- `CONTRIBUTING.md`:
+  - New "Public dashboard" call-out at the top with the Pages URL.
+  - New "Quick start (code contributors)" section: clone, venv,
+    pytest, decode CLI usage, local site preview. 5 numbered
+    steps each runnable in <1 min.
+  - "Reference docs to read before opening a PR" pointing at:
+    - `analysis/codec_library_overview.md`
+    - `docs/post-v3-sequence.md`
+    - `analysis/state_10_unblock_synthesis.md`
+    - `analysis/autonomous_worklog.md`
+- `README.md`: the "Contributing" section now mentions the
+  quick-start and links the codec library overview directly.
+
+**No code changes** — pure docs. Tests still 320 (+1 skipped).
+
+**Site rebuild**: not strictly needed (analysis/* and root *.md
+don't trigger Pages workflow), skipped.
+
+**Blockers:** None.

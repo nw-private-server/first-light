@@ -135,8 +135,8 @@ If you maintain a mirror, please keep the `info/` captures synced — that data 
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). The short version:
+See [CONTRIBUTING.md](CONTRIBUTING.md) — has a quick-start (clone → venv → pytest → `decode_message.py`) plus the reference doc list. The short version:
 
 - **Have a game capture?** → Follow [docs/capture-guide.md](docs/capture-guide.md) and open a PR or share in the community channel.
 - **Have RE findings?** → Drop them in `analysis/` as a new `.md` or `.txt` file (look at existing entries for the format).
-- **Writing code?** → One function at a time; keep changes testable. See CONTRIBUTING.md for style expectations.
+- **Writing code?** → One function at a time; keep changes testable. See [analysis/codec_library_overview.md](analysis/codec_library_overview.md) for the codec library structure and "how to add a new codec" walkthrough.

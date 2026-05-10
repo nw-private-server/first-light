@@ -2,7 +2,44 @@
 
 Thanks for wanting to help. This project succeeds only if more people contribute — the work is too large for any one person and the window before server shutdown is finite.
 
-This document covers: work areas, how to contribute captures, code style, and how to coordinate so people don't duplicate effort.
+This document covers: quick start, work areas, how to contribute captures, code style, and how to coordinate so people don't duplicate effort.
+
+**Public dashboard:** [nw-private-server.github.io/first-light](https://nw-private-server.github.io/first-light/) — the friendly project overview, captured-traffic charts, connection-state diagram, and codec/decompile catalog. Read this first to get the lay of the land.
+
+---
+
+## Quick start (code contributors)
+
+```sh
+# 1. Clone
+git clone https://github.com/nw-private-server/first-light.git
+cd first-light
+
+# 2. Set up the venv
+python3 -m venv .venv
+source .venv/bin/activate
+pip install pytest typer
+
+# 3. Run the test suite
+pytest server/javelin/test_codecs.py
+# expect 320+ passing as of wake 115; the suite is the single source of
+# truth for codec correctness
+
+# 4. Eyeball a captured message hands-on
+python3 tools/decode_message.py --type 0x15d --replay-index 0 --direction R
+# prints the decoded HeartbeatPing15D dataclass
+
+# 5. (Optional) Browse the dashboard locally
+python3 tools/build_site.py     # regenerate site/data.json
+cd site && python3 -m http.server 8000
+# then open http://localhost:8000
+```
+
+**Reference docs to read before opening a PR**:
+- [analysis/codec_library_overview.md](analysis/codec_library_overview.md) — layered architecture of `server/javelin/`, per-type module table, and a "how to add a new codec" walkthrough.
+- [docs/post-v3-sequence.md](docs/post-v3-sequence.md) — the post-V3 message phases the captured replay covers.
+- [analysis/state_10_unblock_synthesis.md](analysis/state_10_unblock_synthesis.md) — the current open RE blocker and what's needed to crack it.
+- [analysis/autonomous_worklog.md](analysis/autonomous_worklog.md) — the wake-by-wake working journal. Long but searchable; tells you what's been tried.
 
 ---
 
