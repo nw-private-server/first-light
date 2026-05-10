@@ -9908,3 +9908,69 @@ tails) but every body in the replay round-trips byte-for-byte.
 - Tests grew 258 → 282 (+24)
 
 **Blockers:** None.
+
+## Wake 104 — server.javelin.dispatch router
+
+**Goal**: with the codec library complete (40/40 captured types),
+write a central dispatcher that routes wire-type-id → codec.decode.
+This validates the library functions as a unified routing layer
+and prepares the ground for replacing rep_responder.py's ad-hoc
+parsing with the codec library.
+
+**Built**:
+
+- `server/javelin/dispatch.py` (~150 LOC):
+  - `DECODERS: dict[int, Callable[[bytes, str], Any]]` mapping
+    every captured type-id (except `0x03`) to a decoder.
+  - Direction-aware routing for `0x15d` (heartbeat — R is ping,
+    W is ack).
+  - Subkey-beacon family (13 type-ids) wired via partial-application
+    of `subkey_beacon.decode(buf, expected_type_id=...)`.
+  - `0x08` routes to `chunked_stream_08.decode_either` (handles
+    both standard and UUID-prefixed forms).
+  - `0x03` (V3RegistrationResponse) intentionally absent — the
+    project's role is to *emit* this response, never parse it.
+  - Public API: `decode_replay_message(type_id, direction, body)`
+    returns the decoded object, `None` for unknown/intentionally-
+    skipped types, raises `ValueError` from the codec on bad bytes.
+- 4 new tests in `test_codecs.py`:
+  - `test_dispatch_covers_every_captured_type_or_skips_intentionally`
+  - `test_dispatch_decodes_every_replay_message_with_known_exceptions`
+  - `test_dispatch_returns_none_for_unknown_type`
+  - `test_dispatch_routes_heartbeat_by_direction`
+  Test total: **282 → 286 (+4)**.
+
+**Smoke-test results across the full replay** (177 messages):
+- ok = **174 decodes**
+- skipped = 1 (the single 0x03 V3 response — intentional)
+- failures = 2 (documented as known codec edge cases):
+  1. `0x13` W direction, 2750-byte body. `parse_v3_request` is
+     length-strict at 832 B; the captured retries are larger
+     (chunked replay payloads). Existing `rep_responder.py` has
+     a lenient regex fallback (`_lenient_v3_extract`); not yet
+     promoted into the strict codec.
+  2. `0x16a0` R direction, 99819-byte body. The current codec
+     (`AssetBlob16A0Small`) covers the small variant only;
+     large blobs need a separate codec path.
+
+The test pins these failures to their exact `(type_id, direction)`
+pair so any new codec failure surfaces immediately.
+
+**Site rebuild**: `tools/build_site.py` regenerated; data.json
+now reflects test_count=286, codec_module_count=36 (dispatch.py
+counted).
+
+**What this enables**: a one-line replacement for ad-hoc
+type-by-type message handling. Any caller can now write
+`obj = decode_replay_message(t, dir, body)` and get a typed
+codec dataclass, without needing to know which module owns
+the type.
+
+**What it doesn't do yet**: encode-side router, lenient-fallback
+chain for partial codecs, or the runtime/server wiring that
+actually plumbs this into `rep_responder.py`. Those are
+follow-ups.
+
+**Blockers:** None autonomously. The codec edge cases (V3 retry
+bodies, large 0x16a0 blobs) are documented and won't break the
+test suite when fixed.

@@ -3510,6 +3510,95 @@ def test_chunked_stream_08_uuid_prefixed_rejects_too_short():
         decode_cs_08_any(b"\x99" * 4)
 
 
+# ---------------------------------------------------------------------------
+# Dispatcher (server.javelin.dispatch) — wake 104
+# ---------------------------------------------------------------------------
+
+from . import dispatch  # noqa: E402
+
+
+def test_dispatch_covers_every_captured_type_or_skips_intentionally():
+    """The dispatcher must register every captured wire-type-id except
+    `0x03` (V3RegistrationResponse — server-emit-only)."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+
+    captured_types = {m.type_id for m in store.messages}
+    supported = dispatch.supported_type_ids()
+    missing = captured_types - supported - {0x03}
+    assert not missing, f"unsupported captured types: {sorted(missing)}"
+
+
+def test_dispatch_decodes_every_replay_message_with_known_exceptions():
+    """The dispatcher must decode every captured message, with two
+    documented exceptions: V3 request retries (longer than 832 B) and
+    very large asset blobs (only the small variant is codec'd today)."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+
+    ok = 0
+    skipped = 0
+    failures: list[tuple[int, str, int, str]] = []
+    for m in store.messages:
+        try:
+            result = dispatch.decode_replay_message(
+                m.type_id, m.direction, m.body
+            )
+            if result is None:
+                skipped += 1
+            else:
+                ok += 1
+        except Exception as e:
+            failures.append((m.type_id, m.direction, len(m.body), repr(e)))
+
+    # 0x03 is the only intentionally-skipped type (server-emit-only).
+    skipped_types = {m.type_id for m in store.messages if m.type_id == 0x03}
+    assert skipped == sum(1 for m in store.messages if m.type_id in skipped_types)
+
+    # Exactly two failures are expected (and acceptable) today:
+    # 1) V3RegistrationRequest retries with chunked replay payload exceed
+    #    the strict 832-byte length the codec enforces. The runtime
+    #    server uses a lenient regex fallback.
+    # 2) The largest 0x16a0 asset blob (~100 KB) is outside the
+    #    `AssetBlob16A0Small` codec's range.
+    fail_types = sorted({(t, d) for t, d, _, _ in failures})
+    assert fail_types == [(0x13, "W"), (0x16a0, "R")], (
+        f"unexpected dispatcher failures: {failures}"
+    )
+    assert ok > 170, f"too few ok decodes: {ok}"
+
+
+def test_dispatch_returns_none_for_unknown_type():
+    assert dispatch.decode_replay_message(0xffff, "R", b"") is None
+
+
+def test_dispatch_routes_heartbeat_by_direction():
+    from .heartbeat_15d import (
+        encode_ping, encode_ack, HeartbeatPing15D,
+        HeartbeatAck15D,
+    )
+    ping = HeartbeatPing15D(counter=1, nonce=2)
+    ack = HeartbeatAck15D(client_hash=b"\x00" * 4, echoed_ping=ping)
+    decoded_ping = dispatch.decode_replay_message(
+        0x15d, "R", encode_ping(ping)
+    )
+    decoded_ack = dispatch.decode_replay_message(
+        0x15d, "W", encode_ack(ack)
+    )
+    assert decoded_ping == ping
+    assert decoded_ack == ack
+
+
 def test_replay_messages_after_v3_filters_correctly():
     # type 0x15d R marker: byte2=(0x1d|0x80)=0x9d, byte3=(0x15d>>6)=0x05
     dump = """\
