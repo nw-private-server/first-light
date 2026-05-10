@@ -132,3 +132,39 @@ def parse_cs_envelope(buf: bytes) -> tuple[int, int, bytes, bytes]:
     correlation_uuid = buf[8:24]
     envelope = buf[24:]
     return crc32, payload_size, correlation_uuid, envelope
+
+
+def fixup_cs_crc32(message_bytes: bytes) -> bytes:
+    """Replace the 4-byte CRC32 field at the start of a C→S message
+    with the correct CRC computed from the message's correlation_uuid
+    and envelope.
+
+    Useful for codecs that allow callers to leave the `crc32` /
+    `client_hash` field as a placeholder (zeros, sentinel) and want
+    to fix it up before transmission. The codec call sequence is:
+        raw = some_w_codec_encode(msg)        # crc32 may be zero
+        wire = fixup_cs_crc32(raw)            # crc32 now correct
+
+    Safe to call repeatedly; re-fixing already-correct bytes is a
+    no-op.
+    """
+    if len(message_bytes) < 24:
+        raise ValueError(
+            f"message too short for C→S envelope: need at least 24 bytes; "
+            f"got {len(message_bytes)}"
+        )
+    correlation_uuid = message_bytes[8:24]
+    envelope = message_bytes[24:]
+    crc = compute_cs_crc32(correlation_uuid, envelope)
+    return struct.pack(">I", crc) + message_bytes[4:]
+
+
+def verify_cs_crc32(message_bytes: bytes) -> bool:
+    """Check whether a C→S message's leading 4-byte CRC32 matches the
+    value computed from its correlation_uuid + envelope."""
+    if len(message_bytes) < 24:
+        return False
+    (claimed,) = struct.unpack_from(">I", message_bytes, 0)
+    correlation_uuid = message_bytes[8:24]
+    envelope = message_bytes[24:]
+    return claimed == compute_cs_crc32(correlation_uuid, envelope)

@@ -5,7 +5,7 @@
 
 ## TL;DR
 
-- **Codec library**: 22 dedicated codecs + 1 generic + 9 factories + `SessionState`. **252 tests passing.** ~35 of 40 captured wire-types covered.
+- **Codec library**: 22 dedicated codecs + 1 generic + 9 factories + `SessionState` + C→S framing layer (CRC32). **258 tests passing.** ~35 of 40 captured wire-types covered.
 - **Two major findings (wake 90)**: W-direction CRC32 confirmed; wire-type-id == typeIndex from `info/typeregistry.json` (3487 entries; 6 captured types now authoritatively named).
 - **Runtime blocker**: real-GPU host needed (UTM and Parallels both fail at GPU detection on Apple Silicon). AWS `g4dn.xlarge` is the recommended path.
 - **State 10 → 11 transition**: handler is `FUN_146454c00` (`PlayerManagerSelfIdentificationMsg`, typeIndex 0x5d1). Predicate `*(int *)(wrapper + 0xa0) == 2`. **Captured replay lacks Phase 9b** — needs runtime trace or static-RE on the deserializer.
@@ -95,7 +95,7 @@ The 4-byte field at offset 0 of every captured W-direction message is **standard
 C → S framing: [crc32:4 BE][payload_size:4 BE][correlation_uuid:16][envelope]
 ```
 
-Helpers in `server/javelin/wire.py`: `compute_cs_crc32()`, `serialize_cs_envelope()`, `parse_cs_envelope()`.
+Helpers in `server/javelin/wire.py`: `compute_cs_crc32()`, `serialize_cs_envelope()`, `parse_cs_envelope()`, `fixup_cs_crc32()`, `verify_cs_crc32()` (all re-exported from the package). 6 dedicated tests verify the CRC matches captured replay and that fixup works end-to-end with the W codecs.
 
 ### Wake 90: typeregistry maps wire-type-id
 

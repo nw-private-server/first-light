@@ -26,6 +26,15 @@ from .frame import (
     marshal_record,
     parse_datagram,
 )
+from .wire import (
+    encode_vlq32,
+    chunk_replay_payload,
+    compute_cs_crc32,
+    serialize_cs_envelope,
+    parse_cs_envelope,
+    fixup_cs_crc32,
+    verify_cs_crc32,
+)
 
 # Generic / family codecs
 from .subkey_beacon import (
@@ -82,6 +91,14 @@ __all__ = [
     "marshal_datagram",
     "marshal_record",
     "parse_datagram",
+    # Wire helpers (C→S framing + chunked replay)
+    "encode_vlq32",
+    "chunk_replay_payload",
+    "compute_cs_crc32",
+    "serialize_cs_envelope",
+    "parse_cs_envelope",
+    "fixup_cs_crc32",
+    "verify_cs_crc32",
     # Generic / family codecs
     "SubkeyBeacon",
     "SUBKEY_FAMILY",

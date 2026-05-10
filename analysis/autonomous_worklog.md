@@ -8983,3 +8983,114 @@ GitHub renders markdown well on mobile. The user can view at:
 - This worklog entry
 
 **Blockers:** None.
+
+---
+
+### 2026-05-09 — wake 92: CRC32 wiring complete, library 258 tests passing
+
+**Did:**
+
+Maintainer asked me to keep looping. Closed out task #46 (the
+CRC32 wiring deferred from wake 90) and validated the C→S
+framing layer end-to-end.
+
+1. **Added 2 more wire helpers** to `server/javelin/wire.py`:
+   - `fixup_cs_crc32(message_bytes)` — replaces the 4-byte CRC
+     field at offset 0 with the correct CRC computed from
+     `correlation_uuid + envelope`. Useful as a post-processing
+     step for any W codec that left the field as a placeholder.
+   - `verify_cs_crc32(message_bytes)` — checks whether the
+     leading CRC matches what we'd compute. Returns bool.
+
+   Both are idempotent: `fixup_cs_crc32(fixup_cs_crc32(x)) == fixup_cs_crc32(x)`.
+
+2. **Re-exported from `server/javelin/__init__.py`**: all five
+   wire helpers (`encode_vlq32`, `chunk_replay_payload`,
+   `compute_cs_crc32`, `serialize_cs_envelope`,
+   `parse_cs_envelope`, `fixup_cs_crc32`, `verify_cs_crc32`).
+
+3. **Added 6 tests**:
+   - `test_cs_crc32_matches_captured_w_messages` — iterates ALL
+     captured W messages, asserts 37 of 39 match, and that the
+     2 known exceptions are exactly seq 0 (V3 request) and
+     0x6b (0x12f6 with redacted spans).
+   - `test_compute_cs_crc32_basic` — direct CRC computation
+     against captured 0x5b2 expected value `0xf9b3ea55`.
+   - `test_compute_cs_crc32_validates_correlation_uuid_length`
+   - `test_serialize_parse_cs_envelope_round_trip`
+   - `test_fixup_cs_crc32_repairs_zero_crc` — verifies the
+     placeholder→correct CRC fixup.
+   - `test_fixup_cs_crc32_works_with_existing_w_codec_output` —
+     end-to-end demo: encode a fresh `SessionSubkeyBeacon1A59`
+     with placeholder CRC, run fixup, verify CRC is now correct
+     AND the message still decodes to the same dataclass values.
+
+   **Test count: 258 (was 252).**
+
+4. **DASHBOARD.md updated** to reflect the new helper count and
+   the integration status.
+
+**Why this is non-breaking**: existing W codecs still take
+`client_hash` as a public field. The fixup approach lets
+callers leave that field as zeros (or any placeholder) and
+post-process the encoded bytes. Existing replay-driven code
+in `rep_responder.py` continues to work unchanged because the
+captured bytes already have correct CRCs.
+
+**For future server-side W emission**: the call shape becomes:
+
+```python
+from server.javelin import (
+    SessionSubkeyBeacon1A59, fixup_cs_crc32,
+)
+import server.javelin.session_subkey_1a59 as codec
+
+msg = SessionSubkeyBeacon1A59(
+    client_hash=b"\x00" * 4,        # placeholder
+    session_uuid=session.uuid,
+    subkey=session.subkey,
+    counter=session.next_18a6_counter,
+)
+wire = fixup_cs_crc32(codec.encode(msg))   # CRC now correct
+send(wire)
+```
+
+This is the missing piece for "construct fresh client traffic
+end-to-end."
+
+**Files this iteration:**
+
+- `server/javelin/wire.py` (+ fixup_cs_crc32, verify_cs_crc32)
+- `server/javelin/__init__.py` (+ 7 wire helper re-exports)
+- `server/javelin/test_codecs.py` (+ 6 CRC32 tests, 258 total)
+- `DASHBOARD.md` (test count + helper list updated)
+- This worklog entry
+
+**Library status**: 22 dedicated codecs + 1 generic (14-type)
+codec + 9 factory helpers + 1 SessionState sketch + **C→S
+framing layer with CRC32**. **258 tests passing.**
+
+**Next** (open queue):
+
+The library now supports both replay-driven flows (existing)
+AND fresh-emission flows (new, via `fixup_cs_crc32`). The
+remaining items in `analysis/queued_work.md` are mostly:
+1. Multi-capture validation (needs new captures)
+2. Static-RE on the dispatcher / verifier (needs runtime data
+   for high yield, autonomously yields diminishing returns)
+3. Runtime-path decision (real-GPU host)
+
+Other autonomously-tractable threads:
+- **Extract names for the 34 unnamed captured types** via the
+  fingerprint-search methodology developed in wake 90 (find
+  each type's CreateInstance stub at a unique address, walk
+  back to the handler-vtable structure containing the class
+  name string). This is a ~500-line Ghidra script project
+  but would give us authoritative names for every captured
+  wire-type.
+- **Dashboard polish**: add a "what changed" section,
+  per-wake summary line, etc.
+- **`docs/post-v3-sequence.md`** could be cross-linked to
+  the typeregistry findings (state types, REP types).
+
+**Blockers:** None.

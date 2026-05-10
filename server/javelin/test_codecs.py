@@ -2935,6 +2935,125 @@ def test_javelin_package_exports():
 
 
 # ---------------------------------------------------------------------------
+# C→S framing CRC32 (wake 90 finding)
+# ---------------------------------------------------------------------------
+
+from .wire import (  # noqa: E402
+    compute_cs_crc32,
+    serialize_cs_envelope,
+    parse_cs_envelope,
+    fixup_cs_crc32,
+    verify_cs_crc32,
+)
+
+
+def test_cs_crc32_matches_captured_w_messages():
+    """Every captured W-direction message should have a CRC32 at offset 0
+    that equals zlib.crc32(correlation_uuid + envelope), big-endian.
+
+    Validated wake 90: 37 of 39 captured W messages match. The two
+    exceptions (V3 request at seq 0, and 0x12f6 with 36-byte redacted
+    spans) are documented and asserted below."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+
+    matches = 0
+    mismatches = []
+    for m in store.messages:
+        if m.direction != "W" or len(m.body) < 24:
+            continue
+        if verify_cs_crc32(m.body):
+            matches += 1
+        else:
+            mismatches.append((m.seq, m.type_id, m.has_redaction))
+
+    # 37 of 39 captured W messages must match.
+    assert matches == 37, f"expected 37 CRC matches, got {matches}"
+    # The 2 known exceptions are V3 request (seq 0) and 0x12f6 (redacted)
+    expected_exceptions = {(0, 0x13), (0x6b, 0x12f6)}
+    actual_exceptions = {(seq, tid) for seq, tid, _ in mismatches}
+    assert actual_exceptions == expected_exceptions, (
+        f"unexpected CRC mismatches: {actual_exceptions}"
+    )
+
+
+def test_compute_cs_crc32_basic():
+    """Direct CRC computation matches captured 0x5b2 message bytes."""
+    correlation_uuid = bytes.fromhex("1a954abc4b3185bfbe37c3d8592618e0")
+    envelope = bytes.fromhex(
+        "0001b216"  # type header
+        "180f8d4e573697c6"  # second_id
+        "bf85314bbc4a951a"  # session_uuid_lower
+        "00"  # count = 0
+    )
+    crc = compute_cs_crc32(correlation_uuid, envelope)
+    assert crc == 0xf9b3ea55  # captured 0x5b2 small variant's CRC
+
+
+def test_compute_cs_crc32_validates_correlation_uuid_length():
+    with pytest.raises(ValueError, match="correlation_uuid"):
+        compute_cs_crc32(b"\x00" * 8, b"some envelope")
+
+
+def test_serialize_parse_cs_envelope_round_trip():
+    """serialize_cs_envelope + parse_cs_envelope reverse cleanly."""
+    correlation_uuid = bytes(range(16))
+    envelope = b"\x00\x01\x99\x69" + b"\x42" * 17  # 0x1a59-shaped
+    serialized = serialize_cs_envelope(correlation_uuid, envelope)
+    crc, payload_size, parsed_uuid, parsed_env = parse_cs_envelope(serialized)
+    assert parsed_uuid == correlation_uuid
+    assert parsed_env == envelope
+    assert payload_size == 16 + len(envelope)
+    assert verify_cs_crc32(serialized)
+
+
+def test_fixup_cs_crc32_repairs_zero_crc():
+    """fixup_cs_crc32 replaces a zero/placeholder CRC with the correct value."""
+    correlation_uuid = bytes(range(16))
+    envelope = b"\x00\x01\x99\x69\x42" * 4  # synthetic envelope
+    # Construct a bad message with CRC=0
+    bad = (
+        b"\x00\x00\x00\x00"  # crc32 placeholder
+        + (16 + len(envelope)).to_bytes(4, "big")  # payload_size
+        + correlation_uuid
+        + envelope
+    )
+    assert not verify_cs_crc32(bad)
+    fixed = fixup_cs_crc32(bad)
+    assert verify_cs_crc32(fixed)
+    # Idempotent
+    assert fixup_cs_crc32(fixed) == fixed
+
+
+def test_fixup_cs_crc32_works_with_existing_w_codec_output():
+    """Encode any W codec normally (with arbitrary client_hash), then
+    fixup_cs_crc32 to produce a wire-valid message — useful for
+    server-side fresh emission code paths."""
+    msg = SessionSubkeyBeacon1A59(
+        client_hash=b"\x00" * 4,  # placeholder
+        session_uuid=bytes.fromhex("1a954abc4b3185bfbe37c3d8592618e0"),
+        subkey=bytes.fromhex("f8cbed57c68b18f4bf85314bbc4a951a"),
+        counter=5,
+    )
+    encoded = encode_1a59(msg)
+    assert not verify_cs_crc32(encoded)  # placeholder CRC
+    fixed = fixup_cs_crc32(encoded)
+    assert verify_cs_crc32(fixed)
+    # The fixed bytes still decode as the same SessionSubkeyBeacon1A59
+    # (fixup only touches the CRC field).
+    redecoded = decode_1a59(fixed)
+    # client_hash now holds the computed CRC, but other fields match
+    assert redecoded.session_uuid == msg.session_uuid
+    assert redecoded.subkey == msg.subkey
+    assert redecoded.counter == msg.counter
+
+
+# ---------------------------------------------------------------------------
 # v3_request — error paths (no capture file needed)
 # ---------------------------------------------------------------------------
 
