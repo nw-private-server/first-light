@@ -10187,3 +10187,64 @@ The remaining open items: (a) write a retry-format encoder
 reflects test_count=301 (300 passing + 1 skipped).
 
 **Blockers:** None.
+
+## Wake 108 — V3 retry encoder, full round-trip clean
+
+**Goal**: complete the symmetry of wake 107 by writing
+`serialize_v3_request_retry`, so the captured 0x13 retry round-
+trips byte-for-byte through the dispatcher (drops the
+wake-107-introduced wire-mismatch pin in the round-trip test).
+
+**Built**:
+
+- `V3RegistrationRequest` extended with three retry-format fields:
+  - `retry_prelude: bytes` — captured 32-byte header preserved verbatim
+  - `retry_records: list[tuple[int, str]]` — (type_id, value) pairs
+    in their original order
+  - `retry_tail: bytes` — the ~2.6 KB opaque tail preserved verbatim
+  All default to empty so strict-decoded messages are unaffected.
+- `parse_v3_request_retry` updated to populate the three retry
+  fields during decode.
+- `serialize_v3_request_retry(msg)` — emits prelude + records (in
+  captured order) + tail. Raises if `retry_records` is empty (wrong
+  serializer for this message). Raises if any record value exceeds
+  the u8-length cap.
+- Dispatcher's 0x13 encoder is now a lambda that branches on
+  `retry_records`: retry serializer if populated, strict serializer
+  otherwise. Backwards-compatible with all existing 0x13 paths
+  (strict-decoded messages still encode via `serialize_v3_request`).
+- Round-trip test pin lifted: the test now asserts **zero wire
+  mismatches** across the full replay, where wake 107 had pinned
+  `(0x13, "W")` as a known mismatch.
+
+**Tests added (5)**:
+- `test_v3_retry_round_trips_captured_body_byte_identical`:
+  the actual 2750-byte captured retry parses + re-serializes to
+  the original bytes.
+- `test_v3_retry_serialize_preserves_record_order`: records emit
+  in their captured order (type 4 first, not type 0).
+- `test_v3_retry_serialize_raises_when_retry_fields_unset`.
+- `test_v3_retry_serialize_rejects_oversize_value`.
+- `test_v3_retry_dispatcher_encoder_selects_retry_path`: the
+  dispatcher's encoder lambda picks retry serializer based on
+  `retry_records` presence.
+
+Test total: **300 → 305 (+5)**.
+
+**Dispatcher state after this wake**:
+
+| Outcome | Count |
+|---|---|
+| Decode → encode round-trip byte-identical | **175** |
+| Decode succeeds but no round-trip encoder | 0 |
+| Decode skipped (0x03 server-emit-only) | 1 |
+| Decode failures | 1 (0x16a0 large blob) |
+
+Every captured 0x13 message — both first-attempt strict and retry
+— now round-trips through the dispatcher. The only remaining
+documented gap is the 99 KB 0x16a0 R-direction blob.
+
+**Site rebuild**: `tools/build_site.py` regenerated; data.json
+reflects test_count=306 (305 + 1 skipped).
+
+**Blockers:** None.

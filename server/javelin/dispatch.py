@@ -174,7 +174,11 @@ def _heartbeat_15d_encode(msg: Any) -> bytes:
 ENCODERS: dict[int, EncoderFn] = {
     0x03: v3_response.encode,
     0x08: chunked_stream_08.encode_either,
-    0x13: v3_request.serialize_v3_request,
+    0x13: lambda m: (
+        v3_request.serialize_v3_request_retry(m)
+        if getattr(m, "retry_records", None)
+        else v3_request.serialize_v3_request(m)
+    ),
     0xa4: session_message_a4.encode,
     0x14f: session_clock_beacon.encode,
     0x15d: _heartbeat_15d_encode,

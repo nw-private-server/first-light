@@ -3661,15 +3661,11 @@ def test_dispatch_encode_decode_round_trip_full_replay():
                 (m.type_id, m.direction, len(m.body), len(wire))
             )
 
-    # Strong guarantees: zero encode failures.
+    # Strong guarantees: zero encode failures, zero wire mismatches.
+    # As of wake 108 (`serialize_v3_request_retry`), the 0x13 retry
+    # round-trips byte-for-byte; the previous wire-mismatch pin is gone.
     assert not encode_failures, encode_failures
-    # 0x13 retry now decodes (wake 107 retry parser) but doesn't
-    # round-trip — `serialize_v3_request` only knows the strict 832-byte
-    # format; a retry-format encoder is follow-up work.
-    mismatch_types = sorted({(t, d) for t, d, _, _ in mismatches})
-    assert mismatch_types == [(0x13, "W")], (
-        f"unexpected wire mismatches: {mismatches}"
-    )
+    assert not mismatches, mismatches
     # Decode failures stay pinned to the documented set (only 0x16a0
     # large blob remains; 0x13 retry was closed in wake 107).
     assert decode_failures == {(0x16a0, "R")}
@@ -3846,6 +3842,80 @@ def test_v3_or_lenient_uses_retry_for_captured_redacted_body():
     # Strict would have raised; lenient would return identity-only with
     # empty build_version. Retry returns build_version="6031".
     assert out.build_version == "6031"
+
+
+# ---------------------------------------------------------------------------
+# V3 retry encoder (wake 108)
+# ---------------------------------------------------------------------------
+
+from .v3_request import serialize_v3_request_retry  # noqa: E402
+
+
+def test_v3_retry_round_trips_captured_body_byte_identical():
+    """The captured 2750-byte 0x13 retry must round-trip byte-for-byte
+    through parse → serialize."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    m = next(m for m in store.messages if m.type_id == 0x13)
+    decoded = parse_v3_request_retry(m.body)
+    assert decoded is not None
+    assert len(decoded.retry_prelude) == 32
+    assert len(decoded.retry_records) == 6
+    assert serialize_v3_request_retry(decoded) == m.body
+
+
+def test_v3_retry_serialize_preserves_record_order():
+    """The records' captured order matters; the encoder must emit them
+    in the same order, not sorted by type_id."""
+    msg = parse_v3_request_retry.__globals__["V3RegistrationRequest"]()
+    msg.retry_prelude = b"\x00" * 32
+    msg.retry_records = [(4, "6031"), (3, "400"), (2, "1"),
+                         (1, "Javelin"), (5, "6004151"), (0, "[RETAIL]")]
+    msg.retry_tail = b"\xff" * 16
+    wire = serialize_v3_request_retry(msg)
+    # The record area starts at byte 32 (after the prelude); type_id 4
+    # comes first.
+    import struct
+    first_tid = struct.unpack_from(">I", wire, 32)[0]
+    assert first_tid == 4
+
+
+def test_v3_retry_serialize_raises_when_retry_fields_unset():
+    msg = parse_v3_request_retry.__globals__["V3RegistrationRequest"]()
+    with pytest.raises(ValueError, match="no retry_records"):
+        serialize_v3_request_retry(msg)
+
+
+def test_v3_retry_serialize_rejects_oversize_value():
+    """Record value > 255 bytes can't fit a u8 length prefix."""
+    msg = parse_v3_request_retry.__globals__["V3RegistrationRequest"]()
+    msg.retry_prelude = b"\x00" * 32
+    msg.retry_records = [(4, "x" * 300), (3, ""), (2, ""),
+                         (1, ""), (5, ""), (0, "")]
+    msg.retry_tail = b""
+    with pytest.raises(ValueError, match="too long for u8 length"):
+        serialize_v3_request_retry(msg)
+
+
+def test_v3_retry_dispatcher_encoder_selects_retry_path():
+    """The dispatcher's 0x13 encoder must pick the retry serializer when
+    retry_records is populated, even though the dataclass type is the
+    same as for strict-decoded messages."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    m = next(m for m in store.messages if m.type_id == 0x13)
+    decoded = dispatch.decode_replay_message(m.type_id, m.direction, m.body)
+    assert dispatch.encode_replay_message(m.type_id, decoded) == m.body
 
 
 def test_replay_messages_after_v3_filters_correctly():

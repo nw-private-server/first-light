@@ -78,6 +78,21 @@ class V3RegistrationRequest:
     # Always `00 43 02 80` + 8 zero bytes. Defaulted; settable for fuzzing.
     trailer: bytes = TRAILER
 
+    # --- Retry-format round-trip support (wake 108) ------------------------
+    # When the body was decoded by `parse_v3_request_retry` (the tagged
+    # 6-record format used by V3 retries with chunked replay payloads),
+    # these three fields capture the parts the strict format doesn't have a
+    # slot for. `retry_records` carries the (type_id, value) pairs in their
+    # captured order; the encoder re-emits prelude + records (in this exact
+    # order) + tail.
+    #
+    # Empty on strict-decoded messages — so the strict serializer ignores
+    # them. Non-empty on retry-decoded messages — `serialize_v3_request_retry`
+    # uses them to round-trip byte-for-byte.
+    retry_prelude: bytes = b""
+    retry_records: list[tuple[int, str]] = field(default_factory=list)
+    retry_tail: bytes = b""
+
 
 def _read_str(buf: bytes, off: int) -> tuple[str, int]:
     """Read [u8 length][length bytes ASCII] from buf at off; return (text, new_off)."""
@@ -197,8 +212,9 @@ def parse_v3_request_retry(body: bytes) -> V3RegistrationRequest | None:
         return None
 
     msg = V3RegistrationRequest()
+    msg.retry_prelude = body[:PRELUDE_LEN]
     off = PRELUDE_LEN
-    seen_types = []
+    records: list[tuple[int, str]] = []
     for _ in range(EXPECTED_RECORD_COUNT):
         if off + 5 > len(body):
             return None
@@ -210,7 +226,7 @@ def parse_v3_request_retry(body: bytes) -> V3RegistrationRequest | None:
         if end > len(body):
             return None
         text = body[off + 5:end].decode("latin-1", errors="replace")
-        seen_types.append(type_id)
+        records.append((type_id, text))
 
         if type_id == 4:
             msg.build_version = text
@@ -227,16 +243,53 @@ def parse_v3_request_retry(body: bytes) -> V3RegistrationRequest | None:
         off = end
 
     # Sanity check the records look right (set, not order-strict).
-    if set(seen_types) != {0, 1, 2, 3, 4, 5}:
+    if {tid for tid, _ in records} != {0, 1, 2, 3, 4, 5}:
         return None
 
+    msg.retry_records = records
+    msg.retry_tail = body[off:]
+
     # Pull identity fields from the tail via the lenient regex pass.
-    tail_extract = parse_v3_request_lenient(body[off:])
+    tail_extract = parse_v3_request_lenient(msg.retry_tail)
     if tail_extract is not None:
         msg.session_uuid = tail_extract.session_uuid or msg.session_uuid
         msg.persona_id = tail_extract.persona_id or msg.persona_id
 
     return msg
+
+
+def serialize_v3_request_retry(msg: V3RegistrationRequest) -> bytes:
+    """Re-emit a V3 retry body from a dataclass that was retry-decoded.
+
+    Requires `retry_prelude`, `retry_records`, and `retry_tail` to be
+    populated (they are after a successful `parse_v3_request_retry`).
+    Records are emitted in their captured order, which is preserved by
+    the parser. Round-trips byte-for-byte for any body where the parser
+    succeeded.
+
+    Raises `ValueError` if the dataclass wasn't retry-decoded (i.e. the
+    retry-format fields are still at their defaults).
+    """
+    import struct
+    if not msg.retry_records:
+        raise ValueError(
+            "serialize_v3_request_retry: dataclass has no retry_records; "
+            "use parse_v3_request_retry to decode first, or call "
+            "serialize_v3_request for strict-format bodies"
+        )
+    out = bytearray(msg.retry_prelude)
+    for type_id, text in msg.retry_records:
+        out.extend(struct.pack(">I", type_id))
+        body_bytes = text.encode("latin-1")
+        if len(body_bytes) > 0xFF:
+            raise ValueError(
+                f"retry record value too long for u8 length: "
+                f"type={type_id} len={len(body_bytes)}"
+            )
+        out.append(len(body_bytes))
+        out.extend(body_bytes)
+    out.extend(msg.retry_tail)
+    return bytes(out)
 
 
 def parse_v3_request_lenient(body: bytes) -> V3RegistrationRequest | None:
