@@ -27733,6 +27733,12 @@
       "test_count": 337,
       "commit": "7196886",
       "subject": "analysis(wake 131): wrapper-setter overview \u2014 decomp cross-link density 100%"
+    },
+    {
+      "wake": 132,
+      "test_count": 339,
+      "commit": "eeea9ac",
+      "subject": "analysis(wake 132): tools/decode_message.py --seq N flag"
     }
   ],
   "wire_type_families": [

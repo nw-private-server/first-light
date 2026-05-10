@@ -268,6 +268,41 @@ main { padding: 16px; max-width: 1100px; margin: 0 auto; }
 }
 .tl-item .desc { color: var(--text-dim); font-size: 13px; }
 
+/* Byte-pattern playground */
+.bpresult {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.bpresult .bphead {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.bpresult .bphead .seq { color: var(--accent); font-weight: 600; }
+.bpresult .bphead .tid { color: var(--accent-2); margin-left: 8px; }
+.bpresult .bphead .meta { color: var(--text-dim); margin-left: 8px; }
+.bpresult .bphex {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 6px 8px;
+  color: var(--text-dim);
+  word-break: break-all;
+  line-height: 1.5;
+}
+.bpresult .bphex .match {
+  background: rgba(63,185,80,0.25);
+  color: var(--accent-2);
+  font-weight: 600;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
 /* Decompile groups */
 .dgroup {
   background: var(--surface);
@@ -702,6 +737,7 @@ a:hover { text-decoration: underline; }
     <button data-tab="codecs">Codecs</button>
     <button data-tab="decomp">Decompiles</button>
     <button data-tab="findings">Findings</button>
+    <button data-tab="explore">Explore</button>
   </nav>
 </header>
 
@@ -884,6 +920,26 @@ a:hover { text-decoration: underline; }
 
 <section class="tab" data-tab="findings">
   <div id="findings-list"></div>
+</section>
+
+<section class="tab" data-tab="explore">
+  <details class="faq" open>
+    <summary>Byte-pattern search</summary>
+    <div class="a">
+      Search all 177 captured message bodies for a hex byte pattern.
+      Useful for spotting recurring protocol structures across
+      message types — e.g. session-uuid fragments, type-header
+      bytes, or magic numbers. Spaces in the query are ignored;
+      matching is case-insensitive.
+      <br><br>
+      <span class="mono">bf85314b</span> (session_uuid_lower prefix
+      for this session) appears in many bodies — try it.
+    </div>
+  </details>
+  <input type="text" class="search" id="bytepattern-input"
+    placeholder="Hex pattern (e.g. bf85314b or 00 01 9d 05)…">
+  <div id="bytepattern-summary" style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px;"></div>
+  <div id="bytepattern-results"></div>
 </section>
 
 </main>
@@ -1155,6 +1211,102 @@ async function load() {
     `;
     findingsList.appendChild(div);
   }
+
+  // ---- Byte-pattern playground ----
+  setupBytePatternSearch(data);
+}
+
+function setupBytePatternSearch(data) {
+  const input = document.getElementById("bytepattern-input");
+  const summary = document.getElementById("bytepattern-summary");
+  const results = document.getElementById("bytepattern-results");
+  if (!input || !data.replay_decoded) return;
+
+  const NEIGHBOR_BYTES = 16;  // bytes on each side of match for context
+
+  const debounce = (fn, ms) => {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  };
+
+  const render = () => {
+    const raw = input.value.trim().toLowerCase().replace(/\s+/g, "");
+    if (!raw) {
+      summary.textContent = "";
+      results.innerHTML = "";
+      return;
+    }
+    if (!/^[0-9a-f]+$/.test(raw) || raw.length % 2 !== 0) {
+      summary.textContent = "Pattern must be an even-length hex string (e.g. bf85314b).";
+      results.innerHTML = "";
+      return;
+    }
+    if (raw.length < 4) {
+      summary.textContent = "Pattern too short — needs at least 2 bytes (4 hex chars).";
+      results.innerHTML = "";
+      return;
+    }
+
+    const matches = [];
+    let totalMatches = 0;
+    for (const m of data.replay_decoded) {
+      if (!m.body_hex) continue;
+      const hex = m.body_hex.toLowerCase();
+      const positions = [];
+      let from = 0;
+      while (true) {
+        const idx = hex.indexOf(raw, from);
+        if (idx < 0) break;
+        if (idx % 2 === 0) positions.push(idx / 2);  // byte-aligned
+        from = idx + 2;
+      }
+      if (positions.length) {
+        matches.push({ m, positions });
+        totalMatches += positions.length;
+      }
+    }
+
+    summary.textContent =
+      `Found ${totalMatches} match${totalMatches === 1 ? "" : "es"} ` +
+      `across ${matches.length} message${matches.length === 1 ? "" : "s"}.`;
+    results.innerHTML = "";
+
+    const patternByteLen = raw.length / 2;
+    for (const { m, positions } of matches.slice(0, 50)) {
+      const div = document.createElement("div");
+      div.className = "bpresult";
+      // For each match, build a hex neighborhood with the match highlighted
+      const hexBlocks = positions.slice(0, 5).map(byteOff => {
+        const start = Math.max(0, byteOff - NEIGHBOR_BYTES);
+        const end = Math.min(m.body_hex.length / 2, byteOff + patternByteLen + NEIGHBOR_BYTES);
+        const before = m.body_hex.slice(start * 2, byteOff * 2);
+        const match = m.body_hex.slice(byteOff * 2, (byteOff + patternByteLen) * 2);
+        const after = m.body_hex.slice((byteOff + patternByteLen) * 2, end * 2);
+        return `<div class="bphex">+0x${byteOff.toString(16).padStart(4, "0")}: ${escapeHtml(before)}<span class="match">${escapeHtml(match)}</span>${escapeHtml(after)}</div>`;
+      }).join("");
+      const moreNote = positions.length > 5
+        ? `<div style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">… and ${positions.length - 5} more match(es) in this body</div>`
+        : "";
+      div.innerHTML = `
+        <div class="bphead">
+          <span class="seq">seq=0x${m.seq.toString(16)}</span>
+          <span class="tid">${escapeHtml(m.type_id_hex)}</span>
+          <span class="meta">dir=${m.direction} · ${m.body_size} B · ${positions.length} match${positions.length === 1 ? "" : "es"}</span>
+        </div>
+        ${hexBlocks}
+        ${moreNote}
+      `;
+      results.appendChild(div);
+    }
+    if (matches.length > 50) {
+      const more = document.createElement("div");
+      more.style.cssText = "color: var(--text-dim); font-size: 12px; margin-top: 8px;";
+      more.textContent = `… and ${matches.length - 50} more matching messages (refine your pattern).`;
+      results.appendChild(more);
+    }
+  };
+
+  input.addEventListener("input", debounce(render, 150));
 }
 
 function drawVolumeChart(data) {

@@ -11311,3 +11311,53 @@ HeartbeatPing15D(counter=225014, nonce=2945527156)
 ```
 
 **Blockers:** None.
+
+## Wake 133 — byte-pattern playground on the dashboard
+
+**Goal**: ship a visitor-facing exploration tool that searches all
+177 captured message bodies for a hex byte pattern. Useful for
+spotting recurring protocol structures (e.g. the session-uuid
+fragment that appears across multiple wire-types).
+
+**Built**:
+
+- `site/index.html`:
+  - New "Explore" tab in the nav (6 tabs total now).
+  - "Byte-pattern search" section with friendly intro
+    (suggests trying `bf85314b` — the session_uuid_lower
+    fragment that appears in many bodies).
+  - Search input with debounced (150 ms) live filtering.
+  - Results render: per-message card showing seq + type-id +
+    direction + match-count, plus up to 5 hex-neighborhoods
+    per body (16 bytes either side of each match, with the
+    matched bytes highlighted in accent-2 green).
+  - Caps at 50 matching messages displayed; total count
+    surfaced in the summary line.
+- CSS for `.bpresult` cards + `.bphex` neighborhoods +
+  `.match` highlight, matching the GitHub-dark palette.
+
+**Implementation notes**:
+- Reads `data.replay_decoded[].body_hex` (already in `data.json`
+  from wake 120's pre-decode pass). No new server-side data
+  needed.
+- Pattern validation: even-length hex, ≥4 chars, ignores
+  whitespace, case-insensitive. Shows clear error inline.
+- Byte-aligned matching (positions must be on even-hex-char
+  boundaries) so partial nibble matches don't spuriously
+  surface.
+
+**Result**: visitors can now hand-search the captured replay for
+any hex pattern in real time. A motivated visitor can spot:
+- The session-uuid fragment `bf85314bbc4a951a` across the 7
+  wire-type families
+- The `01 01 01 01 00 00` constant in the 0x08 chunked-stream
+  header (78 captures)
+- The `xaX` correlation marker `03 65 f2 69 14 78 61 58`
+- Any other recurring 2+-byte pattern of interest
+
+**Site rebuild**: regenerated; data.json unchanged (only
+HTML/CSS/JS modified). Pages auto-redeploy on push.
+
+**Tests unchanged**: 338 (+1 skipped).
+
+**Blockers:** None.
