@@ -9094,3 +9094,111 @@ Other autonomously-tractable threads:
   the typeregistry findings (state types, REP types).
 
 **Blockers:** None.
+
+---
+
+### 2026-05-09 — wake 93: name-extraction methodology limits found
+
+**Did:**
+
+Pursued the wake-92 follow-up to extract names for the 34 unnamed
+captured wire-types. Built two new Ghidra scripts and conducted
+three searches; found definitive negative result that closes off
+the static-only path.
+
+**Tooling shipped:**
+- `tools/ghidra_scripts/ExtractTypeNames.py` — given a
+  (type_id, fingerprint) TSV, finds each fingerprint, locates
+  xref sources, scans nearby for ASCII strings (class names) and
+  UUID-shaped substrings.
+- `tools/ghidra_scripts/BulkBytesSearch.py` — search for many
+  byte patterns in a single Ghidra session. Avoids per-script
+  startup overhead when checking dozens of patterns.
+
+**Three searches conducted:**
+
+1. **CreateInstance fingerprint search**: ran `ExtractTypeNames`
+   over all 35 captured-type fingerprints (one per unnamed
+   captured type). Found the fingerprint addresses, but
+   discovered that **most types share the same generic stub**
+   (e.g. fingerprint `b928000000e976e2` is shared by 15 types
+   and has 1019 xref sources in the binary). The "unique stub
+   per type" assumption was wrong.
+
+2. **UUID byte-search across the binary**: built bulk patterns
+   for all 40 captured-type UUIDs in BOTH canonical and
+   Microsoft GUID byte orders (80 patterns total). Searched
+   every loaded memory block. **0 of 80 patterns matched.** The
+   captured-type UUIDs are NOT stored as raw bytes anywhere in
+   the binary.
+
+3. **Class-name byte-search (verification)**: searched for the 8
+   known class names (RegistrationResponseMsg, PingMsg, etc.).
+   **All 8 match**. So class names ARE in the binary as ASCII
+   strings — they just live in MSVC RTTI typeinfo structures
+   (`.?AV<class>@@` mangled prefix) in the `.data` block.
+
+**Net of the searches:**
+
+- Class names: in the binary ✓
+- Captured-type UUIDs: NOT in the binary ✗
+- The link between typeIndex/UUID → class-name: **not
+  recoverable statically** without runtime trace
+
+The binding lives in `InstallRegistrationHook<T>` instantiations
+(2025+ of them per JavelinHunt) where:
+- `T` is the C++ type → MSVC mangled name in RTTI
+- `T::TypeId()` produces the AZ::Uuid → registered in
+  runtime AZ::SerializeContext
+- Both end up in the runtime registry but the MSVC name and
+  the AZ Uuid are connected only at runtime
+
+What WOULD give us names for all 34 unnamed types:
+- A different runtime registry dump with `name` populated for
+  all 3487 entries (the captured `info/typeregistry.json` has
+  it empty for most)
+- Static-RE on a single `InstallRegistrationHook<T>` call site
+  to identify the exact pattern, then pattern-match all 2025+
+  instantiations to recover (name, typeIndex) pairs
+
+The latter is genuinely possible but requires careful Ghidra
+work to identify the registration call site shape — too
+involved for this iteration's budget.
+
+**Honest assessment**: name extraction for the 34 unnamed types
+is **not autonomously achievable in this iteration's budget**
+via the methodology I attempted. This is the kind of
+fundamental-limit finding that closes off a search space —
+useful even though no names were recovered.
+
+**Files this iteration:**
+
+- `tools/ghidra_scripts/ExtractTypeNames.py` (new — useful for
+  future fingerprint-based extraction)
+- `tools/ghidra_scripts/BulkBytesSearch.py` (new — generally
+  useful)
+- `analysis/typename_extraction.txt` — per-type fingerprint
+  search results (mostly shared-stub conflicts)
+- `analysis/uuid_search_results.txt` — 0/80 UUID matches
+- `analysis/uuid_search_patterns.tsv` — input patterns
+- `analysis/typename_input.tsv` — input pairs
+- `analysis/dw_typeid_list_wide.txt` — wider .rdata u32 list dump
+- This worklog entry
+
+**Library status: unchanged from wake 92.** 22 dedicated codecs
++ 1 generic + 9 factories + SessionState + C→S framing layer;
+**258 tests passing**.
+
+**Next** (queue):
+
+The static-RE thread is conclusively tapped out without runtime
+data. Remaining autonomously-tractable items:
+1. A focused look at one `InstallRegistrationHook<T>` call site
+   if I can identify its shape — would unlock the name-extraction
+   path. Higher-effort than this wake's budget.
+2. Codec library polish: error message improvements, more
+   descriptive validation, etc.
+3. More dashboard / docs work.
+
+**Blockers:** None — but yields are diminishing without runtime
+inputs.

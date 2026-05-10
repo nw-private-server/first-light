@@ -1,0 +1,7 @@
+# bulk-bytes-search
+
+# 80 patterns to search
+
+
+# 0 patterns matched (out of 80), 0 total hits
+# end
