@@ -10248,3 +10248,73 @@ documented gap is the 99 KB 0x16a0 R-direction blob.
 reflects test_count=306 (305 + 1 skipped).
 
 **Blockers:** None.
+
+## Wake 109 — 0x16a0 large-variant codec, dispatcher 0/0 fail
+
+**Goal**: close the LAST documented dispatcher decode failure —
+the 99 KB R-direction 0x16a0 asset blob — and reach a state where
+every captured wire-type both decodes and round-trips through the
+dispatcher.
+
+**Findings**:
+
+- The two captured 0x16a0 messages share a 20-byte prefix:
+  `00 01 a0 5a` (type header) + 16-byte asset_uuid (lower 8 bytes
+  match the project-wide `session_uuid_lower`).
+- Beyond the 20-byte prefix:
+  - Small variant (153 B): 133-byte structured payload with the
+    embedded `"ItemPool"` length-prefixed string and a redacted
+    asset-id.
+  - Large variant (99 819 B): bulk data with no observable
+    sub-structure across just one (heavily redacted) capture.
+- No length field in either body matches the body size (checked
+  u16 BE, u32 BE at every offset in the first 32 bytes).
+
+Following the wake-103 pattern (chunked_stream_08 standard vs
+UUID-prefixed): two dataclasses + a size-based dispatcher.
+
+**Built**:
+
+- `AssetBlob16A0Large(asset_uuid, bulk_data)` — preserves the
+  20-byte prefix; bulk tail is opaque.
+- `decode_either(buf)` / `encode_either(msg)` — picks by body
+  size (153 = small) or dataclass type (encode side).
+- Dispatcher's 0x16a0 wired through both `decode_either` and
+  `encode_either`.
+- Module docstring updated to describe both forms.
+- 5 new tests:
+  - `test_16a0_large_round_trip_captured`: the actual ~100 KB
+    capture decodes + re-encodes byte-for-byte.
+  - `test_16a0_decode_either_picks_by_size`.
+  - `test_16a0_large_rejects_too_short`.
+  - `test_16a0_large_rejects_wrong_header`.
+  - `test_16a0_encode_either_dispatches_by_msg_type`.
+- Existing dispatcher tests updated:
+  - The `decode_failures` pinned-set is now empty (asserted
+    `not decode_failures`).
+  - The full-replay round-trip test asserts no failures of any
+    kind (no decode failures, no encode failures, no wire
+    mismatches).
+
+Test total: **305 → 310 (+5)**.
+
+**Dispatcher state after this wake** (over the full 177-message
+captured replay):
+
+| Outcome | Count |
+|---|---|
+| Decode → encode round-trip byte-identical | **176** |
+| Decode skipped (0x03 server-emit-only) | 1 |
+| Decode failures | **0** |
+| Encode failures | 0 |
+| Wire mismatches | 0 |
+
+**Milestone**: every captured wire-type message in the replay
+now both decodes successfully and round-trips byte-for-byte
+through the unified dispatcher. The codec library — top-to-
+bottom — is wire-complete for the captured-replay use case.
+
+**Site rebuild**: `tools/build_site.py` regenerated; data.json
+reflects test_count=311 (310 + 1 skipped).
+
+**Blockers:** None.

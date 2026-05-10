@@ -3,9 +3,13 @@ Asset blob — type 0x16a0 (R direction).
 
 2 captures in the existing replay:
 
-- Small variant (153 bytes typed body, seq 0x28) — analyzed here.
-- Large variant (~99 KB, seq 0x29) — chunked; reassembly handled by
-  `chunk_replay_payload` in `wire.py`. Not modeled here.
+- **Small variant** (153 bytes typed body, seq 0x28) — full structural
+  layout below.
+- **Large variant** (~99 KB, seq 0x29) — same 20-byte prefix (type
+  header + asset_uuid), bulk data tail. Wake-109 codec
+  (`AssetBlob16A0Large` + `decode_either`) handles round-trip but does
+  not subdivide the bulk tail; with only one capture and most of the
+  body redacted, structural assumptions would be guessing.
 
 The small-variant body carries an embedded asset-pool reference as
 a length-prefixed UTF-8 string (`"ItemPool"`) and a `$`-delimited
@@ -137,6 +141,97 @@ def decode(buf: bytes) -> AssetBlob16A0Small:
     asset_uuid = buf[ASSET_UUID_OFFSET:ASSET_UUID_OFFSET + ASSET_UUID_SIZE]
     payload_bytes = buf[PAYLOAD_OFFSET:]
     return AssetBlob16A0Small(asset_uuid=asset_uuid, payload_bytes=payload_bytes)
+
+
+# ---------------------------------------------------------------------------
+#  Large variant (wake 109)
+# ---------------------------------------------------------------------------
+
+# The large variant's body in the captured replay is 99 819 bytes — three
+# orders of magnitude larger than the small variant. The first 20 bytes
+# (type header + asset_uuid) are identical in both forms; the remaining
+# bulk-data tail varies wildly in size.
+#
+# We don't know the exact subdivision of the bulk tail without runtime
+# context (it's the asset/world streaming payload — likely a sequence of
+# length-prefixed sub-records keyed by asset class), so the codec
+# preserves it verbatim. With a second capture this could be upgraded;
+# until then the codec just round-trips.
+
+# Minimum body size for the large variant: prefix only.
+LARGE_MIN_BODY_SIZE = PAYLOAD_OFFSET  # 20
+
+# Threshold above which `decode_either` treats the body as the large
+# variant. Anything larger than the small variant's fixed size that still
+# starts with TYPE_HEADER goes through the Large path.
+SIZE_THRESHOLD = SMALL_TYPED_BODY_SIZE
+
+
+@dataclass
+class AssetBlob16A0Large:
+    """R-direction 0x16a0 large variant: same 20-byte prefix as the small
+    variant, opaque bulk-data tail (variable length).
+
+    The bulk tail is kept verbatim — round-trip is byte-identical for
+    any captured large 0x16a0 body."""
+
+    asset_uuid: bytes        # 16 bytes — lower 8 are session_uuid_lower
+    bulk_data: bytes         # variable — opaque
+
+    def __post_init__(self) -> None:
+        if len(self.asset_uuid) != ASSET_UUID_SIZE:
+            raise ValueError(
+                f"asset_uuid must be exactly {ASSET_UUID_SIZE} bytes; "
+                f"got {len(self.asset_uuid)}"
+            )
+
+
+def encode_large(msg: AssetBlob16A0Large) -> bytes:
+    """Build the on-wire 0x16a0 large-variant body."""
+    return TYPE_HEADER + msg.asset_uuid + msg.bulk_data
+
+
+def decode_large(buf: bytes) -> AssetBlob16A0Large:
+    """Parse a 0x16a0 large-variant body. Raises on minimum-size or
+    type-header mismatch."""
+    if len(buf) < LARGE_MIN_BODY_SIZE:
+        raise ValueError(
+            f"need at least {LARGE_MIN_BODY_SIZE} bytes "
+            f"(4 header + 16 asset_uuid); got {len(buf)}"
+        )
+    if buf[:4] != TYPE_HEADER:
+        raise ValueError(
+            f"type header mismatch: expected {TYPE_HEADER.hex()}, "
+            f"got {buf[:4].hex()}"
+        )
+    return AssetBlob16A0Large(
+        asset_uuid=buf[ASSET_UUID_OFFSET:ASSET_UUID_OFFSET + ASSET_UUID_SIZE],
+        bulk_data=buf[PAYLOAD_OFFSET:],
+    )
+
+
+# Common type for either variant — handy for type hints.
+AssetBlob16A0 = AssetBlob16A0Small | AssetBlob16A0Large
+
+
+def decode_either(buf: bytes) -> AssetBlob16A0:
+    """Pick small vs large based on body size. The small variant is
+    fixed at 153 bytes; anything larger that still starts with the
+    type header goes through the Large codec."""
+    if len(buf) == SMALL_TYPED_BODY_SIZE:
+        return decode(buf)
+    return decode_large(buf)
+
+
+def encode_either(msg: AssetBlob16A0) -> bytes:
+    """Encode either variant. Picks by isinstance."""
+    if isinstance(msg, AssetBlob16A0Small):
+        return encode(msg)
+    if isinstance(msg, AssetBlob16A0Large):
+        return encode_large(msg)
+    raise TypeError(
+        f"unsupported 0x16a0 message type: {type(msg).__name__}"
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -3565,13 +3565,9 @@ def test_dispatch_decodes_every_replay_message_with_known_exceptions():
     skipped_types = {m.type_id for m in store.messages if m.type_id == 0x03}
     assert skipped == sum(1 for m in store.messages if m.type_id in skipped_types)
 
-    # One failure is acceptable today: the largest 0x16a0 asset blob
-    # (~100 KB) is outside the `AssetBlob16A0Small` codec's range.
-    # (The 0x13 retry was originally a documented failure too; wake 107
-    # added parse_v3_request_retry to the strict→retry→lenient chain so
-    # it now decodes.)
-    fail_types = sorted({(t, d) for t, d, _, _ in failures})
-    assert fail_types == [(0x16a0, "R")], (
+    # As of wake 109, every captured wire-type has a working decoder.
+    # 0x03 still skips (server-emit-only), but no decode raises.
+    assert not failures, (
         f"unexpected dispatcher failures: {failures}"
     )
     assert ok > 170, f"too few ok decodes: {ok}"
@@ -3666,9 +3662,8 @@ def test_dispatch_encode_decode_round_trip_full_replay():
     # round-trips byte-for-byte; the previous wire-mismatch pin is gone.
     assert not encode_failures, encode_failures
     assert not mismatches, mismatches
-    # Decode failures stay pinned to the documented set (only 0x16a0
-    # large blob remains; 0x13 retry was closed in wake 107).
-    assert decode_failures == {(0x16a0, "R")}
+    # As of wake 109, no captured message fails to decode.
+    assert not decode_failures, decode_failures
     # The number of round-trips is the count of captured messages minus
     # decode skips (0x03 captures) and decode failures.
     assert ok > 170
@@ -3900,6 +3895,84 @@ def test_v3_retry_serialize_rejects_oversize_value():
     msg.retry_tail = b""
     with pytest.raises(ValueError, match="too long for u8 length"):
         serialize_v3_request_retry(msg)
+
+
+# ---------------------------------------------------------------------------
+# 0x16a0 large variant (wake 109)
+# ---------------------------------------------------------------------------
+
+from .asset_blob_16a0 import (  # noqa: E402
+    AssetBlob16A0Large,
+    decode_either as decode_16a0_either,
+    encode_either as encode_16a0_either,
+    decode_large as decode_16a0_large,
+    encode_large as encode_16a0_large,
+    TYPE_HEADER as TH_16A0,
+)
+
+
+def test_16a0_large_round_trip_captured():
+    """The captured large-variant 0x16a0 (~100 KB) must round-trip
+    byte-for-byte through decode_large + encode_large."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    captures = sorted(
+        [m for m in store.messages if m.type_id == 0x16a0],
+        key=lambda m: len(m.body),
+    )
+    assert len(captures) >= 2, "expected at least 1 small + 1 large"
+    large = captures[-1]
+    assert len(large.body) > 1000, "expected the large variant to be > 1KB"
+    decoded = decode_16a0_large(large.body)
+    assert isinstance(decoded, AssetBlob16A0Large)
+    assert len(decoded.asset_uuid) == 16
+    assert decoded.asset_uuid.endswith(bytes.fromhex("bf85314bbc4a951a"))
+    assert encode_16a0_large(decoded) == large.body
+
+
+def test_16a0_decode_either_picks_by_size():
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    captures = sorted(
+        [m for m in store.messages if m.type_id == 0x16a0],
+        key=lambda m: len(m.body),
+    )
+    small_decoded = decode_16a0_either(captures[0].body)
+    large_decoded = decode_16a0_either(captures[-1].body)
+    from .asset_blob_16a0 import AssetBlob16A0Small as Small
+    assert isinstance(small_decoded, Small)
+    assert isinstance(large_decoded, AssetBlob16A0Large)
+
+
+def test_16a0_large_rejects_too_short():
+    with pytest.raises(ValueError, match="need at least 20 bytes"):
+        decode_16a0_large(TH_16A0 + b"\x00" * 8)
+
+
+def test_16a0_large_rejects_wrong_header():
+    bad = b"\x00\x01\xa0\x5b" + b"\x00" * 64  # header off by one
+    with pytest.raises(ValueError, match="type header mismatch"):
+        decode_16a0_large(bad)
+
+
+def test_16a0_encode_either_dispatches_by_msg_type():
+    from .asset_blob_16a0 import AssetBlob16A0Small
+    small = AssetBlob16A0Small(asset_uuid=b"\x00" * 16, payload_bytes=b"\xff" * 133)
+    large = AssetBlob16A0Large(asset_uuid=b"\x00" * 16, bulk_data=b"\xab" * 4096)
+    assert encode_16a0_either(small).startswith(TH_16A0)
+    assert len(encode_16a0_either(small)) == 153
+    assert encode_16a0_either(large).startswith(TH_16A0)
+    assert len(encode_16a0_either(large)) == 20 + 4096
 
 
 def test_v3_retry_dispatcher_encoder_selects_retry_path():
