@@ -10103,3 +10103,87 @@ The promotion still has real value:
 reflects test_count=297 (296 passing + 1 skipped).
 
 **Blockers:** None.
+
+## Wake 107 — V3 retry tagged-format parser
+
+**Goal**: close the dispatcher's `(0x13, W)` decode failure by
+writing a parser for the V3 retry format. The strict 832-byte
+parser doesn't apply; the lenient regex finds nothing in the
+redacted body. The retry uses a different on-the-wire layout.
+
+**Findings (full structural scan of the captured 2750-byte
+retry)**:
+
+- **32-byte prelude** (offset 0..0x1f): non-zero header bytes
+  including `ffc44ff700000ab6` and a few padding zeros.
+- **6 tagged records** at offset 0x20..0x5b, format
+  `[u32 BE type_id][u8 length][bytes]`:
+  ```
+  type 4  "6031"      (build_version)
+  type 3  "400"       (unknown_400)
+  type 2  "1"         (unknown_sdk_field, semantics tbd)
+  type 1  "Javelin"   (sdk_name)
+  type 5  "6004151"   (unknown_sdk_blob)
+  type 0  "[RETAIL]"  (build_flavor)
+  ```
+  Type-id set is exactly `{0,1,2,3,4,5}`; appearance order is
+  not strict-format-aligned but the set is invariant.
+- **Tail** (offset 0x5c onward, ~2.6 KB): mostly zeros with
+  embedded JSON-style metadata (`az_platform`, `az_region`,
+  `az_game`, `az_persona_id`, `STEAM_APP_ID.*`) plus the
+  redacted identity blocks. Identity recovery falls back to the
+  lenient regex on this tail.
+
+**Built**:
+
+- `parse_v3_request_retry(body)` in `server/javelin/v3_request.py`:
+  - Skips the 32-byte prelude.
+  - Parses exactly 6 tagged records.
+  - Validates the type-id set is `{0,1,2,3,4,5}` (sanity check).
+  - Maps the 4 well-known type-ids to existing
+    `V3RegistrationRequest` fields (build_version,
+    unknown_400, sdk_name, build_flavor). Types 2 and 5 are
+    deliberately not mapped — their strict-format
+    correspondents aren't confirmed.
+  - Calls `parse_v3_request_lenient` on the tail to recover
+    session_uuid + persona_id when present (zero, in the
+    redacted capture).
+  - Returns a partial `V3RegistrationRequest` or `None`.
+- `parse_v3_request_or_lenient` chain extended to:
+  `strict → retry → lenient → ValueError`.
+- 4 new tests in `test_codecs.py`:
+  - `test_v3_retry_decodes_captured_replay_body` — the actual
+    captured retry parses cleanly; build_version="6031",
+    unknown_400="400", sdk_name="Javelin",
+    build_flavor="[RETAIL]".
+  - `test_v3_retry_returns_none_on_short_body`.
+  - `test_v3_retry_returns_none_when_record_set_wrong` — wrong
+    type-id set fails the sanity check.
+  - `test_v3_or_lenient_uses_retry_for_captured_redacted_body`
+    — chain function picks retry over strict and lenient.
+- Updated existing dispatcher tests:
+  - The decode-failure pinned-set drops to `{(0x16a0, "R")}`.
+  - The round-trip test now pins `(0x13, "W")` as a documented
+    wire mismatch — retry decodes but `serialize_v3_request`
+    only knows strict format. A retry-format encoder is
+    follow-up work.
+
+Test total: **296 → 300 (+4)**.
+
+**Dispatcher state after this wake**:
+
+| Outcome | Count |
+|---|---|
+| Decode → encode round-trip byte-identical | 174 |
+| Decode succeeds but no round-trip encoder | 1 (0x13 retry, new) |
+| Decode skipped (0x03 server-emit-only) | 1 |
+| Decode failures | 1 (0x16a0 large blob) |
+
+The remaining open items: (a) write a retry-format encoder
+(`serialize_v3_request_retry`) to enable round-trip; (b) extend
+`asset_blob_16a0` to cover the 99 KB captured blob.
+
+**Site rebuild**: `tools/build_site.py` regenerated; data.json
+reflects test_count=301 (300 passing + 1 skipped).
+
+**Blockers:** None.

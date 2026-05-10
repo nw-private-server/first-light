@@ -3565,14 +3565,13 @@ def test_dispatch_decodes_every_replay_message_with_known_exceptions():
     skipped_types = {m.type_id for m in store.messages if m.type_id == 0x03}
     assert skipped == sum(1 for m in store.messages if m.type_id in skipped_types)
 
-    # Exactly two failures are expected (and acceptable) today:
-    # 1) V3RegistrationRequest retries with chunked replay payload exceed
-    #    the strict 832-byte length the codec enforces. The runtime
-    #    server uses a lenient regex fallback.
-    # 2) The largest 0x16a0 asset blob (~100 KB) is outside the
-    #    `AssetBlob16A0Small` codec's range.
+    # One failure is acceptable today: the largest 0x16a0 asset blob
+    # (~100 KB) is outside the `AssetBlob16A0Small` codec's range.
+    # (The 0x13 retry was originally a documented failure too; wake 107
+    # added parse_v3_request_retry to the strict→retry→lenient chain so
+    # it now decodes.)
     fail_types = sorted({(t, d) for t, d, _, _ in failures})
-    assert fail_types == [(0x13, "W"), (0x16a0, "R")], (
+    assert fail_types == [(0x16a0, "R")], (
         f"unexpected dispatcher failures: {failures}"
     )
     assert ok > 170, f"too few ok decodes: {ok}"
@@ -3662,11 +3661,18 @@ def test_dispatch_encode_decode_round_trip_full_replay():
                 (m.type_id, m.direction, len(m.body), len(wire))
             )
 
-    # Strong guarantees: zero encode failures, zero wire mismatches
+    # Strong guarantees: zero encode failures.
     assert not encode_failures, encode_failures
-    assert not mismatches, mismatches
-    # Decode failures stay pinned to the documented set
-    assert decode_failures == {(0x13, "W"), (0x16a0, "R")}
+    # 0x13 retry now decodes (wake 107 retry parser) but doesn't
+    # round-trip — `serialize_v3_request` only knows the strict 832-byte
+    # format; a retry-format encoder is follow-up work.
+    mismatch_types = sorted({(t, d) for t, d, _, _ in mismatches})
+    assert mismatch_types == [(0x13, "W")], (
+        f"unexpected wire mismatches: {mismatches}"
+    )
+    # Decode failures stay pinned to the documented set (only 0x16a0
+    # large blob remains; 0x13 retry was closed in wake 107).
+    assert decode_failures == {(0x16a0, "R")}
     # The number of round-trips is the count of captured messages minus
     # decode skips (0x03 captures) and decode failures.
     assert ok > 170
@@ -3773,10 +3779,73 @@ def test_v3_or_lenient_falls_back_when_strict_rejects():
 
 
 def test_v3_or_lenient_raises_when_both_fail():
-    """If strict rejects and lenient returns None, raise ValueError
-    naming both failures."""
-    with pytest.raises(ValueError, match="lenient fallback also failed"):
+    """If strict, retry, and lenient all fail, raise ValueError naming
+    the strict error."""
+    with pytest.raises(ValueError, match="retry\\+lenient fallbacks also failed"):
         parse_v3_request_or_lenient(b"\x00" * 256)
+
+
+# ---------------------------------------------------------------------------
+# V3 retry tagged-format parser (wake 107)
+# ---------------------------------------------------------------------------
+
+from .v3_request import parse_v3_request_retry  # noqa: E402
+
+
+def test_v3_retry_decodes_captured_replay_body():
+    """The single captured 0x13 W message in the replay (2750 bytes,
+    redacted) must parse via the retry parser and yield the four
+    well-known fields."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    captures = [m for m in store.messages if m.type_id == 0x13]
+    assert captures, "no 0x13 messages in replay"
+    m = captures[0]
+    out = parse_v3_request_retry(m.body)
+    assert out is not None
+    assert out.build_version == "6031"
+    assert out.unknown_400 == "400"
+    assert out.sdk_name == "Javelin"
+    assert out.build_flavor == "[RETAIL]"
+
+
+def test_v3_retry_returns_none_on_short_body():
+    assert parse_v3_request_retry(b"\x00" * 16) is None
+
+
+def test_v3_retry_returns_none_when_record_set_wrong():
+    """The parser requires the leading 6 records to have exactly the
+    type-id set {0,1,2,3,4,5}. A body with different type-ids should
+    return None rather than misclassifying."""
+    import struct
+    body = b"\x00" * 32
+    # 6 records but with type-ids 10..15 (wrong set)
+    for tid in range(10, 16):
+        body += struct.pack(">I", tid) + b"\x01" + b"x"
+    body += b"\x00" * 100
+    assert parse_v3_request_retry(body) is None
+
+
+def test_v3_or_lenient_uses_retry_for_captured_redacted_body():
+    """The chain function should pick the retry parser for the captured
+    0x13 retry, not strict and not lenient."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    m = next(m for m in store.messages if m.type_id == 0x13)
+    out = parse_v3_request_or_lenient(m.body)
+    # Strict would have raised; lenient would return identity-only with
+    # empty build_version. Retry returns build_version="6031".
+    assert out.build_version == "6031"
 
 
 def test_replay_messages_after_v3_filters_correctly():

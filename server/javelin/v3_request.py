@@ -157,6 +157,88 @@ def parse_v3_request(body: bytes) -> V3RegistrationRequest:
     return msg
 
 
+def parse_v3_request_retry(body: bytes) -> V3RegistrationRequest | None:
+    """Parse a V3 retry body whose format differs from the 832-byte
+    first-attempt.
+
+    Captured retries use a length-prefixed record format starting at
+    offset +0x20 (after a 32-byte prelude). Each record is:
+
+        +0  u32 BE  type_id  (in [0..7])
+        +4  u8      length
+        +5  bytes   string of `length` bytes
+
+    The 6 record type-ids observed in the captured retry map to the
+    same logical fields as the strict body:
+
+        type 0 → build_flavor             "[RETAIL]"
+        type 1 → sdk_name                 "Javelin"
+        type 2 → unknown_sdk_field        "1"  (purpose unknown)
+        type 3 → unknown_400              "400"
+        type 4 → build_version            "6031"
+        type 5 → unknown_sdk_blob         "6004151"
+
+    After the 6 records, the remaining ~2.6 KB tail carries the
+    Amazon `az_*` metadata blob and (in unredacted captures) the
+    session_uuid, persona_id, client_signature, and other identity
+    fields. We extract those via the lenient regex pass.
+
+    Returns a partially-populated `V3RegistrationRequest` (without
+    `prelude`, `gaps`, `auth_blob`, `trailer` — those round-tripping
+    fields are strict-only). Returns `None` if the leading 6 records
+    don't parse as the expected tagged format.
+    """
+    import struct
+
+    PRELUDE_LEN = 32
+    EXPECTED_RECORD_COUNT = 6
+
+    if len(body) < PRELUDE_LEN + 5 * EXPECTED_RECORD_COUNT:
+        return None
+
+    msg = V3RegistrationRequest()
+    off = PRELUDE_LEN
+    seen_types = []
+    for _ in range(EXPECTED_RECORD_COUNT):
+        if off + 5 > len(body):
+            return None
+        type_id = struct.unpack_from(">I", body, off)[0]
+        if type_id > 0xFFFF:
+            return None
+        ln = body[off + 4]
+        end = off + 5 + ln
+        if end > len(body):
+            return None
+        text = body[off + 5:end].decode("latin-1", errors="replace")
+        seen_types.append(type_id)
+
+        if type_id == 4:
+            msg.build_version = text
+        elif type_id == 3:
+            msg.unknown_400 = text
+        elif type_id == 1:
+            msg.sdk_name = text
+        elif type_id == 0:
+            msg.build_flavor = text
+        # types 2 and 5 carry values whose strict-mode mapping is not
+        # confirmed; deliberately not assigned to avoid overwriting
+        # strict semantics
+
+        off = end
+
+    # Sanity check the records look right (set, not order-strict).
+    if set(seen_types) != {0, 1, 2, 3, 4, 5}:
+        return None
+
+    # Pull identity fields from the tail via the lenient regex pass.
+    tail_extract = parse_v3_request_lenient(body[off:])
+    if tail_extract is not None:
+        msg.session_uuid = tail_extract.session_uuid or msg.session_uuid
+        msg.persona_id = tail_extract.persona_id or msg.persona_id
+
+    return msg
+
+
 def parse_v3_request_lenient(body: bytes) -> V3RegistrationRequest | None:
     """Best-effort identity extraction from a V3 body that doesn't match
     the strict 832-byte form (e.g. retries with chunked replay payloads,
@@ -214,23 +296,29 @@ def parse_v3_request_lenient(body: bytes) -> V3RegistrationRequest | None:
 
 
 def parse_v3_request_or_lenient(body: bytes) -> V3RegistrationRequest:
-    """Try the strict parser first; on failure fall back to lenient.
+    """Try the strict parser first; on failure fall back to retry-format
+    (tagged records); on second failure fall back to lenient regex.
 
-    Raises `ValueError` only when both parsers fail (typical for a body
-    with no recognizable identity material). The strict parser's full
-    error is wrapped into the lenient-failure message for diagnostics.
+    Raises `ValueError` only when all three parsers fail (typical for a
+    body with no recognizable identity material). The strict parser's
+    full error is wrapped into the final-failure message for
+    diagnostics.
 
     This is the entry point the dispatcher uses for type 0x13.
     """
     try:
         return parse_v3_request(body)
     except ValueError as strict_err:
-        out = parse_v3_request_lenient(body)
-        if out is None:
-            raise ValueError(
-                f"v3 lenient fallback also failed; strict error: {strict_err}"
-            )
-        return out
+        retry = parse_v3_request_retry(body)
+        if retry is not None:
+            return retry
+        lenient = parse_v3_request_lenient(body)
+        if lenient is not None:
+            return lenient
+        raise ValueError(
+            f"v3 retry+lenient fallbacks also failed; "
+            f"strict error: {strict_err}"
+        )
 
 
 def serialize_v3_request(msg: V3RegistrationRequest) -> bytes:
