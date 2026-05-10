@@ -9724,3 +9724,65 @@ and 0x651 marked covered. Staged `site/data.json`.
 why they need more than this wake.
 
 **Blockers:** None.
+
+## Wake 101 — frame_config_1096 codec, structural
+
+**Goal**: write a structural codec for `0x1096` (80-byte R-direction
+frame). One captured sample only — no symbolic reference — so the
+codec describes shape, not authoritative semantics, but validates
+the apparent invariants so that a second capture would either
+round-trip cleanly or break a specific structural rule.
+
+**Body decomposition** (80 bytes):
+
+```
++0x00  4   typed envelope header `00 01 96 42`
++0x04  8   sub_system_id           (identity-bundle, wake 78)
++0x0c  8   session_uuid_lower
++0x14  4   f32 BE  f0              captured: 6.0
++0x18  4   f32 BE  f1              captured: -1.0
++0x1c  4   f32 BE  f2              captured: 4.69e-4
++0x20  4   u32 BE  word0_value     captured: 21300
++0x24  4   u32 BE  zero (asserted)
++0x28  4   u32 BE  word1_value     captured: 65100
++0x2c  4   u32 BE  zero (asserted)
++0x30  4   u32 BE  secs_a          captured: 3600 (1 hour)
++0x34  4   u32 BE  secs_b          captured: 1800 (30 min)
++0x38  4   u32 BE  hash_a          captured: 0x0b879fb3
++0x3c  4   u32 BE  hash_b          captured: 0x3482a0b7
++0x40  4   f32 BE  ratio_lo        captured: 1/6 ≈ 0.16666
++0x44  4   f32 BE  must equal +0x40 (ratio_lo repeated)
++0x48  4   f32 BE  ratio_hi        captured: 5/6 ≈ 0.83333
++0x4c  4   f32 BE  must equal +0x48 (ratio_hi repeated)
+```
+
+**Suggestive value patterns** (one capture, treat as hints):
+- `(3600, 1800)` — durations in seconds (1 hr, 30 min)
+- `(1/6, 5/6)` — normalized fractions, each repeated twice (a
+  channel-pair pattern: lo/lo/hi/hi)
+- `(6.0, -1.0)` — small-integer floats; could be a magnitude +
+  a sentinel/flag
+
+**Built**:
+
+- `server/javelin/frame_config_1096.py` (~190 LOC) — codec with
+  `FrameConfig1096` dataclass, `encode()`, `decode()`,
+  `__post_init__` width checks, structural assertions on the
+  zero-pads at +0x24/+0x2c and ratio repeats at +0x44/+0x4c.
+- 7 new tests in `test_codecs.py`: round-trip, captured-replay
+  match, wrong size, wrong header, zero-pad violation, ratio-
+  repeat mismatch, constructor width validation. Test total:
+  **262 → 269 (+7)**.
+
+**Site rebuild**: `tools/build_site.py` map updated; `data.json`
+now reflects test_count=269, codec_module_count=33. Staged.
+
+**Net effect**: captured-type codec coverage moves from
+**37/40 to 38/40**. Remaining gaps:
+
+- `0x08`: 79-capture chunked stream — needs a dedicated wake.
+- `0x1033`: 498-byte R-direction with identity-bundle. Same
+  approach as 0x1096 will work but the larger payload needs
+  more structural pattern-finding; defer to a focused wake.
+
+**Blockers:** None.

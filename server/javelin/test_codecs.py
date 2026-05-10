@@ -3260,6 +3260,103 @@ def test_empty_marker_651_rejects_wrong_header():
         decode_empty_651(b"\x00\x01\x91\x18")  # last byte off
 
 
+# ---------------------------------------------------------------------------
+# Frame-config (0x1096) — wake 101
+# ---------------------------------------------------------------------------
+
+from .frame_config_1096 import (  # noqa: E402
+    FrameConfig1096,
+    TYPE_HEADER as FC_1096_HEADER,
+    BODY_SIZE as FC_1096_BODY_SIZE,
+    encode as encode_fc_1096,
+    decode as decode_fc_1096,
+)
+
+
+def _captured_1096_bytes() -> bytes:
+    return bytes.fromhex(
+        "00019642"
+        "93a3e477cb5fd51e"
+        "bf85314bbc4a951a"
+        "40c00000"
+        "bf800000"
+        "39f5f5b8"
+        "00005334" "00000000"
+        "0000fe4c" "00000000"
+        "00000e10"
+        "00000708"
+        "0b879fb3"
+        "3482a0b7"
+        "3e2aaaab" "3e2aaaab"
+        "3f555555" "3f555555"
+    )
+
+
+def test_frame_config_1096_round_trip():
+    captured = _captured_1096_bytes()
+    msg = decode_fc_1096(captured)
+    assert msg.secs_a == 3600 and msg.secs_b == 1800
+    assert msg.f0 == 6.0 and msg.f1 == -1.0
+    # 1/6 and 5/6 in f32 — exact repr
+    assert abs(msg.ratio_lo - (1.0 / 6.0)) < 1e-7
+    assert abs(msg.ratio_hi - (5.0 / 6.0)) < 1e-7
+    assert encode_fc_1096(msg) == captured
+
+
+def test_frame_config_1096_matches_captured():
+    """The single captured 0x1096 in the replay must round-trip."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    captures = [m for m in store.messages if m.type_id == 0x1096]
+    assert captures, "no 0x1096 messages in replay"
+    for m in captures:
+        decoded = decode_fc_1096(m.body)
+        assert encode_fc_1096(decoded) == m.body
+
+
+def test_frame_config_1096_rejects_wrong_size():
+    with pytest.raises(ValueError, match="expected exactly 80 bytes"):
+        decode_fc_1096(_captured_1096_bytes() + b"\x00")
+
+
+def test_frame_config_1096_rejects_wrong_header():
+    bad = bytearray(_captured_1096_bytes())
+    bad[3] = 0x41  # corrupt one header byte
+    with pytest.raises(ValueError, match="type header mismatch"):
+        decode_fc_1096(bytes(bad))
+
+
+def test_frame_config_1096_rejects_zero_pad_violation():
+    bad = bytearray(_captured_1096_bytes())
+    bad[0x27] = 0xff  # break +0x24 zero-pad (last byte of zero_a)
+    with pytest.raises(ValueError, match=r"\+0x24 zero-pad"):
+        decode_fc_1096(bytes(bad))
+
+
+def test_frame_config_1096_rejects_ratio_repeat_mismatch():
+    bad = bytearray(_captured_1096_bytes())
+    bad[0x47] = 0x00  # corrupt the second copy of ratio_lo
+    with pytest.raises(ValueError, match="ratio_lo repeat"):
+        decode_fc_1096(bytes(bad))
+
+
+def test_frame_config_1096_constructor_validates_widths():
+    with pytest.raises(ValueError, match="sub_system_id"):
+        FrameConfig1096(
+            sub_system_id=b"\x00" * 7,
+            session_uuid_lower=b"\x00" * 8,
+            f0=0.0, f1=0.0, f2=0.0,
+            word0_value=0, word1_value=0,
+            secs_a=0, secs_b=0, hash_a=0, hash_b=0,
+            ratio_lo=0.0, ratio_hi=0.0,
+        )
+
+
 def test_replay_messages_after_v3_filters_correctly():
     # type 0x15d R marker: byte2=(0x1d|0x80)=0x9d, byte3=(0x15d>>6)=0x05
     dump = """\

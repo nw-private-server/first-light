@@ -277,6 +277,7 @@ def build_data():
         0xa95: "permission_bitmap_a95.py",
         0xca4: "asset_count_table_ca4.py",
         0x1067: "vivox_config_1067.py",
+        0x1096: "frame_config_1096.py",
         0x1097: "result_token_1097.py",
         0x12f6: "keybinding_config_12f6.py",
         0x136a: "result_token_136a.py",
