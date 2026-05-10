@@ -349,6 +349,74 @@ def load_replay_decoded():
     return out
 
 
+def load_wire_type_families():
+    """Cross-correlated sub_system_id → wire-type groupings from
+    `analysis/identity_bundle_correlation.md` (wake 121). Hand-curated:
+    the wake-121 analysis ran an offline extraction; surfacing the
+    result here lets the dashboard render the relationships visitors
+    can't see from raw type-ids alone.
+
+    Each entry groups wire-types that share an 8-byte sub_system_id
+    in their identity bundle, meaning they belong to the same in-
+    session sub-system family.
+    """
+    return [
+        {
+            "sub_system_id": "ce81136a2b7ad33e",
+            "wire_types": ["0x102e", "0x1033", "0x192c"],
+            "label": "3-way correlation",
+            "note": "0x1033 is the wake-102 opaque blob (presumed encrypted). "
+                    "0x102e and 0x192c are subkey-beacon family. Shared "
+                    "sub_system_id implies the opaque blob's bulk content "
+                    "is part of a session-state-bundle whose pieces are "
+                    "fragmented across three message types.",
+        },
+        {
+            "sub_system_id": "f8cbed57c68b18f4",
+            "wire_types": ["0x18a6", "0x1a59"],
+            "label": "Counter-coupled init pair",
+            "note": "Init beacon ↔ session subkey beacon. Validated by "
+                    "wake-78's counter-coupling finding (counter increments "
+                    "0x02→0x03→0x04 across captured copies).",
+        },
+        {
+            "sub_system_id": "93a3e477cb5fd51e",
+            "wire_types": ["0x1096", "0x1097"],
+            "label": "Spawn-config + token",
+            "note": "Frame-config (durations, ratios) and the spawn-"
+                    "confirmation result token share a sub_system_id. New "
+                    "finding: wake-78's pair list didn't include this; the "
+                    "shared identity puts them together.",
+        },
+        {
+            "sub_system_id": "4c0c0ed6478a69da",
+            "wire_types": ["0x8e6", "0x9fc"],
+            "label": "Identity blob + receipt echo",
+            "note": "Already paired by 16-byte hash echo per wake 78; the "
+                    "shared sub_system_id confirms.",
+        },
+        {
+            "sub_system_id": "180f8d4e573697c6",
+            "wire_types": ["0x5b2", "0xa95"],
+            "label": "Fingerprint + permission",
+            "note": "Identity-fingerprint set + permission-bitmap. Both "
+                    "W-direction client→server.",
+        },
+        {
+            "sub_system_id": "16009918b041c1f9",
+            "wire_types": ["0x187c", "0x187f"],
+            "label": "Subkey-beacon variant pair",
+            "note": "Two subkey-beacon family entries with adjacent type-ids.",
+        },
+        {
+            "sub_system_id": "9e921a154971f6b7",
+            "wire_types": ["0xf7f", "0x143d"],
+            "label": "Subkey-beacon variant pair",
+            "note": "Another subkey-beacon family pair, type-ids non-adjacent.",
+        },
+    ]
+
+
 def load_findings():
     """Pull a curated list of major findings from the worklog (the last
     few wake entries' headlines)."""
@@ -427,6 +495,7 @@ def build_data():
     replay_timeline = load_replay_timeline()
     replay_decoded = load_replay_decoded()
     test_count_history = load_test_count_history()
+    wire_type_families = load_wire_type_families()
 
     # Build captured-types list
     captured_by_id = {}
@@ -678,6 +747,7 @@ def build_data():
         "replay_timeline": replay_timeline,
         "replay_decoded": replay_decoded,
         "test_count_history": test_count_history,
+        "wire_type_families": wire_type_families,
     }
 
 

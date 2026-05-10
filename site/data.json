@@ -27387,6 +27387,78 @@
       "test_count": 320,
       "commit": "e6e05a9",
       "subject": "site: test-suite growth chart \u2014 velocity over wakes"
+    },
+    {
+      "wake": 120,
+      "test_count": 320,
+      "commit": "90af624",
+      "subject": "site(wake 120): click-to-inspect message browser on the session timeline"
+    }
+  ],
+  "wire_type_families": [
+    {
+      "sub_system_id": "ce81136a2b7ad33e",
+      "wire_types": [
+        "0x102e",
+        "0x1033",
+        "0x192c"
+      ],
+      "label": "3-way correlation",
+      "note": "0x1033 is the wake-102 opaque blob (presumed encrypted). 0x102e and 0x192c are subkey-beacon family. Shared sub_system_id implies the opaque blob's bulk content is part of a session-state-bundle whose pieces are fragmented across three message types."
+    },
+    {
+      "sub_system_id": "f8cbed57c68b18f4",
+      "wire_types": [
+        "0x18a6",
+        "0x1a59"
+      ],
+      "label": "Counter-coupled init pair",
+      "note": "Init beacon \u2194 session subkey beacon. Validated by wake-78's counter-coupling finding (counter increments 0x02\u21920x03\u21920x04 across captured copies)."
+    },
+    {
+      "sub_system_id": "93a3e477cb5fd51e",
+      "wire_types": [
+        "0x1096",
+        "0x1097"
+      ],
+      "label": "Spawn-config + token",
+      "note": "Frame-config (durations, ratios) and the spawn-confirmation result token share a sub_system_id. New finding: wake-78's pair list didn't include this; the shared identity puts them together."
+    },
+    {
+      "sub_system_id": "4c0c0ed6478a69da",
+      "wire_types": [
+        "0x8e6",
+        "0x9fc"
+      ],
+      "label": "Identity blob + receipt echo",
+      "note": "Already paired by 16-byte hash echo per wake 78; the shared sub_system_id confirms."
+    },
+    {
+      "sub_system_id": "180f8d4e573697c6",
+      "wire_types": [
+        "0x5b2",
+        "0xa95"
+      ],
+      "label": "Fingerprint + permission",
+      "note": "Identity-fingerprint set + permission-bitmap. Both W-direction client\u2192server."
+    },
+    {
+      "sub_system_id": "16009918b041c1f9",
+      "wire_types": [
+        "0x187c",
+        "0x187f"
+      ],
+      "label": "Subkey-beacon variant pair",
+      "note": "Two subkey-beacon family entries with adjacent type-ids."
+    },
+    {
+      "sub_system_id": "9e921a154971f6b7",
+      "wire_types": [
+        "0xf7f",
+        "0x143d"
+      ],
+      "label": "Subkey-beacon variant pair",
+      "note": "Another subkey-beacon family pair, type-ids non-adjacent."
     }
   ]
 }

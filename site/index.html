@@ -268,6 +268,49 @@ main { padding: 16px; max-width: 1100px; margin: 0 auto; }
 }
 .tl-item .desc { color: var(--text-dim); font-size: 13px; }
 
+/* Wire-type families */
+.families {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.family {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+}
+.family .label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.family .ssid {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.family .types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.family .types .badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: rgba(88,166,255,0.15);
+  color: var(--accent);
+}
+.family .note {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
 /* FAQ */
 .faq details {
   background: var(--surface);
@@ -677,6 +720,18 @@ a:hover { text-decoration: underline; }
     <div class="empty">Click any dot in the timeline above to see that message's decoded fields and raw bytes.</div>
   </div>
 
+  <div class="section-h">Wire-type families</div>
+  <p style="color: var(--text-dim); font-size: 14px; margin-top: 0;">
+    Each captured message that carries an identity bundle includes
+    an 8-byte <code>sub_system_id</code> tag. When two or more
+    wire-types share a tag, they're part of the same in-session
+    sub-system — different message kinds in one conceptual flow.
+    These groupings come from
+    <a href="https://github.com/nw-private-server/first-light/blob/claude/vacation-2026-05-06/analysis/identity_bundle_correlation.md">analysis/identity_bundle_correlation.md</a>
+    (wake 121).
+  </p>
+  <div class="families" id="families"></div>
+
   <div class="section-h">How we got here</div>
   <div class="timeline" id="timeline"></div>
 
@@ -813,6 +868,23 @@ async function load() {
     drawVolumeCoverageChart(data);
     drawReplayTimeline(data);
     drawTestHistory(data);
+  }
+
+  // ---- Wire-type families ----
+  const famEl = document.getElementById("families");
+  for (const fam of (data.wire_type_families || [])) {
+    const div = document.createElement("div");
+    div.className = "family";
+    const types = fam.wire_types
+      .map(t => `<span class="badge">${escapeHtml(t)}</span>`)
+      .join("");
+    div.innerHTML = `
+      <div class="label">${escapeHtml(fam.label)}</div>
+      <div class="ssid">sub_system_id ${escapeHtml(fam.sub_system_id)}</div>
+      <div class="types">${types}</div>
+      <div class="note">${escapeHtml(fam.note)}</div>
+    `;
+    famEl.appendChild(div);
   }
 
   // ---- Timeline ----

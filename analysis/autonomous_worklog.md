@@ -10923,3 +10923,45 @@ themselves are usable independent of this thread's resolution.
 skipped).
 
 **Blockers:** None.
+
+## Wake 123 — wire-type families panel on the dashboard
+
+**Goal**: surface the wake-121 cross-correlation findings (the 7
+sub_system_id groupings spanning multiple wire-types) as a
+dedicated panel on the live dashboard. Visitors can already see
+40 captured wire-types as a flat list; the families view shows
+which ones are conceptually grouped.
+
+**Built**:
+
+- `tools/build_site.py`: new `load_wire_type_families()` returns
+  the 7 hand-curated cross-correlations from wake 121. Each
+  entry has `sub_system_id`, `wire_types` (list of hex), `label`
+  (e.g. "3-way correlation", "Counter-coupled init pair"), and a
+  `note` explaining the family. `data.json` now exposes a
+  `wire_type_families` field (7 entries).
+- `site/index.html`:
+  - New "Wire-type families" section between the captured-
+    session timeline and the milestone timeline, with a friendly
+    intro paragraph and a link to
+    `analysis/identity_bundle_correlation.md`.
+  - Cards rendered in a responsive grid (`families` class). Each
+    card shows the family label, the `sub_system_id` tag in
+    monospace, the constituent wire-types as accent-colored
+    badges, and the analytical note.
+  - CSS additions for `.families` / `.family` / `.family .badge`
+    keep the visual style consistent with the existing chart
+    cards and codec list.
+
+**Result**: visitors see at a glance that, for example,
+`0x102e + 0x1033 + 0x192c` are a 3-way family (the strongest
+cross-correlation in the session), and `0x18a6 ↔ 0x1a59` is the
+counter-coupled init pair. The "spawn-config + token" pair
+(`0x1096 ↔ 0x1097`, NEW from wake 121) gets its own visible
+card.
+
+**No code changes** to `server/`, no new tests. Tests still 320
+(+1 skipped). Site rebuild produces `data.json` ~605 KB
+(unchanged from wake 120's level + the small families addition).
+
+**Blockers:** None.
