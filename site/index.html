@@ -512,6 +512,11 @@ a:hover { text-decoration: underline; }
       <div class="hint">High-volume types are usually the most worth fully decoding. Color = codec depth.</div>
       <div class="chart-wrap"><canvas id="chart-volume-coverage"></canvas></div>
     </div>
+    <div class="chart-card" style="grid-column: 1 / -1;">
+      <h3>Test-suite growth over wakes</h3>
+      <div class="hint">Each commit that touched <code>site/data.json</code> records the test count at that point. Wake numbers come from commit messages.</div>
+      <div class="chart-wrap"><canvas id="chart-test-history"></canvas></div>
+    </div>
   </div>
 
   <div class="section-h">The captured login session, message-by-message</div>
@@ -663,6 +668,7 @@ async function load() {
     drawCoverageChart(data);
     drawVolumeCoverageChart(data);
     drawReplayTimeline(data);
+    drawTestHistory(data);
   }
 
   // ---- Timeline ----
@@ -854,6 +860,59 @@ function drawCoverageChart(data) {
       cutout: "55%",
       plugins: {
         legend: { position: "bottom", labels: { color: COLORS.dim, font: { size: 11 }, boxWidth: 12 } },
+      },
+    },
+  });
+}
+
+function drawTestHistory(data) {
+  const h = data.test_count_history || [];
+  if (!h.length) return;
+
+  // Build x-labels: prefer wake-N when present, else fall back to short SHA.
+  const labels = h.map(r => r.wake != null ? `wake ${r.wake}` : r.commit);
+  const counts = h.map(r => r.test_count);
+
+  new Chart(document.getElementById("chart-test-history"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        data: counts,
+        borderColor: COLORS.green,
+        backgroundColor: "rgba(63,185,80,0.12)",
+        pointBackgroundColor: COLORS.green,
+        pointBorderColor: "#161b22",
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        tension: 0.18,
+        fill: true,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const r = h[ctx.dataIndex];
+              return [
+                `${r.test_count} tests`,
+                r.commit + ": " + r.subject,
+              ];
+            },
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: COLORS.dim, autoSkip: true, maxTicksLimit: 12 } },
+        y: {
+          beginAtZero: false,
+          grid: { color: "#30363d" },
+          ticks: { color: COLORS.dim, font: { family: "ui-monospace, monospace", size: 11 } },
+        },
       },
     },
   });

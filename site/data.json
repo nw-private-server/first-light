@@ -2624,5 +2624,97 @@
       "direction": "R",
       "size": 175
     }
+  ],
+  "test_count_history": [
+    {
+      "wake": 98,
+      "test_count": 258,
+      "commit": "9556fb3",
+      "subject": "analysis(wake 98): static site for browsing wire-types, codecs, decompiles"
+    },
+    {
+      "wake": 100,
+      "test_count": 262,
+      "commit": "3724b3c",
+      "subject": "analysis(wake 100): codec gap-fill, 0x651 covered (37/40 captured types)"
+    },
+    {
+      "wake": 101,
+      "test_count": 269,
+      "commit": "29f0e4e",
+      "subject": "analysis(wake 101): frame_config_1096 structural codec (38/40 captured)"
+    },
+    {
+      "wake": 102,
+      "test_count": 274,
+      "commit": "3fb367d",
+      "subject": "analysis(wake 102): opaque_blob_1033 codec \u2014 39/40 captured types covered"
+    },
+    {
+      "wake": 103,
+      "test_count": 282,
+      "commit": "c6a905c",
+      "subject": "analysis(wake 103): chunked_stream_08 \u2014 40/40 captured types covered"
+    },
+    {
+      "wake": 104,
+      "test_count": 286,
+      "commit": "18de9b7",
+      "subject": "analysis(wake 104): server.javelin.dispatch router \u2014 every codec wired up"
+    },
+    {
+      "wake": 105,
+      "test_count": 291,
+      "commit": "3fb9423",
+      "subject": "analysis(wake 105): encode-side dispatcher \u2014 full-replay round-trip clean"
+    },
+    {
+      "wake": 106,
+      "test_count": 297,
+      "commit": "3c987dd",
+      "subject": "analysis(wake 106): promote V3 lenient extractor into the codec library"
+    },
+    {
+      "wake": 107,
+      "test_count": 301,
+      "commit": "0423790",
+      "subject": "analysis(wake 107): V3 retry tagged-format parser \u2014 dispatcher 1 fail left"
+    },
+    {
+      "wake": null,
+      "test_count": 301,
+      "commit": "5251d4f",
+      "subject": "site: friendlier landing \u2014 intro, state diagram, charts, timeline, FAQ"
+    },
+    {
+      "wake": 108,
+      "test_count": 306,
+      "commit": "96dbb85",
+      "subject": "analysis(wake 108): V3 retry encoder \u2014 full-replay round-trip clean"
+    },
+    {
+      "wake": 109,
+      "test_count": 311,
+      "commit": "1f4a7cb",
+      "subject": "analysis(wake 109): 0x16a0 large-variant codec \u2014 dispatcher 0/0 failures"
+    },
+    {
+      "wake": 112,
+      "test_count": 317,
+      "commit": "805a6d9",
+      "subject": "analysis(wake 112): wire-bind SelfIdent codec at type 0x5d1"
+    },
+    {
+      "wake": null,
+      "test_count": 317,
+      "commit": "84f1102",
+      "subject": "site: session-timeline scatter chart \u2014 see the captured login flow"
+    },
+    {
+      "wake": 115,
+      "test_count": 320,
+      "commit": "02bb7b1",
+      "subject": "analysis(wake 115): tools/decode_message.py \u2014 hand-debugging CLI"
+    }
   ]
 }

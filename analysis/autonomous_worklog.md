@@ -10715,3 +10715,40 @@ leaving the directory view.
 skipped). Site unchanged.
 
 **Blockers:** None.
+
+## Wake 119 — test-suite growth chart on the dashboard
+
+**Goal**: visualize the codec library's velocity. Mine git history
+of `site/data.json` for the test-count at each commit, surface as
+a line chart on the Overview tab.
+
+**Built**:
+
+- `tools/build_site.py`:
+  - New `load_test_count_history()` walks
+    `git log --reverse -- site/data.json`, extracts
+    `stats.test_count` from each commit's data.json blob, parses
+    "wake N" out of the commit subject, and returns a
+    chronological list of {wake, test_count, commit, subject}.
+  - `data.json` now exposes a `test_count_history` field.
+  - 15 commits cover wakes 98 → 115, showing the test count
+    growing from 258 to 320.
+- `site/index.html`:
+  - New "Test-suite growth over wakes" chart card spanning the
+    full chart-grid width (`grid-column: 1 / -1`).
+  - Chart.js line chart: x-axis = wake numbers (with short-SHA
+    fallback for site-only commits), y-axis = test count,
+    filled-line area chart in green. Tooltips show full commit
+    subject.
+
+**Result**: visitors can see the project's velocity at a glance —
+the steady run from 258 to 320 tests across the wake-98-115
+window, including the milestone bumps (wake 103: +8 tests when
+the chunked-stream codec landed; wake 109: +5 when the
+0x16a0 large-blob codec closed dispatcher decode failures; wake
+112: +6 when SelfIdent wire-bound).
+
+**Site rebuild**: regenerated; data.json grew slightly with the
+new history field.
+
+**Blockers:** None.

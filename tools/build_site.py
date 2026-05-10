@@ -183,6 +183,54 @@ def load_test_count():
     return int(m.group(1)) if m else 0
 
 
+def load_test_count_history():
+    """Mine git log for the test_count history of site/data.json.
+
+    For each commit that touched site/data.json, extract the recorded
+    `stats.test_count` and pair it with a wake number parsed from the
+    commit message ("wake 109" form). Returns a list of
+    {wake, test_count, commit, subject} ordered by commit date
+    (oldest first, so a line chart reads left→right naturally).
+    """
+    import subprocess
+    import re
+    res = subprocess.run(
+        ["git", "log", "--reverse", "--format=%H|||%s",
+         "--", "site/data.json"],
+        cwd=str(REPO), capture_output=True, text=True,
+    )
+    if res.returncode != 0:
+        return []
+    out = []
+    for line in res.stdout.strip().splitlines():
+        if "|||" not in line:
+            continue
+        sha, subject = line.split("|||", 1)
+        # Pull the test_count out of the data.json at that commit
+        blob = subprocess.run(
+            ["git", "show", f"{sha}:site/data.json"],
+            cwd=str(REPO), capture_output=True, text=True,
+        )
+        if blob.returncode != 0:
+            continue
+        try:
+            data = json.loads(blob.stdout)
+        except Exception:
+            continue
+        tc = data.get("stats", {}).get("test_count")
+        if tc is None or tc == 0:
+            continue
+        m = re.search(r"\bwake (\d+)\b", subject)
+        wake = int(m.group(1)) if m else None
+        out.append({
+            "wake": wake,
+            "test_count": tc,
+            "commit": sha[:7],
+            "subject": subject[:120],
+        })
+    return out
+
+
 def load_replay_timeline():
     """Per-message timeline data for the session-flow scatter chart.
 
@@ -285,6 +333,7 @@ def build_data():
     test_count = load_test_count()
     findings = load_findings()
     replay_timeline = load_replay_timeline()
+    test_count_history = load_test_count_history()
 
     # Build captured-types list
     captured_by_id = {}
@@ -534,6 +583,7 @@ def build_data():
         "faq": faq,
         "timeline": timeline,
         "replay_timeline": replay_timeline,
+        "test_count_history": test_count_history,
     }
 
 
