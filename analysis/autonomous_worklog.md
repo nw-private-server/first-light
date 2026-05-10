@@ -10682,3 +10682,36 @@ to the wake-115 CLI directly — surfaces both as a unit.
 changed). Pages auto-redeploy on push.
 
 **Blockers:** None.
+
+## Wake 118 — `server/javelin/README.md` (per-directory TOC)
+
+**Goal**: lower the bar for first-time contributors who land
+directly in `server/javelin/` from a github.com URL or an IDE
+file-tree. The wake-110 codec library overview lives in
+`analysis/`, which isn't where IDE-clickers look first.
+
+**Built**:
+
+- `server/javelin/README.md`:
+  - Quick "entry point" snippet showing the dispatcher API.
+  - Module-by-module index split into 4 sections:
+    wire-framing primitives, per-type codecs (alphabetical
+    table with type-id and direction), family / generic
+    codecs, dispatcher + supporting.
+  - Note on each multi-form codec (e.g. `0x16a0` small + large
+    variants, `0x08` standard + UUID-prefixed forms,
+    `0x13` strict + retry + lenient parsers).
+  - Runbook for tests + a hand-debug snippet using
+    `tools/decode_message.py`.
+  - Cross-link up to `analysis/codec_library_overview.md` for
+    the architectural deep dive — keeps each doc focused on
+    one job.
+
+GitHub will auto-render this on the directory page, so
+visitors browsing `server/javelin/` see the index without
+leaving the directory view.
+
+**No code changes**, no test changes. Tests still 320 (+1
+skipped). Site unchanged.
+
+**Blockers:** None.
