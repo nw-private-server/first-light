@@ -11543,3 +11543,28 @@ hosts. shields.io reads the endpoint JSON regardless of which
 branch the README is on.
 
 **Blockers:** None.
+
+## Wake 139 — audit-gap stat card on Overview
+
+**Goal**: surface the wake-136 milestone (both codec audits at 0
+gaps) on the live dashboard so visitors see "test coverage
+audit: closed" directly.
+
+**Built**:
+
+- `site/index.html`: added a 7th stat card to the Overview row:
+  `"0 / 0  Audit gaps (decode · encode)"` with the
+  `Every codec has rejection + populated round-trip tests`
+  sub-line, styled green (`ok: true`) to match the rest of the
+  audit-clean indicators.
+
+**Result**: the dashboard's at-a-glance stats row now includes
+the audit-status alongside test count, codec coverage, codec
+modules, named types, registry entries, and decompiles. A
+visitor sees both the "40/40 codecs" milestone (wake 109) and
+the "0 audit gaps" milestone (wake 136) without scrolling.
+
+**No code changes beyond HTML**. Tests unchanged: 346 (+1
+skipped). Site rebuild trivial.
+
+**Blockers:** None.

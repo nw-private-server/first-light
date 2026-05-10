@@ -1021,6 +1021,8 @@ async function load() {
       sub: "From the game's internal type table" },
     { num: data.stats.decompile_count, label: "Ghidra decompiles",
       sub: "Function-level reverse-engineered code" },
+    { num: "0 / 0", label: "Audit gaps (decode · encode)",
+      sub: "Every codec has rejection + populated round-trip tests", ok: true },
   ];
   for (const c of cards) {
     const div = document.createElement("div");
