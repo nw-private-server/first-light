@@ -27821,6 +27821,12 @@
       "test_count": 347,
       "commit": "1121181",
       "subject": "site: searchable analysis-doc index on Findings tab"
+    },
+    {
+      "wake": 145,
+      "test_count": 347,
+      "commit": "54ea0d4",
+      "subject": "docs(analysis): refresh codec library overview \u2014 current state through wake 145"
     }
   ],
   "wire_type_families": [
@@ -27981,8 +27987,8 @@
     {
       "filename": "codec_coverage.md",
       "title": "Codec coverage map",
-      "summary": "The library covers the messages most likely to need server-side",
-      "bytes": 9902
+      "summary": "Both audits (decoder rejection + encoder round-trip) are at **0 gaps** as of wake 136 \u2014 see [`codec_test_audit.md`](codec_test_audit.md) and [`codec_encoder_audit.md`](codec_encoder_audit.md).",
+      "bytes": 10463
     },
     {
       "filename": "codec_encoder_audit.md",

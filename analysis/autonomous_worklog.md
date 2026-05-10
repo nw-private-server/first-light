@@ -11796,3 +11796,33 @@ flags (wakes 115/127/128/132), two codec audits closed to 0
 Tests still 346 (+1 skipped).
 
 **Blockers:** None.
+
+## Wake 147 — refresh `codec_coverage.md`
+
+**Goal**: `codec_coverage.md` was last updated around wake 85,
+before the 40/40 milestone. Several rows still said "no codec"
+for types that have shipped codecs (0x08, 0x13, 0x651, 0x1033,
+0x1096, 0x16a0 large). Bring it in sync.
+
+**Updated**:
+
+- Per-row codec links for the 6 stale "—" entries:
+  - `0x08` → `chunked_stream_08.py` (wake 103, two forms)
+  - `0x13` → `v3_request.py` (wakes 106-108, strict→retry→
+    lenient chain)
+  - `0x651` → `empty_marker_651.py` (wake 100)
+  - `0x1033` → `opaque_blob_1033.py` (wake 102)
+  - `0x1096` → `frame_config_1096.py` (wake 101)
+  - `0x16a0` updated from "(small only)" to "(small + large)"
+    (wake 109)
+- Coverage summary rewritten: **40/40 codec'd** instead of
+  "34 codec'd, 6 documented but no codec". Added a depth
+  breakdown (structural / framing-only / family) and a
+  cross-link to both codec audits at 0 gaps.
+- Library health snapshot wake-85 → wake-146 with the
+  current test count (346) and module count (36).
+
+**No code changes**, no test changes. Doc-only refresh.
+Tests still 346 (+1 skipped).
+
+**Blockers:** None.
