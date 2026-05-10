@@ -11515,3 +11515,31 @@ hand-editing the README to bump 320 → 325 → 334 → 346.
 Tests unchanged: 346 (+1 skipped).
 
 **Blockers:** None.
+
+## Wake 138 — mirror coverage badges to main
+
+**Goal**: surface the wake-137 auto-updating badges on the main
+README so visitors landing on the main repo (via search /
+external links) see the live counters too.
+
+**Built**:
+
+- Cherry-pick equivalent on `main` (via `git worktree`):
+  `48b065e` adds the two shields.io endpoint badges to the main
+  README. Sourced from the same
+  `site/badge-tests-count.json` + `site/badge-codecs.json` that
+  the working branch's Pages deploy publishes, so the numbers
+  stay in sync without main needing its own Pages workflow.
+- Worktree approach (same as wake 122's main-README dashboard
+  link) avoided disturbing the working branch's state.
+
+**No working-branch code changes** — pure docs sync to main.
+Working branch tests still 346 (+1 skipped).
+
+**Why this works**: Pages serves from `claude/vacation-2026-05-06`
+already (via the wake-104 workflow). Main doesn't need its own
+Pages deployment — it just references the URLs Pages already
+hosts. shields.io reads the endpoint JSON regardless of which
+branch the README is on.
+
+**Blockers:** None.
