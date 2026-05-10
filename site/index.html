@@ -268,6 +268,89 @@ main { padding: 16px; max-width: 1100px; margin: 0 auto; }
 }
 .tl-item .desc { color: var(--text-dim); font-size: 13px; }
 
+/* "How it works" pipeline */
+.pipeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.step {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  gap: 14px;
+  position: relative;
+}
+.step:not(:last-child)::after {
+  content: "↓";
+  position: absolute;
+  left: 22px;
+  bottom: -18px;
+  color: var(--text-dim);
+  font-size: 18px;
+  z-index: 1;
+}
+.step .step-n {
+  flex: 0 0 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+.step .step-body { flex: 1; min-width: 0; }
+.step .step-h {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.step .step-desc {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 4px 0;
+}
+.step .step-code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 8px 0 0;
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+.step .step-code .hl-h {
+  background: rgba(88,166,255,0.2);
+  color: var(--accent);
+  padding: 1px 2px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+.step .step-code .hl-c {
+  background: rgba(63,185,80,0.2);
+  color: var(--accent-2);
+  padding: 1px 2px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+.step .step-code .hl-n {
+  background: rgba(210,153,34,0.2);
+  color: var(--warn);
+  padding: 1px 2px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
 /* Byte-pattern playground presets */
 .presets {
   display: flex;
@@ -769,6 +852,7 @@ a:hover { text-decoration: underline; }
     <button data-tab="codecs">Codecs</button>
     <button data-tab="decomp">Decompiles</button>
     <button data-tab="findings">Findings</button>
+    <button data-tab="howitworks">How it works</button>
     <button data-tab="explore">Explore</button>
   </nav>
 </header>
@@ -952,6 +1036,137 @@ a:hover { text-decoration: underline; }
 
 <section class="tab" data-tab="findings">
   <div id="findings-list"></div>
+</section>
+
+<section class="tab" data-tab="howitworks">
+  <div class="hero">
+    <span class="tag">For curious readers</span>
+    <h2>How does the codec library actually work?</h2>
+    <p>
+      The game and server talk to each other in a stream of binary
+      messages. Each one is just bytes on the wire — no labels, no
+      structure visible to a network sniffer. Our codec library's job
+      is to reverse that: take a body of raw bytes and turn it into a
+      typed Python object we can reason about.
+    </p>
+    <p>
+      Here's a worked example using a real captured message — a
+      heartbeat ping (wire type <code>0x15d</code>) that the server
+      sends every few seconds while the player is connected.
+    </p>
+  </div>
+
+  <div class="pipeline">
+
+    <div class="step">
+      <div class="step-n">1</div>
+      <div class="step-body">
+        <div class="step-h">Raw bytes off the wire</div>
+        <p class="step-desc">The 12 bytes the network sees. Meaningless on their own.</p>
+        <pre class="step-code">00 01 9d 05  00 03 6e f6  af 91 2d 74</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-n">2</div>
+      <div class="step-body">
+        <div class="step-h">Parse the typed envelope header</div>
+        <p class="step-desc">
+          The first 4 bytes are a small header that names the message
+          type. The protocol encodes the type-id by splitting it into
+          two pieces: a "marker" pair <code>00 01</code> followed by
+          <code>(type_id &amp; 0x3f) | 0x80</code> and
+          <code>type_id &gt;&gt; 6</code>.
+          For <code>9d 05</code>: <code>(0x9d &amp; 0x7f) | (0x05 &lt;&lt; 6) = 0x15d</code>.
+        </p>
+        <pre class="step-code"><span class="hl-h">00 01 9d 05</span>  00 03 6e f6 af 91 2d 74
+└── type 0x15d ──┘</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-n">3</div>
+      <div class="step-body">
+        <div class="step-h">Dispatch to the right codec</div>
+        <p class="step-desc">
+          <code>server.javelin.dispatch.decode_replay_message(0x15d, "R", body)</code>
+          looks up <code>0x15d</code> in its table and routes to
+          <code>heartbeat_15d.decode_ping</code>. The dispatcher knows
+          all 40 captured wire-types in the replay (plus
+          <code>0x5d1</code> for the state-10 unblock).
+        </p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-n">4</div>
+      <div class="step-body">
+        <div class="step-h">Read each field from the body</div>
+        <p class="step-desc">
+          The codec knows the heartbeat ping's wire layout: after the
+          4-byte header, two big-endian 32-bit integers — a counter
+          and a nonce.
+        </p>
+        <pre class="step-code">00 01 9d 05  <span class="hl-c">00 03 6e f6</span>  <span class="hl-n">af 91 2d 74</span>
+             ↑──────────↑ ↑──────────↑
+             counter      nonce
+             = 225014     = 2945527156</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-n">5</div>
+      <div class="step-body">
+        <div class="step-h">Return a typed dataclass</div>
+        <p class="step-desc">
+          The codec returns a Python dataclass that's easy to inspect
+          and re-emit. Round-trip is byte-identical: encoding this
+          back produces the original 12 bytes.
+        </p>
+        <pre class="step-code">HeartbeatPing15D(
+    counter = 225014,
+    nonce = 2945527156,
+)</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-n">6</div>
+      <div class="step-body">
+        <div class="step-h">JSON output for piping</div>
+        <p class="step-desc">
+          The same dataclass renders as JSON when needed (e.g. for the
+          <code>tools/decode_message.py --json</code> CLI or the
+          dashboard's message inspector).
+        </p>
+        <pre class="step-code">{
+  "counter": 225014,
+  "nonce": 2945527156
+}</pre>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-h">More involved messages have more pieces</div>
+  <p style="color: var(--text-dim); font-size: 14px;">
+    Most messages aren't this simple. A typical body has:
+  </p>
+  <ul style="color: var(--text-dim); font-size: 14px; line-height: 1.7;">
+    <li><b>Type header</b> (4 bytes) — same shape as above.</li>
+    <li><b>Identity bundle</b> (16 bytes) — an 8-byte <code>sub_system_id</code>
+      tag plus an 8-byte <code>session_uuid_lower</code>. Messages that share
+      a <code>sub_system_id</code> belong to the same sub-system family — see
+      <a href="#overview">Wire-type families</a> on the Overview tab.</li>
+    <li><b>Structured payload</b> — floats, durations, hashes, counters, etc.</li>
+    <li><b>Trailer</b> — often a CRC or fixed shared bytes.</li>
+  </ul>
+  <p style="color: var(--text-dim); font-size: 14px;">
+    Every captured message in the replay round-trips through this pipeline
+    byte-for-byte — see the <a href="#overview">audit-gap counter</a> on the
+    Overview row (0/0 means every codec has both decode-rejection and
+    populated-encode tests).
+  </p>
 </section>
 
 <section class="tab" data-tab="explore">

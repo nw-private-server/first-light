@@ -11568,3 +11568,46 @@ the "0 audit gaps" milestone (wake 136) without scrolling.
 skipped). Site rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 140 — "How it works" tab on the dashboard
+
+**Goal**: non-technical visitors don't yet have a way to
+understand HOW the codec library actually decodes a message —
+the existing tabs surface what's in the library but not the
+pipeline. Add a guided walkthrough using a real captured
+message.
+
+**Built**:
+
+- New "How it works" tab in the dashboard nav (7 tabs total).
+- 6-step worked example using a real heartbeat ping (0x15d,
+  the most common captured message):
+  1. Raw bytes off the wire (12 bytes hex)
+  2. Parse the typed envelope header (with the bit-decode math
+     for `0x15d`: `(0x9d & 0x7f) | (0x05 << 6)`)
+  3. Dispatch to the right codec
+     (`dispatch.decode_replay_message`)
+  4. Read each field from the body (with byte ranges color-
+     highlighted under counter / nonce)
+  5. Return a typed dataclass (`HeartbeatPing15D(counter=...,
+     nonce=...)`)
+  6. JSON output for piping
+- Each step is a numbered card with a description + a code
+  block; arrows between cards via CSS `::after`.
+- Color-coded byte spans (header = accent blue, counter =
+  accent-2 green, nonce = warn yellow).
+- Tail section covers what more involved messages add on top
+  (identity bundle, structured payload, trailer) with a
+  cross-link to the Wire-type families panel + the
+  audit-gap stat card.
+
+**Result**: a "fan-of-New-World" visitor who clicks "How it
+works" sees the entire codec pipeline laid out as a story.
+Connects the dashboard's other tabs (Overview stats, Wire
+Types, Codecs catalog, Decompiles) into one coherent
+explanation.
+
+**No new dependencies**, no test changes. Site rebuild
+records test_count=346.
+
+**Blockers:** None.
