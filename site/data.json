@@ -27393,6 +27393,12 @@
       "test_count": 320,
       "commit": "90af624",
       "subject": "site(wake 120): click-to-inspect message browser on the session timeline"
+    },
+    {
+      "wake": null,
+      "test_count": 320,
+      "commit": "3995663",
+      "subject": "site: wire-type families panel \u2014 surface the wake-121 cross-correlations"
     }
   ],
   "wire_type_families": [
@@ -27459,6 +27465,82 @@
       ],
       "label": "Subkey-beacon variant pair",
       "note": "Another subkey-beacon family pair, type-ids non-adjacent."
+    }
+  ],
+  "decompile_groups": [
+    {
+      "label": "State machine (the connection-state blocker)",
+      "highlight": "state_advance_predicate",
+      "highlight_note": "The *(int*)(wrapper+0xa0)==2 predicate that gates the state-10\u219211 transition. See analysis/state_10_unblock_synthesis.md.",
+      "stems": [
+        "state_advance_predicate",
+        "state11_dispatcher",
+        "state12_gate_setter_caller",
+        "state13_writer_a",
+        "state13_writer_b",
+        "state13_writer_c",
+        "substate_writers",
+        "wrapper_state10_entry",
+        "wrapper_state10_setup",
+        "wrapper_state12_gate",
+        "wrapper_state12_gate_writer",
+        "wrapper_state13_gate",
+        "wrapper_substate_setter_candidate",
+        "wrapper_substate_xref_caller_1",
+        "wrapper_substate_xref_caller_2",
+        "wrapper_switchD8_check"
+      ]
+    },
+    {
+      "label": "Connection lifecycle (success / fail / destroy)",
+      "highlight": "javelin_game_on_connection_succeed",
+      "highlight_note": "The success-path handler invoked when a connection completes. Mirror with `_fail` for the destroy-path equivalent.",
+      "stems": [
+        "javelin_game_on_connection_succeed",
+        "javelin_game_on_connection_fail",
+        "connection_success_caller",
+        "destroy_dispatcher",
+        "destroy_function",
+        "destroy_flag_writer",
+        "wrapper_destroy_arg"
+      ]
+    },
+    {
+      "label": "V3 RegistrationRequest / Response handlers",
+      "highlight": "response_unmarshal",
+      "highlight_note": "Where the captured V3 response body is parsed by the client. The V3 retry tagged-format parser in `server/javelin/v3_request.py` was informed by this file.",
+      "stems": [
+        "v2_builder",
+        "v3_builder",
+        "response_typeinfo",
+        "response_unmarshal",
+        "clientconnectionmsg_sender",
+        "clientconnectionmsg_typeinfo"
+      ]
+    },
+    {
+      "label": "Wrapper setters (the +0xa0 / +0xfa* writers)",
+      "highlight": "wrapper_setter_fa10",
+      "highlight_note": "One of three wrapper-state setters at +0xfa10 / +0xfa30 / +0xfa80 \u2014 together they implement the wake-3 substate writer pattern.",
+      "stems": [
+        "wrapper_setter_fa10",
+        "wrapper_setter_fa30",
+        "wrapper_setter_fa80",
+        "gw160_setter",
+        "branchA_sender"
+      ]
+    },
+    {
+      "label": "Misc / context",
+      "highlight": "crash_site",
+      "highlight_note": "The destroy-on-error crash site that the rep_responder is currently hitting. Useful when reading any decompile that ends in a throw or _CxxThrowException.",
+      "stems": [
+        "FUN_146240d70",
+        "FUN_1462419c0",
+        "FUN_1462426b0",
+        "crash_site",
+        "loadcontext_no_selfid"
+      ]
     }
   ]
 }

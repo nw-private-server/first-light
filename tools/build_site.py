@@ -349,6 +349,101 @@ def load_replay_decoded():
     return out
 
 
+def load_decompile_groups():
+    """Hand-curated grouping of the 39 decompile files by purpose.
+    Stems that aren't listed here fall into the "Misc" group at render
+    time. Highlights surface the 1-2 most-useful decompiles in each
+    group for non-technical visitors."""
+    return [
+        {
+            "label": "State machine (the connection-state blocker)",
+            "highlight": "state_advance_predicate",
+            "highlight_note": "The *(int*)(wrapper+0xa0)==2 predicate that gates "
+                              "the state-10→11 transition. See "
+                              "analysis/state_10_unblock_synthesis.md.",
+            "stems": [
+                "state_advance_predicate",
+                "state11_dispatcher",
+                "state12_gate_setter_caller",
+                "state13_writer_a",
+                "state13_writer_b",
+                "state13_writer_c",
+                "substate_writers",
+                "wrapper_state10_entry",
+                "wrapper_state10_setup",
+                "wrapper_state12_gate",
+                "wrapper_state12_gate_writer",
+                "wrapper_state13_gate",
+                "wrapper_substate_setter_candidate",
+                "wrapper_substate_xref_caller_1",
+                "wrapper_substate_xref_caller_2",
+                "wrapper_switchD8_check",
+            ],
+        },
+        {
+            "label": "Connection lifecycle (success / fail / destroy)",
+            "highlight": "javelin_game_on_connection_succeed",
+            "highlight_note": "The success-path handler invoked when a "
+                              "connection completes. Mirror with `_fail` for "
+                              "the destroy-path equivalent.",
+            "stems": [
+                "javelin_game_on_connection_succeed",
+                "javelin_game_on_connection_fail",
+                "connection_success_caller",
+                "destroy_dispatcher",
+                "destroy_function",
+                "destroy_flag_writer",
+                "wrapper_destroy_arg",
+            ],
+        },
+        {
+            "label": "V3 RegistrationRequest / Response handlers",
+            "highlight": "response_unmarshal",
+            "highlight_note": "Where the captured V3 response body is parsed "
+                              "by the client. The V3 retry tagged-format "
+                              "parser in `server/javelin/v3_request.py` was "
+                              "informed by this file.",
+            "stems": [
+                "v2_builder",
+                "v3_builder",
+                "response_typeinfo",
+                "response_unmarshal",
+                "clientconnectionmsg_sender",
+                "clientconnectionmsg_typeinfo",
+            ],
+        },
+        {
+            "label": "Wrapper setters (the +0xa0 / +0xfa* writers)",
+            "highlight": "wrapper_setter_fa10",
+            "highlight_note": "One of three wrapper-state setters at "
+                              "+0xfa10 / +0xfa30 / +0xfa80 — together they "
+                              "implement the wake-3 substate writer pattern.",
+            "stems": [
+                "wrapper_setter_fa10",
+                "wrapper_setter_fa30",
+                "wrapper_setter_fa80",
+                "gw160_setter",
+                "branchA_sender",
+            ],
+        },
+        {
+            "label": "Misc / context",
+            "highlight": "crash_site",
+            "highlight_note": "The destroy-on-error crash site that the "
+                              "rep_responder is currently hitting. Useful "
+                              "when reading any decompile that ends in a "
+                              "throw or _CxxThrowException.",
+            "stems": [
+                "FUN_146240d70",
+                "FUN_1462419c0",
+                "FUN_1462426b0",
+                "crash_site",
+                "loadcontext_no_selfid",
+            ],
+        },
+    ]
+
+
 def load_wire_type_families():
     """Cross-correlated sub_system_id → wire-type groupings from
     `analysis/identity_bundle_correlation.md` (wake 121). Hand-curated:
@@ -496,6 +591,7 @@ def build_data():
     replay_decoded = load_replay_decoded()
     test_count_history = load_test_count_history()
     wire_type_families = load_wire_type_families()
+    decompile_groups = load_decompile_groups()
 
     # Build captured-types list
     captured_by_id = {}
@@ -748,6 +844,7 @@ def build_data():
         "replay_decoded": replay_decoded,
         "test_count_history": test_count_history,
         "wire_type_families": wire_type_families,
+        "decompile_groups": decompile_groups,
     }
 
 

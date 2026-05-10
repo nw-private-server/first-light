@@ -268,6 +268,68 @@ main { padding: 16px; max-width: 1100px; margin: 0 auto; }
 }
 .tl-item .desc { color: var(--text-dim); font-size: 13px; }
 
+/* Decompile groups */
+.dgroup {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.dgroup .dlabel {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.dgroup .dcount {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: ui-monospace, monospace;
+  margin-left: 6px;
+}
+.dgroup .highlight {
+  background: rgba(63,185,80,0.07);
+  border-left: 3px solid var(--accent-2);
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 8px 0 10px;
+}
+.dgroup .highlight .star {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+.dgroup .highlight .hname {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+.dgroup .highlight .hname a {
+  color: var(--accent);
+}
+.dgroup .highlight .hnote {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+.dgroup .stems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.dgroup .stems a {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  background: var(--surface-2);
+  padding: 3px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+.dgroup .stems a:hover { background: var(--bg); border-color: var(--accent); text-decoration: none; }
+
 /* Wire-type families */
 .families {
   display: grid;
@@ -781,6 +843,24 @@ a:hover { text-decoration: underline; }
 </section>
 
 <section class="tab" data-tab="decomp">
+  <details class="faq" open>
+    <summary>What's a decompile?</summary>
+    <div class="a">
+      The game ships as a compiled binary; we use
+      <a href="https://ghidra-sre.org/">Ghidra</a> to translate
+      individual functions back into readable C-like code so we can
+      understand what they do. The 39 files below are functions
+      we've characterized so far, grouped by purpose — the state-machine
+      ones are the most actively-used (they reveal the connection
+      blocker the project is trying to crack). Each file is a snippet
+      of decompiled C; the addresses (<code>FUN_146...</code>) are
+      runtime virtual addresses in the binary.
+    </div>
+  </details>
+
+  <div id="decomp-groups"></div>
+
+  <div class="section-h" style="margin-top: 28px;">All decompiles</div>
   <input type="text" class="search" placeholder="Filter decompiles by name or address…" id="decomp-search">
   <div id="decomp-list"></div>
 </section>
@@ -862,12 +942,18 @@ async function load() {
     Chart.defaults.color = COLORS.dim;
     Chart.defaults.borderColor = "#30363d";
     Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui";
-    drawVolumeChart(data);
-    drawDirectionChart(data);
-    drawCoverageChart(data);
-    drawVolumeCoverageChart(data);
-    drawReplayTimeline(data);
-    drawTestHistory(data);
+    // Wrap each chart in try/catch so one chart's error doesn't kill the
+    // remaining charts. Errors surface in the console for debugging.
+    const safeDraw = (name, fn) => {
+      try { fn(data); }
+      catch (e) { console.error("chart " + name + " failed:", e); }
+    };
+    safeDraw("volume", drawVolumeChart);
+    safeDraw("direction", drawDirectionChart);
+    safeDraw("coverage", drawCoverageChart);
+    safeDraw("volume-coverage", drawVolumeCoverageChart);
+    safeDraw("replay-timeline", drawReplayTimeline);
+    safeDraw("test-history", drawTestHistory);
   }
 
   // ---- Wire-type families ----
@@ -975,6 +1061,51 @@ async function load() {
     codecList.appendChild(div);
   }
   setupFilter("codec-search", codecList.children);
+
+  // ---- Decompile groups (rendered above the flat list) ----
+  const dgroupsEl = document.getElementById("decomp-groups");
+  const dByStem = {};
+  for (const d of (data.decompiles || [])) dByStem[d.stem] = d;
+  const groups = data.decompile_groups || [];
+  const groupedStems = new Set();
+  for (const g of groups) for (const s of g.stems) groupedStems.add(s);
+  // Synthesize a "Misc" catch-all for any stem not in a group
+  const ungrouped = (data.decompiles || [])
+    .map(d => d.stem)
+    .filter(s => !groupedStems.has(s));
+  if (ungrouped.length) {
+    groups.push({
+      label: "Other",
+      stems: ungrouped,
+      highlight: null,
+      highlight_note: null,
+    });
+  }
+  for (const g of groups) {
+    const div = document.createElement("div");
+    div.className = "dgroup";
+    let highlightHtml = "";
+    if (g.highlight && dByStem[g.highlight]) {
+      const h = dByStem[g.highlight];
+      highlightHtml = `
+        <div class="highlight">
+          <div class="star">★ Most useful</div>
+          <div class="hname"><a href="decomp/${escapeHtml(h.stem)}.txt">${escapeHtml(h.name || h.stem)}</a></div>
+          <div class="hnote">${escapeHtml(g.highlight_note || "")}</div>
+        </div>
+      `;
+    }
+    const stemLinks = g.stems
+      .filter(s => dByStem[s])
+      .map(s => `<a href="decomp/${escapeHtml(s)}.txt">${escapeHtml(s)}</a>`)
+      .join("");
+    div.innerHTML = `
+      <div class="dlabel">${escapeHtml(g.label)}<span class="dcount">${g.stems.length} files</span></div>
+      ${highlightHtml}
+      <div class="stems">${stemLinks}</div>
+    `;
+    dgroupsEl.appendChild(div);
+  }
 
   // ---- Decompiles ----
   const decompList = document.getElementById("decomp-list");

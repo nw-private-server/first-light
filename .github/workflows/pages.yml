@@ -27,6 +27,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Need full history so build_site.py's load_test_count_history()
+          # can walk `git log -- site/data.json` for all wakes. Default
+          # depth=1 gave us a 1-point chart.
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
