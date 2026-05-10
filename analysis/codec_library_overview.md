@@ -141,6 +141,28 @@ The 0x03 V3 response is intentionally absent from the decode side
 | `replay_substitution.py` | Substitutes live-session identity into captured replay bodies so the post-V3 captured stream can be replayed safely against a real connecting client. |
 | `session_state.py` | Per-peer session-state scaffolding. Not yet plumbed into the runtime responder. |
 
+## Hand-debugging: `tools/decode_message.py`
+
+A small CLI that surfaces the dispatcher for human inspection.
+Useful when you have a captured body and want to see what the
+codec library makes of it without writing throwaway Python.
+
+```sh
+# Decode a captured 0x15d (heartbeat ping) from the replay
+.venv/bin/python3 tools/decode_message.py --type 0x15d --replay-index 0 --direction R
+
+# Decode a raw hex body
+.venv/bin/python3 tools/decode_message.py --type 0x15d --direction R \
+  --hex '00019d050003af9100000001'
+
+# From a file or stdin
+.venv/bin/python3 tools/decode_message.py --type 0x65c --direction R --file /tmp/body.bin
+cat body.bin | .venv/bin/python3 tools/decode_message.py --type 0x18a6 --direction W --stdin
+```
+
+Output is the codec dataclass formatted with `pprint`. Returns a
+non-zero exit if the type-id has no registered decoder.
+
 ## Tests
 
 `server/javelin/test_codecs.py` is the single test file (~3700+ lines as of wake 109). Conventions:

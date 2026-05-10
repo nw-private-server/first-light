@@ -3511,6 +3511,52 @@ def test_chunked_stream_08_uuid_prefixed_rejects_too_short():
 
 
 # ---------------------------------------------------------------------------
+# tools/decode_message.py CLI smoke (wake 115)
+# ---------------------------------------------------------------------------
+
+
+def test_decode_cli_replay_index_path(capsys):
+    """The CLI's `--replay-index` path can pluck a captured message and
+    pretty-print its decoded form."""
+    import sys as _sys
+    REPO = Path(__file__).resolve().parents[2]
+    _sys.path.insert(0, str(REPO))
+    from tools.decode_message import main  # noqa: E402
+    rc = main(["--type", "0x15d", "--direction", "R", "--replay-index", "0"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "type=0x15d" in out
+    assert "HeartbeatPing15D" in out
+
+
+def test_decode_cli_unknown_type_exits_non_zero(capsys):
+    import sys as _sys
+    REPO = Path(__file__).resolve().parents[2]
+    _sys.path.insert(0, str(REPO))
+    from tools.decode_message import main  # noqa: E402
+    rc = main(["--type", "0xffff", "--hex", "00", "--direction", "R"])
+    assert rc == 1
+
+
+def test_decode_cli_hex_path(capsys):
+    """A raw hex body decodes the same as picking it from the replay."""
+    import sys as _sys
+    REPO = Path(__file__).resolve().parents[2]
+    _sys.path.insert(0, str(REPO))
+    from tools.decode_message import main  # noqa: E402
+    # 12-byte ping body: type header 00 01 9d 05 + counter + nonce
+    rc = main([
+        "--type", "0x15d",
+        "--direction", "R",
+        "--hex", "00019d050000000200000003",
+    ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "counter=2" in out
+    assert "nonce=3" in out
+
+
+# ---------------------------------------------------------------------------
 # Dispatcher (server.javelin.dispatch) — wake 104
 # ---------------------------------------------------------------------------
 

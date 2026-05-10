@@ -10570,3 +10570,45 @@ Single-threaded was the right call here — no parallel sub-tasks.
 ran for consistency. data.json unchanged.
 
 **Blockers:** None.
+
+## Wake 115 — `tools/decode_message.py` CLI
+
+**Goal**: surface the codec library as a hand-debugging CLI tool.
+Useful for spot-checking a captured body, sanity-checking a
+generator's output, or eyeballing what the codec library makes of
+an unknown blob — without writing throwaway Python.
+
+**Built**:
+
+- `tools/decode_message.py` (~120 LOC):
+  - `--type 0x15d` (or `15d` / `349`) — flexible parsing
+  - `--direction R|W` (default R)
+  - 4 mutually-exclusive body sources: `--hex`, `--file`, `--stdin`,
+    `--replay-index N` (pluck the Nth captured message of the type+
+    direction from the bundled replay)
+  - `--width N` for `pprint` output width
+  - Returns 1 if the type has no registered decoder, with a clear
+    error message naming the cause (server-emit-only or unmapped).
+- 3 new tests in `test_codecs.py`:
+  - `test_decode_cli_replay_index_path` — replay-index path picks
+    a captured 0x15d ping and pretty-prints the decoded dataclass.
+  - `test_decode_cli_unknown_type_exits_non_zero` — unmapped type
+    returns rc=1.
+  - `test_decode_cli_hex_path` — a raw hex body decodes correctly.
+- `analysis/codec_library_overview.md` extended with a
+  "Hand-debugging" section + 4 usage examples (replay-index,
+  hex, file, stdin).
+
+Test total: **316 → 320 (+3, plus 1 from a previous addition)**.
+
+**Live usage example**:
+
+```sh
+$ .venv/bin/python3 tools/decode_message.py --type 0x15d --replay-index 0 --direction R
+# type=0x15d  direction=R  len=12 B
+HeartbeatPing15D(counter=225014, nonce=2945527156)
+```
+
+**Site rebuild**: regenerated; test_count=320.
+
+**Blockers:** None.
