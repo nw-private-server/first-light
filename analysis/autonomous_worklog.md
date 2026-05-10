@@ -8926,3 +8926,60 @@ The valuable existing-but-unanalyzed file is
 
 **Blockers:** None — both findings are immediately actionable
 and unblock substantial follow-up work.
+
+---
+
+### 2026-05-09 — wake 91: state-10 thorough investigation + mobile dashboard
+
+**Did:**
+
+User asked for thorough state-10 investigation + a mobile-viewable
+visualization.
+
+**State-10 thorough check** with new typeregistry.json data:
+
+- `PlayerManagerSelfIdentificationMsg`: typeIndex=1489 (0x5d1),
+  UUID `60A51DFC-8745-4276-976D-8808EF52CD77`
+- Found its CreateInstance stub at `0x1414e9ad0` via fingerprint
+  search (`b9 00 19 00 00 e9 36 cb` — size 0x1900 = 6400-byte
+  in-memory class instance)
+- The stub has 2 DATA xrefs both from `0x14800de58`, an entry
+  in a packed handler-vtable structure in `.rdata`
+- Parsing the surrounding region didn't surface SelfIdent's
+  registry UUID directly — the in-binary structure uses
+  different UUIDs (probably per-marshaller, not per-type).
+  Class names like "SendAwaitingReady" are present but not
+  explicitly mapped to typeIndex by surrounding bytes
+- Confirmed the state-10 trigger handler chain we already
+  knew: `FUN_146454c00` (SelfIdent handler), state predicate
+  `*(int *)(wrapper + 0xa0) == 2`
+
+**State-10 status remains as wake 26 left it**: the central
+blocker is a missing Phase 9b body in the captured replay.
+The new typeregistry data confirms the type-id and UUID but
+doesn't reveal the wire body shape (which is what
+`server/javelin/self_ident.py` needs to encode correctly).
+**Real-GPU runtime trace remains the highest-value unblock.**
+
+**Mobile dashboard** (`DASHBOARD.md` at the repo root):
+
+Single-page markdown viewable on github.com mobile. Sections:
+- TL;DR (codec library, two findings, runtime blocker, state-10)
+- Library status table
+- All 40 captured wire-types (table with N, direction, sizes,
+  registry name, UUID prefix, codec module)
+- State 10 → 11 status
+- Major protocol findings (CRC32, typeregistry mapping)
+- Cross-codec invariants
+- Runtime / VM status (with AWS recommendation)
+- Repository layout + key documents
+
+GitHub renders markdown well on mobile. The user can view at:
+`https://github.com/nw-private-server/first-light/blob/claude/vacation-2026-05-06/DASHBOARD.md`
+
+**Files this iteration:**
+
+- `DASHBOARD.md` (new) — top-level project status page
+- This worklog entry
+
+**Blockers:** None.
