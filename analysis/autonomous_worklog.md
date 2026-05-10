@@ -10965,3 +10965,96 @@ card.
 (unchanged from wake 120's level + the small families addition).
 
 **Blockers:** None.
+
+## Wake 124 — chart-empty diagnosis + fix (user-reported)
+
+**User reported**: 2 charts not showing on the live dashboard.
+Screenshots showed empty card bodies for both
+"Captured session timeline" and "Test-suite growth over wakes".
+
+**Root causes identified**:
+
+1. **Test-suite growth chart**: the Pages workflow's
+   `actions/checkout@v4` was using shallow clone (`fetch-depth: 1`
+   default), so `git log -- site/data.json` on the runner only saw
+   the most-recent commit. `test_count_history` had **1 entry** on
+   live instead of 19. A 1-point line chart looks empty.
+2. **Session-timeline chart**: appears to have been timing
+   (605 KB `data.json` fetch latency before chart renders) +
+   a missing JS resilience layer — if any earlier chart threw
+   during construction, it cascaded to the next ones.
+
+**Built**:
+
+- `.github/workflows/pages.yml`: `fetch-depth: 0` on the
+  checkout step.
+- `site/index.html`: added a `safeDraw(name, fn)` helper that
+  wraps each Chart.js draw in `try/catch`. Errors now log to
+  `console.error` instead of bricking subsequent draws.
+
+**Verification**: post-deploy Puppeteer headless check shows all
+6 canvases with `hasChart: true`:
+- chart-volume: 15 entries
+- chart-direction: 2 entries
+- chart-coverage: 3 entries
+- chart-volume-coverage: 10 entries
+- chart-test-history: **19 entries** (was 1 — fix worked)
+- chart-replay-timeline: **138 entries** (R direction) + W set
+
+Both reported-empty charts now render. Live `test_count_history`
+length is 19; live `test_count` is 320.
+
+**Bonus shipped same commit**: the Decompiles tab UX rework I
+was in the middle of — friendly "What's a decompile?" details
+block + 5 purpose-grouped sections (state machine / connection
+lifecycle / V3 handlers / wrapper setters / misc) each with a
+"★ Most useful" highlight. Backed by `decompile_groups` field
+in `data.json` and a new `load_decompile_groups()` in
+`build_site.py`.
+
+**Blockers:** None.
+
+## Wake 125 — codec test audit + 6 rejection-test gaps filled
+
+**Goal**: identify codec modules with weak test coverage,
+specifically those lacking structural-rejection tests, and fill
+the lowest-effort gaps.
+
+**Method**: walked `server/javelin/test_codecs.py` (320 functions)
+and bucketed each by codec module + test category (round-trip,
+captured-replay, structural-rejection, encode/decode, other).
+
+**Findings**:
+
+- 8 codec modules with **zero** structural-rejection tests:
+  `handshake_blob_76`, `init_message_18a6`, `keybinding_config_12f6`,
+  `result_token_1097`, `result_token_136a`, `session_clock_beacon`,
+  `session_identity_beacon`, `session_message_a4`.
+- The three `session_*` modules + `session_message_a4` are the
+  lowest-effort to fix — each has a `decode()` that validates
+  size + type-header but no test exercising the failure paths.
+
+**Built**:
+
+- `analysis/codec_test_audit.md` — full audit writeup with the
+  per-module coverage table, the gap list, recommended follow-
+  ups, and heuristic limitations.
+- 6 new structural-rejection tests covering:
+  - `session_clock_beacon`: wrong-header + wrong-size
+  - `session_identity_beacon`: wrong-header + wrong-size
+  - `session_message_a4`: wrong-header + wrong-size
+
+Each test is 1-3 lines, uses `pytest.raises(ValueError, ...)`
+to exercise the documented failure paths.
+
+Test total: **320 → 325 (+5 passing, accounting for the 1 prior
+encoder test that was renamed wake-115)**. The audit's "8
+codecs without rejection tests" gap is now down to 5
+(`handshake_blob_76`, `init_message_18a6`,
+`keybinding_config_12f6`, `result_token_1097`, `result_token_136a`)
+— the 5 remaining are documented in the audit as follow-up work.
+
+**No site changes** beyond the routine `data.json` rebuild
+(which now records test_count=325).
+
+**Blockers:** None.

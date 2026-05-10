@@ -2815,6 +2815,62 @@ def test_make_session_message_a4_round_trip():
     assert decode_a4_helper(encoded) == msg
 
 
+# ---------------------------------------------------------------------------
+# Wake-125 audit fix-ups: structural-rejection tests for the three lowest-
+# effort gaps identified in `analysis/codec_test_audit.md`.
+# ---------------------------------------------------------------------------
+
+from .session_clock_beacon import (  # noqa: E402, F811
+    decode as _decode_clock_125,
+    TYPE_HEADER as _CLOCK_TH_125,
+)
+from .session_identity_beacon import (  # noqa: E402, F811
+    decode as _decode_identity_125,
+    TYPE_HEADER as _IDENT_TH_125,
+)
+from .session_message_a4 import (  # noqa: E402, F811
+    decode as _decode_a4_125,
+    TYPE_HEADER as _A4_TH_125,
+)
+
+
+def test_session_clock_beacon_decode_rejects_wrong_header():
+    bad = b"\x00\x01\x8e\x05" + b"\x00" * 8  # off by one in byte 2
+    with pytest.raises(ValueError, match="type header"):
+        _decode_clock_125(bad)
+
+
+def test_session_clock_beacon_decode_rejects_wrong_size():
+    short = _CLOCK_TH_125 + b"\x00" * 4  # missing nonce
+    with pytest.raises(ValueError):
+        _decode_clock_125(short)
+
+
+def test_session_identity_beacon_decode_rejects_wrong_header():
+    # Body is 42 bytes; supply right size with wrong header
+    bad = b"\x00\x01\x88\x6f" + b"\x00" * 38  # off by one in byte 3
+    with pytest.raises(ValueError, match="type header"):
+        _decode_identity_125(bad)
+
+
+def test_session_identity_beacon_decode_rejects_wrong_size():
+    short = _IDENT_TH_125 + b"\x00" * 4
+    with pytest.raises(ValueError):
+        _decode_identity_125(short)
+
+
+def test_session_message_a4_decode_rejects_wrong_header():
+    bad = b"\x00\x01\xa4\x03" + b"\x00" * 16  # off by one in byte 3
+    with pytest.raises(ValueError, match="type header"):
+        _decode_a4_125(bad)
+
+
+def test_session_message_a4_decode_rejects_wrong_size():
+    short = _A4_TH_125 + b"\x00" * 8  # half the session_uuid
+    with pytest.raises(ValueError):
+        _decode_a4_125(short)
+
+
 from .handshake_blob_76 import (  # noqa: E402
     make_handshake_blob_76,
     DEFAULT_SUB_ID as HSB_FACTORY_DEFAULT_SUB_ID,
