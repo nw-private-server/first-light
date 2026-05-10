@@ -3699,6 +3699,64 @@ def test_decode_cli_json_mode(capsys):
     assert "type=0x15d" in cap.err
 
 
+# ---------------------------------------------------------------------------
+# Wake-135 audit fix-ups: populated encode→decode round-trip tests for the
+# 3 lowest-effort gaps from analysis/codec_encoder_audit.md.
+# ---------------------------------------------------------------------------
+
+from .permission_bitmap_a95 import (  # noqa: E402
+    PermissionBitmapA95,
+    encode as _pb_encode_135, decode as _pb_decode_135,
+)
+from .action_history_635 import (  # noqa: E402
+    ActionHistory635,
+    encode as _ah_encode_135, decode as _ah_decode_135,
+)
+from .receipt_handshake_9fc import (  # noqa: E402, F811
+    ReceiptHandshake9FC,
+    encode as _rh_encode_135, decode as _rh_decode_135,
+)
+
+
+def test_permission_bitmap_a95_populated_round_trip():
+    msg = PermissionBitmapA95(
+        client_hash=b"\x01\x02\x03\x04",
+        session_uuid=bytes(range(16)),
+        subkey=bytes(range(16, 32)),
+        flags=b"\xff" * 7 + b"\x00" * 3,
+    )
+    wire = _pb_encode_135(msg)
+    assert _pb_decode_135(wire) == msg
+
+
+def test_action_history_635_populated_round_trip():
+    msg = ActionHistory635(
+        client_hash=b"\xde\xad\xbe\xef",
+        session_uuid=bytes(range(16)),
+        second_id=bytes(range(16, 24)),
+        session_uuid_lower=bytes(range(8, 16)),
+        counter=5,
+        first_send=True,
+        history_counters=(4, 3, 2, 1),
+    )
+    wire = _ah_encode_135(msg)
+    assert _ah_decode_135(wire) == msg
+
+
+def test_receipt_handshake_9fc_populated_round_trip():
+    sess = bytes(range(16))
+    msg = ReceiptHandshake9FC(
+        client_hash=b"\xaa\xbb\xcc\xdd",
+        session_uuid=sess,
+        subkey=bytes(range(16, 32)),
+        echoed_session_uuid=sess,
+        state_block=b"\x00" * 26,
+        echoed_blob=bytes(range(32, 48)),
+    )
+    wire = _rh_encode_135(msg)
+    assert _rh_decode_135(wire) == msg
+
+
 def test_decode_cli_seq_path(capsys):
     """The --seq path picks a captured body by seq number."""
     import sys as _sys

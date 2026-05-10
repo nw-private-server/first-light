@@ -11395,3 +11395,50 @@ encoding rule, etc.
 skipped). Data.json unchanged.
 
 **Blockers:** None.
+
+## Wake 135 — codec encoder symmetry audit
+
+**Goal**: counterpart to wake-125's decoder-side audit. Do all
+codecs with `encode()` have a populated round-trip test
+(construct a fresh dataclass → encode → decode → assert equal)?
+The dispatcher full-replay test covers encode paths with
+captured values, but extreme/boundary inputs need explicit
+populated tests.
+
+**Method**: keyword-bucketed scan of `test_codecs.py`, checking
+each codec module's tests for `encode + decode + assert`
+patterns. Refined over a first iteration to also catch
+factory-style tests (e.g. `make_session_clock_beacon(...)`).
+
+**Findings**:
+
+- 27 codec modules with at least one `encode*()` function.
+- 20 already had populated round-trip tests after the wake-125
+  audit and earlier work.
+- **7 gaps**: `action_history_635`, `asset_blob_16a0`,
+  `asset_count_table_ca4`, `permission_bitmap_a95`,
+  `receipt_handshake_9fc`, `vivox_config_1067`,
+  `world_data_blob_65c`.
+
+**Built**:
+
+- `analysis/codec_encoder_audit.md` — full audit writeup with
+  the per-module coverage table and the gap analysis.
+- 3 new populated round-trip tests for the lowest-effort gaps:
+  - `test_permission_bitmap_a95_populated_round_trip`
+  - `test_action_history_635_populated_round_trip`
+  - `test_receipt_handshake_9fc_populated_round_trip`
+
+Each constructs a fully-populated dataclass with non-trivial
+field values, encodes, decodes, asserts equality.
+
+**Result**: encoder-audit gap count **7 → 4**. Remaining 4
+(`asset_blob_16a0`, `asset_count_table_ca4`, `vivox_config_1067`,
+`world_data_blob_65c`) are documented in the audit as
+follow-ups — each needs more involved fixtures because of
+multi-variant encoders or nested record lists.
+
+Test total: **338 → 341 (+3)**. Site rebuild recorded
+`test_count=341`.
+
+**Blockers:** None.
