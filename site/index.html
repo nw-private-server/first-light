@@ -428,6 +428,146 @@ a:hover { text-decoration: underline; }
 .decomp-row .name { font-family: ui-monospace, monospace; font-weight: 600; color: var(--accent); }
 .decomp-row .meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
 .decomp-row .sig { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text-dim); margin-top: 4px; word-break: break-all; }
+
+/* Message inspector (clicked from session-timeline scatter) */
+.inspector {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-top: 14px;
+  margin-bottom: 20px;
+}
+.inspector .empty {
+  color: var(--text-dim);
+  font-size: 13px;
+  font-style: italic;
+}
+.inspector .head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.inspector .head h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.inspector .head .pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: ui-monospace, monospace;
+}
+.inspector .pill.dir-R { background: rgba(88,166,255,0.15); color: var(--accent); }
+.inspector .pill.dir-W { background: rgba(63,185,80,0.15); color: var(--accent-2); }
+.inspector .pill.kind { background: var(--surface-2); color: var(--text-dim); }
+.inspector .pill.warn { background: rgba(210,153,34,0.15); color: var(--warn); }
+.inspector .meta {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: ui-monospace, monospace;
+}
+.inspector .nav-btns {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.inspector .nav-btn {
+  background: var(--surface-2);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.inspector .nav-btn:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--text);
+}
+.inspector .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.inspector .panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 760px) {
+  .inspector .panes { grid-template-columns: 1fr; }
+}
+.inspector .pane h4 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+}
+.inspector .fields {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  max-height: 360px;
+  overflow: auto;
+}
+.fields .row { padding-left: 14px; position: relative; }
+.fields .row > .key {
+  color: var(--accent);
+}
+.fields .row > .val {
+  color: var(--text);
+}
+.fields .row .num { color: var(--accent-2); }
+.fields .row .str { color: var(--warn); }
+.fields .row .nul { color: var(--text-dim); font-style: italic; }
+.fields .row .bytes-meta { color: var(--text-dim); font-size: 11px; }
+.fields .row .bytes-hex {
+  color: var(--text-dim);
+  word-break: break-all;
+  font-size: 11px;
+  margin-top: 2px;
+  margin-left: 10px;
+  padding: 4px 6px;
+  background: var(--surface);
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+.fields .row .truncated {
+  color: var(--warn);
+  font-size: 10px;
+  margin-left: 6px;
+}
+.fields .indent { padding-left: 10px; border-left: 1px dashed var(--border); margin-left: 4px; }
+
+.inspector .hex {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  max-height: 360px;
+  overflow: auto;
+  white-space: pre;
+  color: var(--text-dim);
+}
+.inspector .hex .ascii { color: var(--text); }
+.inspector .hex .red { color: var(--warn); }
+.inspector .hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+#chart-replay-timeline { cursor: pointer; }
 </style>
 </head>
 <body>
@@ -527,10 +667,14 @@ a:hover { text-decoration: underline; }
     immediately visible — the early V3 handshake, the bulk world data
     around seq 6, then the steady heartbeat patter.
   </p>
-  <div class="chart-card" style="margin-bottom: 20px;">
+  <div class="chart-card">
     <h3>Captured session timeline (177 messages)</h3>
-    <div class="hint">Hover/tap a dot for type, size, and direction. The session captures roughly 2 minutes of real login traffic.</div>
+    <div class="hint">Hover/tap a dot for a quick summary. <strong>Click a dot</strong> to inspect that message's decoded fields below — every dot is a real captured message routed through the codec library's central dispatcher.</div>
     <div class="chart-wrap" style="height: 360px;"><canvas id="chart-replay-timeline"></canvas></div>
+  </div>
+
+  <div class="inspector" id="msg-inspector">
+    <div class="empty">Click any dot in the timeline above to see that message's decoded fields and raw bytes.</div>
   </div>
 
   <div class="section-h">How we got here</div>
@@ -948,7 +1092,7 @@ function drawReplayTimeline(data) {
   // Y-axis ticks: list each unique type-id we saw, sorted.
   const types = Array.from(new Set(tl.map(m => m.type_id))).sort((a, b) => a - b);
 
-  new Chart(document.getElementById("chart-replay-timeline"), {
+  const chart = new Chart(document.getElementById("chart-replay-timeline"), {
     type: "scatter",
     data: {
       datasets: [
@@ -957,20 +1101,35 @@ function drawReplayTimeline(data) {
           data: rPoints,
           backgroundColor: COLORS.accent,
           pointRadius: 4,
-          pointHoverRadius: 6,
+          pointHoverRadius: 7,
+          pointHoverBorderColor: "#fff",
+          pointHoverBorderWidth: 1,
         },
         {
           label: "W (client→server)",
           data: wPoints,
           backgroundColor: COLORS.green,
           pointRadius: 4,
-          pointHoverRadius: 6,
+          pointHoverRadius: 7,
+          pointHoverBorderColor: "#fff",
+          pointHoverBorderWidth: 1,
         },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      onClick: (evt, elements, chart) => {
+        const items = chart.getElementsAtEventForMode(
+          evt, "nearest", { intersect: true }, false);
+        if (!items.length) return;
+        const item = items[0];
+        const point = chart.data.datasets[item.datasetIndex].data[item.index];
+        showInspector(data, point.x);
+      },
+      onHover: (evt, items, chart) => {
+        chart.canvas.style.cursor = items.length ? "pointer" : "default";
+      },
       plugins: {
         legend: { position: "top", labels: { color: COLORS.dim } },
         tooltip: {
@@ -981,6 +1140,7 @@ function drawReplayTimeline(data) {
                 `seq=${p.x}  type=${p.type_id_hex}  dir=${p.direction}  size=${p.size} B`,
               ];
               if (p.name) lines.push(p.name);
+              lines.push("(click for decoded fields)");
               return lines;
             },
           },
@@ -1011,6 +1171,206 @@ function drawReplayTimeline(data) {
       },
     },
   });
+  // Stash the chart so the inspector's prev/next buttons can highlight
+  // the active point as we navigate through the session.
+  window._replayChart = chart;
+}
+
+// ---------------------------------------------------------------------------
+//  Message inspector (option 2: click a dot, see decoded fields + hex)
+// ---------------------------------------------------------------------------
+
+function showInspector(data, seq) {
+  const decoded = (data.replay_decoded || []).find(r => r.seq === seq);
+  const el = document.getElementById("msg-inspector");
+  if (!decoded) {
+    el.innerHTML = `<div class="empty">No decoded record for seq=${seq}.</div>`;
+    return;
+  }
+
+  const all = data.replay_decoded;
+  const idx = all.findIndex(r => r.seq === seq);
+  const prev = idx > 0 ? all[idx - 1].seq : null;
+  const next = idx < all.length - 1 ? all[idx + 1].seq : null;
+
+  const nameByType = {};
+  for (const c of (data.captured_types || [])) {
+    nameByType[c.type_id_hex] = c.name;
+  }
+  const friendly = nameByType[decoded.type_id_hex] || "";
+
+  // Header pills
+  const dirCls = "dir-" + decoded.direction;
+  const dirLabel = decoded.direction === "R" ? "R · server→client" : "W · client→server";
+  const statusPill =
+    decoded.decode_status === "ok" ? "" :
+    decoded.decode_status === "no-codec"
+      ? `<span class="pill warn">no codec (server-emit only)</span>`
+      : `<span class="pill warn">decode error</span>`;
+  const redactionPill = decoded.has_redaction
+    ? `<span class="pill warn">contains redacted bytes</span>` : "";
+  const friendlyLine = friendly && !friendly.startsWith("(")
+    ? `<div class="meta">${escapeHtml(friendly)}</div>` : "";
+
+  let fieldsHtml;
+  if (decoded.decode_status === "ok") {
+    fieldsHtml = renderFields(decoded.fields);
+  } else if (decoded.decode_status === "no-codec") {
+    fieldsHtml = `<div class="empty">No codec registered for this type-id. ${decoded.type_id_hex === "0x0003" ? "0x03 (V3RegistrationResponse) is server-emit-only — we generate it, never parse it." : ""}</div>`;
+  } else {
+    fieldsHtml = `<div class="empty">${escapeHtml(decoded.error || "Decode failed.")}</div>`;
+  }
+
+  const hexHtml = renderHexDump(decoded.body_hex, decoded.body_size, decoded.body_truncated, decoded.redacted_spans);
+
+  el.innerHTML = `
+    <div class="head">
+      <h3>seq ${decoded.seq} <span class="meta">· ${decoded.type_id_hex}</span></h3>
+      <span class="pill ${dirCls}">${dirLabel}</span>
+      ${decoded.kind ? `<span class="pill kind">${escapeHtml(decoded.kind)}</span>` : ""}
+      <span class="meta">${decoded.body_size} bytes</span>
+      ${statusPill}
+      ${redactionPill}
+      <div class="nav-btns">
+        <button class="nav-btn" id="msg-prev" ${prev == null ? "disabled" : ""} title="Previous message">‹ prev</button>
+        <button class="nav-btn" id="msg-next" ${next == null ? "disabled" : ""} title="Next message">next ›</button>
+      </div>
+    </div>
+    ${friendlyLine}
+    <div class="panes">
+      <div class="pane">
+        <h4>Decoded fields</h4>
+        <div class="fields">${fieldsHtml}</div>
+        <div class="hint">Output of <code>dispatch.decode_replay_message(type, dir, body)</code>.</div>
+      </div>
+      <div class="pane">
+        <h4>Raw body${decoded.body_truncated ? " (first 512 B)" : ""}</h4>
+        <div class="hex">${hexHtml}</div>
+        <div class="hint">${decoded.body_truncated ? "Body is larger than 512 bytes; preview only." : "Full message body, exactly as captured on the wire."}</div>
+      </div>
+    </div>
+  `;
+
+  if (prev != null) {
+    el.querySelector("#msg-prev").addEventListener("click",
+      () => showInspector(data, prev));
+  }
+  if (next != null) {
+    el.querySelector("#msg-next").addEventListener("click",
+      () => showInspector(data, next));
+  }
+
+  // Scroll the inspector into view (gentle — only if we're not already there)
+  const rect = el.getBoundingClientRect();
+  if (rect.top < 0 || rect.top > window.innerHeight * 0.75) {
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function renderFields(obj) {
+  // Top-level entry: render the dict's rows.
+  if (obj == null) return `<span class="nul">null</span>`;
+  if (typeof obj !== "object" || Array.isArray(obj) || obj.__bytes__) {
+    // Single-value top-level (rare but handle it)
+    return renderValue(obj);
+  }
+  const rows = [];
+  for (const [k, v] of Object.entries(obj)) {
+    rows.push(renderRow(k, v));
+  }
+  return rows.join("");
+}
+
+function renderRow(key, val) {
+  if (val == null) {
+    return `<div class="row"><span class="key">${escapeHtml(key)}</span>: <span class="nul">null</span></div>`;
+  }
+  if (val && typeof val === "object" && val.__bytes__) {
+    const trunc = val.truncated
+      ? `<span class="truncated">truncated (showing first ${val.hex.length / 2} of ${val.len} B)</span>` : "";
+    return `<div class="row">
+      <span class="key">${escapeHtml(key)}</span>:
+      <span class="bytes-meta">bytes (${val.len})</span>${trunc}
+      <div class="bytes-hex">${val.hex || "<i>empty</i>"}</div>
+    </div>`;
+  }
+  if (Array.isArray(val)) {
+    if (!val.length) {
+      return `<div class="row"><span class="key">${escapeHtml(key)}</span>: <span class="nul">[]</span></div>`;
+    }
+    const inner = val.map((v, i) => renderRow(String(i), v)).join("");
+    return `<div class="row"><span class="key">${escapeHtml(key)}</span>: <span class="bytes-meta">[${val.length}]</span>
+      <div class="indent">${inner}</div></div>`;
+  }
+  if (typeof val === "object") {
+    const inner = Object.entries(val).map(([k, v]) => renderRow(k, v)).join("");
+    return `<div class="row"><span class="key">${escapeHtml(key)}</span>:
+      <div class="indent">${inner}</div></div>`;
+  }
+  return `<div class="row"><span class="key">${escapeHtml(key)}</span>: ${renderValue(val)}</div>`;
+}
+
+function renderValue(v) {
+  if (typeof v === "number") {
+    // Show small ints in dec; large in dec + hex for readability.
+    if (Number.isInteger(v) && (v >= 256 || v < 0)) {
+      const hex = v >= 0
+        ? "0x" + v.toString(16)
+        : "-0x" + Math.abs(v).toString(16);
+      return `<span class="num">${v}</span> <span class="bytes-meta">(${hex})</span>`;
+    }
+    return `<span class="num">${v}</span>`;
+  }
+  if (typeof v === "string") {
+    return `<span class="str">${escapeHtml(JSON.stringify(v))}</span>`;
+  }
+  if (typeof v === "boolean") return `<span class="num">${v}</span>`;
+  return `<span class="val">${escapeHtml(String(v))}</span>`;
+}
+
+function renderHexDump(hex, totalBytes, truncated, redactedSpans) {
+  // hex is a string of hex chars (length = bytes * 2). Produce a
+  // classic xxd-style view: offset | hex bytes | ascii.
+  if (!hex) return "<i>empty</i>";
+  const bytesPreview = hex.length / 2;
+  // Flag which byte-offsets fall inside redacted spans (those bytes were
+  // XX in the capture and got zeroed).
+  const isRedacted = new Set();
+  if (Array.isArray(redactedSpans)) {
+    for (const span of redactedSpans) {
+      const [start, len] = span;
+      for (let i = start; i < start + len && i < bytesPreview; i++) {
+        isRedacted.add(i);
+      }
+    }
+  }
+  const lines = [];
+  for (let off = 0; off < bytesPreview; off += 16) {
+    const lineEnd = Math.min(off + 16, bytesPreview);
+    const offStr = off.toString(16).padStart(8, "0");
+    const hexParts = [];
+    const asciiParts = [];
+    for (let i = off; i < lineEnd; i++) {
+      const b = parseInt(hex.substr(i * 2, 2), 16);
+      const hh = hex.substr(i * 2, 2);
+      const cls = isRedacted.has(i) ? ' class="red"' : '';
+      hexParts.push(`<span${cls}>${hh}</span>`);
+      const ch = (b >= 0x20 && b < 0x7f) ? String.fromCharCode(b) : ".";
+      asciiParts.push(isRedacted.has(i)
+        ? `<span class="red">${escapeHtml(ch)}</span>`
+        : `<span class="ascii">${escapeHtml(ch)}</span>`);
+    }
+    // Pad missing hex columns to keep the ascii column aligned
+    const padCols = (16 - (lineEnd - off));
+    if (padCols > 0) {
+      hexParts.push("   ".repeat(padCols));
+    }
+    lines.push(`${offStr}  ${hexParts.join(" ")}  |${asciiParts.join("")}|`);
+  }
+  if (truncated) {
+    lines.push(`<span class="bytes-meta">… ${totalBytes - bytesPreview} more bytes</span>`);
+  }
+  return lines.join("\n");
 }
 
 function drawVolumeCoverageChart(data) {

@@ -257,6 +257,98 @@ def load_replay_timeline():
     ]
 
 
+# How many hex chars of bytes to keep inline in any single bytes field
+# of a decoded message (1024 chars = 512 bytes).
+_BYTES_HEX_CAP = 1024
+# How many hex chars of the raw message body to ship inline (so the
+# browser can render a small hex preview alongside the decoded fields).
+_BODY_HEX_CAP = 1024
+
+
+def _to_jsonable(obj, depth: int = 0):
+    """Recursively convert a decoded codec dataclass to a JSON-friendly
+    structure. Bytes become {hex, len, truncated?}; large blobs are
+    truncated so a single "ship the whole replay" pass stays under
+    a few hundred KB.
+    """
+    import dataclasses
+    if depth > 6:
+        return repr(obj)[:200]
+    if isinstance(obj, (bytes, bytearray)):
+        h = obj.hex()
+        if len(h) > _BYTES_HEX_CAP:
+            return {
+                "__bytes__": True,
+                "hex": h[:_BYTES_HEX_CAP],
+                "len": len(obj),
+                "truncated": True,
+            }
+        return {"__bytes__": True, "hex": h, "len": len(obj)}
+    if dataclasses.is_dataclass(obj):
+        return {
+            f.name: _to_jsonable(getattr(obj, f.name), depth + 1)
+            for f in dataclasses.fields(obj)
+        }
+    if isinstance(obj, dict):
+        return {str(k): _to_jsonable(v, depth + 1) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_to_jsonable(x, depth + 1) for x in obj]
+    if isinstance(obj, (int, float, str, bool)) or obj is None:
+        return obj
+    return repr(obj)[:200]
+
+
+def load_replay_decoded():
+    """Pre-decode every captured message via dispatch.decode_replay_message
+    so the site can render a click-to-inspect view without server-side
+    decoding. Truncates large bytes blobs so the inline JSON payload
+    stays small.
+    """
+    import sys
+    sys.path.insert(0, str(REPO))
+    from server.javelin.replay_store import ReplayStore
+    from server.javelin.dispatch import decode_replay_message
+    p = REPO / "info" / "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        return []
+    store = ReplayStore(p)
+    out = []
+    for m in store.messages:
+        body_hex = m.body.hex()
+        body_truncated = len(body_hex) > _BODY_HEX_CAP
+        rec = {
+            "seq": m.seq,
+            "type_id_hex": f"0x{m.type_id:04x}",
+            "direction": m.direction,
+            "body_size": len(m.body),
+            "body_hex": body_hex[:_BODY_HEX_CAP],
+            "body_truncated": body_truncated,
+            "has_redaction": m.has_redaction,
+            "redacted_spans": m.redacted_spans,
+        }
+        try:
+            decoded = decode_replay_message(m.type_id, m.direction, m.body)
+        except Exception as e:
+            rec["decode_status"] = "error"
+            rec["error"] = f"{type(e).__name__}: {e}"[:300]
+            out.append(rec)
+            continue
+        if decoded is None:
+            rec["decode_status"] = "no-codec"
+            out.append(rec)
+            continue
+        rec["decode_status"] = "ok"
+        rec["kind"] = type(decoded).__name__
+        if isinstance(decoded, (bytes, bytearray)):
+            # Framing-only codecs return raw bytes — surface as a single
+            # implicit field so the UI can still render something useful.
+            rec["fields"] = {"body": _to_jsonable(decoded)}
+        else:
+            rec["fields"] = _to_jsonable(decoded)
+        out.append(rec)
+    return out
+
+
 def load_findings():
     """Pull a curated list of major findings from the worklog (the last
     few wake entries' headlines)."""
@@ -333,6 +425,7 @@ def build_data():
     test_count = load_test_count()
     findings = load_findings()
     replay_timeline = load_replay_timeline()
+    replay_decoded = load_replay_decoded()
     test_count_history = load_test_count_history()
 
     # Build captured-types list
@@ -583,6 +676,7 @@ def build_data():
         "faq": faq,
         "timeline": timeline,
         "replay_timeline": replay_timeline,
+        "replay_decoded": replay_decoded,
         "test_count_history": test_count_history,
     }
 
@@ -598,6 +692,7 @@ def main():
     print(f"  codecs: {data['stats']['codec_module_count']}")
     print(f"  decompiles: {data['stats']['decompile_count']}")
     print(f"  named_captured: {data['stats']['named_captured_types']}")
+    print(f"  replay_decoded: {len(data['replay_decoded'])}")
 
 
 if __name__ == "__main__":

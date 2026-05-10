@@ -10752,3 +10752,62 @@ the chunked-stream codec landed; wake 109: +5 when the
 new history field.
 
 **Blockers:** None.
+
+## Wake 120 — click-to-inspect message browser on the dashboard
+
+**Goal**: turn the existing session-timeline scatter chart into an
+interactive message browser. Every dot is a real captured message
+that already round-trips through the codec library's central
+dispatcher; let visitors click a dot and see the decoded fields plus
+a hex preview.
+
+**Built**:
+
+- `tools/build_site.py`:
+  - New `load_replay_decoded()` walks every captured replay message,
+    runs it through `dispatch.decode_replay_message`, and converts
+    the resulting codec dataclass into a JSON-friendly tree via a
+    new `_to_jsonable()` helper. Bytes fields become
+    `{__bytes__:true, hex, len, truncated?}`; large blobs (any single
+    bytes field over 512 B, or any body over 512 B for the raw
+    preview) are truncated so the inline payload stays bounded.
+  - New `replay_decoded` field in `data.json`. Build output: 176/177
+    messages decode cleanly via the dispatcher; the lone exception
+    is `0x03` at seq=1 (V3RegistrationResponse — server-emit-only,
+    intentionally no decoder). The new field adds ~270 KB to
+    `data.json` (361 KB → 604 KB raw / ~140 KB gzipped, well under
+    GitHub Pages limits).
+- `site/index.html`:
+  - Added an `.inspector` panel under the session-timeline chart with
+    two columns: decoded fields (recursive renderer with monospace
+    hex, integer-with-hex-suffix, list/dict indentation, and bytes
+    truncation badges) and a classic xxd-style hex dump of the raw
+    body. Redacted byte spans are highlighted in the warn color in
+    both the hex column and the ASCII column.
+  - Wired Chart.js scatter `onClick` to look up the clicked seq in
+    `data.replay_decoded` and re-render the inspector. `onHover`
+    flips the cursor to a pointer over hit-testable points.
+  - Tooltip hint updated to "(click for decoded fields)".
+  - Prev/next navigation buttons walk the session in seq order
+    without leaving the page.
+  - Mobile breakpoint at 760 px collapses the two-column inspector
+    to a single column.
+  - Hint banner above the scatter spells out that clicking inspects
+    the dispatcher's actual decoded output, tying the visualization
+    back to the codec library it sits on top of.
+
+**Verification**:
+
+- `.venv/bin/python3 tools/build_site.py` → 177 records, 0 decode
+  errors, 1 no-codec (the expected 0x03).
+- Local `python3 -m http.server` smoke: HTML parses, JS parses
+  cleanly under `node --check`-style eval, all renderer functions
+  exercised against real captured records (heartbeat ping, V3
+  registration, asset-blob with 100 KB body).
+
+**Result**: a visitor can now click any of the 177 dots in the
+captured session timeline and see, in-place, the field-by-field
+decoded structure plus the raw bytes — making the codec library's
+work tangibly visible without anyone needing to clone the repo.
+
+**Blockers:** None.
