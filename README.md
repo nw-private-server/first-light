@@ -1,9 +1,11 @@
 # New World: First Light
 
-[![Tests](https://github.com/nw-private-server/first-light/actions/workflows/tests.yml/badge.svg)](https://github.com/nw-private-server/first-light/actions/workflows/tests.yml)
+[![Tests](https://github.com/nw-private-server/first-light/actions/workflows/tests.yml/badge.svg)](https://github.com/nw-private-server/first-light/actions/workflows/tests.yml) [![Pages](https://github.com/nw-private-server/first-light/actions/workflows/pages.yml/badge.svg)](https://nw-private-server.github.io/first-light/)
 
 A community effort to build a private server emulator for New World before Amazon shuts down the live service (~Dec 2026). The goal is to accept the real unmodified client binary, pass auth, and let a player enter a static world. No combat, NPCs, or persistence required for MVP.
-First Light is in reference to the territory "First Light" that was eventually removed from the game. 
+First Light is in reference to the territory "First Light" that was eventually removed from the game.
+
+**Live dashboard:** [nw-private-server.github.io/first-light](https://nw-private-server.github.io/first-light/) — friendly project overview, captured-traffic charts, connection-state diagram, and the codec/decompile catalog. Mobile-friendly; auto-redeploys on push.
 
 
 ---
