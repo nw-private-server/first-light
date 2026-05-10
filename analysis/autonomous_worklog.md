@@ -9491,3 +9491,90 @@ fingerprint search from earlier wakes.
 
 **Blockers:** None — but autonomous yield from this thread is
 hitting honest limits.
+
+---
+
+### 2026-05-09/10 — wake 97: cross-correlation fails; spec'd unblock path; loop quieting
+
+**Did:**
+
+Tested wake 96's queued cross-correlation strategy: for the 3
+captured types with truly unique CreateInstance stubs (xref
+count = 1):
+- 0x8 stub at 0x146420ca0 (xref source 0x148502a58)
+- 0x635 stub at 0x144867c50 (xref source 0x14838a8c0)
+- 0x12f6 stub at 0x14659b0b0 (xref source 0x1485264d0)
+
+Dumped 0x200 bytes around each xref source looking for a
+class-name string. Result: **the `.rdata` neighborhood of each
+xref source does NOT contain the type's class-name string.**
+
+What's there instead:
+- 0x12f6's neighborhood has `PlayerComponentClientFacet_*`
+  method names and TWO unrelated UUIDs
+  (`36F814E4-1BE2-40C3-9C2D-B2B05011...` and
+  `348D014D-E235-44C1-ADD4-08BB2492...`) — neither matches the
+  registry's 0x12f6 UUID `6E2A29B1-AF9E-441C-8A71-67C409FDEEBC`
+- 0x635's neighborhood has `javelin.alc-correct-position-desync-during-attack-slow-d`
+  and `javelin.camera-lock-targ` — these are CONSOLE/CONFIG-KEY
+  names, not type names
+- 0x8's neighborhood has only function-pointer arrays, no
+  readable strings
+
+**Definitive negative result**: the static-binary handler-
+vtable structure and the typeinfo class-name strings are in
+SEPARATE `.data` regions that don't share locality. Even
+unique-stub types can't be name-extracted by walking nearby
+bytes. The 1:1 binding is only made at runtime via
+`AZ::SerializeContext::Register<T>()`.
+
+**Wrote the maintainer-ready unblock spec:**
+`analysis/typename_unblock_spec.md`. Documents:
+- Current state (35 unclaimed captured types)
+- 3 options to unblock further progress:
+  - Option A (best): Frida hook on `AZ::SerializeContext::Register`
+    — gives all 3487 (typeIndex, name) pairs in seconds. Needs
+    real-GPU host.
+  - Option B: better runtime registry dump (re-run the dumper
+    with name population enabled)
+  - Option C: static-RE on the `InstallRegistrationHook<T>`
+    body to identify the registration call shape and
+    pattern-match all 2025+ instantiations
+- The 5 confirmed names that ARE solid
+- The 35 unclaimed wire-types listed explicitly
+
+**Files this iteration:**
+
+- `analysis/typename_unblock_spec.md` (new — maintainer-ready)
+- This worklog entry
+
+**Library status: unchanged.** 258 tests passing.
+
+**Autonomous yield assessment**: this thread (wakes 90-97) has
+delivered:
+- 5 confirmed type names (high confidence)
+- 297/312 named registry entries 1:1 mapped to binary strings
+- 9 high-confidence interpolations across the registry
+- A documented methodology + explicit unblock spec for further
+  progress
+
+That's enough. **Letting the loop go quiet on this thread.** The
+remaining 35 unclaimed types need either runtime data or
+substantial additional Ghidra work. Both are bounded by the
+runtime path the maintainer is choosing (real-GPU host).
+
+**Net of wakes 86-97** (this RE block):
+- 5 high-confidence captured-type names
+- 11 distinct sub-system identity-bundle uppers identified
+- Wire-type-id == typeIndex relationship verified (wake 90)
+- W-direction CRC32 confirmed and integrated (wakes 90 + 92)
+- 8 useful Ghidra scripts shipped (FindBytesAnywhere,
+  FindConstantIntersection, FindAlignedDataConstant,
+  FindMemcmpCalls, FindLEAToRange, ExtractTypeNames,
+  BulkBytesSearch, RegistrationHookExtractor methodology)
+- analysis/typename_mapping.csv (3487 rows, authoritative for
+  297 + 9 named entries)
+- DASHBOARD.md mobile-friendly project page
+
+**Blockers:** None autonomously. The runtime-path decision
+remains the highest-value unblock for the project as a whole.
