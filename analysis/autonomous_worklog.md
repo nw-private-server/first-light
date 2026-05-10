@@ -10811,3 +10811,59 @@ decoded structure plus the raw bytes — making the codec library's
 work tangibly visible without anyone needing to clone the repo.
 
 **Blockers:** None.
+
+## Wake 121 — identity-bundle cross-correlation (parallel agents)
+
+**Goal**: enumerate the 11 distinct `sub_system_id` values
+referenced in wake-78's identity-bundle finding, and check
+whether they correspond to entries in the runtime
+`info/typeregistry.json`. If they did, we'd get protocol-level
+class names for entire message families at once.
+
+**Method**: two `Explore` subagents in parallel. Agent 1 walked
+the codec library + replay to extract sub_system_ids per
+wire-type. Agent 2 hunted the typeregistry for matches against
+a candidate set in both byte orderings.
+
+**Findings**:
+
+1. **11 distinct sub_system_id values** confirmed (matches
+   wake 78).
+2. **7 of 11 sub_system_ids span multiple wire-types**:
+   - `ce81136a2b7ad33e` — 3-way:
+     `0x102e + 0x1033 + 0x192c` (strongest correlation)
+   - `f8cbed57c68b18f4` — `0x18a6 ↔ 0x1a59` counter-pair
+     (validates wake-78's counter-coupling)
+   - `93a3e477cb5fd51e` — `0x1096 ↔ 0x1097` (NEW: the
+     wake-101 frame-config and the spawn-confirmation result
+     token are in one sub-system)
+   - 4 more pair correlations
+3. **Hypothesis falsified**: `sub_system_id` ≠ typeregistry
+   UUID lower 8 bytes. Zero matches in either byte ordering
+   across all 3,487 entries, including for the canonical
+   `bf85314bbc4a951a` session_uuid_lower.
+
+**Built**:
+
+- `analysis/identity_bundle_correlation.md` — full writeup
+  with the table of 11 sub_system_ids, the cross-correlations,
+  the negative-result section, and a list of cheap follow-up
+  experiments (hash-based, second-capture).
+
+**Cheap follow-up experiment ready to run** (hash-based): compute
+CRC64 / SHA-1[0:8] / FNV-1a-64 / xxhash64 over the 312 named
+registry entries' class names; check for matches against the
+11 captured sub_system_ids. If any hash matches, that gives the
+class name for that sub_system_id. Documented in the writeup.
+
+**Parallel-agent retrospective**: highly effective — the
+codec-library walk and the registry hunt are completely
+independent threads, two agents in parallel delivered both
+halves in one wake, main thread synthesized + wrote up. The
+3-way correlation is a clean RE-actionable lead for any future
+work on the opaque-blob's bulk content.
+
+**No code changes**, no test changes. Tests still 320 (+1
+skipped).
+
+**Blockers:** None.
