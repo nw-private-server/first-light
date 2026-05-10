@@ -813,7 +813,12 @@
       "lines": 289,
       "size_bytes": 10538,
       "signature": "ulonglong FUN_146240d70(ulonglong *param_1,longlong param_2,undefined8 *param_3)",
-      "related": []
+      "related": [
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_1462419c0",
@@ -822,7 +827,12 @@
       "lines": 74,
       "size_bytes": 2245,
       "signature": "int FUN_1462419c0(undefined8 *param_1,longlong param_2,longlong *param_3)",
-      "related": []
+      "related": [
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_1462426b0",
@@ -831,7 +841,12 @@
       "lines": 93,
       "size_bytes": 2620,
       "signature": "uint FUN_1462426b0(uint param_1)",
-      "related": []
+      "related": [
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_146b6c500",
@@ -872,6 +887,10 @@
         {
           "filename": "connection_lifecycle_decompiles.md",
           "label": "connection lifecycle decompiles"
+        },
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
         }
       ]
     },
@@ -914,7 +933,12 @@
       "lines": 14,
       "size_bytes": 340,
       "signature": "void FUN_140fadbc0(undefined8 param_1,longlong *param_2,undefined8 param_3,undefined8 param_4)",
-      "related": []
+      "related": [
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_140fb3560",
@@ -927,6 +951,10 @@
         {
           "filename": "state_machine_summary.md",
           "label": "state machine summary"
+        },
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
         }
       ]
     },
@@ -1011,7 +1039,12 @@
       "lines": 117,
       "size_bytes": 3481,
       "signature": "undefined * FUN_1407f2e80(void)",
-      "related": []
+      "related": [
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_1407cd040",
@@ -1020,7 +1053,12 @@
       "lines": 65,
       "size_bytes": 1792,
       "signature": "",
-      "related": []
+      "related": [
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_146b6e7c0",
@@ -1029,7 +1067,12 @@
       "lines": 141,
       "size_bytes": 4870,
       "signature": "void FUN_146b6e7c0(longlong param_1)",
-      "related": []
+      "related": [
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_14645c660",
@@ -1056,6 +1099,10 @@
         {
           "filename": "connection_lifecycle_decompiles.md",
           "label": "connection lifecycle decompiles"
+        },
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
         }
       ]
     },
@@ -1066,7 +1113,12 @@
       "lines": 77,
       "size_bytes": 2923,
       "signature": "undefined8 FUN_1473ed090(longlong param_1)",
-      "related": []
+      "related": [
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_14752dcd0",
@@ -1075,7 +1127,12 @@
       "lines": 930,
       "size_bytes": 32404,
       "signature": "longlong FUN_14752dcd0(longlong param_1,undefined8 param_2)",
-      "related": []
+      "related": [
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_145a92370",
@@ -1096,6 +1153,10 @@
         {
           "filename": "state_machine_summary.md",
           "label": "state machine summary"
+        },
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
         }
       ]
     },
@@ -1166,6 +1227,10 @@
         {
           "filename": "state_machine_summary.md",
           "label": "state machine summary"
+        },
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
         }
       ]
     },
@@ -1180,6 +1245,10 @@
         {
           "filename": "connection_lifecycle_decompiles.md",
           "label": "connection lifecycle decompiles"
+        },
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
         }
       ]
     },
@@ -1190,7 +1259,12 @@
       "lines": 17,
       "size_bytes": 421,
       "signature": "void FUN_145a9fa80(longlong param_1,undefined8 *param_2)",
-      "related": []
+      "related": [
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_145a92380",
@@ -1199,7 +1273,12 @@
       "lines": 8,
       "size_bytes": 113,
       "signature": "bool FUN_145a92380(longlong param_1)",
-      "related": []
+      "related": [
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_145a905d0",
@@ -1212,6 +1291,10 @@
         {
           "filename": "state_10_unblock_synthesis.md",
           "label": "state 10 unblock synthesis"
+        },
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
         }
       ]
     },
@@ -1226,6 +1309,10 @@
         {
           "filename": "state_machine_summary.md",
           "label": "state machine summary"
+        },
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
         }
       ]
     },
@@ -1236,7 +1323,12 @@
       "lines": 9,
       "size_bytes": 123,
       "signature": "void FUN_145a9fa00(longlong param_1)",
-      "related": []
+      "related": [
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_145a923c0",
@@ -1263,6 +1355,10 @@
         {
           "filename": "state_machine_summary.md",
           "label": "state machine summary"
+        },
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
         }
       ]
     },
@@ -1273,7 +1369,12 @@
       "lines": 28,
       "size_bytes": 629,
       "signature": "void FUN_1426eb150(longlong param_1)",
-      "related": []
+      "related": [
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_1426edaa0",
@@ -1282,7 +1383,12 @@
       "lines": 114,
       "size_bytes": 3344,
       "signature": "void FUN_1426edaa0(longlong param_1)",
-      "related": []
+      "related": [
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_1402a1750",
@@ -1291,7 +1397,12 @@
       "lines": 8,
       "size_bytes": 102,
       "signature": "longlong FUN_1402a1750(longlong param_1)",
-      "related": []
+      "related": [
+        {
+          "filename": "wrapper_setter_decompiles.md",
+          "label": "wrapper setter decompiles"
+        }
+      ]
     }
   ],
   "findings": [
@@ -27610,6 +27721,12 @@
       "test_count": 337,
       "commit": "015a59d",
       "subject": "site: decompile rows now surface cross-referenced analysis docs"
+    },
+    {
+      "wake": 130,
+      "test_count": 337,
+      "commit": "3fc71ce",
+      "subject": "analysis(wake 130): connection-lifecycle decompile overview \u2014 cross-link density 32% \u2192 62%"
     }
   ],
   "wire_type_families": [

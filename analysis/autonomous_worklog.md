@@ -11235,3 +11235,38 @@ up automatically on the next site rebuild.
 link density past 90%. Documented in the new file as a follow-up.
 
 **Blockers:** None.
+
+## Wake 131 — wrapper-setter overview → 100% cross-link density
+
+**Goal**: complete the wake-130 cross-link density push by writing
+an overview for the remaining 15 unreferenced decompiles. Target:
+get the dashboard's "📄 related" badges on every single decompile
+row.
+
+**Built**:
+
+- `analysis/wrapper_setter_decompiles.md` — overview covering all
+  15 previously-unreferenced decompiles:
+  - Wrapper substate writers: `wrapper_setter_fa80`,
+    `wrapper_state10_entry`, `wrapper_state12_gate_writer`,
+    `wrapper_substate_xref_caller_1/2`, `wrapper_switchD8_check`
+  - State-13 writers: `state13_writer_b`, `state13_writer_c`
+  - State-11 dispatcher: `state11_dispatcher`
+  - Destroy dispatch: `destroy_dispatcher`
+  - Response handlers: `response_typeinfo`, `response_unmarshal`
+  - Uncharacterized cluster: `FUN_146240d70`, `FUN_1462419c0`,
+    `FUN_1462426b0`
+
+**Result**: dashboard cross-link density reached **39/39 (100%)**.
+Every decomp file in the catalog now has at least one analysis
+doc that mentions it by stem name, surfacing as a `📄` related
+badge on the dashboard's Decompiles tab.
+
+Progression across the cross-link arc:
+- Wake 129: built the annotation pass + initial map → 12/39 (32%)
+- Wake 130: connection-lifecycle overview → 24/39 (62%)
+- Wake 131: wrapper-setter overview → 39/39 (100%)
+
+**No code changes**, no test changes. Tests still 336 (+1 skipped).
+
+**Blockers:** None.
