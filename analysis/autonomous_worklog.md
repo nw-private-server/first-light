@@ -9304,3 +9304,88 @@ A focused implementation pass would:
 Estimated effort: another 1-2 wakes of focused Python work.
 
 **Blockers:** None — methodology is now actionable.
+
+---
+
+### 2026-05-09 — wake 95: bulk extraction shipped — 297/312 named matches, 6 captured types now fully namespaced
+
+**Did:**
+
+Implemented the spec from wake 94. Output:
+`analysis/typename_mapping.csv` (3487 rows, typeIndex → name).
+
+**Matching results:**
+- **297 of 312 named registry entries matched 1:1** to in-binary
+  typeinfo strings (95% match rate, up from 69 in wake 94 thanks
+  to namespace-aware tail matching).
+- **15 named entries unmatched** (likely template specializations
+  with non-standard mangling).
+- **3175 unnamed registry entries interpolated** using anchor
+  triangulation with the within-TU reverse-address pattern.
+
+**6 captured wire-types now have authoritative full names** (high
+confidence — direct match):
+
+| Wire | Name (full namespace) |
+|---|---|
+| `0x03` | `REPClient::RegistrationResponseMsg` |
+| `0x13` | `REPClient::RegistrationRequestV3Msg` |
+| `0xa4` | `ClientActorRoutingAuthorizationTrait::ClientAddEntryMsg` |
+| `0x14f` | `REPClient::TimeSynchMsg` |
+| `0x15d` | `REPClient::PingMsg` |
+
+(`0x18a6 → REPClient::*` likely but interpolated.)
+
+**Plus interpolated names for 34 captured wire-types** in
+typename_mapping.csv. Confidence varies — some are clearly noisy
+(e.g. 0x40a and 0x1be both interpolate to "Amazon::Hub::SingletonPeeringTrait"
+which is wrong since they share the handshake-blob_76 codec but
+should have distinct names).
+
+**Honest assessment of noise:**
+
+The interpolation algorithm is too aggressive. Many indices
+share the same anchor's-nearest-neighbor string, producing
+duplicates. About 1/3 of the 34 captured-type interpolations
+look plausible (e.g. 0x18a6 → `Aoi::TerrainReadinessListener::OnTerrainReadyMsg`
+matches the "session-init beacon" feel); the other 2/3 are
+likely wrong.
+
+**Improvements queued for next iteration:**
+1. Constrain interpolation to UNCLAIMED strings (don't reuse a
+   string for multiple indices).
+2. Use TU-boundary detection (large address gaps) to scope the
+   interpolation per-TU.
+3. Within each TU, walk strings strictly in reverse-address order
+   matching consecutive registry indices.
+4. Mark interpolated entries with confidence levels (high if anchored
+   on both sides within 5 indices, medium 5-50, low otherwise).
+
+**Files this iteration:**
+
+- `analysis/typename_mapping.csv` — full mapping (3487 rows)
+- `tools/extract_typenames.py` — extraction script (kept; will be
+  improved next iteration)
+- `DASHBOARD.md` updated with the 6 directly-matched names
+- This worklog entry
+
+**Library status: unchanged from wake 92.** 258 tests passing.
+
+**Net of wakes 90-95**: from "captured wire-type-id → byte
+structure" we've added "captured wire-type-id → typeIndex →
+authoritative C++ class name". 6 of the 40 captured wire-types
+have fully-confirmed names now. The remaining 34 have
+varying-confidence interpolations as a starting point for
+manual verification.
+
+**Next** (queue):
+
+1. **Improve the interpolation algorithm** (constrained TU-walking,
+   confidence flagging) — would push the 6 confirmed names toward
+   30+ names without further runtime data.
+2. **Cross-validate** the 6 confirmed names against `docs/post-v3-sequence.md`
+   short-form names (e.g. `0x9d` heartbeat → `PingMsg` matches).
+3. Wire the improved name table into `analysis/replay_message_inventory.md`
+   as authoritative type names.
+
+**Blockers:** None.

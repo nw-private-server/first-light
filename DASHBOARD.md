@@ -28,12 +28,12 @@ Full table — wire-type → registry name → codec module:
 
 | Wire | N | Dir | Bytes | Registry Name | UUID | Codec |
 |---|---:|---|---:|---|---|---|
-| `0x0003` | 1 | R | 88 | RegistrationResponseMsg | 104145A7... | `v3_response.py` |
+| `0x0003` | 1 | R | 88 | **REPClient::RegistrationResponseMsg** | 104145A7... | `v3_response.py` |
 | `0x0008` | 79 | R | 78,106,126... | _(unnamed)_ | 8A40AEC2... | `—` |
-| `0x0013` | 1 | W | 2750 | RegistrationRequestV3Msg | 0B826B33... | `—` |
-| `0x00a4` | 2 | R | 20 | **ClientAddEntryMsg** | E3578B38... | `session_message_a4.py` |
-| `0x014f` | 4 | R | 12 | **TimeSynchMsg** | 038CD847... | `session_clock_beacon.py` |
-| `0x015d` | 20 | RW | 12,36 | **PingMsg** | 6A379FB8... | `heartbeat_15d.py` |
+| `0x0013` | 1 | W | 2750 | **REPClient::RegistrationRequestV3Msg** | 0B826B33... | `—` |
+| `0x00a4` | 2 | R | 20 | **ClientActorRoutingAuthorizationTrait::ClientAddEntryMsg** | E3578B38... | `session_message_a4.py` |
+| `0x014f` | 4 | R | 12 | **REPClient::TimeSynchMsg** | 038CD847... | `session_clock_beacon.py` |
+| `0x015d` | 20 | RW | 12,36 | **REPClient::PingMsg** | 6A379FB8... | `heartbeat_15d.py` |
 | `0x01be` | 1 | R | 76 | _(unnamed)_ | 1E718638... | `handshake_blob_76.py` |
 | `0x040a` | 1 | R | 76 | _(unnamed)_ | 979E13FB... | `handshake_blob_76.py` |
 | `0x05b2` | 4 | W | 45,93 | _(unnamed)_ | 298436A9... | `identity_fingerprint_5b2.py` |
@@ -69,7 +69,7 @@ Full table — wire-type → registry name → codec module:
 | `0x1a59` | 3 | W | 45 | _(unnamed)_ | B42B3E49... | `session_subkey_1a59.py` |
 | `0x1b88` | 23 | R | 42 | _(unnamed)_ | AA0A0B64... | `session_identity_beacon.py` |
 
-**Bold** = type names recovered from `info/typeregistry.json` (wake 90).
+**Bold** = type names with full namespace recovered from `info/typeregistry.json` + binary typeinfo strings (wake 90 + wake 95). The 6 names above are direct 1:1 matches between named registry entries and `InstallRegistrationHook<T>` typeinfo strings in the binary. The other 34 captured types have interpolated names of varying confidence in [`analysis/typename_mapping.csv`](analysis/typename_mapping.csv) — see worklog wake 95 for the methodology and noise sources.
 
 ## State 10 → 11 status
 
