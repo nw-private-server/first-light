@@ -10318,3 +10318,30 @@ bottom — is wire-complete for the captured-replay use case.
 reflects test_count=311 (310 + 1 skipped).
 
 **Blockers:** None.
+
+## Wake 110 — codec library overview doc
+
+**Goal**: with the codec library wire-complete (wake 109), write
+a public-facing onboarding doc so future contributors can find
+their way around `server/javelin/` without spelunking the
+worklog.
+
+**Built**:
+
+- `analysis/codec_library_overview.md` (~3 KB):
+  - Layered architecture sketch (wire plumbing → per-type codecs
+    → family/generic → dispatcher → supporting).
+  - Naming convention (`<purpose>_<typeid_hex>.py`).
+  - Full table of 22 per-type codec modules with their wire
+    type-ids, directions, and coverage depths.
+  - Coverage-depth glossary (structural, framing-only,
+    encode-only).
+  - Dispatcher usage sample.
+  - "Adding a new codec" walkthrough (hex-dump → pick depth →
+    write codec → tests → dispatcher wiring → site map).
+
+**Site rebuild**: not strictly needed (analysis/* doesn't trigger
+the Pages workflow), but ran for consistency. data.json
+unchanged.
+
+**Blockers:** None.
