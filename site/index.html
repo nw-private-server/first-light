@@ -533,6 +533,23 @@ a:hover { text-decoration: underline; }
 .decomp-row .name { font-family: ui-monospace, monospace; font-weight: 600; color: var(--accent); }
 .decomp-row .meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
 .decomp-row .sig { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text-dim); margin-top: 4px; word-break: break-all; }
+.decomp-row .related {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.decomp-row .related a {
+  font-size: 10px;
+  background: rgba(63,185,80,0.10);
+  color: var(--accent-2);
+  border: 1px solid rgba(63,185,80,0.3);
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-decoration: none;
+  font-family: ui-monospace, monospace;
+}
+.decomp-row .related a:hover { background: rgba(63,185,80,0.2); }
 
 /* Message inspector (clicked from session-timeline scatter) */
 .inspector {
@@ -1112,10 +1129,16 @@ async function load() {
   for (const d of data.decompiles) {
     const div = document.createElement("div");
     div.className = "decomp-row";
+    const relatedLinks = (d.related || [])
+      .map(r =>
+        `<a href="https://github.com/nw-private-server/first-light/blob/claude/vacation-2026-05-06/analysis/${escapeHtml(r.filename)}" target="_blank" title="${escapeHtml(r.filename)}">📄 ${escapeHtml(r.label)}</a>`
+      )
+      .join("");
     div.innerHTML = `
       <div class="name"><a href="decomp/${escapeHtml(d.stem)}.txt">${escapeHtml(d.name)}</a></div>
       <div class="meta">addr=0x${d.addr || "?"} · ${d.lines} lines · ${d.size_bytes} bytes</div>
       ${d.signature ? `<div class="sig">${escapeHtml(d.signature)}</div>` : ""}
+      ${relatedLinks ? `<div class="related">${relatedLinks}</div>` : ""}
     `;
     decompList.appendChild(div);
   }

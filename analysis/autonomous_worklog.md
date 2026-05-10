@@ -11164,3 +11164,43 @@ $ .venv/bin/python3 tools/decode_message.py --type 0x15d \
 ```
 
 **Blockers:** None.
+
+## Wake 129 — decompile-text annotations
+
+**Goal**: cross-link the decomp files in the dashboard's
+Decompiles tab with the analysis docs that reference them, so
+visitors clicking on `state_advance_predicate` can immediately
+see which writeups discuss it (e.g.
+`state_10_unblock_synthesis.md`).
+
+**Built**:
+
+- `tools/build_site.py`:
+  - New `load_decompile_annotations()` walks
+    `analysis/*.md` (excluding the noisy
+    `autonomous_worklog.md` and `codec_test_audit.md`),
+    builds a `stem → [{filename, label}]` map for any decomp
+    stem mentioned by name.
+  - Merge step in `build_data()` attaches `related[]` to each
+    decompile entry.
+- `site/index.html`:
+  - CSS for `.decomp-row .related` with small accent-2 (green)
+    badge styling.
+  - Each decompile row now renders related-doc badges as
+    `📄 <label>` links to the file on GitHub (target=_blank
+    so visitors don't lose their place).
+
+**Result**: 12 of 39 decomps now expose at least one cross-
+referenced analysis doc. The most-cited (`state_advance_predicate`)
+links to `state_10_unblock_synthesis.md` and `state_machine_summary.md`,
+plus a couple others. The remaining 27 decomps still have only the
+filename + signature — surfacing those would need new analysis
+writeups (a worthy follow-up but not this wake).
+
+**Site rebuild**: regenerated; data.json includes the new
+`related[]` arrays per decompile entry. Pages auto-redeploy on
+push.
+
+**Tests unchanged**: 336 (+1 skipped).
+
+**Blockers:** None.

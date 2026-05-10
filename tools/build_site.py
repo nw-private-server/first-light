@@ -157,6 +157,36 @@ def load_decompiles():
     return out
 
 
+def load_decompile_annotations():
+    """For each decomp stem, find analysis/*.md docs that reference it
+    by name. Excludes the noisy bookkeeping docs (autonomous_worklog,
+    codec_test_audit) so the per-row "related" list stays informative.
+    Returns: stem → list of {filename, label} dicts.
+    """
+    EXCLUDED = {
+        "autonomous_worklog.md",
+        "codec_test_audit.md",
+    }
+    stems = [p.stem.replace("decomp_", "")
+             for p in (REPO / "analysis").glob("decomp_*.txt")]
+    refs: dict[str, list[dict]] = {}
+    for md in sorted((REPO / "analysis").glob("*.md")):
+        if md.name in EXCLUDED:
+            continue
+        try:
+            text = md.read_text(errors="replace")
+        except Exception:
+            continue
+        for stem in stems:
+            if stem in text:
+                refs.setdefault(stem, []).append({
+                    "filename": md.name,
+                    # Friendly label: strip extension, replace underscores
+                    "label": md.stem.replace("_", " "),
+                })
+    return refs
+
+
 def load_test_count():
     """Collect-only pytest to get the test count without running them.
 
@@ -592,6 +622,14 @@ def build_data():
     test_count_history = load_test_count_history()
     wire_type_families = load_wire_type_families()
     decompile_groups = load_decompile_groups()
+    decompile_annotations = load_decompile_annotations()
+
+    # Merge annotations into decompiles (key match: txt.stem is
+    # "decomp_<name>", annotations are keyed by "<name>"). Empty list
+    # when nothing references the decomp.
+    for d in decompiles:
+        bare_stem = d["stem"].replace("decomp_", "", 1)
+        d["related"] = decompile_annotations.get(bare_stem, [])
 
     # Build captured-types list
     captured_by_id = {}

@@ -812,7 +812,8 @@
       "stem": "decomp_FUN_146240d70",
       "lines": 289,
       "size_bytes": 10538,
-      "signature": "ulonglong FUN_146240d70(ulonglong *param_1,longlong param_2,undefined8 *param_3)"
+      "signature": "ulonglong FUN_146240d70(ulonglong *param_1,longlong param_2,undefined8 *param_3)",
+      "related": []
     },
     {
       "name": "FUN_1462419c0",
@@ -820,7 +821,8 @@
       "stem": "decomp_FUN_1462419c0",
       "lines": 74,
       "size_bytes": 2245,
-      "signature": "int FUN_1462419c0(undefined8 *param_1,longlong param_2,longlong *param_3)"
+      "signature": "int FUN_1462419c0(undefined8 *param_1,longlong param_2,longlong *param_3)",
+      "related": []
     },
     {
       "name": "FUN_1462426b0",
@@ -828,7 +830,8 @@
       "stem": "decomp_FUN_1462426b0",
       "lines": 93,
       "size_bytes": 2620,
-      "signature": "uint FUN_1462426b0(uint param_1)"
+      "signature": "uint FUN_1462426b0(uint param_1)",
+      "related": []
     },
     {
       "name": "FUN_146b6c500",
@@ -836,7 +839,8 @@
       "stem": "decomp_branchA_sender",
       "lines": 220,
       "size_bytes": 7163,
-      "signature": "void FUN_146b6c500(longlong *param_1,undefined4 param_2,char param_3,undefined8 param_4)"
+      "signature": "void FUN_146b6c500(longlong *param_1,undefined4 param_2,char param_3,undefined8 param_4)",
+      "related": []
     },
     {
       "name": "FUN_146aaa130",
@@ -844,7 +848,8 @@
       "stem": "decomp_clientconnectionmsg_sender",
       "lines": 354,
       "size_bytes": 11990,
-      "signature": "undefined4 * FUN_146aaa130(undefined8 param_1,undefined4 *param_2,longlong *param_3)"
+      "signature": "undefined4 * FUN_146aaa130(undefined8 param_1,undefined4 *param_2,longlong *param_3)",
+      "related": []
     },
     {
       "name": "FUN_1407ec310",
@@ -852,7 +857,8 @@
       "stem": "decomp_clientconnectionmsg_typeinfo",
       "lines": 116,
       "size_bytes": 3374,
-      "signature": "undefined * FUN_1407ec310(void)"
+      "signature": "undefined * FUN_1407ec310(void)",
+      "related": []
     },
     {
       "name": "FUN_146454c00",
@@ -860,7 +866,13 @@
       "stem": "decomp_connection_success_caller",
       "lines": 477,
       "size_bytes": 14651,
-      "signature": "void FUN_146454c00(longlong param_1,longlong param_2,undefined8 param_3,undefined8 param_4,"
+      "signature": "void FUN_146454c00(longlong param_1,longlong param_2,undefined8 param_3,undefined8 param_4,",
+      "related": [
+        {
+          "filename": "state_machine_summary.md",
+          "label": "state machine summary"
+        }
+      ]
     },
     {
       "name": "FUN_1430079a0",
@@ -868,7 +880,8 @@
       "stem": "decomp_crash_site",
       "lines": 401,
       "size_bytes": 13165,
-      "signature": "undefined8 FUN_1430079a0(undefined8 param_1,longlong *param_2,longlong *param_3,ulonglong param_4)"
+      "signature": "undefined8 FUN_1430079a0(undefined8 param_1,longlong *param_2,longlong *param_3,ulonglong param_4)",
+      "related": []
     },
     {
       "name": "FUN_140fadbc0",
@@ -876,7 +889,8 @@
       "stem": "decomp_destroy_dispatcher",
       "lines": 14,
       "size_bytes": 340,
-      "signature": "void FUN_140fadbc0(undefined8 param_1,longlong *param_2,undefined8 param_3,undefined8 param_4)"
+      "signature": "void FUN_140fadbc0(undefined8 param_1,longlong *param_2,undefined8 param_3,undefined8 param_4)",
+      "related": []
     },
     {
       "name": "FUN_140fb3560",
@@ -884,7 +898,13 @@
       "stem": "decomp_destroy_flag_writer",
       "lines": 463,
       "size_bytes": 12301,
-      "signature": "void FUN_140fb3560(undefined8 param_1,undefined8 param_2,longlong *param_3,longlong param_4,"
+      "signature": "void FUN_140fb3560(undefined8 param_1,undefined8 param_2,longlong *param_3,longlong param_4,",
+      "related": [
+        {
+          "filename": "state_machine_summary.md",
+          "label": "state machine summary"
+        }
+      ]
     },
     {
       "name": "FUN_146b3c250",
@@ -892,7 +912,13 @@
       "stem": "decomp_destroy_function",
       "lines": 1062,
       "size_bytes": 36535,
-      "signature": "void FUN_146b3c250(longlong param_1)"
+      "signature": "void FUN_146b3c250(longlong param_1)",
+      "related": [
+        {
+          "filename": "state_machine_summary.md",
+          "label": "state machine summary"
+        }
+      ]
     },
     {
       "name": "FUN_146b713e0",
@@ -900,7 +926,8 @@
       "stem": "decomp_gw160_setter",
       "lines": 30,
       "size_bytes": 750,
-      "signature": "void FUN_146b713e0(longlong param_1,undefined8 *param_2)"
+      "signature": "void FUN_146b713e0(longlong param_1,undefined8 *param_2)",
+      "related": []
     },
     {
       "name": "FUN_14103b1a0",
@@ -908,7 +935,8 @@
       "stem": "decomp_javelin_game_on_connection_fail",
       "lines": 138,
       "size_bytes": 4409,
-      "signature": "void FUN_14103b1a0(longlong param_1,int param_2,undefined4 *param_3,int param_4)"
+      "signature": "void FUN_14103b1a0(longlong param_1,int param_2,undefined4 *param_3,int param_4)",
+      "related": []
     },
     {
       "name": "FUN_14103b570",
@@ -916,7 +944,8 @@
       "stem": "decomp_javelin_game_on_connection_succeed",
       "lines": 439,
       "size_bytes": 14217,
-      "signature": "void FUN_14103b570(longlong param_1,int param_2)"
+      "signature": "void FUN_14103b570(longlong param_1,int param_2)",
+      "related": []
     },
     {
       "name": "FUN_146448cd0",
@@ -924,7 +953,13 @@
       "stem": "decomp_loadcontext_no_selfid",
       "lines": 157,
       "size_bytes": 6000,
-      "signature": "void FUN_146448cd0(longlong param_1)"
+      "signature": "void FUN_146448cd0(longlong param_1)",
+      "related": [
+        {
+          "filename": "state_machine_summary.md",
+          "label": "state machine summary"
+        }
+      ]
     },
     {
       "name": "FUN_1407f2e80",
@@ -932,7 +967,8 @@
       "stem": "decomp_response_typeinfo",
       "lines": 117,
       "size_bytes": 3481,
-      "signature": "undefined * FUN_1407f2e80(void)"
+      "signature": "undefined * FUN_1407f2e80(void)",
+      "related": []
     },
     {
       "name": "FUN_1407cd040",
@@ -940,7 +976,8 @@
       "stem": "decomp_response_unmarshal",
       "lines": 65,
       "size_bytes": 1792,
-      "signature": ""
+      "signature": "",
+      "related": []
     },
     {
       "name": "FUN_146b6e7c0",
@@ -948,7 +985,8 @@
       "stem": "decomp_state11_dispatcher",
       "lines": 141,
       "size_bytes": 4870,
-      "signature": "void FUN_146b6e7c0(longlong param_1)"
+      "signature": "void FUN_146b6e7c0(longlong param_1)",
+      "related": []
     },
     {
       "name": "FUN_14645c660",
@@ -956,7 +994,8 @@
       "stem": "decomp_state12_gate_setter_caller",
       "lines": 17,
       "size_bytes": 393,
-      "signature": "void FUN_14645c660(longlong param_1)"
+      "signature": "void FUN_14645c660(longlong param_1)",
+      "related": []
     },
     {
       "name": "FUN_143dd6b20",
@@ -964,7 +1003,8 @@
       "stem": "decomp_state13_writer_a",
       "lines": 435,
       "size_bytes": 13433,
-      "signature": "void FUN_143dd6b20(longlong param_1,undefined8 *param_2,undefined8 *param_3,undefined1 param_4,"
+      "signature": "void FUN_143dd6b20(longlong param_1,undefined8 *param_2,undefined8 *param_3,undefined1 param_4,",
+      "related": []
     },
     {
       "name": "FUN_1473ed090",
@@ -972,7 +1012,8 @@
       "stem": "decomp_state13_writer_b",
       "lines": 77,
       "size_bytes": 2923,
-      "signature": "undefined8 FUN_1473ed090(longlong param_1)"
+      "signature": "undefined8 FUN_1473ed090(longlong param_1)",
+      "related": []
     },
     {
       "name": "FUN_14752dcd0",
@@ -980,7 +1021,8 @@
       "stem": "decomp_state13_writer_c",
       "lines": 930,
       "size_bytes": 32404,
-      "signature": "longlong FUN_14752dcd0(longlong param_1,undefined8 param_2)"
+      "signature": "longlong FUN_14752dcd0(longlong param_1,undefined8 param_2)",
+      "related": []
     },
     {
       "name": "FUN_145a92370",
@@ -988,7 +1030,17 @@
       "stem": "decomp_state_advance_predicate",
       "lines": 8,
       "size_bytes": 113,
-      "signature": "bool FUN_145a92370(longlong param_1)"
+      "signature": "bool FUN_145a92370(longlong param_1)",
+      "related": [
+        {
+          "filename": "state_10_unblock_synthesis.md",
+          "label": "state 10 unblock synthesis"
+        },
+        {
+          "filename": "state_machine_summary.md",
+          "label": "state machine summary"
+        }
+      ]
     },
     {
       "name": "decomp_substate_writers",
@@ -996,7 +1048,13 @@
       "stem": "decomp_substate_writers",
       "lines": 1338,
       "size_bytes": 77745,
-      "signature": ""
+      "signature": "",
+      "related": [
+        {
+          "filename": "state_machine_summary.md",
+          "label": "state machine summary"
+        }
+      ]
     },
     {
       "name": "FUN_146b66a60",
@@ -1004,7 +1062,8 @@
       "stem": "decomp_v2_builder",
       "lines": 71,
       "size_bytes": 2180,
-      "signature": ""
+      "signature": "",
+      "related": []
     },
     {
       "name": "FUN_146b66820",
@@ -1012,7 +1071,8 @@
       "stem": "decomp_v3_builder",
       "lines": 83,
       "size_bytes": 2804,
-      "signature": ""
+      "signature": "",
+      "related": []
     },
     {
       "name": "FUN_145a8d150",
@@ -1020,7 +1080,13 @@
       "stem": "decomp_wrapper_destroy_arg",
       "lines": 8,
       "size_bytes": 103,
-      "signature": "longlong FUN_145a8d150(longlong param_1)"
+      "signature": "longlong FUN_145a8d150(longlong param_1)",
+      "related": [
+        {
+          "filename": "state_machine_summary.md",
+          "label": "state machine summary"
+        }
+      ]
     },
     {
       "name": "FUN_145a9fa10",
@@ -1028,7 +1094,13 @@
       "stem": "decomp_wrapper_setter_fa10",
       "lines": 17,
       "size_bytes": 421,
-      "signature": "void FUN_145a9fa10(longlong param_1,undefined8 *param_2)"
+      "signature": "void FUN_145a9fa10(longlong param_1,undefined8 *param_2)",
+      "related": [
+        {
+          "filename": "state_machine_summary.md",
+          "label": "state machine summary"
+        }
+      ]
     },
     {
       "name": "FUN_145a9fa30",
@@ -1036,7 +1108,8 @@
       "stem": "decomp_wrapper_setter_fa30",
       "lines": 22,
       "size_bytes": 562,
-      "signature": "void FUN_145a9fa30(longlong param_1,undefined8 *param_2)"
+      "signature": "void FUN_145a9fa30(longlong param_1,undefined8 *param_2)",
+      "related": []
     },
     {
       "name": "FUN_145a9fa80",
@@ -1044,7 +1117,8 @@
       "stem": "decomp_wrapper_setter_fa80",
       "lines": 17,
       "size_bytes": 421,
-      "signature": "void FUN_145a9fa80(longlong param_1,undefined8 *param_2)"
+      "signature": "void FUN_145a9fa80(longlong param_1,undefined8 *param_2)",
+      "related": []
     },
     {
       "name": "FUN_145a92380",
@@ -1052,7 +1126,8 @@
       "stem": "decomp_wrapper_state10_entry",
       "lines": 8,
       "size_bytes": 113,
-      "signature": "bool FUN_145a92380(longlong param_1)"
+      "signature": "bool FUN_145a92380(longlong param_1)",
+      "related": []
     },
     {
       "name": "FUN_145a905d0",
@@ -1060,7 +1135,13 @@
       "stem": "decomp_wrapper_state10_setup",
       "lines": 188,
       "size_bytes": 6057,
-      "signature": "void FUN_145a905d0(longlong param_1,undefined8 param_2,undefined8 param_3)"
+      "signature": "void FUN_145a905d0(longlong param_1,undefined8 param_2,undefined8 param_3)",
+      "related": [
+        {
+          "filename": "state_10_unblock_synthesis.md",
+          "label": "state 10 unblock synthesis"
+        }
+      ]
     },
     {
       "name": "FUN_145a905c0",
@@ -1068,7 +1149,13 @@
       "stem": "decomp_wrapper_state12_gate",
       "lines": 8,
       "size_bytes": 122,
-      "signature": "undefined1 FUN_145a905c0(longlong param_1)"
+      "signature": "undefined1 FUN_145a905c0(longlong param_1)",
+      "related": [
+        {
+          "filename": "state_machine_summary.md",
+          "label": "state machine summary"
+        }
+      ]
     },
     {
       "name": "FUN_145a9fa00",
@@ -1076,7 +1163,8 @@
       "stem": "decomp_wrapper_state12_gate_writer",
       "lines": 9,
       "size_bytes": 123,
-      "signature": "void FUN_145a9fa00(longlong param_1)"
+      "signature": "void FUN_145a9fa00(longlong param_1)",
+      "related": []
     },
     {
       "name": "FUN_145a923c0",
@@ -1084,7 +1172,13 @@
       "stem": "decomp_wrapper_state13_gate",
       "lines": 8,
       "size_bytes": 122,
-      "signature": "undefined1 FUN_145a923c0(longlong param_1)"
+      "signature": "undefined1 FUN_145a923c0(longlong param_1)",
+      "related": [
+        {
+          "filename": "state_machine_summary.md",
+          "label": "state machine summary"
+        }
+      ]
     },
     {
       "name": "FUN_145a87010",
@@ -1092,7 +1186,13 @@
       "stem": "decomp_wrapper_substate_setter_candidate",
       "lines": 70,
       "size_bytes": 1955,
-      "signature": "void FUN_145a87010(longlong param_1)"
+      "signature": "void FUN_145a87010(longlong param_1)",
+      "related": [
+        {
+          "filename": "state_machine_summary.md",
+          "label": "state machine summary"
+        }
+      ]
     },
     {
       "name": "FUN_1426eb150",
@@ -1100,7 +1200,8 @@
       "stem": "decomp_wrapper_substate_xref_caller_1",
       "lines": 28,
       "size_bytes": 629,
-      "signature": "void FUN_1426eb150(longlong param_1)"
+      "signature": "void FUN_1426eb150(longlong param_1)",
+      "related": []
     },
     {
       "name": "FUN_1426edaa0",
@@ -1108,7 +1209,8 @@
       "stem": "decomp_wrapper_substate_xref_caller_2",
       "lines": 114,
       "size_bytes": 3344,
-      "signature": "void FUN_1426edaa0(longlong param_1)"
+      "signature": "void FUN_1426edaa0(longlong param_1)",
+      "related": []
     },
     {
       "name": "FUN_1402a1750",
@@ -1116,7 +1218,8 @@
       "stem": "decomp_wrapper_switchD8_check",
       "lines": 8,
       "size_bytes": 102,
-      "signature": "longlong FUN_1402a1750(longlong param_1)"
+      "signature": "longlong FUN_1402a1750(longlong param_1)",
+      "related": []
     }
   ],
   "findings": [
@@ -27423,6 +27526,12 @@
       "test_count": 336,
       "commit": "6f5354d",
       "subject": "analysis(wake 127): tools/decode_message.py --list mode"
+    },
+    {
+      "wake": 128,
+      "test_count": 337,
+      "commit": "8d6c03f",
+      "subject": "analysis(wake 128): tools/decode_message.py --json mode"
     }
   ],
   "wire_type_families": [
