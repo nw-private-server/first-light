@@ -27815,6 +27815,12 @@
       "test_count": 347,
       "commit": "092934f",
       "subject": "site: Findings tab gains an analysis-doc index (32 writeups)"
+    },
+    {
+      "wake": null,
+      "test_count": 347,
+      "commit": "1121181",
+      "subject": "site: searchable analysis-doc index on Findings tab"
     }
   ],
   "wire_type_families": [
@@ -27988,7 +27994,7 @@
       "filename": "codec_library_overview.md",
       "title": "Codec library \u2014 overview",
       "summary": "A guide to `server/javelin/` for contributors landing on this repo for the first time. As of wake 109 the library covers every captured wire-type message in our DTLS replay; every captured body decodes successfully an\u2026",
-      "bytes": 9527
+      "bytes": 11979
     },
     {
       "filename": "codec_test_audit.md",

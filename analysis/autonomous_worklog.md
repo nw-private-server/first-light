@@ -11760,3 +11760,39 @@ per-wake writeups, etc.
 Site rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 146 — refresh the codec library overview doc
+
+**Goal**: `analysis/codec_library_overview.md` was last
+substantially updated at wake 115. Since then the project has
+shipped: the central dispatcher (wakes 104-105),
+`tools/decode_message.py` + its `--list`/`--json`/`--seq`
+flags (wakes 115/127/128/132), two codec audits closed to 0
+(wakes 125/126/135/136), and auto-updating coverage badges
+(wake 137). Refresh the overview so it reflects current state.
+
+**Updated sections**:
+
+- **Tests**: test count 310 → 346 (+1 skipped). Note both
+  audits at 0 gaps with cross-links to the audit docs.
+- **CLI section** added: dedicated examples for `--list`,
+  `--seq`, `--replay-index`, `--hex`, `--file`, `--stdin`,
+  `--json | jq`.
+- **Dispatcher API section** added: canonical entry points
+  (`decode_replay_message`, `encode_replay_message`,
+  `supported_type_ids`, `encodable_type_ids`) plus a note
+  about `0x5d1` being known to the dispatcher even though
+  it's not in the captured replay (state-10 unblock trigger).
+- **Adding a new codec** walkthrough updated to require BOTH
+  decode-side rejection AND encode-side populated round-trip
+  tests from day one (so new codecs don't recreate the audit
+  gaps).
+- **Audits section** added: links to
+  `codec_test_audit.md`, `codec_encoder_audit.md`, and
+  `cross_link_arc.md` with the scaffold-→-wedge-→-close
+  pattern note.
+
+**No code changes**, no test changes. Doc-only refresh.
+Tests still 346 (+1 skipped).
+
+**Blockers:** None.

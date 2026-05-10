@@ -174,17 +174,61 @@ non-zero exit if the type-id has no registered decoder.
 
 ## Tests
 
-`server/javelin/test_codecs.py` is the single test file (~3700+ lines as of wake 109). Conventions:
+`server/javelin/test_codecs.py` is the single test file (~4000+ lines as of wake 145). Conventions:
 
-- Each codec ships round-trip + structural-rejection tests.
+- Each codec ships round-trip + structural-rejection tests
+  (both audited to 0 gaps — see
+  [codec_test_audit.md](codec_test_audit.md) and
+  [codec_encoder_audit.md](codec_encoder_audit.md)).
 - Captured-replay tests use the actual on-disk replay to assert
   byte-identical decode→encode round-trip.
 - The dispatcher's full-replay round-trip test (`test_dispatch_encode_decode_round_trip_full_replay`) is the canary: any new codec failure surfaces as a single failing test rather than silent drift.
 
 ```sh
 .venv/bin/pytest server/javelin/test_codecs.py
-# 310 passing as of wake 109
+# 346 passing as of wake 145 (+1 skipped)
 ```
+
+## CLI: `tools/decode_message.py`
+
+```sh
+# Enumerate every wire-type the dispatcher knows about
+tools/decode_message.py --list
+
+# Decode a captured message by replay-index OR by seq (more natural for replay analysis)
+tools/decode_message.py --type 0x15d --direction R --replay-index 0
+tools/decode_message.py --type 0x15d --direction R --seq 0x2
+
+# Decode raw hex / a file / stdin
+tools/decode_message.py --type 0x15d --direction R --hex '00019d050003af9100000001'
+tools/decode_message.py --type 0x65c --direction R --file /tmp/body.bin
+cat body.bin | tools/decode_message.py --type 0x18a6 --direction W --stdin
+
+# Pipeable JSON (comments go to stderr)
+tools/decode_message.py --type 0x15d --replay-index 0 --json | jq .counter
+```
+
+## Dispatcher API
+
+`server.javelin.dispatch` is the canonical decode/encode entry point:
+
+```python
+from server.javelin import dispatch
+
+# Inbound: bytes from the wire → typed dataclass (or None if 0x03 / unmapped)
+msg = dispatch.decode_replay_message(type_id, direction, body)
+
+# Outbound: typed dataclass → bytes (raises KeyError if unmapped)
+wire = dispatch.encode_replay_message(type_id, msg)
+
+# Inventory
+dispatch.supported_type_ids()   # frozenset of decoder-side type-ids
+dispatch.encodable_type_ids()   # frozenset of encoder-side type-ids
+```
+
+The dispatcher knows every captured wire-type plus `0x5d1`
+(the SelfIdentification trigger for the state-10→11 unblock —
+see [state_10_unblock_synthesis.md](state_10_unblock_synthesis.md)).
 
 ## Adding a new codec
 
@@ -196,6 +240,20 @@ When a new captured wire-type appears:
    - Single capture, observable structure → structural (see `frame_config_1096.py`).
    - Multiple captures with shared anchors → use cross-comparison to confirm invariants (see `chunked_stream_08.py`).
 3. **Write the codec** following the per-type module shape: `TYPE_HEADER`, dataclass, `encode()`, `decode()`. Validate structural invariants in `decode()` so bad bytes fail loudly.
-4. **Add tests** in `test_codecs.py`: round-trip, captured-replay match, structural rejection (wrong size, wrong header, broken invariants), constructor width validation.
+4. **Add tests** in `test_codecs.py`:
+   - **Decode side**: round-trip, captured-replay match, structural-rejection (wrong size, wrong header, broken invariants), constructor width validation.
+   - **Encode side**: populated round-trip (fresh dataclass → encode → decode → assert equal). The wake-135/136 audit caught the older codecs that lacked this; new codecs should ship it from day one.
 5. **Wire into dispatcher**: add an entry to `DECODERS` and `ENCODERS` in `dispatch.py`. Update `tools/build_site.py`'s `codec_for_type` map so the dashboard shows it.
-6. **Run** `.venv/bin/pytest server/javelin/test_codecs.py`.
+6. **Run** `.venv/bin/pytest server/javelin/test_codecs.py`. Then run `.venv/bin/python3 tools/build_site.py` so the live badges + dashboard pick up the new test count.
+
+## Audits (both at 0 gaps as of wake 136)
+
+- [`codec_test_audit.md`](codec_test_audit.md) — decoder-side
+  structural-rejection coverage. Initial audit (wake 125): 8
+  gaps. Closed (wake 126): 0 gaps.
+- [`codec_encoder_audit.md`](codec_encoder_audit.md) —
+  encoder-side populated round-trip coverage. Initial audit
+  (wake 135): 7 gaps. Closed (wake 136): 0 gaps.
+- The audit-arc pattern is documented in
+  [`cross_link_arc.md`](cross_link_arc.md) — scaffold → wedge
+  → close in 2 wakes per arc.
