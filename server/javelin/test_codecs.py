@@ -3212,6 +3212,54 @@ raw:
         _store(bad)
 
 
+# ---------------------------------------------------------------------------
+# Empty-marker (0x651) — wake 100
+# ---------------------------------------------------------------------------
+
+from .empty_marker_651 import (  # noqa: E402
+    EmptyMarker651,
+    TYPE_HEADER as EMPTY_651_HEADER,
+    encode as encode_empty_651,
+    decode as decode_empty_651,
+)
+
+
+def test_empty_marker_651_round_trip():
+    msg = EmptyMarker651()
+    wire = encode_empty_651(msg)
+    assert wire == EMPTY_651_HEADER
+    assert decode_empty_651(wire) == msg
+
+
+def test_empty_marker_651_matches_captured():
+    """The single captured 0x651 in the replay (R direction, 4 bytes)
+    must equal the codec's only legal output."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+
+    captures = [m for m in store.messages if m.type_id == 0x651]
+    assert captures, "no 0x651 messages in replay"
+    for m in captures:
+        # decode/round-trip every capture
+        decoded = decode_empty_651(m.body)
+        assert encode_empty_651(decoded) == m.body
+
+
+def test_empty_marker_651_rejects_wrong_size():
+    with pytest.raises(ValueError, match="expected exactly 4 bytes"):
+        decode_empty_651(b"\x00\x01\x91\x19\x00")
+
+
+def test_empty_marker_651_rejects_wrong_header():
+    with pytest.raises(ValueError, match="type header mismatch"):
+        decode_empty_651(b"\x00\x01\x91\x18")  # last byte off
+
+
 def test_replay_messages_after_v3_filters_correctly():
     # type 0x15d R marker: byte2=(0x1d|0x80)=0x9d, byte3=(0x15d>>6)=0x05
     dump = """\

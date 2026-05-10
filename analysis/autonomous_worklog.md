@@ -9672,3 +9672,55 @@ and decomp previews unchanged (no analysis state changed). No
 files staged from `site/`.
 
 **Blockers:** None.
+
+## Wake 100 — codec gap-fill, 0x651 covered
+
+**Goal**: pick a productive thread now that community-archives is
+closed. Picked option (b) codec gap analysis: cross-reference all
+40 captured wire-types against the codec map in
+`tools/build_site.py`. Audit found 5 gaps:
+
+| Type-id | Direction | Sizes | Gap reason |
+|---|---|---|---|
+| `0x08` | R | 78 B – 46 KB (47 distinct sizes) | High-volume general-purpose payload; structure varies wildly (likely the chunked asset/world stream) |
+| `0x13` | W | 2750 B | `REPClient::RegistrationRequestV3Msg` — already handled by `v3_request.py`, just missing from the map |
+| `0x651` | R | 4 B (1 capture) | Zero-payload typed marker — unambiguous wire format |
+| `0x1033` | R | 498 B (1 capture) | Carries `bf 85 31 4b bc 4a 95 1a` session-uuid-lower at +0x0c (identity-bundle pattern) |
+| `0x1096` | R | 80 B (1 capture) | Same identity-bundle pattern at +0x0c; structured |
+
+**Filled**:
+
+- **0x13 → `v3_request.py`** in the codec_for_type map. Already
+  works; the gap was only in the visualization.
+- **0x651 → new `server/javelin/empty_marker_651.py`** (~75 LOC).
+  Verified: `((0x651 & 0x3f) | 0x80) = 0x91`,
+  `(0x651 >> 6) & 0xff = 0x19`, so the type header is
+  `00 01 91 19` — and the captured 4-byte body equals exactly
+  that. Zero payload. The codec exposes `EmptyMarker651` (frozen
+  dataclass), `encode()`, `decode()`. 4 new tests in
+  `test_codecs.py` cover round-trip, captured-replay match,
+  wrong-size, wrong-header. Total tests: **258 → 262 (+4)**.
+
+**Site rebuild**: `tools/build_site.py` regenerated; `data.json`
+now reflects test_count=262, codec_module_count=32, with 0x13
+and 0x651 marked covered. Staged `site/data.json`.
+
+**Deferred (still gaps)**:
+
+- `0x08`: high-volume R type with sizes ranging 78 B → 46 KB.
+  Likely the asset/world streaming payload — needs more than
+  one wake. Looking at the body structure (starts with what
+  appears to be a 16-byte UUID, then variable structured data)
+  this is the "level/world bulk" stream. Worth a dedicated
+  wake.
+- `0x1033` and `0x1096`: 1 capture each, both carry the
+  identity-bundle pattern. Body structure beyond the identity
+  needs guessing without a second sample. Defer to runtime
+  capture.
+
+**Net effect**: codec library coverage moves from
+**35/40 to 37/40 captured wire-types**. The remaining 3
+(`0x08`, `0x1033`, `0x1096`) are documented gaps with reasons
+why they need more than this wake.
+
+**Blockers:** None.

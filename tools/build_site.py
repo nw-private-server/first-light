@@ -261,7 +261,9 @@ def build_data():
     # Codec module map for captured types
     codec_for_type = {
         0x03: "v3_response.py",
+        0x13: "v3_request.py",
         0xa4: "session_message_a4.py",
+        0x651: "empty_marker_651.py",
         0x14f: "session_clock_beacon.py",
         0x15d: "heartbeat_15d.py",
         0x1be: "handshake_blob_76.py",
