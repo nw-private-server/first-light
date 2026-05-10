@@ -158,9 +158,24 @@ def load_decompiles():
 
 
 def load_test_count():
+    """Collect-only pytest to get the test count without running them.
+
+    Uses `.venv/bin/pytest` locally if present, else `pytest` on PATH.
+    The CI runner installs pytest globally (no .venv), so the fallback
+    matters there.
+    """
     import subprocess
+    import shutil
+    venv_pytest = REPO / ".venv" / "bin" / "pytest"
+    pytest_cmd = (
+        str(venv_pytest)
+        if venv_pytest.exists()
+        else shutil.which("pytest")
+    )
+    if pytest_cmd is None:
+        return 0
     res = subprocess.run(
-        [".venv/bin/pytest", "server/javelin/test_codecs.py",
+        [pytest_cmd, "server/javelin/test_codecs.py",
          "--collect-only", "-q"],
         cwd=str(REPO), capture_output=True, text=True,
     )
