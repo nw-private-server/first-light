@@ -9202,3 +9202,105 @@ data. Remaining autonomously-tractable items:
 
 **Blockers:** None — but yields are diminishing without runtime
 inputs.
+
+---
+
+### 2026-05-09 — wake 94: InstallRegistrationHook<T> strings located — name extraction is now feasible
+
+**Did:**
+
+Pursued the `InstallRegistrationHook<T>` thread from wake 93's
+queue. **Major progress** — the path from typeIndex to type
+name is now structurally clear, even though the per-type
+matching is still partial.
+
+**Findings:**
+
+1. **3482 typeinfo strings located**, all with the prefix
+   `.?AV<lambda_1>@?1???$InstallRegistrationHook@V<TypeName>@<Namespace>@@@Hub@Amazon@@YA_NXZ@`.
+   Each string is the MSVC-mangled name of one
+   `InstallRegistrationHook<T>` lambda's typeinfo descriptor.
+
+2. **`registry["index"]` is registration order**, distinct from
+   `typeIndex` (which is the wire-format type-id). All 3487
+   entries have unique `index` values 0..3486. Named entries
+   with index 0..6 are NullType, ClientActorRoutingAuthorizationTrait,
+   State, AddEntryMsg, RemoveEntryMsg, ClientAddEntryMsg,
+   ClientRemoveEntryMsg.
+
+3. **Address ↔ index relationship**: within a translation unit,
+   typeinfo strings appear in **reverse address order** vs
+   registration order. Verified: index=1
+   (`ClientActorRoutingAuthorizationTrait`) is at address
+   `0x14a134270`; index=2 (`::State`) is at `0x14a1341f0`
+   (lower); index=3-4 (`AddEntry`/`RemoveEntry`) at `0x14a134160`
+   and `0x14a1340d0` (descending). Across TUs, ordering doesn't
+   continue cleanly — different TUs were placed at different
+   address ranges by the linker.
+
+4. **Direct name matching: 69 of 312 named registry entries
+   match 1:1 with strings by bare type name**. The remaining
+   243 don't 1:1 match because the registry's `name` field
+   strips the namespace (e.g. registry has `AddEntryMsg`
+   without the `ClientActorRoutingAuthorizationTrait`
+   parent), while mangled strings preserve the full
+   namespace path.
+
+5. **Address ordering analysis**: For the 49 consecutive-index
+   pairs in the matched set, **23 are
+   address-descending-as-index-ascends** (the within-TU
+   reverse pattern); the rest are TU boundaries (index gap)
+   or skip cases.
+
+**Methodology now spec'd for future work:**
+
+To recover names for all 3175 unnamed registry entries:
+
+```
+Step 1: Parse all 3482 strings; extract (addr, full_namespaced_name)
+        from each.
+Step 2: Sort strings by address ascending. Group into TUs by detecting
+        address gaps (typical inter-TU gap is >0x100 bytes; intra-TU
+        is ~0x80 bytes per typeinfo).
+Step 3: For the 312 named registry entries, find each in the strings
+        by tail-matching (e.g. registry's `AddEntryMsg` matches
+        string ending in `@<namespace>@@@Hub@Amazon...` where
+        bare type name is `AddEntryMsg`).
+Step 4: Use the matched (index, addr) anchors to interpolate which
+        string-address-range corresponds to each unmatched index range.
+Step 5: For each interpolated range, walk strings in reverse-address
+        order to assign names to indices.
+```
+
+The hard part is Step 3's matching — many type names are
+non-unique (e.g. multiple `State` types across different
+traits), requiring namespace-aware matching. Step 4's
+interpolation is straightforward once anchors are found.
+
+**Files this iteration:**
+
+- `analysis/installhook_strings_by_addr.txt` — 3482 (addr, name)
+  pairs sorted by address, ready for further matching
+- `analysis/installhook_typeinfo_strings.txt` — full
+  FindStringXrefs output with all 3482 strings
+- This worklog entry
+
+**Library status: unchanged from wake 92.** 258 tests passing.
+
+**Next** (queue):
+
+The complete bulk-extraction script is now spec'd and viable.
+A focused implementation pass would:
+
+1. Improve the name-matching to handle namespace stripping
+   (the registry's `name='State'` for index 2 should match
+   string `State@ClientActorRoutingAuthorizationTrait` via
+   the index=1 anchor).
+2. Implement Step 4's interpolation to produce a complete
+   (index, addr, full_name) table.
+3. Output the final (typeIndex → name) CSV that maps all 40
+   captured wire-types to authoritative names.
+
+Estimated effort: another 1-2 wakes of focused Python work.
+
+**Blockers:** None — methodology is now actionable.
