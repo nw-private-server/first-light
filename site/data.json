@@ -27809,6 +27809,12 @@
       "test_count": 347,
       "commit": "a1bce7e",
       "subject": "site: '/' keyboard shortcut focuses the Explore-tab search"
+    },
+    {
+      "wake": null,
+      "test_count": 347,
+      "commit": "092934f",
+      "subject": "site: Findings tab gains an analysis-doc index (32 writeups)"
     }
   ],
   "wire_type_families": [

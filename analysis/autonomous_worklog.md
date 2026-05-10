@@ -11734,3 +11734,29 @@ highlights, and see the entire writeup catalog inline. No more
 **No code changes** to `server/`. Tests still 346 (+1 skipped).
 
 **Blockers:** None.
+
+## Wake 145 — searchable analysis-doc index
+
+**Goal**: with 32 writeups, the wake-144 index is a long list.
+Add the same kind of search-filter input used on Wire Types /
+Codecs / Decompiles tabs so visitors can narrow by title or
+filename.
+
+**Built**:
+
+- `site/index.html`:
+  - New `<input id="analysis-search">` above the analysis-docs
+    list on the Findings tab.
+  - Wired through the existing `setupFilter(searchId, items)`
+    helper — same input → child-element text-match used
+    elsewhere.
+
+**Result**: typing "audit" filters to the codec test/encoder
+audit writeups; "decomp" narrows to the state-machine +
+lifecycle + wrapper-setter overview docs; "wake" shows
+per-wake writeups, etc.
+
+**No code changes** to `server/`. Tests still 346 (+1 skipped).
+Site rebuild trivial.
+
+**Blockers:** None.
