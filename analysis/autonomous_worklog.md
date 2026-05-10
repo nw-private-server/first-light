@@ -11058,3 +11058,32 @@ codecs without rejection tests" gap is now down to 5
 (which now records test_count=325).
 
 **Blockers:** None.
+
+## Wake 126 — closing the codec test audit (gaps 8 → 0)
+
+**Goal**: fill the remaining 5 codec rejection-test gaps from
+wake-125's audit, getting the documented gap count to zero.
+
+**Built (9 new structural-rejection tests)**:
+
+- `handshake_blob_76`: wrong-size + oversize tests
+- `init_message_18a6`: wrong-header + wrong-size tests
+- `keybinding_config_12f6`: too-short rejection test (the
+  variable-length codec only checks a minimum size)
+- `result_token_1097`: wrong-header + wrong-size tests
+- `result_token_136a`: wrong-header + wrong-size tests
+
+Each follows the same pattern as wake-125's three: minimal
+`pytest.raises(ValueError, ...)` exercises of the codec's
+documented failure paths.
+
+**Updated `analysis/codec_test_audit.md`** with the wake-126
+fix-up section noting the gap count drops to **0**.
+
+**Test total**: **325 → 334 (+9)**. Full suite still passes
+(334 passing + 1 skipped).
+
+**Site**: `tools/build_site.py` regenerated, recorded
+`test_count=334`. Pages will redeploy on push.
+
+**Blockers:** None.

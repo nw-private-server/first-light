@@ -71,11 +71,27 @@ ensure rejection coverage tracks the structural invariants.
 
 ## Wake-125 fix-up
 
-This wake adds three minimal structural-rejection tests for the
+Added three minimal structural-rejection tests for the
 session_clock_beacon, session_identity_beacon, and
 session_message_a4 modules — the lowest-effort gaps. Each test
 exercises the size-mismatch and wrong-header paths for one
 representative codec per module.
+
+## Wake-126 fix-up
+
+Filled the remaining 5 gaps. 9 new tests cover:
+
+- `handshake_blob_76`: wrong-size + oversize
+- `init_message_18a6`: wrong-header + wrong-size
+- `keybinding_config_12f6`: too-short rejection
+- `result_token_1097`: wrong-header + wrong-size
+- `result_token_136a`: wrong-header + wrong-size
+
+**Audit gap count**: 8 → **0**. Every codec module that surfaced
+a gap in the original audit now has at least one structural-
+rejection test under the heuristic. The gap list is closed; future
+audit refinements should focus on parsing test bodies for
+`pytest.raises` calls rather than name-keyword heuristics.
 
 ## Recommended follow-ups (any contributor)
 

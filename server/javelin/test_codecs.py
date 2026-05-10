@@ -2871,6 +2871,92 @@ def test_session_message_a4_decode_rejects_wrong_size():
         _decode_a4_125(short)
 
 
+# ---------------------------------------------------------------------------
+# Wake-126 audit fix-ups: rejection tests for the remaining 5 gap codecs
+# (handshake_blob_76, init_message_18a6, keybinding_config_12f6,
+#  result_token_1097, result_token_136a).
+# ---------------------------------------------------------------------------
+
+from .handshake_blob_76 import (  # noqa: E402, F811
+    decode as _decode_hsb_126,
+    TYPED_BODY_SIZE as _HSB_SIZE_126,
+)
+from .init_message_18a6 import (  # noqa: E402, F811
+    decode as _decode_init_126,
+    TYPE_HEADER as _INIT_TH_126,
+    TYPED_BODY_SIZE as _INIT_SIZE_126,
+)
+from .keybinding_config_12f6 import (  # noqa: E402, F811
+    decode as _decode_kb_126,
+    KEYBINDINGS_OFFSET as _KB_OFF_126,
+    SUFFIX_SIZE as _KB_SUFFIX_126,
+)
+from .result_token_1097 import (  # noqa: E402, F811
+    decode as _decode_rt1097_126,
+    TYPE_HEADER as _RT1097_TH_126,
+    TYPED_BODY_SIZE as _RT1097_SIZE_126,
+)
+from .result_token_136a import (  # noqa: E402, F811
+    decode as _decode_rt136a_126,
+    TYPE_HEADER as _RT136A_TH_126,
+    TYPED_BODY_SIZE as _RT136A_SIZE_126,
+)
+
+
+def test_handshake_blob_76_decode_rejects_wrong_size():
+    short = b"\x00" * (_HSB_SIZE_126 - 1)
+    with pytest.raises(ValueError, match="exactly 76 bytes"):
+        _decode_hsb_126(short)
+
+
+def test_handshake_blob_76_decode_rejects_oversize():
+    long = b"\x00" * (_HSB_SIZE_126 + 1)
+    with pytest.raises(ValueError, match="exactly 76 bytes"):
+        _decode_hsb_126(long)
+
+
+def test_init_message_18a6_decode_rejects_wrong_header():
+    bad = b"\x00\x01\xa6\x63" + b"\x00" * (_INIT_SIZE_126 - 4)  # off-by-one
+    with pytest.raises(ValueError, match="type header"):
+        _decode_init_126(bad)
+
+
+def test_init_message_18a6_decode_rejects_wrong_size():
+    short = _INIT_TH_126 + b"\x00" * 8
+    with pytest.raises(ValueError):
+        _decode_init_126(short)
+
+
+def test_keybinding_config_12f6_decode_rejects_too_short():
+    short = b"\x00" * (_KB_OFF_126 + _KB_SUFFIX_126 - 1)
+    with pytest.raises(ValueError, match="too short"):
+        _decode_kb_126(short)
+
+
+def test_result_token_1097_decode_rejects_wrong_header():
+    bad = b"\x00\x01\x97\x43" + b"\x00" * (_RT1097_SIZE_126 - 4)
+    with pytest.raises(ValueError, match="type header"):
+        _decode_rt1097_126(bad)
+
+
+def test_result_token_1097_decode_rejects_wrong_size():
+    short = _RT1097_TH_126 + b"\x00" * 4
+    with pytest.raises(ValueError):
+        _decode_rt1097_126(short)
+
+
+def test_result_token_136a_decode_rejects_wrong_header():
+    bad = b"\x00\x01\xaa\x4e" + b"\x00" * (_RT136A_SIZE_126 - 4)
+    with pytest.raises(ValueError, match="type header"):
+        _decode_rt136a_126(bad)
+
+
+def test_result_token_136a_decode_rejects_wrong_size():
+    short = _RT136A_TH_126 + b"\x00" * 4
+    with pytest.raises(ValueError):
+        _decode_rt136a_126(short)
+
+
 from .handshake_blob_76 import (  # noqa: E402
     make_handshake_blob_76,
     DEFAULT_SUB_ID as HSB_FACTORY_DEFAULT_SUB_ID,
