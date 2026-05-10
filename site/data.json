@@ -27775,6 +27775,12 @@
       "test_count": 347,
       "commit": "5d86a71",
       "subject": "site: audit-gap stat card on Overview (\"0 / 0\" decode \u00b7 encode)"
+    },
+    {
+      "wake": null,
+      "test_count": 347,
+      "commit": "8a7253d",
+      "subject": "site: \"How it works\" tab \u2014 6-step codec-pipeline walkthrough"
     }
   ],
   "wire_type_families": [

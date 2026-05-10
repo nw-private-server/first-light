@@ -11611,3 +11611,37 @@ explanation.
 records test_count=346.
 
 **Blockers:** None.
+
+## Wake 141 — cross-link arc retrospective
+
+**Goal**: document the project's working style for future
+contributors by writing up two recent arcs as
+scaffold→wedge→close patterns. Useful both as a self-
+explanation and as a template for similar multi-wake tasks.
+
+**Built**:
+
+- `analysis/cross_link_arc.md` (~3 KB):
+  - **Arc 1: decompile cross-link density 0% → 100%**
+    (wakes 129/130/131). Table of which wake built the
+    annotation infrastructure vs. which wakes produced the
+    overview docs that fed it.
+  - **Arc 2: codec audit gaps 8+7 → 0+0** (wakes
+    125/126/135/136). Decoder and encoder audits 10 wakes
+    apart but identical shape.
+  - **Why the pattern works under wake constraints**: 30-min
+    cap, reviewability, failure tolerance, incremental
+    visibility.
+  - **Replication playbook**: scaffold → wedge → close →
+    (optional) surface on the dashboard.
+
+**Result**: future autonomous wakes hitting similar gap-fill
+tasks have a concrete reference for how to split the work
+across 2-3 wakes rather than attempting a giant single-wake
+solve. Already partly explains earlier arcs (the wake-100-103
+codec gap-fill follows the same shape).
+
+**No code changes**. Tests still 346 (+1 skipped). Site rebuild
+trivial.
+
+**Blockers:** None.
