@@ -183,6 +183,32 @@ def load_test_count():
     return int(m.group(1)) if m else 0
 
 
+def load_replay_timeline():
+    """Per-message timeline data for the session-flow scatter chart.
+
+    Walks the captured replay in seq order and returns a compact
+    record per message — enough for a Chart.js scatter:
+    x=seq, y=type-id, color=direction, tooltip shows the rest.
+    """
+    import sys
+    sys.path.insert(0, str(REPO))
+    from server.javelin.replay_store import ReplayStore
+    p = REPO / "info" / "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        return []
+    store = ReplayStore(p)
+    return [
+        {
+            "seq": m.seq,
+            "type_id": m.type_id,
+            "type_id_hex": f"0x{m.type_id:04x}",
+            "direction": m.direction,
+            "size": len(m.body),
+        }
+        for m in store.messages
+    ]
+
+
 def load_findings():
     """Pull a curated list of major findings from the worklog (the last
     few wake entries' headlines)."""
@@ -258,6 +284,7 @@ def build_data():
     decompiles = load_decompiles()
     test_count = load_test_count()
     findings = load_findings()
+    replay_timeline = load_replay_timeline()
 
     # Build captured-types list
     captured_by_id = {}
@@ -506,6 +533,7 @@ def build_data():
         "blocker_state": BLOCKER_STATE,
         "faq": faq,
         "timeline": timeline,
+        "replay_timeline": replay_timeline,
     }
 
 

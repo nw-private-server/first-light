@@ -10485,3 +10485,43 @@ replay doesn't contain one. `dispatch.supported_type_ids()`
 includes it.
 
 **Blockers:** None.
+
+## Wake 113 — session-timeline scatter chart on the dashboard
+
+**Goal**: add another non-technical visualization to the live site
+that lets visitors see the "shape" of a real captured login
+session. Visualize all 177 messages by sequence + type-id +
+direction in a single chart.
+
+**Built**:
+
+- `tools/build_site.py`:
+  - New `load_replay_timeline()` walks the captured replay in
+    seq order and emits one record per message:
+    `{seq, type_id, type_id_hex, direction, size}`. Compact
+    (~10 KB inline in `data.json` for 177 messages).
+  - `data.json` now exposes a `replay_timeline` field.
+- `site/index.html`:
+  - New "The captured login session, message-by-message" section
+    on the Overview tab between the existing 4-chart grid and
+    the milestone timeline.
+  - Friendly explanation: "Each dot is a message on the wire.
+    X-axis is the order it was sent; Y-axis is the message type.
+    Blue = R (server→client), green = W (client→server)."
+  - Chart.js scatter plot rendered via new `drawReplayTimeline`:
+    two datasets (R blue, W green), tooltip shows seq + type-id
+    + direction + size + friendly name when known
+    (e.g. "REPClient::PingMsg" for 0x15d). Y-axis ticks render
+    only at captured type-ids and label them in
+    monospace `0x05d1`-style hex.
+
+**Result**: visitors can see the post-V3 sequence visually — the
+big 0x65c bulk-data spike at seq 6, the regular 0x15d ping/ack
+heartbeat pattern dominating later seqs, the chunked stream
+0x08 messages clustered in the asset/world phase, etc.
+
+**Site rebuild**: `tools/build_site.py` regenerated; `data.json`
+grew from ~30 KB to ~60 KB (the new timeline records). Pages
+auto-redeploy will fire on push.
+
+**Blockers:** None.

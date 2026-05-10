@@ -497,6 +497,20 @@ a:hover { text-decoration: underline; }
     </div>
   </div>
 
+  <div class="section-h">The captured login session, message-by-message</div>
+  <p style="color: var(--text-dim); font-size: 14px; margin-top: 0;">
+    Each dot is a message on the wire. X-axis is the order it was sent;
+    Y-axis is the message type. Blue dots are server→client (R), green
+    dots are client→server (W). The "shape" of a typical login is
+    immediately visible — the early V3 handshake, the bulk world data
+    around seq 6, then the steady heartbeat patter.
+  </p>
+  <div class="chart-card" style="margin-bottom: 20px;">
+    <h3>Captured session timeline (177 messages)</h3>
+    <div class="hint">Hover/tap a dot for type, size, and direction. The session captures roughly 2 minutes of real login traffic.</div>
+    <div class="chart-wrap" style="height: 360px;"><canvas id="chart-replay-timeline"></canvas></div>
+  </div>
+
   <div class="section-h">How we got here</div>
   <div class="timeline" id="timeline"></div>
 
@@ -615,6 +629,7 @@ async function load() {
     drawDirectionChart(data);
     drawCoverageChart(data);
     drawVolumeCoverageChart(data);
+    drawReplayTimeline(data);
   }
 
   // ---- Timeline ----
@@ -780,6 +795,101 @@ function drawCoverageChart(data) {
       cutout: "55%",
       plugins: {
         legend: { position: "bottom", labels: { color: COLORS.dim, font: { size: 11 }, boxWidth: 12 } },
+      },
+    },
+  });
+}
+
+function drawReplayTimeline(data) {
+  const tl = data.replay_timeline || [];
+  if (!tl.length) return;
+
+  // Build a name lookup so tooltips can show the friendly name where
+  // available (e.g. "REPClient::PingMsg" for 0x15d).
+  const nameByType = {};
+  for (const c of (data.captured_types || [])) {
+    nameByType[c.type_id_hex] = c.name;
+  }
+
+  // Two datasets so direction renders as two color groups in the legend.
+  const rPoints = [];
+  const wPoints = [];
+  for (const m of tl) {
+    const point = {
+      x: m.seq,
+      y: m.type_id,
+      type_id_hex: m.type_id_hex,
+      direction: m.direction,
+      size: m.size,
+      name: nameByType[m.type_id_hex] || "",
+    };
+    if (m.direction === "R") rPoints.push(point);
+    else wPoints.push(point);
+  }
+
+  // Y-axis ticks: list each unique type-id we saw, sorted.
+  const types = Array.from(new Set(tl.map(m => m.type_id))).sort((a, b) => a - b);
+
+  new Chart(document.getElementById("chart-replay-timeline"), {
+    type: "scatter",
+    data: {
+      datasets: [
+        {
+          label: "R (server→client)",
+          data: rPoints,
+          backgroundColor: COLORS.accent,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+        {
+          label: "W (client→server)",
+          data: wPoints,
+          backgroundColor: COLORS.green,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "top", labels: { color: COLORS.dim } },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const p = ctx.raw;
+              const lines = [
+                `seq=${p.x}  type=${p.type_id_hex}  dir=${p.direction}  size=${p.size} B`,
+              ];
+              if (p.name) lines.push(p.name);
+              return lines;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          title: { display: true, text: "Sequence number (login flow over time →)", color: COLORS.dim, font: { size: 11 } },
+          grid: { color: "#30363d" },
+          ticks: { color: COLORS.dim, stepSize: 20 },
+        },
+        y: {
+          type: "linear",
+          title: { display: true, text: "Wire type-id", color: COLORS.dim, font: { size: 11 } },
+          grid: { color: "#30363d" },
+          ticks: {
+            color: COLORS.dim,
+            font: { family: "ui-monospace, monospace", size: 10 },
+            callback: function(value) {
+              // Only label the y-tick if it's an actual captured type-id
+              if (types.includes(value)) {
+                return "0x" + value.toString(16).padStart(4, "0");
+              }
+              return "";
+            },
+          },
+        },
       },
     },
   });
