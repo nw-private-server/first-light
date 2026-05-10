@@ -9786,3 +9786,64 @@ now reflects test_count=269, codec_module_count=33. Staged.
   more structural pattern-finding; defer to a focused wake.
 
 **Blockers:** None.
+
+## Wake 102 — opaque_blob_1033 codec, structural limit reached
+
+**Goal**: write a structural codec for `0x1033` (498-byte
+R-direction frame, single capture) the same way wake 101 covered
+`0x1096`. Investigate the unusual 498-byte length (not a multiple
+of 4) and look for floats / durations / hashes / repeated values
+to identify a structural grid.
+
+**Findings**:
+
+- **Confirmed identity-bundle prefix** at +0x04..+0x13:
+  `sub_system_id = ce 81 13 6a 2b 7a d3 3e`,
+  `session_uuid_lower = bf 85 31 4b bc 4a 95 1a` (matches the
+  rest of this session's identity-bundle messages).
+- **No structural grid in the 478-byte tail**. Visual analysis
+  + targeted check found:
+  - No IEEE-754 float values matching the 6.0 / -1.0 / 1/6 / 5/6
+    patterns that surfaced in `0x1096`.
+  - No 32-bit duration constants like 3600 / 1800.
+  - No long zero runs.
+  - High byte entropy across the full 478-byte range.
+  - 478 mod 4 = 2, so no clean 4-byte field grid even if there
+    were one.
+- **Most plausible interpretation**: encrypted or signed material
+  (no Zstd / Deflate / gzip magic at the start to suggest
+  compression). The blob looks like a single crypto envelope.
+
+**Built**:
+
+- `server/javelin/opaque_blob_1033.py` (~125 LOC) — codec with
+  `OpaqueBlob1033` dataclass exposing `(sub_system_id,
+  session_uuid_lower, opaque)`. The codec accepts a variable-
+  length opaque tail because we have only one capture; a future
+  capture might be a different length while still following the
+  same layout.
+- 5 new tests in `test_codecs.py`: minimal round-trip, captured-
+  replay match (including verifying the project-wide
+  `session_uuid_lower`), too-short rejection, wrong-header
+  rejection, constructor width validation. Test total:
+  **269 → 274 (+5)**.
+- `analysis/wire_type_0x1033.md` — full structural investigation
+  + explicit list of what would unblock a richer codec (second
+  capture, runtime trace, or static-RE on the type's
+  CreateInstance fingerprint).
+
+**Site rebuild**: `tools/build_site.py` map updated; data.json
+now reflects test_count=274, codec_module_count=34. Staged.
+
+**Net effect**: captured-type codec coverage moves from
+**38/40 to 39/40**. The only remaining gap is `0x08` (79
+captures, sizes 78 B – 46 KB — the high-volume chunked stream).
+
+**Decision rationale**: the choice to ship an opaque-blob codec
+rather than guess at sub-fields preserves correctness. Wake 101's
+`0x1096` codec succeeded because the body had observable
+invariants (zero-pads, ratio repeats); `0x1033` has none of
+those, and inventing structure where none is observable would
+make the codec brittle when a second capture arrives.
+
+**Blockers:** None.

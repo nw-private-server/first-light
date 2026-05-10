@@ -3357,6 +3357,69 @@ def test_frame_config_1096_constructor_validates_widths():
         )
 
 
+# ---------------------------------------------------------------------------
+# Opaque-blob (0x1033) — wake 102
+# ---------------------------------------------------------------------------
+
+from .opaque_blob_1033 import (  # noqa: E402
+    OpaqueBlob1033,
+    TYPE_HEADER as OB_1033_HEADER,
+    encode as encode_ob_1033,
+    decode as decode_ob_1033,
+)
+
+
+def test_opaque_blob_1033_round_trip_minimum():
+    msg = OpaqueBlob1033(
+        sub_system_id=b"\x01" * 8,
+        session_uuid_lower=b"\x02" * 8,
+        opaque=b"",
+    )
+    wire = encode_ob_1033(msg)
+    assert wire == OB_1033_HEADER + b"\x01" * 8 + b"\x02" * 8
+    assert decode_ob_1033(wire) == msg
+
+
+def test_opaque_blob_1033_matches_captured():
+    """The single captured 0x1033 body must round-trip byte-for-byte."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    captures = [m for m in store.messages if m.type_id == 0x1033]
+    assert captures, "no 0x1033 messages in replay"
+    for m in captures:
+        decoded = decode_ob_1033(m.body)
+        # Identity bundle should be the project-wide session lower
+        assert decoded.session_uuid_lower == bytes.fromhex(
+            "bf85314bbc4a951a"
+        )
+        assert encode_ob_1033(decoded) == m.body
+
+
+def test_opaque_blob_1033_rejects_too_short():
+    with pytest.raises(ValueError, match="need at least 20 bytes"):
+        decode_ob_1033(OB_1033_HEADER + b"\x00" * 10)
+
+
+def test_opaque_blob_1033_rejects_wrong_header():
+    bad = b"\x00\x01\xb3\x41" + b"\x00" * 16
+    with pytest.raises(ValueError, match="type header mismatch"):
+        decode_ob_1033(bad)
+
+
+def test_opaque_blob_1033_constructor_validates_widths():
+    with pytest.raises(ValueError, match="sub_system_id"):
+        OpaqueBlob1033(
+            sub_system_id=b"\x00" * 7,
+            session_uuid_lower=b"\x00" * 8,
+            opaque=b"",
+        )
+
+
 def test_replay_messages_after_v3_filters_correctly():
     # type 0x15d R marker: byte2=(0x1d|0x80)=0x9d, byte3=(0x15d>>6)=0x05
     dump = """\

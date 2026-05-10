@@ -280,6 +280,7 @@ def build_data():
         0x1096: "frame_config_1096.py",
         0x1097: "result_token_1097.py",
         0x12f6: "keybinding_config_12f6.py",
+        0x1033: "opaque_blob_1033.py",
         0x136a: "result_token_136a.py",
         0x16a0: "asset_blob_16a0.py",
         0x18a6: "init_message_18a6.py",
