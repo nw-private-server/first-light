@@ -1668,6 +1668,16 @@
       "label": "Central dispatcher",
       "wake": "wake 104-107",
       "desc": "Single decode/encode router for every captured type. 174 captured messages round-trip byte-identically through the dispatcher; only documented-edge-case failures remain."
+    },
+    {
+      "label": "Test coverage audits closed",
+      "wake": "wake 125-126, 135-136",
+      "desc": "Heuristic-based audits of decoder rejection + encoder round-trip tests. Both arcs followed scaffold \u2192 wedge \u2192 close in 2 wakes each. Tests 320 \u2192 346. Final gap counts: 0 + 0. See analysis/cross_link_arc.md for the retrospective."
+    },
+    {
+      "label": "Dashboard polish + auto-updating badges",
+      "wake": "wake 137-140",
+      "desc": "Shields.io endpoint JSON regenerated each build so README test/codec counters stay live. Decompiles tab cross-link density 100%. \"How it works\" tab with a guided codec-pipeline walkthrough. Audit-gap stat card on Overview."
     }
   ],
   "replay_timeline": [
@@ -27781,6 +27791,12 @@
       "test_count": 347,
       "commit": "8a7253d",
       "subject": "site: \"How it works\" tab \u2014 6-step codec-pipeline walkthrough"
+    },
+    {
+      "wake": null,
+      "test_count": 347,
+      "commit": "607ad26",
+      "subject": "docs(analysis): cross_link_arc retrospective \u2014 two recent multi-wake arcs"
     }
   ],
   "wire_type_families": [

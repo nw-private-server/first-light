@@ -11645,3 +11645,31 @@ codec gap-fill follows the same shape).
 trivial.
 
 **Blockers:** None.
+
+## Wake 142 — dashboard timeline picks up the audit + polish arcs
+
+**Goal**: surface the recent multi-wake milestones (audit
+arcs, dashboard polish) on the dashboard's "How we got here"
+timeline so visitors see them alongside the earlier ones
+(codec-scaffolding, replay round-trip, 40/40 coverage).
+
+**Built**:
+
+- `tools/build_site.py`: extended the `timeline[]` list with
+  two new entries:
+  - `wake 125-126, 135-136`: "Test coverage audits closed" —
+    references the cross-link arc retrospective for the
+    pattern explanation.
+  - `wake 137-140`: "Dashboard polish + auto-updating badges"
+    — covers the shields.io endpoints, 100% decompile cross-
+    link, "How it works" tab, audit-gap stat card.
+
+Timeline now has 9 entries (was 7) and the most recent two
+green-dot tail items show the audit + polish arcs. The
+retrospective doc (wake 141) is referenced inline.
+
+**No code changes** to `server/`. Tests still 346 (+1 skipped).
+Site rebuild trivial — `timeline[]` in data.json grew by two
+entries.
+
+**Blockers:** None.
