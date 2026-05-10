@@ -10867,3 +10867,59 @@ work on the opaque-blob's bulk content.
 skipped).
 
 **Blockers:** None.
+
+## Wake 122 — sub_system_id hash search: negative result
+
+**Goal**: run the cheap follow-up experiment from
+`identity_bundle_correlation.md` — compute multiple 64-bit
+hashes over named registry class names, check for matches
+against the 11 captured sub_system_ids. If a match surfaces,
+that gives the class name for that sub-system family.
+
+**Method**: ~110,000 hash invocations covering:
+- 312 named registry entries + 3,487 registry UUIDs as inputs
+- 8 string permutations per name (raw, lowercase, leaf-only,
+  with Javelin namespace prefix, with/without Msg suffix, etc.)
+- 7 hash functions (FNV-1a-64, SHA-1 first/last 8, SHA-256[0:8],
+  MD5 first/last 8, double-CRC32)
+- Both byte orderings of the hash output
+
+**Result**: **zero matches**. The simple class-name → 64-bit
+hash hypothesis is ruled out for the tested function set.
+
+**Built**:
+
+- `analysis/sub_system_id_hash_search.md` — full writeup of
+  the experiment, what it rules out, what it doesn't, and the
+  remaining hypotheses. Lists the limitations (no CityHash /
+  MurmurHash / xxhash / AzCore-specific hashes tested; only
+  9% of registry entries have populated names; sub_system_id
+  might hash an indirect value like vtable pointer).
+
+**Remaining live hypotheses**:
+
+1. **Session-scoped allocation** — sub_system_ids are runtime-
+   derived per-session. Decisive test: a second session capture
+   showing different sub_system_ids for the same wire-types.
+2. **Untested hash function** — xxhash, MurmurHash, AzCore's
+   `AZ::Hash64`, etc. Re-running with `pip install xxhash mmh3`
+   would extend coverage.
+3. **Hash of indirect data** — vtable pointer, AzCore TypeInfo
+   struct, or other runtime-only state. Static analysis can't
+   reach this.
+
+**Standing finding**: wake-121's cross-correlation tables
+(7 of 11 sub_system_ids spanning multiple wire-types) remain
+valid as in-session correlation regardless of hypothesis
+resolution.
+
+**Negative-result retrospective**: ruled out the cheapest
+hypothesis in ~10 min, narrowing the live hypothesis set from 3
+to 2 (session-scoped or non-stdlib-hash). Saves future wakes
+from re-investigating. The wake-121 cross-correlations
+themselves are usable independent of this thread's resolution.
+
+**No code changes**, no test changes. Tests still 320 (+1
+skipped).
+
+**Blockers:** None.
