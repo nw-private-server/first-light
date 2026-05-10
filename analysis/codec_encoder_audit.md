@@ -31,8 +31,8 @@ test ASTs to be more rigorous.
 | Module | Encoders | Populated round-trip |
 |---|---:|---|
 | `action_history_635` | 1 | ✓ (wake 135 added) |
-| `asset_blob_16a0` | 3 | ✗ — `encode`, `encode_large`, `encode_either` |
-| `asset_count_table_ca4` | 1 | ✗ |
+| `asset_blob_16a0` | 3 | ✓ (wake 136 added — small + large variants) |
+| `asset_count_table_ca4` | 1 | ✓ (wake 136 added) |
 | `chunked_stream_08` | 3 | ✓ |
 | `empty_marker_651` | 1 | ✓ |
 | `frame_config_1096` | 1 | ✓ |
@@ -56,8 +56,8 @@ test ASTs to be more rigorous.
 | `session_subkey_1a59` | 1 | ✓ |
 | `subkey_beacon` | 1 | ✓ |
 | `v3_response` | 1 | ✓ |
-| `vivox_config_1067` | 1 | ✗ |
-| `world_data_blob_65c` | 1 | ✗ |
+| `vivox_config_1067` | 1 | ✓ (wake 136 added) |
+| `world_data_blob_65c` | 1 | ✓ (wake 136 added) |
 
 `dispatch` and `wire` are routing/utility modules with `encode*`
 helpers but no dataclass — out of scope for this audit.
@@ -75,28 +75,28 @@ field values (subkey, session_uuid, hashes, etc.), encodes it,
 decodes the wire bytes, and asserts the result equals the
 original. **Gap count: 7 → 4.**
 
-## Remaining 4 gaps
+## Remaining 4 gaps — closed wake 136
 
-The remaining gaps need more involved fixtures because each
-codec has multiple variants or a complex dataclass shape:
+Filled in wake 136 with 5 additional populated round-trip tests
+(asset_blob has both small + large variants tested):
 
-- **`asset_blob_16a0`** — small + large + either-dispatch
-  encoders (wake 109's two-form). A complete test needs
-  fixtures for both variants.
-- **`asset_count_table_ca4`** — `AssetCountTableCA4` includes
-  a list of `AssetCountRecord` items; populated test needs a
-  representative record list.
-- **`vivox_config_1067`** — large config struct with several
-  nested fields (channel, server addresses, codecs).
-- **`world_data_blob_65c`** — `WorldDataBlob65C` holds a list
-  of `WorldDataRecord` items + a shared trailer; populated test
-  needs a representative record list.
+- **`asset_blob_16a0`** — small variant: 16-byte asset_uuid +
+  133-byte payload. Large variant: 16-byte uuid + 1 KB
+  varied bulk_data. Both via dedicated tests.
+- **`asset_count_table_ca4`** — 8 `AssetCountRecord` items with
+  varying hash_ids + values, identity_uuid populated, custom
+  trailer byte.
+- **`vivox_config_1067`** — realistic api_url, realm, issuer
+  strings (matching the captured replay's shape).
+- **`world_data_blob_65c`** — 5 `WorldDataRecord` items with
+  varying data lengths + ff_padding; `decode(..., validate_shared_trailer=False)`
+  since synthetic bytes don't match the captured handshake-
+  trailer invariant.
 
-These are all 1-2 wakes of test work and worth doing as a
-follow-up. The wake-105 dispatcher full-replay round-trip test
-covers them implicitly with captured-replay values; adding
-populated tests catches the edge cases the replay doesn't
-exercise.
+**Gap count: 4 → 0**. Every encoder-bearing codec module now has
+at least one populated round-trip test.
+
+Final test count: **341 → 346 (+5 in wake 136)**.
 
 ## Limitations
 

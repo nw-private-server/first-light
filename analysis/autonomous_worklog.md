@@ -11442,3 +11442,46 @@ Test total: **338 → 341 (+3)**. Site rebuild recorded
 `test_count=341`.
 
 **Blockers:** None.
+
+## Wake 136 — close the encoder audit (4 gaps → 0)
+
+**Goal**: fill the 4 remaining encoder-audit gaps from wake 135,
+getting the populated-round-trip gap count to zero.
+
+**Built (5 new tests; asset_blob has two variants)**:
+
+- `test_asset_blob_16a0_small_populated_round_trip`: 16-byte
+  asset_uuid + 133-byte payload
+- `test_asset_blob_16a0_large_populated_round_trip`: 16-byte
+  uuid + 1 KB varied bulk_data
+- `test_asset_count_table_ca4_populated_round_trip`: 8
+  `AssetCountRecord` items + populated identity_uuid + custom
+  trailer
+- `test_vivox_config_1067_populated_round_trip`: realistic
+  api_url / realm / issuer strings matching capture shape
+- `test_world_data_blob_65c_populated_round_trip`: 5
+  `WorldDataRecord` items with varying data lengths +
+  ff_padding (using
+  `decode(..., validate_shared_trailer=False)` since synthetic
+  bytes don't match the captured handshake-trailer invariant)
+
+**Audit updated**: `analysis/codec_encoder_audit.md` table now
+shows ✓ for every encoder-bearing codec module. Gap count
+**4 → 0**.
+
+Test total: **341 → 346 (+5)**. Full suite still green.
+
+**Arc across wakes 125 / 126 / 135 / 136**:
+
+| Wake | Audit | Gaps closed | Tests added |
+|---|---|---:|---:|
+| 125 | Decoder rejection (initial) | 3 of 8 | 6 |
+| 126 | Decoder rejection (close) | 5 of 5 | 9 |
+| 135 | Encoder round-trip (initial) | 3 of 7 | 3 |
+| 136 | Encoder round-trip (close) | 4 of 4 | 5 |
+
+Both audits are now at **0 gaps**. Every codec module has
+both structural-rejection coverage on `decode()` and
+populated-round-trip coverage on `encode()`.
+
+**Blockers:** None.

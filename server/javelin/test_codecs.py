@@ -3743,6 +3743,86 @@ def test_action_history_635_populated_round_trip():
     assert _ah_decode_135(wire) == msg
 
 
+def test_asset_blob_16a0_small_populated_round_trip():
+    from .asset_blob_16a0 import (
+        AssetBlob16A0Small, encode as enc_small, decode as dec_small,
+        SMALL_TYPED_BODY_SIZE, PAYLOAD_OFFSET,
+    )
+    payload_len = SMALL_TYPED_BODY_SIZE - PAYLOAD_OFFSET
+    msg = AssetBlob16A0Small(
+        asset_uuid=bytes(range(16)),
+        payload_bytes=bytes((i & 0xff) for i in range(payload_len)),
+    )
+    assert dec_small(enc_small(msg)) == msg
+
+
+def test_asset_blob_16a0_large_populated_round_trip():
+    from .asset_blob_16a0 import (
+        AssetBlob16A0Large, encode_large, decode_large,
+    )
+    msg = AssetBlob16A0Large(
+        asset_uuid=bytes(range(16, 32)),
+        bulk_data=b"\x01\x02\x03\x04" * 250,  # 1 KB of varied content
+    )
+    assert decode_large(encode_large(msg)) == msg
+
+
+def test_asset_count_table_ca4_populated_round_trip():
+    from .asset_count_table_ca4 import (
+        AssetCountTableCA4, AssetCountRecord,
+        encode as enc_ca4, decode as dec_ca4,
+    )
+    records = tuple(
+        AssetCountRecord(hash_id=bytes((i, i + 1, i + 2, i + 3)),
+                         value=1000 + i * 17)
+        for i in range(8)
+    )
+    msg = AssetCountTableCA4(
+        identity_uuid=bytes(range(16)),
+        records=records,
+        trailer=42,
+    )
+    assert dec_ca4(enc_ca4(msg)) == msg
+
+
+def test_vivox_config_1067_populated_round_trip():
+    from .vivox_config_1067 import (
+        VivoxConfig1067, encode as enc_vivox, decode as dec_vivox,
+    )
+    msg = VivoxConfig1067(
+        identity_uuid=bytes(range(16)),
+        api_url="https://vd1-us-east-1.vivox.com/api2",
+        realm="us-east-1.vivox.com",
+        issuer="amazon-newworld",
+    )
+    assert dec_vivox(enc_vivox(msg)) == msg
+
+
+def test_world_data_blob_65c_populated_round_trip():
+    from .world_data_blob_65c import (
+        WorldDataBlob65C, WorldDataRecord,
+        encode as enc_wd, decode as dec_wd,
+    )
+    records = tuple(
+        WorldDataRecord(
+            data=bytes(((i + j) & 0xfe for j in range(20))),  # avoid 0xff
+            ff_padding_size=4 + i,
+        )
+        for i in range(5)
+    )
+    msg = WorldDataBlob65C(
+        count=5,
+        redacted_id=bytes(range(16)),
+        ephemeral_block=bytes(range(32)),
+        records=records,
+    )
+    # WorldDataBlob65C.decode validates a shared-trailer invariant;
+    # disable it for the synthetic test since we're not building real
+    # captured-shape bytes.
+    wire = enc_wd(msg)
+    assert dec_wd(wire, validate_shared_trailer=False) == msg
+
+
 def test_receipt_handshake_9fc_populated_round_trip():
     sess = bytes(range(16))
     msg = ReceiptHandshake9FC(
