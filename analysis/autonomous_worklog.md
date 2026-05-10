@@ -9623,3 +9623,52 @@ analysis state. The user enables hosting (recommend GitHub
 Pages from this branch + `/site` folder) when ready.
 
 **Blockers:** None.
+
+## Wake 99 — community archives survey
+
+**Goal**: investigate the five community archives the user dropped
+into `info/` (Gems.pak, server.pak, gems.7z, datatables.7z,
+nw-data-browser.7z). Verdict needed on whether any unblocks
+state-10 or the 35 unclaimed captured wire-types.
+
+**Done**:
+
+- Listed all five archives (`unzip -l`, `7z l`, `file`).
+- `server.pak` (7 MB) and `datatables.7z` (3.4 MB): **identical
+  content**, 669 game-content `.datasheet` files under
+  `server/sharedassets/springboardentitites/datatables/`. Pure
+  monster/damage/area data — **no protocol relevance**.
+- `Gems.pak` (69 KB): 77 Lumberyard gem manifests. Confirmed
+  `AmazonGamesSDK` (codename "Sonic") and
+  `JavelinCollisionFilters` exist as gems. Critical context:
+  the `Javelin*` prefix is broader than the protocol library
+  — also used for collision/non-network gems. Class names
+  alone don't imply network involvement.
+- `nw-data-browser.7z` (13 MB): community Python tooling.
+  Extracted only the source files (~5 modules, ~20 KB total).
+  Documented the `.datasheet` binary layout (offsets 0x44
+  count, 0x48 rows, 0x5C headers; cell types 1=string, 2=float,
+  3=bool) and `.pak` format (PKZIP-compatible, supports Oodle
+  via `oo2core_*_win64.dll`).
+- **Targeted strings sweep** for `REPClient`, `ClientConnectionMsg`,
+  `RegistrationRequest`, `TimeSynch`, `PingMsg`, `TypeIndex`,
+  `SerializeContext`, `InstallRegistrationHook` across all
+  archives. **Zero matches** — definitive negative result.
+
+**Verdict**: the community archives cover content-server data
+and content tooling. They do **not** unblock state-10, the 35
+unclaimed wire-types, or any other protocol RE thread. Survey
+written to `analysis/community_archives_survey.md` so future
+wakes can skip re-investigating.
+
+**Indirect value**: if any captured wire-type's body turns out
+to be a datasheet blob, the ~70-LOC parser can be ported to
+`tools/datasheet.py`. No current codec needs it. The gem
+disambiguation ("Javelin" ≠ network) is worth keeping in mind
+when reading binary RTTI strings.
+
+**Site rebuild**: `tools/build_site.py` re-run; `site/data.json`
+and decomp previews unchanged (no analysis state changed). No
+files staged from `site/`.
+
+**Blockers:** None.
