@@ -407,6 +407,23 @@ a:hover { text-decoration: underline; }
 }
 .codec-card .desc { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
 .codec-card .lines { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.copy-btn {
+  background: var(--surface-2);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.copy-btn:hover { background: var(--surface); color: var(--text); }
+.copy-btn.copied {
+  background: rgba(63,185,80,0.2);
+  color: var(--accent-2);
+  border-color: var(--accent-2);
+}
 .decomp-row { padding: 8px 0; border-bottom: 1px solid var(--border); }
 .decomp-row .name { font-family: ui-monospace, monospace; font-weight: 600; color: var(--accent); }
 .decomp-row .meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
@@ -526,12 +543,28 @@ a:hover { text-decoration: underline; }
 </section>
 
 <section class="tab" data-tab="types">
+  <details class="faq" open>
+    <summary>What's a wire-type?</summary>
+    <div class="a">
+      Every message New World sends or receives over the network has a
+      numeric "type ID" stamped at the start. Different IDs mean
+      different message kinds — <code>0x15d</code> is a heartbeat
+      ping, <code>0x65c</code> is bulk world data, <code>0x18a6</code>
+      is a session init beacon. The table below catalogs all 40 wire
+      types we observed in a captured login session, plus how each
+      one is structured (codec module), how often it appeared, and
+      whether we've confirmed its name in the binary. Click the
+      <span class="mono">📋</span> on any row to copy a one-line
+      command for examining a real captured instance with
+      <a href="https://github.com/nw-private-server/first-light/blob/claude/vacation-2026-05-06/tools/decode_message.py">tools/decode_message.py</a>.
+    </div>
+  </details>
   <input type="text" class="search" placeholder="Filter by type-id, name, codec, UUID…" id="type-search">
   <table id="types-table">
     <thead>
       <tr>
         <th>Type</th><th>N</th><th>Dir</th><th>Bytes</th>
-        <th>Name</th><th>UUID</th><th>Codec</th>
+        <th>Name</th><th>UUID</th><th>Codec</th><th></th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -668,6 +701,12 @@ async function load() {
       conf === "med" ? "badge-med" :
       conf === "lo" || conf === "registry-only" ? "badge-lo" :
       "badge-other";
+    // Pick a direction the type actually uses; if both, prefer R for the
+    // copy invocation (most types are R-direction in the replay).
+    const dir = t.directions.includes("R") ? "R" : "W";
+    const cmd =
+      `python3 tools/decode_message.py --type ${t.type_id_hex} ` +
+      `--direction ${dir} --replay-index 0`;
     tr.innerHTML = `
       <td class="mono">${t.type_id_hex}</td>
       <td>${t.count}</td>
@@ -676,10 +715,30 @@ async function load() {
       <td><span class="badge ${badgeClass}">${escapeHtml(t.name)}</span></td>
       <td class="mono">${t.uuid ? t.uuid.slice(0, 8) + "..." : "—"}</td>
       <td class="mono">${t.codec || "—"}</td>
+      <td><button class="copy-btn" data-cmd="${escapeHtml(cmd)}" title="Copy a tools/decode_message.py invocation for this type">📋</button></td>
     `;
     typesBody.appendChild(tr);
   }
   setupFilter("type-search", typesBody.children);
+
+  // Copy-button delegated click handler
+  typesBody.addEventListener("click", (ev) => {
+    const btn = ev.target.closest(".copy-btn");
+    if (!btn) return;
+    const cmd = btn.dataset.cmd;
+    if (!cmd) return;
+    navigator.clipboard.writeText(cmd).then(() => {
+      btn.classList.add("copied");
+      btn.textContent = "✓";
+      setTimeout(() => {
+        btn.classList.remove("copied");
+        btn.textContent = "📋";
+      }, 1200);
+    }).catch(() => {
+      btn.textContent = "✗";
+      setTimeout(() => { btn.textContent = "📋"; }, 1200);
+    });
+  });
 
   // ---- Codecs ----
   const codecList = document.getElementById("codec-list");

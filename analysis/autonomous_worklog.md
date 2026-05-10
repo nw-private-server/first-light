@@ -10641,3 +10641,44 @@ find them and ramp up faster.
 don't trigger Pages workflow), skipped.
 
 **Blockers:** None.
+
+## Wake 117 — site polish: wire-type explainer + copy-button
+
+**Goal**: make the Wire Types tab self-explanatory for non-technical
+visitors AND immediately useful for developers — by adding a plain-
+English explainer at the top and a per-row copy-button that drops a
+ready-to-run `tools/decode_message.py` invocation into the clipboard.
+
+**Built**:
+
+- `site/index.html`:
+  - "What's a wire-type?" `<details>` block at the top of the Wire
+    Types tab, expanded by default. Plain-English explanation:
+    "Every message New World sends or receives over the network has
+    a numeric type ID … <code>0x15d</code> is a heartbeat ping,
+    <code>0x65c</code> is bulk world data …" Mentions the copy-
+    button affordance and links to `tools/decode_message.py` in
+    the repo.
+  - New `📋` copy-button in the rightmost column of every row.
+    Each button carries a `data-cmd` attribute with a fully-formed
+    invocation:
+    ```
+    python3 tools/decode_message.py --type 0x15d --direction R --replay-index 0
+    ```
+    Direction picks the type's actual direction (preferring R when
+    both are present, since most captured types are R).
+  - Delegated click handler uses `navigator.clipboard.writeText`,
+    flashes the button green with `✓` for 1.2 s on success
+    (`.copied` class), red `✗` on failure.
+  - CSS for `.copy-btn` and `.copy-btn.copied` to match the
+    GitHub-dark palette (small surface-2 background, accent-2
+    green when copied).
+
+**Result**: visitors see a friendly explanation, developers click
+the copy icon and paste a working command. Connects the dashboard
+to the wake-115 CLI directly — surfaces both as a unit.
+
+**Site rebuild**: regenerated; data.json unchanged (only HTML/CSS
+changed). Pages auto-redeploy on push.
+
+**Blockers:** None.
