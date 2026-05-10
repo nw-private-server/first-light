@@ -88,6 +88,18 @@ from dataclasses import dataclass, field
 from typing import Sequence
 
 
+# Wire-type binding (wake 112 — see analysis/state_10_unblock_synthesis.md):
+#   docs/post-v3-sequence.md tags Phase 9b SelfIdentification as `0x91(0x17)`.
+#   Decode: type_id = (0x91 & 0x7f) | (0x17 << 6) = 0x11 | 0x5c0 = 0x5d1
+#   Typed envelope header bytes: marker [0x00, 0x01], then 0x91, then 0x17.
+TYPE_ID = 0x5d1
+TYPE_HEADER = bytes((0x00, 0x01, 0x91, 0x17))
+
+# 4-byte "trigger" form per docs/post-v3-sequence.md Phase 9b row: header-only
+# message, no body. The handler may source the structured fields from session
+# state instead of the wire — runtime test required to confirm.
+TRIGGER_WIRE = TYPE_HEADER  # equivalent: just the 4-byte type header
+
 # Minimum wire-form size (all empty / zero):
 MIN_WIRE_SIZE = 4 + 4 + 1 + 8 + 4  # 21
 
@@ -206,6 +218,42 @@ def decode(buf: bytes) -> PlayerManagerSelfIdentificationMsg:
         field_2c=field_2c,
         field_34=field_34,
     )
+
+
+# ---------------------------------------------------------------------------
+#  Wire-typed wrappers (wake 112)
+# ---------------------------------------------------------------------------
+
+
+def encode_typed(msg: PlayerManagerSelfIdentificationMsg) -> bytes:
+    """Encode the structured 21+ byte body and prepend the 4-byte typed
+    envelope header. Use this for the "21-byte structured" hypothesis
+    described in `analysis/state_10_unblock_synthesis.md`."""
+    return TYPE_HEADER + encode(msg)
+
+
+def decode_typed(buf: bytes) -> PlayerManagerSelfIdentificationMsg:
+    """Inverse of `encode_typed`. Validates the 4-byte type header then
+    parses the structured body."""
+    if len(buf) < 4:
+        raise ValueError(
+            f"buffer too short for typed header: {len(buf)} bytes"
+        )
+    if buf[:4] != TYPE_HEADER:
+        raise ValueError(
+            f"type header mismatch: expected {TYPE_HEADER.hex()}, "
+            f"got {buf[:4].hex()}"
+        )
+    return decode(buf[4:])
+
+
+def encode_trigger() -> bytes:
+    """Build the 4-byte "trigger" form (header-only, no body).
+
+    This is the docs/post-v3-sequence.md Phase 9b "4 B" interpretation:
+    the wire body is empty and the handler reads the 21+ structured
+    fields from session state. Always returns the same 4 bytes."""
+    return TRIGGER_WIRE
 
 
 # ---------------------------------------------------------------------------

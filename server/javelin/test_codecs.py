@@ -3975,6 +3975,81 @@ def test_16a0_encode_either_dispatches_by_msg_type():
     assert len(encode_16a0_either(large)) == 20 + 4096
 
 
+# ---------------------------------------------------------------------------
+# SelfIdentification (0x5d1) wire-binding (wake 112)
+# ---------------------------------------------------------------------------
+
+from .self_ident import (  # noqa: E402
+    PlayerManagerSelfIdentificationMsg,
+    TYPE_ID as SELFIDENT_TYPE_ID,
+    TYPE_HEADER as SELFIDENT_HEADER,
+    encode_typed as encode_selfident_typed,
+    decode_typed as decode_selfident_typed,
+    encode_trigger as encode_selfident_trigger,
+)
+
+
+def test_selfident_wire_type_decoding():
+    """0x91(0x17) per docs/post-v3-sequence.md decodes to type 0x5d1.
+    Verify the constants and header bytes are consistent."""
+    # (type_id & 0x3f) | 0x80 = byte at position 2
+    assert (SELFIDENT_TYPE_ID & 0x3f) | 0x80 == SELFIDENT_HEADER[2]
+    # type_id >> 6 = byte at position 3
+    assert (SELFIDENT_TYPE_ID >> 6) & 0xff == SELFIDENT_HEADER[3]
+    assert SELFIDENT_HEADER == b"\x00\x01\x91\x17"
+    assert SELFIDENT_TYPE_ID == 0x5d1
+
+
+def test_selfident_typed_round_trip_structured():
+    msg = PlayerManagerSelfIdentificationMsg(
+        field_0=0x11223344,
+        field_08=(0xa, 0xb, 0xc),
+        debug_flag=0,
+        field_2c=0xCAFEBABEDEADBEEF,
+        field_34=0x55667788,
+    )
+    wire = encode_selfident_typed(msg)
+    assert wire[:4] == SELFIDENT_HEADER
+    decoded = decode_selfident_typed(wire)
+    assert decoded == msg
+
+
+def test_selfident_trigger_is_4_bytes():
+    """The trigger form (per Phase 9b "4 B" doc estimate) is exactly the
+    4-byte type header — no body, no payload."""
+    trigger = encode_selfident_trigger()
+    assert trigger == SELFIDENT_HEADER
+    assert len(trigger) == 4
+
+
+def test_selfident_typed_rejects_wrong_header():
+    bad = b"\x00\x01\x91\x18" + b"\x00" * 21  # last byte off
+    with pytest.raises(ValueError, match="type header mismatch"):
+        decode_selfident_typed(bad)
+
+
+def test_selfident_typed_rejects_truncated_header():
+    with pytest.raises(ValueError, match="too short for typed header"):
+        decode_selfident_typed(b"\x00\x01")
+
+
+def test_selfident_dispatcher_round_trip():
+    """A synthetic SelfIdent message round-trips through the dispatcher."""
+    msg = PlayerManagerSelfIdentificationMsg(
+        field_0=42,
+        field_08=(1, 2, 3),
+        debug_flag=0,
+        field_2c=0xdead_beef_cafe_babe,
+        field_34=99,
+    )
+    # Encode through the dispatcher
+    wire = dispatch.encode_replay_message(0x5d1, msg)
+    assert wire[:4] == SELFIDENT_HEADER
+    # Decode through the dispatcher
+    decoded = dispatch.decode_replay_message(0x5d1, "R", wire)
+    assert decoded == msg
+
+
 def test_v3_retry_dispatcher_encoder_selects_retry_path():
     """The dispatcher's 0x13 encoder must pick the retry serializer when
     retry_records is populated, even though the dataclass type is the

@@ -51,6 +51,7 @@ from . import (
     session_clock_beacon,
     v3_request,
     v3_response,
+    self_ident,
 )
 
 
@@ -116,6 +117,11 @@ DECODERS: dict[int, DecoderFn] = {
     0x18a6: _direction_agnostic(init_message_18a6.decode),
     0x1a59: _direction_agnostic(session_subkey_1a59.decode),
     0x1b88: _direction_agnostic(session_identity_beacon.decode),
+    # 0x5d1 — PlayerManagerSelfIdentificationMsg. Not in the captured replay
+    # but wire-bound here so dispatch can route synthetic ones (the
+    # state-10→11 unblock candidate; see
+    # `analysis/state_10_unblock_synthesis.md`).
+    0x5d1: _direction_agnostic(self_ident.decode_typed),
 }
 
 
@@ -203,6 +209,7 @@ ENCODERS: dict[int, EncoderFn] = {
     0x18a6: init_message_18a6.encode,
     0x1a59: session_subkey_1a59.encode,
     0x1b88: session_identity_beacon.encode,
+    0x5d1: self_ident.encode_typed,
 }
 
 # Subkey-beacon family: every type-id in KNOWN_FAMILY shares the same

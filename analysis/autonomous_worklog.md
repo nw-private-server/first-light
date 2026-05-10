@@ -10418,3 +10418,70 @@ landed in well under the 30-min budget.
 crisp written-down unblock path (3 things) that needs runtime
 testing — exactly what the maintainer's real-GPU host plan
 delivers.
+
+## Wake 112 — wire-bind SelfIdent codec at type 0x5d1
+
+**Goal**: turn wake 111's analysis findings into a concretely-
+usable codec entry. The state-10 unblock requires the server to
+emit a synthetic 0x5d1 SelfIdentification message; the existing
+`self_ident.py` body codec needed wire-type binding (typed
+envelope header) and a separate "trigger" form for the 4-byte
+hypothesis.
+
+**Built**:
+
+- `server/javelin/self_ident.py` extended:
+  - `TYPE_ID = 0x5d1`, `TYPE_HEADER = bytes((0x00, 0x01, 0x91, 0x17))`.
+  - `TRIGGER_WIRE = TYPE_HEADER` — the 4-byte header-only form.
+  - `encode_typed(msg)` — prepends the 4-byte header to the
+    structured 21+ B body. Symmetric `decode_typed(buf)` validates
+    the header then parses the body.
+  - `encode_trigger()` — returns the 4-byte trigger form for the
+    "Phase 9b header-only" hypothesis from
+    `docs/post-v3-sequence.md`.
+- `server/javelin/dispatch.py` extended:
+  - `DECODERS[0x5d1] = decode_typed` (so synthetic 0x5d1 messages
+    can be routed through `decode_replay_message`).
+  - `ENCODERS[0x5d1] = encode_typed` (the structured form is the
+    default; callers that want the 4-byte trigger can still call
+    `self_ident.encode_trigger()` directly).
+- 6 new tests in `test_codecs.py`:
+  - `test_selfident_wire_type_decoding` — verifies the
+    `0x91(0x17)` ↔ `0x5d1` derivation explicitly.
+  - `test_selfident_typed_round_trip_structured` — full encode +
+    decode round-trip with a populated dataclass.
+  - `test_selfident_trigger_is_4_bytes` — confirms the trigger
+    form is exactly the 4-byte type header.
+  - `test_selfident_typed_rejects_wrong_header` and
+    `test_selfident_typed_rejects_truncated_header` — defensive.
+  - `test_selfident_dispatcher_round_trip` — synthetic message
+    round-trips through `dispatch.encode_replay_message` /
+    `decode_replay_message`.
+  Test total: **310 → 316 (+6)**.
+
+**Site rebuild**: `tools/build_site.py` regenerated;
+test_count=317.
+
+**What this enables**: when the maintainer reaches a real-GPU
+host and wants to test the state-10 unblock, the codec is ready:
+
+```python
+from server.javelin import dispatch, self_ident
+
+# 4-byte trigger form first (cheapest experiment per the synthesis doc)
+wire = self_ident.encode_trigger()
+peer.send_typed(wire)
+
+# If trigger-only doesn't flip wrapper+0xa0, try structured form:
+msg = self_ident.PlayerManagerSelfIdentificationMsg(
+    field_0=...,  # values still TBD
+)
+wire = dispatch.encode_replay_message(0x5d1, msg)
+peer.send_typed(wire)
+```
+
+The dispatcher now knows about 0x5d1 even though the captured
+replay doesn't contain one. `dispatch.supported_type_ids()`
+includes it.
+
+**Blockers:** None.
