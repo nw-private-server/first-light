@@ -8799,3 +8799,130 @@ available.
 
 **Blockers:** None autonomously, no remaining high-value
 threads. Stopping until the maintainer signals next steps.
+
+---
+
+### 2026-05-09 — wake 90: TWO major findings — CRC32 + typeregistry mapping
+
+**Did:**
+
+Maintainer redirected to "next big things" and added new community
+material to `info/` (server.pak, Gems.pak, datatables.7z, etc.).
+While investigating the new drop I made TWO major findings that
+significantly advance protocol understanding.
+
+## Finding 1: W-direction "client_hash" is CRC32
+
+The 4-byte field at offset 0 of every captured W-direction
+message — which we've been calling `client_hash` across all
+codec docstrings — is **standard zlib CRC32 (IEEE 802.3
+polynomial 0xEDB88320, reflected) over (correlation_uuid +
+typed_envelope), big-endian**.
+
+Verified empirically: **37 of 39 captured W messages match
+exactly**. The 2 exceptions are explainable:
+- Seq 0x00 (V3 RegistrationRequest) — pre-session framing differs
+- Seq 0x6b (0x12f6 keybinding-config) — has 36-byte redacted
+  spans in the public capture that break the CRC computation
+
+This matches the Mixed Nuts spec from `docs/post-v3-sequence.md`
+exactly:
+```
+C → S  [crc32:4 BE][payload_size:4 BE][correlation_uuid:16][envelope]
+```
+
+Implications:
+- We can **construct fresh client traffic** with valid CRCs.
+  Useful for testing rep_responder, future client emulation,
+  validation tooling.
+- The W codec docstrings should rename `client_hash` to
+  `crc32` (deferred — the codecs accept arbitrary bytes today
+  so existing replay paths still work).
+- The 0x5b2 "byte-identical with same client_hash" finding from
+  wake 71 is now explained: same body → same CRC, no
+  coincidence.
+
+`server/javelin/wire.py` updated with `compute_cs_crc32()`,
+`serialize_cs_envelope()`, `parse_cs_envelope()` helpers.
+
+## Finding 2: Wire type-id == typeIndex from runtime registry
+
+`info/typeregistry.json` (already present from May 6 — not in
+the new community drop) is a runtime memory dump of the AZ
+type registry with **3487 entries**. Each entry has:
+- UUID
+- Name (often empty for un-RTTI'd types)
+- baseVtable (image-relative)
+- handler function fingerprints (first 8 bytes of Destructor,
+  GetEmptyValue, CreateInstance, CopyValue, Marshal, Unmarshal)
+- typeIndex (integer)
+
+**Realization**: the `typeIndex` field IS the wire-format
+type-id. Captured 0x13 message (V3 RegistrationRequest) has
+typeIndex=19 (= 0x13) for `RegistrationRequestV3Msg`. Verified
+across all 40 captured wire-types — every one has a registry
+entry.
+
+**6 captured types now have authoritative names**:
+
+| Wire | Name | UUID |
+|---|---|---|
+| 0x03 | `RegistrationResponseMsg` | 104145A7-FF95-44F1-9468-21FB41C8AC2B |
+| 0x13 | `RegistrationRequestV3Msg` | 0B826B33-89F5-49E0-B8CB-FE4433427778 |
+| 0xa4 | `ClientAddEntryMsg` (was: session_message_a4) | E3578B38-69AD-4C13-A7DD-3FFF752D98AA |
+| 0x14f | `TimeSynchMsg` (was: session_clock_beacon) | 038CD847-0653-4243-9A26-936E3BD7F312 |
+| 0x15d | `PingMsg` (was: heartbeat_15d) | 6A379FB8-0BDD-43A1-AB3E-9843D7BE8CD3 |
+
+Plus REP-related types: typeIndex=362 = 0x16a is
+`REPConnectionListener`, typeIndex=368 = 0x170 is
+`REPConnectionListener::State`, typeIndex=328 = 0x148 is
+`RegistryClient::State`. **None of these typeIndices are in
+the captured replay**, but they ARE the state-machine types
+that gate state-10→11.
+
+**The other 34 captured types are unnamed in the registry** —
+their UUIDs and handler fingerprints are recorded, but the
+name field is empty (the runtime dump didn't capture name
+strings for these).
+
+Methodology to extract names anyway: each captured type's
+**CreateInstance fingerprint** (`b9 <size:4LE> e9 <displ:2LE>`)
+appears at exactly 1 location in the binary. That stub is part
+of a packed handler-vtable structure that ALSO contains the
+type's class name string and full UUID. By parsing the
+structure surrounding the stub address, we can recover names
+for all 40 captured types. Implementation deferred — this is a
+substantial Ghidra script + parser project.
+
+Verified: 0x18a6's CreateInstance fingerprint
+(`b9 60 00 00 00 e9 76 a7`) matches exactly 1 location at
+`0x1407cbe90` in the binary; surrounding structure shows class
+name strings and UUIDs interspersed with function pointers.
+
+## What the new community drop contained (briefly)
+
+- `server.pak` (7.3MB, zip): 669 .datasheet files, all
+  game-content (damage tables, item defs). NOT protocol info.
+- `Gems.pak` / `gems.7z`: 40 gem.json metadata stubs
+  (UUID/name/version). No code or protocol info.
+- `datatables.7z`: same content as server.pak (deduped).
+- `nw-data-browser.7z`: a community Python tool for browsing
+  .datasheet files. The `datasheet_reader.py` source documents
+  the binary format (col_count at offset 0x44, row_count at
+  0x48, header at 0x5C, 12-byte column descriptors, 8-byte
+  cells, string pool at the end). Useful for content emission
+  but not protocol RE.
+
+**None of the new drop directly addresses the state-10 roadblock**.
+The valuable existing-but-unanalyzed file is
+`info/typeregistry.json` (above).
+
+**Files this iteration:**
+
+- `server/javelin/wire.py` (+ CRC32 helpers — verified, not
+  yet committed pending more work)
+- This worklog entry (very long; will be split into a separate
+  finding doc next iteration)
+
+**Blockers:** None — both findings are immediately actionable
+and unblock substantial follow-up work.
