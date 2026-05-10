@@ -161,6 +161,9 @@ codec library makes of it without writing throwaway Python.
 # From a file or stdin
 .venv/bin/python3 tools/decode_message.py --type 0x65c --direction R --file /tmp/body.bin
 cat body.bin | .venv/bin/python3 tools/decode_message.py --type 0x18a6 --direction W --stdin
+
+# Pipeable JSON output (comments go to stderr so stdout stays clean)
+.venv/bin/python3 tools/decode_message.py --type 0x15d --replay-index 0 --json | jq .counter
 ```
 
 Output is the codec dataclass formatted with `pprint`. Returns a

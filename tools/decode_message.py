@@ -153,6 +153,13 @@ def main(argv: list[str] | None = None) -> int:
         "--width", type=int, default=120,
         help="pprint output width (default 120)",
     )
+    parser.add_argument(
+        "--json", action="store_true",
+        help="Emit the decoded structure as JSON (machine-readable). "
+             "Bytes fields render as hex strings; tuples/dataclasses as "
+             "objects. Comment lines (`# ...`) go to stderr so stdout is "
+             "clean JSON for piping.",
+    )
     args = parser.parse_args(argv)
 
     if args.list:
@@ -164,7 +171,10 @@ def main(argv: list[str] | None = None) -> int:
 
     body = _read_body(args)
 
-    print(f"# type=0x{args.type_id:x}  direction={args.direction}  len={len(body)} B")
+    header = f"# type=0x{args.type_id:x}  direction={args.direction}  len={len(body)} B"
+    # When --json is set, comments go to stderr so stdout is parseable.
+    print(header, file=sys.stderr if args.json else sys.stdout)
+
     decoded = dispatch.decode_replay_message(args.type_id, args.direction, body)
     if decoded is None:
         print(
@@ -174,8 +184,35 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
-    pprint.pp(decoded, width=args.width)
+
+    if args.json:
+        import json
+        json.dump(_to_jsonable(decoded), sys.stdout, indent=2)
+        sys.stdout.write("\n")
+    else:
+        pprint.pp(decoded, width=args.width)
     return 0
+
+
+def _to_jsonable(obj):
+    """Recursively convert a codec dataclass to JSON-friendly types.
+    Mirrors `tools/build_site.py::_to_jsonable`'s shape (bytes→hex,
+    dataclass→dict)."""
+    import dataclasses
+    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        return {
+            f.name: _to_jsonable(getattr(obj, f.name))
+            for f in dataclasses.fields(obj)
+        }
+    if isinstance(obj, (bytes, bytearray)):
+        return obj.hex()
+    if isinstance(obj, (list, tuple)):
+        return [_to_jsonable(x) for x in obj]
+    if isinstance(obj, dict):
+        return {str(k): _to_jsonable(v) for k, v in obj.items()}
+    if isinstance(obj, (int, float, str, bool)) or obj is None:
+        return obj
+    return repr(obj)
 
 
 if __name__ == "__main__":

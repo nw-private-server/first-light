@@ -11129,3 +11129,38 @@ Test total: **334 → 335 (+1)**. Site rebuild recorded
 ```
 
 **Blockers:** None.
+
+## Wake 128 — `tools/decode_message.py --json` mode
+
+**Goal**: complement wake-127's `--list` with a machine-readable
+output mode so the CLI is pipeable into `jq` / scripts.
+
+**Built**:
+
+- `tools/decode_message.py`:
+  - New `--json` flag emits the decoded structure as JSON on
+    stdout. The human-readable `# type=0xNNNN ... ` comment
+    goes to stderr in this mode so stdout stays clean.
+  - New `_to_jsonable()` recursively converts dataclasses
+    (`dataclasses.fields()` walk) and bytes (→ hex string) into
+    JSON-friendly types. Mirrors the existing `tools/build_site.py`
+    helper of the same shape.
+- `analysis/codec_library_overview.md`: added a `--json | jq`
+  example to the hand-debug section.
+- 1 new test: `test_decode_cli_json_mode` round-trips a
+  heartbeat ping through `--json`, parses stdout via
+  `json.loads`, asserts the field values, and asserts the
+  comment landed on stderr.
+
+Test total: **335 → 336 (+1)**. Site rebuild recorded
+`test_count=336`.
+
+**Live usage**:
+
+```
+$ .venv/bin/python3 tools/decode_message.py --type 0x15d \
+    --direction R --replay-index 0 --json | jq .counter
+225014
+```
+
+**Blockers:** None.

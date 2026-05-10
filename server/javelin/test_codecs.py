@@ -3675,6 +3675,30 @@ def test_decode_cli_list_mode(capsys):
     assert "no decoder" in out
 
 
+def test_decode_cli_json_mode(capsys):
+    """`--json` emits clean JSON on stdout (comment → stderr) and the
+    decoded structure round-trips through `json.loads`."""
+    import sys as _sys
+    import json
+    REPO = Path(__file__).resolve().parents[2]
+    _sys.path.insert(0, str(REPO))
+    from tools.decode_message import main  # noqa: E402
+    rc = main([
+        "--type", "0x15d",
+        "--direction", "R",
+        "--hex", "00019d050000000200000003",
+        "--json",
+    ])
+    assert rc == 0
+    cap = capsys.readouterr()
+    # stdout = clean JSON
+    parsed = json.loads(cap.out)
+    assert parsed["counter"] == 2
+    assert parsed["nonce"] == 3
+    # stderr = the human-readable comment
+    assert "type=0x15d" in cap.err
+
+
 def test_decode_cli_replay_index_path(capsys):
     """The CLI's `--replay-index` path can pluck a captured message and
     pretty-print its decoded form."""
