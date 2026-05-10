@@ -11361,3 +11361,37 @@ HTML/CSS/JS modified). Pages auto-redeploy on push.
 **Tests unchanged**: 338 (+1 skipped).
 
 **Blockers:** None.
+
+## Wake 134 — Explore-tab preset buttons
+
+**Goal**: cut the friction-to-first-search on wake-133's byte-
+pattern playground. A visitor landing on Explore has to know
+what to type — preset buttons solve that.
+
+**Built**:
+
+- `site/index.html`:
+  - 5 preset buttons above the search input on the Explore tab:
+    - `session_uuid_lower` → `bf85314bbc4a951a`
+    - `0x08 anchor` → `010101010000`
+    - `"xaX" marker` → `0365f269`
+    - `0x15d type header` → `00019d05`
+    - `0x08 prefix` → `00010801`
+  - Clicking a button fills the input and immediately triggers
+    a render (same debounced render fn as keystroke-driven
+    searches). Input receives focus afterwards so users can
+    extend the pattern.
+  - CSS for `.presets` / `.preset-btn` matches the existing
+    GitHub-dark palette and feels native to the dashboard.
+
+**Result**: a visitor on Explore can now click one button and
+immediately see which messages contain a known fragment. Each
+preset is a real RE finding from the project history — the
+session-uuid lower (wake 121 family work), the 0x08 anchor
+(wake 103), the "xaX" marker (wake 103), the 0x15d type-header
+encoding rule, etc.
+
+**No code changes** beyond HTML/CSS/JS. Tests still 338 (+1
+skipped). Data.json unchanged.
+
+**Blockers:** None.

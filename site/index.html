@@ -268,6 +268,38 @@ main { padding: 16px; max-width: 1100px; margin: 0 auto; }
 }
 .tl-item .desc { color: var(--text-dim); font-size: 13px; }
 
+/* Byte-pattern playground presets */
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.presets-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 4px;
+}
+.preset-btn {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.preset-btn:hover {
+  background: var(--surface);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* Byte-pattern playground */
 .bpresult {
   background: var(--surface);
@@ -938,6 +970,14 @@ a:hover { text-decoration: underline; }
   </details>
   <input type="text" class="search" id="bytepattern-input"
     placeholder="Hex pattern (e.g. bf85314b or 00 01 9d 05)…">
+  <div class="presets" id="bytepattern-presets">
+    <span class="presets-label">Try:</span>
+    <button class="preset-btn" data-pattern="bf85314bbc4a951a">session_uuid_lower</button>
+    <button class="preset-btn" data-pattern="010101010000">0x08 anchor</button>
+    <button class="preset-btn" data-pattern="0365f269">"xaX" marker</button>
+    <button class="preset-btn" data-pattern="00019d05">0x15d type header</button>
+    <button class="preset-btn" data-pattern="00010801">0x08 prefix</button>
+  </div>
   <div id="bytepattern-summary" style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px;"></div>
   <div id="bytepattern-results"></div>
 </section>
@@ -1307,6 +1347,18 @@ function setupBytePatternSearch(data) {
   };
 
   input.addEventListener("input", debounce(render, 150));
+
+  // Preset buttons: clicking fills the input + triggers a render.
+  const presets = document.getElementById("bytepattern-presets");
+  if (presets) {
+    presets.addEventListener("click", (ev) => {
+      const btn = ev.target.closest(".preset-btn");
+      if (!btn) return;
+      input.value = btn.dataset.pattern || "";
+      render();
+      input.focus();
+    });
+  }
 }
 
 function drawVolumeChart(data) {
