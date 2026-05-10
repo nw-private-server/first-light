@@ -27751,6 +27751,12 @@
       "test_count": 342,
       "commit": "756428b",
       "subject": "analysis(wake 135): codec encoder symmetry audit + 3 gap fixes"
+    },
+    {
+      "wake": 136,
+      "test_count": 347,
+      "commit": "08c7607",
+      "subject": "analysis(wake 136): close the encoder audit \u2014 4 gaps \u2192 0"
     }
   ],
   "wire_type_families": [

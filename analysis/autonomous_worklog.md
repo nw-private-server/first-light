@@ -11485,3 +11485,33 @@ both structural-rejection coverage on `decode()` and
 populated-round-trip coverage on `encode()`.
 
 **Blockers:** None.
+
+## Wake 137 — auto-updating coverage badges
+
+**Goal**: stop hand-maintaining test/coverage counts in the
+README. Each commit that runs `build_site.py` should refresh
+the badges automatically.
+
+**Built**:
+
+- `tools/build_site.py` extended with `write_badges(data)`:
+  emits 3 shields.io endpoint JSON files under `site/`:
+  - `badge-tests.json` — "tests · NNN passing"
+  - `badge-tests-count.json` — "tests · NNN"
+  - `badge-codecs.json` — "captured types covered · N/40"
+    (brightgreen when 40/40, yellow otherwise)
+- `README.md` gains two new badges in the header strip:
+  - Test count (via shields.io endpoint)
+  - Codec coverage (via shields.io endpoint)
+- Pages auto-redeploy puts the latest JSON behind
+  `https://nw-private-server.github.io/first-light/badge-*.json`,
+  which shields.io reads on each badge render.
+
+**Result**: README's test-count and codec-coverage badges now
+update automatically on every commit that touches `site/data.json`
+(which the loop's standard pre-commit step does). No more
+hand-editing the README to bump 320 → 325 → 334 → 346.
+
+Tests unchanged: 346 (+1 skipped).
+
+**Blockers:** None.

@@ -886,11 +886,45 @@ def build_data():
     }
 
 
+def write_badges(data: dict) -> None:
+    """Emit shields.io endpoint JSON files for README badges.
+
+    Each badge is `site/badge-<name>.json` consumed by:
+      https://img.shields.io/endpoint?url=https://nw-private-server.github.io/first-light/badge-<name>.json
+
+    Keeps the README counters in sync with the live build automatically.
+    """
+    stats = data["stats"]
+    badges = {
+        "tests": {
+            "schemaVersion": 1,
+            "label": "tests",
+            "message": f"{stats['test_count']} passing",
+            "color": "brightgreen",
+        },
+        "codecs": {
+            "schemaVersion": 1,
+            "label": "captured types covered",
+            "message": f"{stats['captured_type_count']}/40",
+            "color": "brightgreen" if stats["captured_type_count"] == 40 else "yellow",
+        },
+        "tests-count": {
+            "schemaVersion": 1,
+            "label": "tests",
+            "message": str(stats["test_count"]),
+            "color": "brightgreen",
+        },
+    }
+    for name, payload in badges.items():
+        (SITE / f"badge-{name}.json").write_text(json.dumps(payload))
+
+
 def main():
     data = build_data()
     out = SITE / "data.json"
     with open(out, "w") as f:
         json.dump(data, f, indent=2, default=str)
+    write_badges(data)
     print(f"wrote {out} ({len(json.dumps(data))} bytes)")
     print(f"  test_count: {data['stats']['test_count']}")
     print(f"  captured_types: {data['stats']['captured_type_count']}")
