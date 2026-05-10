@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NW Private-Server RE Dashboard</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-2: #21262d;
+  --border: #30363d;
+  --text: #c9d1d9;
+  --text-dim: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #3fb950;
+  --warn: #d29922;
+  --conf-direct: #3fb950;
+  --conf-registry: #58a6ff;
+  --conf-hi: #d29922;
+  --conf-med: #db6d28;
+  --conf-low: #f85149;
+  --conf-unknown: #8b949e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  font-size: 15px;
+  line-height: 1.5;
+}
+header {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  z-index: 10;
+}
+header h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+header .gen {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+nav {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+nav button {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  font-family: inherit;
+}
+nav button.active {
+  background: var(--accent);
+  color: #0d1117;
+  border-color: var(--accent);
+}
+main { padding: 16px; max-width: 1200px; margin: 0 auto; }
+.tab { display: none; }
+.tab.active { display: block; }
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.stat .num {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.stat .label {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 8px;
+}
+th, td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  color: var(--text-dim);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+}
+tr:hover { background: var(--surface-2); }
+.mono {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+}
+.badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: ui-monospace, monospace;
+  white-space: nowrap;
+}
+.badge-direct { background: rgba(63,185,80,0.15); color: var(--conf-direct); }
+.badge-registry { background: rgba(88,166,255,0.15); color: var(--conf-registry); }
+.badge-hi { background: rgba(210,153,34,0.15); color: var(--conf-hi); }
+.badge-med { background: rgba(219,109,40,0.15); color: var(--conf-med); }
+.badge-lo { background: rgba(248,81,73,0.15); color: var(--conf-low); }
+.badge-other { background: rgba(139,148,158,0.15); color: var(--conf-unknown); }
+.search {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  margin-bottom: 12px;
+}
+.search:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+.finding {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.finding h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.finding .wake {
+  background: var(--surface-2);
+  color: var(--text-dim);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+}
+.finding p { margin: 0; color: var(--text-dim); font-size: 13px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.repo-link {
+  display: inline-block;
+  background: var(--surface-2);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+}
+@media (max-width: 600px) {
+  th, td { padding: 6px 8px; font-size: 12px; }
+  .mono { font-size: 11px; }
+  .stat .num { font-size: 22px; }
+  main { padding: 12px; }
+}
+.codec-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+.codec-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.codec-card .module {
+  font-family: ui-monospace, monospace;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--accent);
+}
+.codec-card .desc { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+.codec-card .lines { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.decomp-row { padding: 8px 0; border-bottom: 1px solid var(--border); }
+.decomp-row .name { font-family: ui-monospace, monospace; font-weight: 600; color: var(--accent); }
+.decomp-row .meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.decomp-row .sig { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text-dim); margin-top: 4px; word-break: break-all; }
+</style>
+</head>
+<body>
+<header>
+  <h1>NW Private-Server RE Dashboard</h1>
+  <div class="gen" id="generated">Loading…</div>
+  <nav>
+    <button data-tab="overview" class="active">Overview</button>
+    <button data-tab="types">Wire Types</button>
+    <button data-tab="codecs">Codecs</button>
+    <button data-tab="decomp">Decompiles</button>
+    <button data-tab="findings">Findings</button>
+  </nav>
+</header>
+
+<main>
+
+<section class="tab active" data-tab="overview">
+  <div class="stats" id="stats"></div>
+  <p style="color: var(--text-dim);">
+    Reverse-engineering New World's <code>Carrier</code> /
+    <code>GridMate</code> / Javelin protocol layers from a captured
+    DTLS replay. Codec library round-trips ~35 of 40 captured wire-types
+    byte-exact; <a href="DASHBOARD.md">DASHBOARD.md</a> has the full
+    written summary.
+  </p>
+  <p style="color: var(--text-dim);">
+    Source (this branch): <a class="repo-link"
+      href="https://github.com/nw-private-server/first-light/tree/claude/vacation-2026-05-06">
+      github.com/nw-private-server/first-light @ claude/vacation-2026-05-06
+    </a>
+  </p>
+</section>
+
+<section class="tab" data-tab="types">
+  <input type="text" class="search" placeholder="Filter by type-id, name, codec, UUID…" id="type-search">
+  <table id="types-table">
+    <thead>
+      <tr>
+        <th>Type</th><th>N</th><th>Dir</th><th>Bytes</th>
+        <th>Name</th><th>UUID</th><th>Codec</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section class="tab" data-tab="codecs">
+  <input type="text" class="search" placeholder="Filter codecs…" id="codec-search">
+  <div class="codec-list" id="codec-list"></div>
+</section>
+
+<section class="tab" data-tab="decomp">
+  <input type="text" class="search" placeholder="Filter decompiles by name or address…" id="decomp-search">
+  <div id="decomp-list"></div>
+</section>
+
+<section class="tab" data-tab="findings">
+  <div id="findings-list"></div>
+</section>
+
+</main>
+
+<script>
+async function load() {
+  const data = await fetch("data.json").then(r => r.json());
+  document.getElementById("generated").textContent =
+    data.generated_at + " · "
+    + data.stats.test_count + " tests · "
+    + data.stats.codec_module_count + " modules · "
+    + data.stats.captured_type_count + " types · "
+    + data.stats.named_captured_types + " named";
+
+  // Stats
+  const statsEl = document.getElementById("stats");
+  for (const [k, label] of [
+    ["test_count", "Tests passing"],
+    ["codec_module_count", "Codec modules"],
+    ["captured_type_count", "Captured wire-types"],
+    ["named_captured_types", "Captured types named"],
+    ["registry_entry_count", "Registry entries"],
+    ["decompile_count", "Ghidra decompiles"],
+  ]) {
+    const div = document.createElement("div");
+    div.className = "stat";
+    div.innerHTML = `<div class="num">${data.stats[k]}</div><div class="label">${label}</div>`;
+    statsEl.appendChild(div);
+  }
+
+  // Types
+  const typesBody = document.querySelector("#types-table tbody");
+  for (const t of data.captured_types) {
+    const tr = document.createElement("tr");
+    const conf = t.confidence;
+    const badgeClass =
+      conf === "binary-confirmed" ? "badge-direct" :
+      conf === "registry-direct" ? "badge-registry" :
+      conf === "hi" ? "badge-hi" :
+      conf === "med" ? "badge-med" :
+      conf === "lo" || conf === "registry-only" ? "badge-lo" :
+      "badge-other";
+    tr.innerHTML = `
+      <td class="mono">${t.type_id_hex}</td>
+      <td>${t.count}</td>
+      <td class="mono">${t.directions}</td>
+      <td class="mono">${t.sizes.slice(0, 3).join(",")}${t.sizes.length > 3 ? "..." : ""}</td>
+      <td><span class="badge ${badgeClass}">${escapeHtml(t.name)}</span></td>
+      <td class="mono">${t.uuid ? t.uuid.slice(0, 8) + "..." : "—"}</td>
+      <td class="mono">${t.codec || "—"}</td>
+    `;
+    typesBody.appendChild(tr);
+  }
+  setupFilter("type-search", typesBody.children);
+
+  // Codecs
+  const codecList = document.getElementById("codec-list");
+  for (const c of data.codecs) {
+    const div = document.createElement("div");
+    div.className = "codec-card";
+    div.innerHTML = `
+      <div class="module">${escapeHtml(c.module)}</div>
+      <div class="desc">${escapeHtml(c.description)}</div>
+      <div class="lines">${c.lines} lines</div>
+    `;
+    codecList.appendChild(div);
+  }
+  setupFilter("codec-search", codecList.children);
+
+  // Decompiles
+  const decompList = document.getElementById("decomp-list");
+  for (const d of data.decompiles) {
+    const div = document.createElement("div");
+    div.className = "decomp-row";
+    div.innerHTML = `
+      <div class="name"><a href="decomp/${escapeHtml(d.stem)}.txt">${escapeHtml(d.name)}</a></div>
+      <div class="meta">addr=0x${d.addr || "?"} · ${d.lines} lines · ${d.size_bytes} bytes</div>
+      ${d.signature ? `<div class="sig">${escapeHtml(d.signature)}</div>` : ""}
+    `;
+    decompList.appendChild(div);
+  }
+  setupFilter("decomp-search", decompList.children);
+
+  // Findings
+  const findingsList = document.getElementById("findings-list");
+  for (const f of data.findings) {
+    const div = document.createElement("div");
+    div.className = "finding";
+    div.innerHTML = `
+      <h3>${escapeHtml(f.title)} <span class="wake">wake ${f.wake}</span></h3>
+      <p>${escapeHtml(f.summary)}</p>
+    `;
+    findingsList.appendChild(div);
+  }
+}
+
+function escapeHtml(s) {
+  if (s == null) return "";
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+function setupFilter(searchId, items) {
+  const inp = document.getElementById(searchId);
+  inp.addEventListener("input", () => {
+    const q = inp.value.toLowerCase();
+    for (const item of items) {
+      item.style.display = (!q || item.textContent.toLowerCase().includes(q))
+        ? "" : "none";
+    }
+  });
+}
+
+// Tab switching
+document.querySelectorAll("nav button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll("nav button").forEach(b =>
+      b.classList.toggle("active", b === btn));
+    document.querySelectorAll(".tab").forEach(t =>
+      t.classList.toggle("active", t.dataset.tab === tab));
+  });
+});
+
+load().catch(err => {
+  document.body.innerHTML += `<pre style="color:#f85149">Error loading data: ${err}</pre>`;
+});
+</script>
+</body>
+</html>

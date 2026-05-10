@@ -1,0 +1,8 @@
+// FUN_145a92380 @ 145a92380
+
+bool FUN_145a92380(longlong param_1)
+
+{
+  return *(int *)(param_1 + 0xa0) == 0;
+}
+

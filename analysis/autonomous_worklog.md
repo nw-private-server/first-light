@@ -9578,3 +9578,48 @@ runtime path the maintainer is choosing (real-GPU host).
 
 **Blockers:** None autonomously. The runtime-path decision
 remains the highest-value unblock for the project as a whole.
+
+## Wake 98 — RE visualization site
+
+**Goal**: ship a free-hostable static site that catalogs the RE
+work and exposes the Ghidra decompiles so the maintainer can
+browse from anywhere (phone included). Integrate site
+regeneration into the per-wake commit pattern so the live view
+stays in sync with the analysis.
+
+**Built**:
+
+- `tools/build_site.py` — generator that reads
+  `info/typeregistry.json`, the captured replay (via
+  `server.javelin.replay_store`), `analysis/typename_mapping.csv`,
+  `analysis/decomp_*.txt`, and `server/javelin/*.py`. Emits
+  `site/data.json` plus per-decompile `site/decomp/<stem>.txt`
+  previews (50 KB cap each). Detects JSON-wrapped Ghidra exports
+  and unwraps the `code` field so previews render as readable C.
+
+- `site/index.html` — single-file SPA. Five tabs: Overview / Wire
+  Types / Codecs / Decompiles / Findings. GitHub-dark CSS,
+  600 px mobile breakpoint, sticky header + table headers. Each
+  table has a search/filter input. Confidence badges are
+  colour-coded (binary-confirmed=green, registry-direct=blue,
+  hi=yellow, med=orange, lo=red). Decompile rows link to
+  `decomp/<stem>.txt`.
+
+- `site/data.json` — 23986 bytes. Stats: 258 codec tests,
+  31 codec modules, 40 captured wire-types (5 named with
+  confidence), 3487 registry entries, 39 decompile files.
+
+- `site/README.md` — hosting setup for GitHub Pages /
+  Cloudflare Pages / Netlify, plus loop-integration docs.
+
+**Smoke test**: `python3 -m http.server 8000` from `site/`
+served the HTML, fetched `data.json`, and rendered all five
+tabs. Decompile preview links resolve to clean C source.
+
+**Loop integration**: starting wake 99, the wake prompt asks
+each wake to call `tools/build_site.py` before the commit so
+`site/data.json` and `site/decomp/` track the underlying
+analysis state. The user enables hosting (recommend GitHub
+Pages from this branch + `/site` folder) when ready.
+
+**Blockers:** None.

@@ -1,0 +1,30 @@
+
+void FUN_146b713e0(longlong param_1,undefined8 *param_2)
+
+{
+  longlong *plVar1;
+  longlong lVar2;
+  char cVar3;
+  undefined4 uVar4;
+  undefined **local_48;
+  longlong local_40;
+  undefined ***local_10;
+  
+  plVar1 = (longlong *)*param_2;
+  lVar2 = *(longlong *)(param_1 + 8);
+  uVar4 = (**(code **)(*plVar1 + 0x20))(plVar1);
+  *(undefined4 *)(lVar2 + 0x164) = uVar4;
+  cVar3 = (**(code **)(*plVar1 + 8))(plVar1);
+  if (cVar3 != '\0') {
+    *(undefined1 *)(lVar2 + 0x160) = 1;
+    local_48 = &PTR_LAB_148591708;
+    local_10 = &local_48;
+    local_40 = lVar2;
+    (**(code **)(*plVar1 + 0x48))(plVar1,&local_48);
+  }
+  if (*(longlong **)(lVar2 + 0xa8) != (longlong *)0x0) {
+    (**(code **)(**(longlong **)(lVar2 + 0xa8) + 0x10))();
+  }
+  return;
+}
+
