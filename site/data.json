@@ -27803,6 +27803,12 @@
       "test_count": 347,
       "commit": "231e2c3",
       "subject": "site: timeline picks up wake-125-126/135-136 audit + 137-140 polish arcs"
+    },
+    {
+      "wake": null,
+      "test_count": 347,
+      "commit": "a1bce7e",
+      "subject": "site: '/' keyboard shortcut focuses the Explore-tab search"
     }
   ],
   "wire_type_families": [
@@ -27945,6 +27951,200 @@
         "crash_site",
         "loadcontext_no_selfid"
       ]
+    }
+  ],
+  "analysis_docs": [
+    {
+      "filename": "MORNING_BRIEF.md",
+      "title": "Morning brief \u2014 autonomous overnight session 2026-05-07/08",
+      "summary": "slept (Windows 11 ARM64 VM, Steam, Python x64, Frida, repo, certs, hosts redirects, portproxy, full 71 GB game push, VC++ + DirectX runtimes). Smoke test reached the same exit cascade as UTM: AZoth \"Unsupported video \u2026",
+      "bytes": 5547
+    },
+    {
+      "filename": "clientmessagestrait_wire_formats.md",
+      "title": "Javelin::ClientMessagesTrait \u2014 wire-format reference",
+      "summary": "The two messages documented here have shipping Python encoders + unit tests in `server/javelin/`:",
+      "bytes": 13173
+    },
+    {
+      "filename": "codec_coverage.md",
+      "title": "Codec coverage map",
+      "summary": "The library covers the messages most likely to need server-side",
+      "bytes": 9902
+    },
+    {
+      "filename": "codec_encoder_audit.md",
+      "title": "Codec encoder audit \u2014 wake 135",
+      "summary": "Companion to `codec_test_audit.md` (decoder-side, wakes 125-126). This audit asks: do all 27 codec modules with an `encode()` function have a test that round-trips a **populated dataclass** through encode \u2192 decode and\u2026",
+      "bytes": 4295
+    },
+    {
+      "filename": "codec_library_overview.md",
+      "title": "Codec library \u2014 overview",
+      "summary": "A guide to `server/javelin/` for contributors landing on this repo for the first time. As of wake 109 the library covers every captured wire-type message in our DTLS replay; every captured body decodes successfully an\u2026",
+      "bytes": 9527
+    },
+    {
+      "filename": "codec_test_audit.md",
+      "title": "Codec test audit \u2014 wake 125",
+      "summary": "Walked `server/javelin/test_codecs.py` (320 test functions) and bucketed each by the codec module its name references, then categorized within each bucket as:",
+      "bytes": 5061
+    },
+    {
+      "filename": "community_archives_survey.md",
+      "title": "Community archives \u2014 survey (wake 99)",
+      "summary": "The maintainer added five community-sourced archives to `info/` after wake 87. None had been investigated. This survey is the verdict on their relevance to the open RE blockers (state-10\u219211 gate, 35 unclaimed captured\u2026",
+      "bytes": 3843
+    },
+    {
+      "filename": "compression_algorithm.md",
+      "title": "GridMate-Carrier Compression Algorithm",
+      "summary": "LZ4 block format begins with a 1-byte token: `(literals_len << 4) | (match_len - 4)`.",
+      "bytes": 3976
+    },
+    {
+      "filename": "connection_lifecycle_decompiles.md",
+      "title": "Connection lifecycle decompiles \u2014 overview",
+      "summary": "Companion to `state_machine_summary.md`. Covers the decomp files that implement connection success / fail / V3-build / loading paths but weren't part of the state-machine writeup. Surfaces enough context that the dash\u2026",
+      "bytes": 4910
+    },
+    {
+      "filename": "cross_link_arc.md",
+      "title": "Two project arcs \u2014 how the loop converges on a milestone",
+      "summary": "A meta-doc on how the autonomous wake loop handles multi-step deliverables. Two recent examples \u2014 the decompile cross-link arc and the codec-audit gap arc \u2014 show the pattern of:",
+      "bytes": 4971
+    },
+    {
+      "filename": "ctd_correlations.md",
+      "title": "CTD Correlation Audit \u2014 2026-05-04 Sessions",
+      "summary": "Sources: `session.log` head/tail, `responder_2026050*.log` (`new peer` markers), Windows Event Log Application Error / Windows Error Reporting in last 4h.",
+      "bytes": 3237
+    },
+    {
+      "filename": "ctd_investigation.md",
+      "title": "CTD Investigation - 2026-05-04 character-select crashes",
+      "summary": "Two reproducible CTDs at character-select today (and at least four total). All four crashes are **the same bug, same instruction, same exception code**.",
+      "bytes": 5400
+    },
+    {
+      "filename": "frida_hook_audit.md",
+      "title": "Frida Hook CTD Audit \u2014 `tools/frida_dtls_hook.js`",
+      "summary": "Audit of suspicious patterns most likely to cause the intermittent ~30-90s character-select CTD. Sorted by suspicion.",
+      "bytes": 5946
+    },
+    {
+      "filename": "ghidra_findings.md",
+      "title": "Ghidra MCP Findings \u2014 Live Javelin Binary Analysis",
+      "summary": "The `SecureSocketDriver::Initialize` equivalent. Single xref \u2014 called from one call site inside module init. Struct layout discovered:",
+      "bytes": 24449
+    },
+    {
+      "filename": "ghidra_hunt_list.md",
+      "title": "Ghidra Hunt List \u2014 Javelin / GridMate fingerprints in NewWorld.exe",
+      "summary": "These are confirmed present in the binary. Cross-referencing each string gives the function(s) that use it; from there we demangle and map back to GridMate.",
+      "bytes": 7474
+    },
+    {
+      "filename": "identity_bundle_correlation.md",
+      "title": "Identity-bundle cross-correlation (wake 121)",
+      "summary": "Each captured wire-type that carries an identity-bundle includes a 16-byte field decomposing as `[sub_system_id:8][session_uuid_lower:8]`. The `session_uuid_lower` is constant per session; the `sub_system_id` varies a\u2026",
+      "bytes": 5715
+    },
+    {
+      "filename": "integration_status.md",
+      "title": "Codec \u2194 server integration status",
+      "summary": "The codec library and the server (`server/rep_responder.py`) are **mostly decoupled**. The responder uses **raw replay-message bytes** (with redaction-span substitution for live values) for all post-V3 traffic. Only t\u2026",
+      "bytes": 7101
+    },
+    {
+      "filename": "message_inventory.md",
+      "title": "Javelin Message Inventory",
+      "summary": "Inferred from naming patterns and cross-referencing message-pair relationships (e.g. `Javelin::ClientMessagesTrait::PlayerManagerRejectedMsg` is the client-side counterpart sent in response to `Aoi::PlayerManagerTrait\u2026",
+      "bytes": 84582
+    },
+    {
+      "filename": "queued_work.md",
+      "title": "Queued / deferred work",
+      "summary": "Apple Silicon were definitively ruled out at wake 70: virtio-style GPU virtualization presents `VendorId = DeviceId = 0` to DXGI, which the game rejects. Next escalation: physical Windows host (Bootcamp / spare PC) or\u2026",
+      "bytes": 6926
+    },
+    {
+      "filename": "replay_chunking_design.md",
+      "title": "Replay-message chunking (MF_CHUNKS) design",
+      "summary": "Status: DRAFT for review \u2014 no production code yet. Date: 2026-05-05",
+      "bytes": 8287
+    },
+    {
+      "filename": "replay_message_inventory.md",
+      "title": "Replay-message wire-format inventory",
+      "summary": "Many captured types carry a 16-byte \"identity bundle\" of the form `[upper_8:8][lower_8:8]`. The lower 8 bytes are **always** `bf 85 31 4b bc 4a 95 1a` in the captured session \u2014 the session_uuid_lower. The upper 8 byte\u2026",
+      "bytes": 39149
+    },
+    {
+      "filename": "replay_substitution_design.md",
+      "title": "Replay-Substitution Design (extending past seq 0x24)",
+      "summary": "Status: DRAFT for review \u2014 no production code yet. Author: Claude Opus 4.7 (1M) Date: 2026-05-05",
+      "bytes": 18867
+    },
+    {
+      "filename": "selfident_wire_format.md",
+      "title": "PlayerManagerSelfIdentificationMsg \u2014 wire/struct layout (partial)",
+      "summary": "The handler signature (Ghidra view):",
+      "bytes": 6761
+    },
+    {
+      "filename": "state_10_unblock_synthesis.md",
+      "title": "State-10\u219211 gate \u2014 unblock synthesis (wake 111)",
+      "summary": "The message that writes `2` there is `PlayerManagerSelfIdentificationMsg` (wire type `0x5d1`). 0x5d1 is NOT in the captured replay, which is why the pure-replay server can't drive the client past state 10. Unblocking \u2026",
+      "bytes": 4763
+    },
+    {
+      "filename": "state_machine_summary.md",
+      "title": "GameConnection State Machine \u2014 Synthesis (2026-05-07)",
+      "summary": "After the V3 RegistrationResponse is accepted (already working \u2014 prior project notes confirmed `rep.ready` flips 0\u21921), the client sits in",
+      "bytes": 15652
+    },
+    {
+      "filename": "static_re_1033_merkle.md",
+      "title": "Static-RE investigation note: 0x1033 Merkle-shape blob",
+      "summary": "Single 498-byte capture (seq 0x26, R direction). Body shape:",
+      "bytes": 8493
+    },
+    {
+      "filename": "static_re_handshake_signing.md",
+      "title": "Static-RE investigation note: handshake-family signing scheme",
+      "summary": "Three captured R-direction messages carry an **identical 36-byte \"shared_trailer\"** at distinct offsets within their bodies:",
+      "bytes": 7391
+    },
+    {
+      "filename": "sub_system_id_hash_search.md",
+      "title": "`sub_system_id` \u2194 class name hash search (wake 122)",
+      "summary": "The 11 distinct `sub_system_id` values from the captured replay (see `identity_bundle_correlation.md`) might be deterministic hashes of class names, in which case computing the hash of each of the 312 named registry e\u2026",
+      "bytes": 4012
+    },
+    {
+      "filename": "typename_unblock_spec.md",
+      "title": "Type-name extraction: what's needed for further progress",
+      "summary": "in `info/typeregistry.json` (3487 entries) maps `typeIndex` to `(uuid, handler_fingerprint, ...)` but only 312 entries have a populated `name` field \u2014 the remaining 3175 have `name=\"\"`.",
+      "bytes": 6032
+    },
+    {
+      "filename": "wire_type_0x08.md",
+      "title": "Wire-type 0x08 \u2014 structural investigation",
+      "summary": "(46 423 bytes \u2014 opens the session, plausibly a world-data dump)",
+      "bytes": 5770
+    },
+    {
+      "filename": "wire_type_0x1033.md",
+      "title": "Wire-type 0x1033 \u2014 structural investigation",
+      "summary": "+0x00..0x03  type header   00 01 b3 40 (0x1033 \u2192 byte2=(0x33|0x80)=0xb3, byte3=(0x1033>>6)=0x40) +0x04..0x0b  sub_system_id              ce 81 13 6a 2b 7a d3 3e +0x0c..0x13  session_uuid_lower         bf 85 31 4b bc 4\u2026",
+      "bytes": 3877
+    },
+    {
+      "filename": "wrapper_setter_decompiles.md",
+      "title": "Wrapper-setter and dispatcher decompiles \u2014 overview",
+      "summary": "Companion to `state_machine_summary.md` and `connection_lifecycle_decompiles.md`. Covers the remaining decompile files that didn't fit either of those writeups \u2014 mostly the per-substate wrapper writers, the response-s\u2026",
+      "bytes": 5248
     }
   ]
 }

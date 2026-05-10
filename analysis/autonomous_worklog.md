@@ -11701,3 +11701,36 @@ defensive guard catches the focused-input case.
 **No code changes** to `server/`. Tests still 346 (+1 skipped).
 
 **Blockers:** None.
+
+## Wake 144 — analysis-doc index on the Findings tab
+
+**Goal**: the project has 32 `analysis/*.md` writeups but
+visitors landing on the dashboard can't browse them. Surface
+all of them with title + summary + link to the GitHub source.
+
+**Built**:
+
+- `tools/build_site.py`:
+  - New `load_analysis_docs()` walks `analysis/*.md`, extracts
+    the first `# heading` as title and the first paragraph as
+    summary (truncated to ~220 chars). Excludes the noisy
+    `autonomous_worklog.md`. 32 docs picked up.
+  - `data.json` exposes `analysis_docs` field with
+    `{filename, title, summary, bytes}` per entry.
+- `site/index.html`:
+  - Findings tab gains two sections: "Curated highlights"
+    (the existing curated list) and "All analysis writeups"
+    (the new index).
+  - Each writeup renders as a small card with title link →
+    GitHub source, filename + byte count meta, and the summary
+    paragraph.
+  - CSS for `.analysis-doc` matches the dashboard's
+    GitHub-dark palette.
+
+**Result**: visitors land on Findings, scroll past the curated
+highlights, and see the entire writeup catalog inline. No more
+"go to GitHub and look in analysis/" friction.
+
+**No code changes** to `server/`. Tests still 346 (+1 skipped).
+
+**Blockers:** None.

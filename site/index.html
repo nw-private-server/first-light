@@ -628,6 +628,30 @@ tr:hover { background: var(--surface-2); }
   font-family: ui-monospace, monospace;
 }
 .finding p { margin: 0; color: var(--text-dim); font-size: 13px; }
+.analysis-doc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+}
+.analysis-doc .title {
+  font-size: 14px;
+  font-weight: 600;
+}
+.analysis-doc .title a { color: var(--accent); }
+.analysis-doc .meta {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.analysis-doc .summary {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 6px;
+  line-height: 1.5;
+}
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 .repo-link {
@@ -1035,7 +1059,15 @@ a:hover { text-decoration: underline; }
 </section>
 
 <section class="tab" data-tab="findings">
+  <div class="section-h" style="margin-top: 0;">Curated highlights</div>
   <div id="findings-list"></div>
+
+  <div class="section-h">All analysis writeups</div>
+  <p style="color: var(--text-dim); font-size: 13px; margin-top: 0;">
+    Every <code>analysis/*.md</code> document committed to the repo. Click
+    a title to read the full writeup on GitHub.
+  </p>
+  <div id="analysis-docs"></div>
 </section>
 
 <section class="tab" data-tab="howitworks">
@@ -1467,6 +1499,22 @@ async function load() {
       <p>${escapeHtml(f.summary)}</p>
     `;
     findingsList.appendChild(div);
+  }
+
+  // ---- Analysis docs index ----
+  const adocsEl = document.getElementById("analysis-docs");
+  if (adocsEl) {
+    for (const d of (data.analysis_docs || [])) {
+      const div = document.createElement("div");
+      div.className = "analysis-doc";
+      const url = `https://github.com/nw-private-server/first-light/blob/claude/vacation-2026-05-06/analysis/${encodeURIComponent(d.filename)}`;
+      div.innerHTML = `
+        <div class="title"><a href="${url}" target="_blank" rel="noopener">${escapeHtml(d.title)}</a></div>
+        <div class="meta">${escapeHtml(d.filename)} · ${d.bytes.toLocaleString()} bytes</div>
+        ${d.summary ? `<div class="summary">${escapeHtml(d.summary)}</div>` : ""}
+      `;
+      adocsEl.appendChild(div);
+    }
   }
 
   // ---- Byte-pattern playground ----

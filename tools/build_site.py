@@ -157,6 +157,62 @@ def load_decompiles():
     return out
 
 
+def load_analysis_docs():
+    """Index of `analysis/*.md` writeups for the dashboard.
+
+    For each doc: extract its first heading as the title, the first
+    paragraph after the title as a summary, and the filename. Excludes
+    noisy bookkeeping docs (worklog) and per-decomp text dumps.
+    """
+    EXCLUDED = {
+        "autonomous_worklog.md",
+    }
+    out = []
+    for md in sorted((REPO / "analysis").glob("*.md")):
+        if md.name in EXCLUDED:
+            continue
+        try:
+            text = md.read_text(errors="replace")
+        except Exception:
+            continue
+        lines = text.splitlines()
+        title = md.stem.replace("_", " ")
+        summary = ""
+        # Title from first '# ' heading
+        for ln in lines[:5]:
+            if ln.startswith("# "):
+                title = ln[2:].strip()
+                break
+        # Summary from first non-empty, non-heading, non-blockquote
+        # paragraph after the title
+        in_para = False
+        para_lines = []
+        for ln in lines[1:]:
+            stripped = ln.strip()
+            if not stripped:
+                if in_para:
+                    break
+                continue
+            if stripped.startswith(("#", ">", "```", "|", "-", "*")):
+                if in_para:
+                    break
+                continue
+            in_para = True
+            para_lines.append(stripped)
+            if len(" ".join(para_lines)) > 220:
+                break
+        summary = " ".join(para_lines)
+        if len(summary) > 220:
+            summary = summary[:217] + "…"
+        out.append({
+            "filename": md.name,
+            "title": title,
+            "summary": summary,
+            "bytes": len(text),
+        })
+    return out
+
+
 def load_decompile_annotations():
     """For each decomp stem, find analysis/*.md docs that reference it
     by name. Excludes the noisy bookkeeping docs (autonomous_worklog,
@@ -623,6 +679,7 @@ def build_data():
     wire_type_families = load_wire_type_families()
     decompile_groups = load_decompile_groups()
     decompile_annotations = load_decompile_annotations()
+    analysis_docs = load_analysis_docs()
 
     # Merge annotations into decompiles (key match: txt.stem is
     # "decomp_<name>", annotations are keyed by "<name>"). Empty list
@@ -895,6 +952,7 @@ def build_data():
         "test_count_history": test_count_history,
         "wire_type_families": wire_type_families,
         "decompile_groups": decompile_groups,
+        "analysis_docs": analysis_docs,
     }
 
 
