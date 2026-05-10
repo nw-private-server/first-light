@@ -3699,6 +3699,30 @@ def test_decode_cli_json_mode(capsys):
     assert "type=0x15d" in cap.err
 
 
+def test_decode_cli_seq_path(capsys):
+    """The --seq path picks a captured body by seq number."""
+    import sys as _sys
+    REPO = Path(__file__).resolve().parents[2]
+    _sys.path.insert(0, str(REPO))
+    from tools.decode_message import main  # noqa: E402
+    # seq 0x2 in the bundled replay is a 0x15d R heartbeat ping.
+    rc = main(["--type", "0x15d", "--direction", "R", "--seq", "0x2"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "HeartbeatPing15D" in out
+
+
+def test_decode_cli_seq_rejects_type_mismatch():
+    """--seq validates that --type matches the message at that seq."""
+    import sys as _sys
+    REPO = Path(__file__).resolve().parents[2]
+    _sys.path.insert(0, str(REPO))
+    from tools.decode_message import main  # noqa: E402
+    # seq 0x0 is type 0x13, not 0x15d
+    with pytest.raises(SystemExit, match=r"seq=0x0 is type=0x13"):
+        main(["--type", "0x15d", "--direction", "R", "--seq", "0x0"])
+
+
 def test_decode_cli_replay_index_path(capsys):
     """The CLI's `--replay-index` path can pluck a captured message and
     pretty-print its decoded form."""

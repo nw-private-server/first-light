@@ -48,11 +48,15 @@ def _parse_type_id(raw: str) -> int:
 
 def _read_body(args: argparse.Namespace) -> bytes:
     sources_set = sum(
-        1 for x in (args.hex, args.file, args.stdin, args.replay_index is not None) if x
+        1 for x in (
+            args.hex, args.file, args.stdin,
+            args.replay_index is not None,
+            args.seq is not None,
+        ) if x
     )
     if sources_set != 1:
         raise SystemExit(
-            "exactly one of --hex / --file / --stdin / --replay-index required"
+            "exactly one of --hex / --file / --stdin / --replay-index / --seq required"
         )
     if args.hex:
         return bytes.fromhex(args.hex.replace(" ", ""))
@@ -80,6 +84,28 @@ def _read_body(args: argparse.Namespace) -> bytes:
                 f"(0..{len(matching) - 1})"
             )
         return matching[args.replay_index].body
+    if args.seq is not None:
+        from server.javelin.replay_store import ReplayStore
+        replay_path = REPO / "info" / "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+        if not replay_path.exists():
+            raise SystemExit(f"replay file not found at {replay_path}")
+        store = ReplayStore(replay_path)
+        # Match by seq alone; verify the type+direction agree with the
+        # message at that seq (otherwise the user has a wrong --type).
+        match = next((m for m in store.messages if m.seq == args.seq), None)
+        if match is None:
+            raise SystemExit(f"no captured message at seq=0x{args.seq:x}")
+        if match.type_id != args.type_id:
+            raise SystemExit(
+                f"seq=0x{args.seq:x} is type=0x{match.type_id:x} "
+                f"(not the --type 0x{args.type_id:x} you specified)"
+            )
+        if match.direction != args.direction:
+            raise SystemExit(
+                f"seq=0x{args.seq:x} direction is {match.direction!r} "
+                f"(not the --direction {args.direction!r} you specified)"
+            )
+        return match.body
     raise AssertionError("unreachable")
 
 
@@ -148,6 +174,12 @@ def main(argv: list[str] | None = None) -> int:
         "--replay-index", type=int, default=None, metavar="N",
         help="Pick the Nth captured message of this type+direction "
              "from the bundled replay (0-indexed)",
+    )
+    src.add_argument(
+        "--seq", type=lambda s: int(s, 0), default=None, metavar="SEQ",
+        help="Pick the captured message at this seq number "
+             "(decimal or 0xHEX). Validates --type/--direction "
+             "match the message at that seq.",
     )
     parser.add_argument(
         "--width", type=int, default=120,

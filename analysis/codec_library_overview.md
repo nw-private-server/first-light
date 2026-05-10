@@ -154,6 +154,9 @@ codec library makes of it without writing throwaway Python.
 # Decode a captured 0x15d (heartbeat ping) from the replay
 .venv/bin/python3 tools/decode_message.py --type 0x15d --replay-index 0 --direction R
 
+# Decode a captured message by seq number directly (more natural for replay analysis)
+.venv/bin/python3 tools/decode_message.py --type 0x15d --direction R --seq 0x2
+
 # Decode a raw hex body
 .venv/bin/python3 tools/decode_message.py --type 0x15d --direction R \
   --hex '00019d050003af9100000001'

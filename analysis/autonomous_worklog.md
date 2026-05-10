@@ -11270,3 +11270,44 @@ Progression across the cross-link arc:
 **No code changes**, no test changes. Tests still 336 (+1 skipped).
 
 **Blockers:** None.
+
+## Wake 132 — `tools/decode_message.py --seq N` flag
+
+**Goal**: ergonomic complement to `--replay-index N`. The
+`--seq` flag picks a captured body by its seq number directly,
+which is the way contributors usually refer to messages
+("look at seq 0x29's body" rather than "the 0th replay-index
+0x16a0 R message").
+
+**Built**:
+
+- `tools/decode_message.py`:
+  - New `--seq SEQ` flag accepting decimal or `0x` hex
+    (via `lambda s: int(s, 0)`).
+  - `_read_body()` extended with the seq path: looks up the
+    captured message at the given seq, validates that
+    `--type` and `--direction` match the message at that seq
+    (so a wrong type-id gives a clear error rather than
+    silently decoding the wrong body).
+- `analysis/codec_library_overview.md`: added the `--seq` form
+  to the hand-debug examples.
+- 2 new tests:
+  - `test_decode_cli_seq_path`: picks seq 0x2 (a 0x15d R ping)
+    and verifies the decoded dataclass appears in output.
+  - `test_decode_cli_seq_rejects_type_mismatch`: passing
+    `--type 0x15d --seq 0x0` (seq 0 is actually a 0x13 W
+    message) raises a clear "seq=0x0 is type=0x13" error.
+
+Test total: **336 → 338 (+2)**. Site rebuild recorded
+`test_count=338`.
+
+**Live usage**:
+
+```
+$ .venv/bin/python3 tools/decode_message.py --type 0x15d \
+    --direction R --seq 0x2
+# type=0x15d  direction=R  len=12 B
+HeartbeatPing15D(counter=225014, nonce=2945527156)
+```
+
+**Blockers:** None.
