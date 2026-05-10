@@ -11673,3 +11673,31 @@ Site rebuild trivial — `timeline[]` in data.json grew by two
 entries.
 
 **Blockers:** None.
+
+## Wake 143 — `/` keyboard shortcut for the Explore tab
+
+**Goal**: small UX touch. Press `/` anywhere on the dashboard
+to jump to the Explore tab and focus the byte-pattern search
+input. Common docs/search pattern; cuts the click-Explore-
+then-click-input dance.
+
+**Built**:
+
+- `site/index.html`:
+  - Factored tab-switching into a reusable `activateTab(name)`
+    helper (was inline in the click handler).
+  - Added a `keydown` listener: when `/` is pressed without
+    Ctrl/Meta/Alt and not already inside an input/textarea/
+    contenteditable, it switches to the Explore tab and
+    focuses the byte-pattern search input.
+  - Updated the search-input placeholder to mention the
+    shortcut: `(press / to focus, e.g. bf85314b…)`.
+
+**Result**: hitting `/` anywhere on the dashboard takes
+visitors straight to "I want to search for a hex pattern".
+Doesn't intercept `/` when already typing in any input —
+defensive guard catches the focused-input case.
+
+**No code changes** to `server/`. Tests still 346 (+1 skipped).
+
+**Blockers:** None.

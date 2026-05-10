@@ -1184,7 +1184,7 @@ a:hover { text-decoration: underline; }
     </div>
   </details>
   <input type="text" class="search" id="bytepattern-input"
-    placeholder="Hex pattern (e.g. bf85314b or 00 01 9d 05)…">
+    placeholder="Hex pattern (press / to focus, e.g. bf85314b or 00 01 9d 05)…">
   <div class="presets" id="bytepattern-presets">
     <span class="presets-label">Try:</span>
     <button class="preset-btn" data-pattern="bf85314bbc4a951a">session_uuid_lower</button>
@@ -2080,14 +2080,29 @@ function setupFilter(searchId, items) {
 }
 
 // Tab switching
+function activateTab(tabName) {
+  document.querySelectorAll("nav button").forEach(b =>
+    b.classList.toggle("active", b.dataset.tab === tabName));
+  document.querySelectorAll(".tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.tab === tabName));
+}
 document.querySelectorAll("nav button").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const tab = btn.dataset.tab;
-    document.querySelectorAll("nav button").forEach(b =>
-      b.classList.toggle("active", b === btn));
-    document.querySelectorAll(".tab").forEach(t =>
-      t.classList.toggle("active", t.dataset.tab === tab));
-  });
+  btn.addEventListener("click", () => activateTab(btn.dataset.tab));
+});
+
+// Keyboard shortcut: '/' jumps to the Explore tab + focuses the search.
+// Ignored when an input/textarea/contenteditable is already focused or
+// when a modifier key is held.
+document.addEventListener("keydown", (ev) => {
+  if (ev.key !== "/") return;
+  if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  const t = ev.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" ||
+            t.isContentEditable)) return;
+  ev.preventDefault();
+  activateTab("explore");
+  const input = document.getElementById("bytepattern-input");
+  if (input) input.focus();
 });
 
 load().catch(err => {
