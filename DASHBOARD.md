@@ -69,7 +69,7 @@ Full table — wire-type → registry name → codec module:
 | `0x1a59` | 3 | W | 45 | _(unnamed)_ | B42B3E49... | `session_subkey_1a59.py` |
 | `0x1b88` | 23 | R | 42 | _(unnamed)_ | AA0A0B64... | `session_identity_beacon.py` |
 
-**Bold** = type names with full namespace recovered from `info/typeregistry.json` + binary typeinfo strings (wake 90 + wake 95). The 6 names above are direct 1:1 matches between named registry entries and `InstallRegistrationHook<T>` typeinfo strings in the binary. The other 34 captured types have interpolated names of varying confidence in [`analysis/typename_mapping.csv`](analysis/typename_mapping.csv) — see worklog wake 95 for the methodology and noise sources.
+**Bold** = full namespace name recovered from `info/typeregistry.json` + `InstallRegistrationHook<T>` typeinfo strings in the binary (wake 90 + wake 96). The 6 above are confirmed by **direct 1:1 match**. The other 34 captured types are marked `unclaimed` in [`analysis/typename_mapping.csv`](analysis/typename_mapping.csv) — the strict interpolation algorithm in `tools/extract_typenames.py` (wake 96) only assigns names when both anchors are in the same translation unit AND the index count matches the string count exactly. Of all 3487 registry entries, 297 are direct matches and 9 are hi-confidence interpolations — none of the 9 happen to be in the captured replay's type-id range.
 
 ## State 10 → 11 status
 

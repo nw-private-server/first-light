@@ -9389,3 +9389,105 @@ manual verification.
    as authoritative type names.
 
 **Blockers:** None.
+
+---
+
+### 2026-05-09 — wake 96: tightened interpolation — 5 high-confidence names + honest unclaimed for the rest
+
+**Did:**
+
+Rewrote `tools/extract_typenames.py` per wake 95's queued
+improvements. Goals: stop emitting wrong-name guesses by
+constraining interpolation to (a) within a TU, (b) with anchor-
+index gap == string-address gap.
+
+**Algorithm (final):**
+
+1. Parse 3487 registry entries + 3482 typeinfo strings.
+2. Detect TU boundaries: address gap ≥ 0x200 between consecutive
+   strings starts a new TU. **179 TUs detected.**
+3. Direct match: 297/312 named entries → 1:1 to a string by
+   exact name or namespace-aware tail match. (Same as wake 95.)
+4. Re-anchor with the 297 direct matches.
+5. For each pair of consecutive anchors:
+   - Both must be in same TU
+   - Strings-between-them must all be in same TU as anchors
+   - count(strings) must == count(indices)
+   - Reverse-walk strings (descending address = ascending index)
+   - Assign each unclaimed string to the next index
+   - Confidence = `hi` if within 5 indices of an anchor,
+     else `med` (≤50), else `lo`.
+
+**Result:**
+
+- 297 direct matches (unchanged)
+- 9 high-confidence interpolations across the whole registry
+- 13 anchor pairs failed the count-match check (TU mismatch
+  or registry has more named entries in a range than there
+  are strings — which means some named registry entries
+  don't have `InstallRegistrationHook<T>` typeinfo lambdas)
+
+**For captured wire-types specifically: 5 direct, 35 unclaimed.**
+This is FEWER named captured types than wake 95's output (which
+had 33 interpolated, mostly wrong). But the 5 direct matches
+are now HIGH CONFIDENCE rather than mixed-quality:
+
+| Wire | Confirmed name |
+|---|---|
+| 0x03 | REPClient::RegistrationResponseMsg |
+| 0x13 | REPClient::RegistrationRequestV3Msg |
+| 0xa4 | ClientActorRoutingAuthorizationTrait::ClientAddEntryMsg |
+| 0x14f | REPClient::TimeSynchMsg |
+| 0x15d | REPClient::PingMsg |
+
+(**Wake 95 also reported 6**; my recount this iteration says 5.
+The wake-95 entry's "6" included `ClientAddEntryMsg` and
+`ClientActorRoutingAuthorizationTrait::ClientAddEntryMsg` as
+the same row — they're one type. The actual count was always 5
+direct.)
+
+**Honest assessment**: the strict algorithm is correct but the
+yield is low because most captured types' registry indices fall
+in TU regions where:
+- The bracketing anchors are far apart
+- And/or the count of named entries in the bracket doesn't match
+  the count of strings (because the registry has unnamed
+  entries that don't correspond to typeinfo strings)
+
+To increase coverage we'd need:
+1. A better runtime dump with more `name` populated, OR
+2. Cross-correlation with the handler fingerprints from wake 90
+   (some types have unique-by-size fingerprints, locking in 1:1 mappings)
+
+**Files this iteration:**
+
+- `tools/extract_typenames.py` (rewritten with strict algorithm)
+- `analysis/typename_mapping.csv` (regenerated; same 5 captured-type
+  direct matches but no false-positive interpolations)
+- `DASHBOARD.md` updated to clarify the captured-type result
+- This worklog entry
+
+**Library status: unchanged.** 258 tests passing.
+
+**Net of wakes 90-96**: methodology is now **structurally sound**.
+The CSV at `analysis/typename_mapping.csv` is a reliable reference
+for the 297+9 named types; the captured-type names are limited to
+5 direct matches by static-only analysis. Pushing past 5 needs
+either runtime data or a cross-correlation strategy with the
+fingerprint search from earlier wakes.
+
+**Next** (queue):
+
+1. Cross-correlation: types with UNIQUE CreateInstance fingerprints
+   (low xref count, e.g. 0x635's 1-xref stub at 0x144867c50) might
+   be 1:1 identifiable via the handler-block UUID surroundings.
+   Could push captured-name count from 5 to ~10-15.
+2. Honest documentation of the CURRENT captured-type-name state
+   in inventory.
+3. Eventually: maintainer obtains a more complete runtime registry
+   dump (e.g. via Frida hook on AZ::SerializeContext::Register to
+   capture name strings). That'd resolve all 35 unclaimed in one
+   pass.
+
+**Blockers:** None — but autonomous yield from this thread is
+hitting honest limits.
