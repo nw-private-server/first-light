@@ -10345,3 +10345,76 @@ the Pages workflow), but ran for consistency. data.json
 unchanged.
 
 **Blockers:** None.
+
+## Wake 111 — state-10 gate unblock synthesis (parallel agents)
+
+**Goal**: take a fresh pass at the long-deferred state-10→11 gate
+using the new parallel-agent playbook the user enabled this turn.
+
+**Method**: launched two `Explore` subagents in parallel:
+- Agent 1: read `analysis/decomp_state_advance_predicate.txt` and
+  `decomp_state11_dispatcher.txt`; report the exact field the
+  predicate checks.
+- Agent 2: hunt the codec library + `rep_responder.py` for
+  candidates that might write the predicate's expected field.
+
+**Findings (verified independently after the agents reported)**:
+
+1. **Predicate is `*(int *)(wrapper+0xa0) == 2`** (4-byte int
+   compare). Project memory had recorded this as `+0x130`, which
+   was a confusion between the outer struct's wrapper-pointer
+   offset and the wrapper-internal field. **Memory record now
+   corrected** in `project_re_finding_state_advance.md`.
+
+2. **The message that writes `2` to `wrapper+0xa0` is
+   `PlayerManagerSelfIdentificationMsg`**, per worklog wake 3
+   task A2.5. Handler: `FUN_146454c00`.
+
+3. **Wire-type encoding**: `0x91(0x17)` per
+   `docs/post-v3-sequence.md` decodes to type-id **0x5d1**
+   (verified: `(0x91 & 0x7f) | (0x17 << 6) = 0x5d1`).
+
+4. **0x5d1 is NOT in the captured replay**. The 40 captured
+   wire-types do not include it; a `00 01 91 17` header search
+   across all 177 captured bodies returns zero matches.
+
+**Synthesis**: this is why the pure-replay server can't drive
+state-10→11. The captured login session never carried a 0x5d1
+SelfIdentification message to the client, so `wrapper+0xa0`
+never advances from `1` to `2`. The unblock requires the server
+to construct + emit a synthetic 0x5d1 message at the right point
+in the post-V3 sequence.
+
+**What's still unresolved (needs runtime data)**:
+- Wire body size: docs estimate 4 B (header-only trigger);
+  handler reads 21+ B. Either the handler sources data from
+  session state (4-byte wire form correct) or the doc estimate
+  is stale.
+- Exact field values required (m_field0, m_field08, m_field2C,
+  m_field34 per `self_ident.py`).
+- Timing relative to the captured replay tick.
+
+**Built**:
+
+- `analysis/state_10_unblock_synthesis.md` — full writeup of the
+  predicate, the trigger message, the wire-type derivation, why
+  the replay can't drive it, and the unblock plan with the live
+  experiment to run when a real-GPU host is available.
+
+**Updated**:
+
+- Memory record `project_re_finding_state_advance.md` rewritten
+  with the corrected `+0xa0` offset and the 0x5d1 wire-type
+  binding.
+
+**Parallel-agent retrospective**: highly effective on this task.
+The two agents in parallel covered both the "what does the gate
+check?" thread and the "what would write that?" thread without
+sequential context-shuffling, then I verified both independently
+before writing the synthesis. Kept main-thread context clean and
+landed in well under the 30-min budget.
+
+**Blockers:** None autonomously. The state-10 thread now has a
+crisp written-down unblock path (3 things) that needs runtime
+testing — exactly what the maintainer's real-GPU host plan
+delivers.
