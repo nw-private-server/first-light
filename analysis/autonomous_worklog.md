@@ -9847,3 +9847,64 @@ those, and inventing structure where none is observable would
 make the codec brittle when a second capture arrives.
 
 **Blockers:** None.
+
+## Wake 103 — chunked_stream_08, 40/40 captured types covered
+
+**Goal**: take on the last gap — `0x08`, the highest-volume captured
+type (79 R-direction captures, sizes 78 B → 46 423 B). Confirm the
+shared structural anchors observed during wake 102's quick peek;
+write a framing-only codec.
+
+**Findings (scripted across all 79 captures)**:
+
+- **Two forms**:
+  - **Standard** (78/79): 11-byte invariant anchor — `00 01 08 01`
+    prefix + 1 subtype byte + `01 01 01 01 00 00` constant region.
+    Verified byte-for-byte across every standard capture.
+  - **UUID-prefixed** (1/79): single outlier at seq 0x25, the
+    largest 0x08 message (46 423 B — opens the session). First
+    16 bytes are a UUID/digest; no `00 01 08 01` prefix.
+- **Subtype byte distribution**: 24/78 captures have
+  `subtype=0x01`; 39 distinct singleton subtypes. The 24-strong
+  cluster could be sub-typed further with another session capture.
+- **Correlation marker `03 65 f2 69 14 78 61 58` ("xaX")**:
+  appears inside 25 captures' tails but is **not** a chunk
+  separator at the wire level. The 30 large messages
+  (5K–50K bytes) have **0** markers each; small/mid have 1-15.
+  Treated as inline data.
+
+**Built**:
+
+- `server/javelin/chunked_stream_08.py` (~170 LOC) — two
+  dataclasses (`ChunkedStream08Standard`,
+  `ChunkedStream08UuidPrefixed`), `encode/decode_either()`
+  dispatch by sniffing the first 4 bytes. Strict validation of
+  the standard form's prefix + constant region.
+- 8 new tests in `test_codecs.py`: standard round-trip, UUID-
+  prefixed round-trip, **all-79-captured-bodies round-trip**,
+  dispatch correctness for both forms, prefix rejection,
+  constant-region rejection, too-short rejection. Test total:
+  **274 → 282 (+8)**.
+- `analysis/wire_type_0x08.md` — full investigation incl.
+  subtype distribution, marker analysis, and the unblock
+  options (more captures / runtime trace / static-RE on the
+  per-subtype handler).
+
+**Site rebuild**: `tools/build_site.py` map updated; data.json
+now reflects test_count=282, codec_module_count=35.
+
+**Net effect (and milestone)**: captured-type codec coverage moves
+to **40/40 — every captured wire-type in the replay is now
+handled by a codec**. Coverage depth varies (some are full
+structural codecs, some are framing-only with documented opaque
+tails) but every body in the replay round-trips byte-for-byte.
+
+**Big-picture summary across wakes 100-103**:
+- Wake 100: 0x651 (empty marker) +1 capture → 36/40
+- Wake 101: 0x1096 (frame config, structural) +1 → 38/40
+  (also fixed map gap for 0x13)
+- Wake 102: 0x1033 (opaque blob) +1 → 39/40
+- Wake 103: 0x08 (chunked stream, two forms) +1 → **40/40**
+- Tests grew 258 → 282 (+24)
+
+**Blockers:** None.

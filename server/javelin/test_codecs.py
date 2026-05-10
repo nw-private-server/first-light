@@ -3420,6 +3420,96 @@ def test_opaque_blob_1033_constructor_validates_widths():
         )
 
 
+# ---------------------------------------------------------------------------
+# Chunked-stream (0x08) — wake 103
+# ---------------------------------------------------------------------------
+
+from .chunked_stream_08 import (  # noqa: E402
+    ChunkedStream08Standard,
+    ChunkedStream08UuidPrefixed,
+    STANDARD_PREFIX as CS_08_PREFIX,
+    STANDARD_CONSTANT as CS_08_CONSTANT,
+    encode_standard as encode_cs_08_std,
+    decode_standard as decode_cs_08_std,
+    encode_either as encode_cs_08_any,
+    decode_either as decode_cs_08_any,
+)
+
+
+def test_chunked_stream_08_standard_round_trip():
+    msg = ChunkedStream08Standard(subtype=0x01, opaque=b"hello world")
+    wire = encode_cs_08_std(msg)
+    assert wire[:4] == CS_08_PREFIX
+    assert wire[4] == 0x01
+    assert wire[5:11] == CS_08_CONSTANT
+    assert decode_cs_08_std(wire) == msg
+
+
+def test_chunked_stream_08_uuid_prefixed_round_trip():
+    uuid = bytes.fromhex("0387942a661f85431d458b40d21f3b26")
+    msg = ChunkedStream08UuidPrefixed(uuid=uuid, opaque=b"\xab" * 16)
+    wire = encode_cs_08_any(msg)
+    assert wire[:16] == uuid
+    decoded = decode_cs_08_any(wire)
+    assert isinstance(decoded, ChunkedStream08UuidPrefixed)
+    assert decoded == msg
+
+
+def test_chunked_stream_08_all_captured_round_trip():
+    """All 79 captured 0x08 bodies must round-trip via decode_either /
+    encode_either."""
+    from pathlib import Path
+    from .replay_store import ReplayStore
+    p = Path(__file__).resolve().parents[2] / "info" / \
+        "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    if not p.exists():
+        pytest.skip("replay file not present")
+    store = ReplayStore(p)
+    captures = [m for m in store.messages if m.type_id == 0x8]
+    assert len(captures) == 79
+
+    standard_count = 0
+    uuid_count = 0
+    for m in captures:
+        decoded = decode_cs_08_any(m.body)
+        assert encode_cs_08_any(decoded) == m.body
+        if isinstance(decoded, ChunkedStream08Standard):
+            standard_count += 1
+        else:
+            uuid_count += 1
+    assert standard_count == 78 and uuid_count == 1
+
+
+def test_chunked_stream_08_dispatch_picks_standard():
+    buf = CS_08_PREFIX + bytes([0x42]) + CS_08_CONSTANT + b"opaque"
+    decoded = decode_cs_08_any(buf)
+    assert isinstance(decoded, ChunkedStream08Standard)
+    assert decoded.subtype == 0x42
+
+
+def test_chunked_stream_08_dispatch_picks_uuid_when_no_prefix():
+    buf = b"\x99" * 16 + b"tail"  # doesn't start with 00 01 08 01
+    decoded = decode_cs_08_any(buf)
+    assert isinstance(decoded, ChunkedStream08UuidPrefixed)
+
+
+def test_chunked_stream_08_rejects_bad_prefix():
+    bad = b"\x00\x01\x08\x02" + b"\x00" * 7
+    with pytest.raises(ValueError, match="standard prefix mismatch"):
+        decode_cs_08_std(bad)
+
+
+def test_chunked_stream_08_rejects_bad_constant_region():
+    bad = CS_08_PREFIX + bytes([0x01]) + b"\x01\x01\x01\x01\x00\xff"  # last byte 0xff
+    with pytest.raises(ValueError, match=r"\+0x05..\+0x0a mismatch"):
+        decode_cs_08_std(bad)
+
+
+def test_chunked_stream_08_uuid_prefixed_rejects_too_short():
+    with pytest.raises(ValueError, match="need at least 16 bytes"):
+        decode_cs_08_any(b"\x99" * 4)
+
+
 def test_replay_messages_after_v3_filters_correctly():
     # type 0x15d R marker: byte2=(0x1d|0x80)=0x9d, byte3=(0x15d>>6)=0x05
     dump = """\

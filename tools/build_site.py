@@ -261,6 +261,7 @@ def build_data():
     # Codec module map for captured types
     codec_for_type = {
         0x03: "v3_response.py",
+        0x08: "chunked_stream_08.py",
         0x13: "v3_request.py",
         0xa4: "session_message_a4.py",
         0x651: "empty_marker_651.py",
