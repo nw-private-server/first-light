@@ -840,7 +840,12 @@
       "lines": 220,
       "size_bytes": 7163,
       "signature": "void FUN_146b6c500(longlong *param_1,undefined4 param_2,char param_3,undefined8 param_4)",
-      "related": []
+      "related": [
+        {
+          "filename": "connection_lifecycle_decompiles.md",
+          "label": "connection lifecycle decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_146aaa130",
@@ -849,7 +854,12 @@
       "lines": 354,
       "size_bytes": 11990,
       "signature": "undefined4 * FUN_146aaa130(undefined8 param_1,undefined4 *param_2,longlong *param_3)",
-      "related": []
+      "related": [
+        {
+          "filename": "connection_lifecycle_decompiles.md",
+          "label": "connection lifecycle decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_1407ec310",
@@ -858,7 +868,12 @@
       "lines": 116,
       "size_bytes": 3374,
       "signature": "undefined * FUN_1407ec310(void)",
-      "related": []
+      "related": [
+        {
+          "filename": "connection_lifecycle_decompiles.md",
+          "label": "connection lifecycle decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_146454c00",
@@ -868,6 +883,10 @@
       "size_bytes": 14651,
       "signature": "void FUN_146454c00(longlong param_1,longlong param_2,undefined8 param_3,undefined8 param_4,",
       "related": [
+        {
+          "filename": "connection_lifecycle_decompiles.md",
+          "label": "connection lifecycle decompiles"
+        },
         {
           "filename": "state_machine_summary.md",
           "label": "state machine summary"
@@ -881,7 +900,12 @@
       "lines": 401,
       "size_bytes": 13165,
       "signature": "undefined8 FUN_1430079a0(undefined8 param_1,longlong *param_2,longlong *param_3,ulonglong param_4)",
-      "related": []
+      "related": [
+        {
+          "filename": "connection_lifecycle_decompiles.md",
+          "label": "connection lifecycle decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_140fadbc0",
@@ -927,7 +951,12 @@
       "lines": 30,
       "size_bytes": 750,
       "signature": "void FUN_146b713e0(longlong param_1,undefined8 *param_2)",
-      "related": []
+      "related": [
+        {
+          "filename": "connection_lifecycle_decompiles.md",
+          "label": "connection lifecycle decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_14103b1a0",
@@ -936,7 +965,12 @@
       "lines": 138,
       "size_bytes": 4409,
       "signature": "void FUN_14103b1a0(longlong param_1,int param_2,undefined4 *param_3,int param_4)",
-      "related": []
+      "related": [
+        {
+          "filename": "connection_lifecycle_decompiles.md",
+          "label": "connection lifecycle decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_14103b570",
@@ -945,7 +979,12 @@
       "lines": 439,
       "size_bytes": 14217,
       "signature": "void FUN_14103b570(longlong param_1,int param_2)",
-      "related": []
+      "related": [
+        {
+          "filename": "connection_lifecycle_decompiles.md",
+          "label": "connection lifecycle decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_146448cd0",
@@ -955,6 +994,10 @@
       "size_bytes": 6000,
       "signature": "void FUN_146448cd0(longlong param_1)",
       "related": [
+        {
+          "filename": "connection_lifecycle_decompiles.md",
+          "label": "connection lifecycle decompiles"
+        },
         {
           "filename": "state_machine_summary.md",
           "label": "state machine summary"
@@ -995,7 +1038,12 @@
       "lines": 17,
       "size_bytes": 393,
       "signature": "void FUN_14645c660(longlong param_1)",
-      "related": []
+      "related": [
+        {
+          "filename": "connection_lifecycle_decompiles.md",
+          "label": "connection lifecycle decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_143dd6b20",
@@ -1004,7 +1052,12 @@
       "lines": 435,
       "size_bytes": 13433,
       "signature": "void FUN_143dd6b20(longlong param_1,undefined8 *param_2,undefined8 *param_3,undefined1 param_4,",
-      "related": []
+      "related": [
+        {
+          "filename": "connection_lifecycle_decompiles.md",
+          "label": "connection lifecycle decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_1473ed090",
@@ -1032,6 +1085,10 @@
       "size_bytes": 113,
       "signature": "bool FUN_145a92370(longlong param_1)",
       "related": [
+        {
+          "filename": "connection_lifecycle_decompiles.md",
+          "label": "connection lifecycle decompiles"
+        },
         {
           "filename": "state_10_unblock_synthesis.md",
           "label": "state 10 unblock synthesis"
@@ -1063,7 +1120,12 @@
       "lines": 71,
       "size_bytes": 2180,
       "signature": "",
-      "related": []
+      "related": [
+        {
+          "filename": "connection_lifecycle_decompiles.md",
+          "label": "connection lifecycle decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_146b66820",
@@ -1072,7 +1134,12 @@
       "lines": 83,
       "size_bytes": 2804,
       "signature": "",
-      "related": []
+      "related": [
+        {
+          "filename": "connection_lifecycle_decompiles.md",
+          "label": "connection lifecycle decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_145a8d150",
@@ -1109,7 +1176,12 @@
       "lines": 22,
       "size_bytes": 562,
       "signature": "void FUN_145a9fa30(longlong param_1,undefined8 *param_2)",
-      "related": []
+      "related": [
+        {
+          "filename": "connection_lifecycle_decompiles.md",
+          "label": "connection lifecycle decompiles"
+        }
+      ]
     },
     {
       "name": "FUN_145a9fa80",
@@ -27532,6 +27604,12 @@
       "test_count": 337,
       "commit": "8d6c03f",
       "subject": "analysis(wake 128): tools/decode_message.py --json mode"
+    },
+    {
+      "wake": null,
+      "test_count": 337,
+      "commit": "015a59d",
+      "subject": "site: decompile rows now surface cross-referenced analysis docs"
     }
   ],
   "wire_type_families": [

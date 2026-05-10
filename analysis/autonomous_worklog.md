@@ -11204,3 +11204,34 @@ push.
 **Tests unchanged**: 336 (+1 skipped).
 
 **Blockers:** None.
+
+## Wake 130 — connection-lifecycle decompile writeup
+
+**Goal**: densify the wake-129 decompile-cross-link map by writing
+a single overview doc that mentions multiple unreferenced decompiles
+in their natural functional grouping.
+
+**Built**:
+
+- `analysis/connection_lifecycle_decompiles.md` — overview covering:
+  - Connection-success path: `javelin_game_on_connection_succeed`,
+    `javelin_game_on_connection_fail`, `connection_success_caller`
+  - V3 RegistrationRequest assembly: `v3_builder`, `v2_builder`,
+    `clientconnectionmsg_sender`, `clientconnectionmsg_typeinfo`
+  - Loading / CMS-fetch path: `crash_site`, `loadcontext_no_selfid`
+  - Includes function-RVA anchors, parameter sketches, and notes
+    on the "crash_site" misnaming (it's the CMS HTTP handler, not
+    the actual crash).
+
+**Result**: dashboard cross-link density jumped from
+**12/39 → 24/39** (32% → **62%**) of decompiles with at least
+one related-doc badge. The wake-129 annotation pass picks this
+up automatically on the next site rebuild.
+
+**No code changes**, no test changes. Tests still 336 (+1 skipped).
+
+**Future**: a similar overview for the wrapper-setter family
+(wrapper_setter_fa30, fa80, gw160_setter, etc.) would push cross-
+link density past 90%. Documented in the new file as a follow-up.
+
+**Blockers:** None.
