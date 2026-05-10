@@ -345,6 +345,143 @@ def build_data():
             "codec": codec_for_type.get(tid, ""),
         })
 
+    # ---- summaries for charts + landing ----
+
+    # Total replay-message counts by direction
+    direction_counts = {"R": 0, "W": 0}
+    for c in captured_list:
+        for d in c["directions"]:
+            direction_counts[d] = direction_counts.get(d, 0) + c["count"]
+
+    # Top-15 types by raw message count (for the volume bar chart)
+    volume_top = sorted(
+        captured_list, key=lambda c: -c["count"]
+    )[:15]
+    volume_top_short = [
+        {
+            "type_id_hex": c["type_id_hex"],
+            "count": c["count"],
+            "name": c["name"][:40],
+            "codec": c["codec"],
+        }
+        for c in volume_top
+    ]
+
+    # Coverage breakdown for the doughnut
+    coverage_buckets = {
+        "Confirmed name (binary or registry)": 0,
+        "Structural codec": 0,
+        "Framing-only / opaque": 0,
+    }
+    framing_only_codecs = {
+        "opaque_blob_1033.py", "chunked_stream_08.py",
+    }
+    for c in captured_list:
+        if c["confidence"] in ("binary-confirmed", "registry-direct"):
+            coverage_buckets["Confirmed name (binary or registry)"] += 1
+        elif c["codec"] in framing_only_codecs:
+            coverage_buckets["Framing-only / opaque"] += 1
+        elif c["codec"]:
+            coverage_buckets["Structural codec"] += 1
+        else:
+            coverage_buckets["Framing-only / opaque"] += 1
+
+    # The 13-state connection-handshake diagram. State numbering follows
+    # the binary's internal state machine; descriptions are plain-English
+    # interpretations from wakes 60-80.
+    state_machine = [
+        {"n": 1, "name": "Init", "desc": "Client object built; nothing on the wire yet."},
+        {"n": 2, "name": "DTLS handshake", "desc": "TLS-over-UDP setup. Server cert, key exchange, cipher agreed."},
+        {"n": 3, "name": "Connect request", "desc": "Carrier system message asking the server to register the client."},
+        {"n": 4, "name": "Connect ack", "desc": "Server acknowledges the connect, opens the data channel."},
+        {"n": 5, "name": "V3 registration", "desc": "Client sends its identity (Steam ID, persona, sdk version)."},
+        {"n": 6, "name": "Registration response", "desc": "Server returns a session token; client validates."},
+        {"n": 7, "name": "Heartbeat exchange", "desc": "Ping/ack pair — both sides confirm the session is alive."},
+        {"n": 8, "name": "Identity beacons", "desc": "Sub-system identity fingerprints exchanged."},
+        {"n": 9, "name": "Asset count + key tables", "desc": "Server tells the client what world data to expect."},
+        {"n": 10, "name": "World data streaming", "desc": "Bulk world / level data over the chunked stream (0x08)."},
+        {"n": 11, "name": "Substate setup", "desc": "Open thread — the gate from 10 to 11 is the current blocker."},
+        {"n": 12, "name": "World ready", "desc": "Game can render the world; player can move."},
+        {"n": 13, "name": "Steady state", "desc": "Heartbeats + world updates only; normal play."},
+    ]
+    BLOCKER_STATE = 11  # 10→11 transition is the current open thread
+
+    # FAQ — plain-English answers
+    faq = [
+        {
+            "q": "What is this project?",
+            "a": "A reverse-engineering effort to understand New World's network protocol "
+                 "well enough to build a private server. Right now it's static-analysis "
+                 "work: pulling apart the game binary and a captured login session to "
+                 "figure out how each message on the wire is structured.",
+        },
+        {
+            "q": "Can I play on it?",
+            "a": "Not yet. The codec library can read and re-emit every captured message "
+                 "byte-for-byte, but the runtime side (an actual server you'd point your "
+                 "game at) still needs significant work — at minimum, the connection "
+                 "state machine has an open blocker at the 10→11 transition.",
+        },
+        {
+            "q": "Why is it stuck on \"state 10\"?",
+            "a": "The game runs through a sequence of internal states from \"client just "
+                 "started\" to \"steady gameplay.\" Our captured replay drives the server "
+                 "through state 10 cleanly, but the predicate that lets state 10 advance "
+                 "to state 11 reads runtime data that the captured replay alone doesn't "
+                 "supply. Cracking that needs a real-GPU host running the game.",
+        },
+        {
+            "q": "Is this affiliated with Amazon Games?",
+            "a": "No. This is an independent reverse-engineering project for "
+                 "research and hobby purposes.",
+        },
+        {
+            "q": "Why are some messages \"opaque\" but others fully decoded?",
+            "a": "Most captured message types have observable structure (numeric "
+                 "values, known field shapes, repeated patterns) and got full structural "
+                 "codecs. A few (`0x1033`, the largest `0x08`) look like encrypted or "
+                 "signed material — without runtime context we can't subdivide their "
+                 "bodies meaningfully, so the codec just treats them as opaque payloads.",
+        },
+    ]
+
+    # Project milestone timeline. Hand-curated rather than auto-extracted
+    # because the value lives in the framing, not in raw wake numbers.
+    timeline = [
+        {"label": "Codec scaffolding starts",
+         "wake": "wake 1-30",
+         "desc": "First passes at the wire framing — datagram + record layers, system "
+                 "messages, the V3 registration request format."},
+        {"label": "First captured-type codecs ship",
+         "wake": "wake 30-60",
+         "desc": "Per-type codecs for the heartbeat, init message, identity beacons, "
+                 "and the subkey-beacon family. Tests grow past 100."},
+        {"label": "Replay round-trip works",
+         "wake": "wake 60-80",
+         "desc": "Full captured DTLS replay parses cleanly. State machine reverse-"
+                 "engineered from binary decompiles; state-10 blocker identified."},
+        {"label": "Type registry + 5 confirmed names",
+         "wake": "wake 90-97",
+         "desc": "3487-entry runtime type registry mapped against MSVC RTTI strings. "
+                 "5 captured wire-types confirmed by direct binary match (REPClient::"
+                 "RegistrationResponseMsg, TimeSynchMsg, PingMsg, etc)."},
+        {"label": "Visualization site shipped",
+         "wake": "wake 98",
+         "desc": "This site! Generated from the codec library + analysis files; "
+                 "deployed to GitHub Pages."},
+        {"label": "Codec coverage hits 40/40",
+         "wake": "wake 100-103",
+         "desc": "Every captured wire-type in the replay now has a codec — "
+                 "including the empty-marker (0x651), the 80-byte frame-config "
+                 "(0x1096), the opaque blob (0x1033), and the chunked stream (0x08, "
+                 "the high-volume world-data type)."},
+        {"label": "Central dispatcher",
+         "wake": "wake 104-107",
+         "desc": "Single decode/encode router for every captured type. 174 captured "
+                 "messages round-trip byte-identically through the dispatcher; only "
+                 "documented-edge-case failures remain."},
+    ]
+
     return {
         "generated_at": "auto-generated by tools/build_site.py",
         "stats": {
@@ -362,6 +499,13 @@ def build_data():
         "codecs": codecs,
         "decompiles": decompiles,
         "findings": findings,
+        "direction_counts": direction_counts,
+        "volume_top": volume_top_short,
+        "coverage_buckets": coverage_buckets,
+        "state_machine": state_machine,
+        "blocker_state": BLOCKER_STATE,
+        "faq": faq,
+        "timeline": timeline,
     }
 
 

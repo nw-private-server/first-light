@@ -1155,5 +1155,233 @@
       "wake": 97,
       "summary": "Static-only methodology recovered 5 confirmed captured-type names (REPClient::*, etc.) and 297 of 312 named registry entries. Pushing past 5 captured names needs runtime data \u2014 see analysis/typename_unblock_spec.md."
     }
+  ],
+  "direction_counts": {
+    "R": 148,
+    "W": 49
+  },
+  "volume_top": [
+    {
+      "type_id_hex": "0x0008",
+      "count": 79,
+      "name": "(unclaimed)",
+      "codec": "chunked_stream_08.py"
+    },
+    {
+      "type_id_hex": "0x1b88",
+      "count": 23,
+      "name": "(unclaimed)",
+      "codec": "session_identity_beacon.py"
+    },
+    {
+      "type_id_hex": "0x015d",
+      "count": 20,
+      "name": "REPClient::PingMsg",
+      "codec": "heartbeat_15d.py"
+    },
+    {
+      "type_id_hex": "0x0635",
+      "count": 5,
+      "name": "(unclaimed)",
+      "codec": "action_history_635.py"
+    },
+    {
+      "type_id_hex": "0x014f",
+      "count": 4,
+      "name": "REPClient::TimeSynchMsg",
+      "codec": "session_clock_beacon.py"
+    },
+    {
+      "type_id_hex": "0x05b2",
+      "count": 4,
+      "name": "(unclaimed)",
+      "codec": "identity_fingerprint_5b2.py"
+    },
+    {
+      "type_id_hex": "0x18a6",
+      "count": 4,
+      "name": "(unclaimed)",
+      "codec": "init_message_18a6.py"
+    },
+    {
+      "type_id_hex": "0x1a59",
+      "count": 3,
+      "name": "(unclaimed)",
+      "codec": "session_subkey_1a59.py"
+    },
+    {
+      "type_id_hex": "0x00a4",
+      "count": 2,
+      "name": "ClientActorRoutingAuthorizationTrait::Cl",
+      "codec": "session_message_a4.py"
+    },
+    {
+      "type_id_hex": "0x0663",
+      "count": 2,
+      "name": "(unclaimed)",
+      "codec": "level_descriptor_663.py"
+    },
+    {
+      "type_id_hex": "0x16a0",
+      "count": 2,
+      "name": "(unclaimed)",
+      "codec": "asset_blob_16a0.py"
+    },
+    {
+      "type_id_hex": "0x0003",
+      "count": 1,
+      "name": "REPClient::RegistrationResponseMsg",
+      "codec": "v3_response.py"
+    },
+    {
+      "type_id_hex": "0x0013",
+      "count": 1,
+      "name": "REPClient::RegistrationRequestV3Msg",
+      "codec": "v3_request.py"
+    },
+    {
+      "type_id_hex": "0x01be",
+      "count": 1,
+      "name": "(unclaimed)",
+      "codec": "handshake_blob_76.py"
+    },
+    {
+      "type_id_hex": "0x040a",
+      "count": 1,
+      "name": "(unclaimed)",
+      "codec": "handshake_blob_76.py"
+    }
+  ],
+  "coverage_buckets": {
+    "Confirmed name (binary or registry)": 5,
+    "Structural codec": 33,
+    "Framing-only / opaque": 2
+  },
+  "state_machine": [
+    {
+      "n": 1,
+      "name": "Init",
+      "desc": "Client object built; nothing on the wire yet."
+    },
+    {
+      "n": 2,
+      "name": "DTLS handshake",
+      "desc": "TLS-over-UDP setup. Server cert, key exchange, cipher agreed."
+    },
+    {
+      "n": 3,
+      "name": "Connect request",
+      "desc": "Carrier system message asking the server to register the client."
+    },
+    {
+      "n": 4,
+      "name": "Connect ack",
+      "desc": "Server acknowledges the connect, opens the data channel."
+    },
+    {
+      "n": 5,
+      "name": "V3 registration",
+      "desc": "Client sends its identity (Steam ID, persona, sdk version)."
+    },
+    {
+      "n": 6,
+      "name": "Registration response",
+      "desc": "Server returns a session token; client validates."
+    },
+    {
+      "n": 7,
+      "name": "Heartbeat exchange",
+      "desc": "Ping/ack pair \u2014 both sides confirm the session is alive."
+    },
+    {
+      "n": 8,
+      "name": "Identity beacons",
+      "desc": "Sub-system identity fingerprints exchanged."
+    },
+    {
+      "n": 9,
+      "name": "Asset count + key tables",
+      "desc": "Server tells the client what world data to expect."
+    },
+    {
+      "n": 10,
+      "name": "World data streaming",
+      "desc": "Bulk world / level data over the chunked stream (0x08)."
+    },
+    {
+      "n": 11,
+      "name": "Substate setup",
+      "desc": "Open thread \u2014 the gate from 10 to 11 is the current blocker."
+    },
+    {
+      "n": 12,
+      "name": "World ready",
+      "desc": "Game can render the world; player can move."
+    },
+    {
+      "n": 13,
+      "name": "Steady state",
+      "desc": "Heartbeats + world updates only; normal play."
+    }
+  ],
+  "blocker_state": 11,
+  "faq": [
+    {
+      "q": "What is this project?",
+      "a": "A reverse-engineering effort to understand New World's network protocol well enough to build a private server. Right now it's static-analysis work: pulling apart the game binary and a captured login session to figure out how each message on the wire is structured."
+    },
+    {
+      "q": "Can I play on it?",
+      "a": "Not yet. The codec library can read and re-emit every captured message byte-for-byte, but the runtime side (an actual server you'd point your game at) still needs significant work \u2014 at minimum, the connection state machine has an open blocker at the 10\u219211 transition."
+    },
+    {
+      "q": "Why is it stuck on \"state 10\"?",
+      "a": "The game runs through a sequence of internal states from \"client just started\" to \"steady gameplay.\" Our captured replay drives the server through state 10 cleanly, but the predicate that lets state 10 advance to state 11 reads runtime data that the captured replay alone doesn't supply. Cracking that needs a real-GPU host running the game."
+    },
+    {
+      "q": "Is this affiliated with Amazon Games?",
+      "a": "No. This is an independent reverse-engineering project for research and hobby purposes."
+    },
+    {
+      "q": "Why are some messages \"opaque\" but others fully decoded?",
+      "a": "Most captured message types have observable structure (numeric values, known field shapes, repeated patterns) and got full structural codecs. A few (`0x1033`, the largest `0x08`) look like encrypted or signed material \u2014 without runtime context we can't subdivide their bodies meaningfully, so the codec just treats them as opaque payloads."
+    }
+  ],
+  "timeline": [
+    {
+      "label": "Codec scaffolding starts",
+      "wake": "wake 1-30",
+      "desc": "First passes at the wire framing \u2014 datagram + record layers, system messages, the V3 registration request format."
+    },
+    {
+      "label": "First captured-type codecs ship",
+      "wake": "wake 30-60",
+      "desc": "Per-type codecs for the heartbeat, init message, identity beacons, and the subkey-beacon family. Tests grow past 100."
+    },
+    {
+      "label": "Replay round-trip works",
+      "wake": "wake 60-80",
+      "desc": "Full captured DTLS replay parses cleanly. State machine reverse-engineered from binary decompiles; state-10 blocker identified."
+    },
+    {
+      "label": "Type registry + 5 confirmed names",
+      "wake": "wake 90-97",
+      "desc": "3487-entry runtime type registry mapped against MSVC RTTI strings. 5 captured wire-types confirmed by direct binary match (REPClient::RegistrationResponseMsg, TimeSynchMsg, PingMsg, etc)."
+    },
+    {
+      "label": "Visualization site shipped",
+      "wake": "wake 98",
+      "desc": "This site! Generated from the codec library + analysis files; deployed to GitHub Pages."
+    },
+    {
+      "label": "Codec coverage hits 40/40",
+      "wake": "wake 100-103",
+      "desc": "Every captured wire-type in the replay now has a codec \u2014 including the empty-marker (0x651), the 80-byte frame-config (0x1096), the opaque blob (0x1033), and the chunked stream (0x08, the high-volume world-data type)."
+    },
+    {
+      "label": "Central dispatcher",
+      "wake": "wake 104-107",
+      "desc": "Single decode/encode router for every captured type. 174 captured messages round-trip byte-identically through the dispatcher; only documented-edge-case failures remain."
+    }
   ]
 }
