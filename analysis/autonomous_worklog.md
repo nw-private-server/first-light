@@ -11087,3 +11087,45 @@ fix-up section noting the gap count drops to **0**.
 `test_count=334`. Pages will redeploy on push.
 
 **Blockers:** None.
+
+## Wake 127 — `tools/decode_message.py --list` mode
+
+**Goal**: surface "what can the dispatcher decode?" as a CLI
+lookup, so contributors don't need to grep the source to find
+out which type-ids are supported.
+
+**Built**:
+
+- `tools/decode_message.py`:
+  - New `--list` flag enumerates every wire-type the dispatcher
+    has registered, joined with the bundled replay's count
+    + directions per type-id.
+  - Output format: `0xNNNN  count  dirs  decoder` per row, plus
+    a trailing section that flags captured types missing from
+    the dispatcher (currently just `0x03` —
+    V3RegistrationResponse, server-emit-only).
+  - `--type/-t` is now optional (was `required`); the parser
+    errors only when neither `--list` nor `--type` is given.
+- `analysis/codec_library_overview.md`: added the
+  `--list` invocation to the hand-debug examples.
+- 1 new test: `test_decode_cli_list_mode` smoke-checks that
+  `--list` prints the dispatcher headline, a known type
+  (`0x015d`), and the 0x03 "no decoder" flag.
+
+Test total: **334 → 335 (+1)**. Site rebuild recorded
+`test_count=335`.
+
+**Sample output** (40 wire-types known + 1 intentionally skipped):
+
+```
+# 40 wire-types known to the dispatcher
+#   type  count  dirs  decoder
+  0x0008     79     R  _wrap
+  0x0013      1     W  _wrap
+  0x015d     20    RW  _heartbeat_15d
+  …
+# 1 captured type(s) not in dispatcher (intentional skips):
+  0x0003      1     R  (no decoder — server-emit-only or unmapped)
+```
+
+**Blockers:** None.

@@ -3657,6 +3657,24 @@ def test_chunked_stream_08_uuid_prefixed_rejects_too_short():
 # ---------------------------------------------------------------------------
 
 
+def test_decode_cli_list_mode(capsys):
+    """The --list flag prints every dispatcher-supported wire-type
+    and notes intentionally-skipped captured types."""
+    import sys as _sys
+    REPO = Path(__file__).resolve().parents[2]
+    _sys.path.insert(0, str(REPO))
+    from tools.decode_message import main  # noqa: E402
+    rc = main(["--list"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    # Smoke-checks: it printed the headline + a known type-id + the
+    # 0x03 server-emit-only call-out
+    assert "wire-types known to the dispatcher" in out
+    assert "0x015d" in out  # heartbeat is always there
+    assert "0x0003" in out  # server-emit-only flagged
+    assert "no decoder" in out
+
+
 def test_decode_cli_replay_index_path(capsys):
     """The CLI's `--replay-index` path can pluck a captured message and
     pretty-print its decoded form."""

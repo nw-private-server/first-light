@@ -83,14 +83,58 @@ def _read_body(args: argparse.Namespace) -> bytes:
     raise AssertionError("unreachable")
 
 
+def _list_wire_types() -> int:
+    """Print every captured wire-type the dispatcher knows about.
+
+    Cross-references the bundled captured replay (count + directions per
+    type-id) with the dispatcher's coverage. Useful as a "what can I
+    decode?" lookup before constructing a body source.
+    """
+    from server.javelin.replay_store import ReplayStore
+    replay_path = REPO / "info" / "nw-login-safe-20260502-153840" / "messages-redacted.txt"
+    captured: dict[int, dict] = {}
+    if replay_path.exists():
+        store = ReplayStore(replay_path)
+        for m in store.messages:
+            d = captured.setdefault(m.type_id, {"count": 0, "dirs": set()})
+            d["count"] += 1
+            d["dirs"].add(m.direction)
+
+    supported = sorted(dispatch.supported_type_ids())
+    print(f"# {len(supported)} wire-types known to the dispatcher")
+    print(f"# {'type':>6}  {'count':>5}  {'dirs':>4}  decoder")
+    for tid in supported:
+        info = captured.get(tid, {"count": 0, "dirs": set()})
+        dirs = "".join(sorted(info["dirs"])) or "—"
+        decoder = dispatch.DECODERS.get(tid)
+        # Best-effort decoder identifier
+        name = getattr(decoder, "__name__", "<closure>")
+        print(f"  0x{tid:04x}  {info['count']:>5}  {dirs:>4}  {name}")
+    # Also flag any captured types without a registered decoder (only 0x03
+    # in the current state; serves as a self-check).
+    missing = sorted(set(captured) - set(supported))
+    if missing:
+        print()
+        print(f"# {len(missing)} captured type(s) not in dispatcher (intentional skips):")
+        for tid in missing:
+            info = captured[tid]
+            dirs = "".join(sorted(info["dirs"]))
+            print(f"  0x{tid:04x}  {info['count']:>5}  {dirs:>4}  (no decoder — server-emit-only or unmapped)")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="decode_message",
         description="Decode a wire-type message via server.javelin.dispatch",
     )
     parser.add_argument(
-        "-t", "--type", required=True,
-        help="Wire type-id (0x15d, 15d, or 349)",
+        "--list", action="store_true",
+        help="List every captured wire-type the dispatcher knows about and exit",
+    )
+    parser.add_argument(
+        "-t", "--type", default=None,
+        help="Wire type-id (0x15d, 15d, or 349). Required unless --list.",
     )
     parser.add_argument(
         "-d", "--direction", default="R", choices=["R", "W"],
@@ -110,6 +154,12 @@ def main(argv: list[str] | None = None) -> int:
         help="pprint output width (default 120)",
     )
     args = parser.parse_args(argv)
+
+    if args.list:
+        return _list_wire_types()
+
+    if args.type is None:
+        parser.error("--type/-t is required (or pass --list to enumerate types)")
     args.type_id = _parse_type_id(args.type)
 
     body = _read_body(args)

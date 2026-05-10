@@ -148,6 +148,9 @@ Useful when you have a captured body and want to see what the
 codec library makes of it without writing throwaway Python.
 
 ```sh
+# List every wire-type the dispatcher knows about (with capture counts)
+.venv/bin/python3 tools/decode_message.py --list
+
 # Decode a captured 0x15d (heartbeat ping) from the replay
 .venv/bin/python3 tools/decode_message.py --type 0x15d --replay-index 0 --direction R
 
