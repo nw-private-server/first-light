@@ -4352,3 +4352,104 @@ negative-result on the destroy-event
 static-RE thread.
 
 **Blockers:** None.
+
+
+## Wake 289 — retrospective re-read drift sweep (caught 2 See-also pointer drifts)
+
+**Goal**: cadence-shifted wake. Picked
+option (d) from wake-289 menu — re-read all
+4 retrospectives for any drift relative to
+current state. Bounded sweep, expected to
+either confirm everything's intact or surface
+small drift items.
+
+**Method**:
+
+1. Scan retros 150/196/227/253 for
+   stale-number claims (test counts, codec
+   coverage, Findings cards, cross-checks).
+   **Result**: all numbers are correctly
+   frozen at the retro's snapshot wake by
+   design — retros are explicit point-in-
+   time docs. No drift.
+2. Verify forward-pointer chain integrity
+   (150 → 196 → 227 → 253). **Result**:
+   intact. Retro-253 has no forward pointer
+   (correct — it's the current frontier).
+3. Check worklog pointer integrity post
+   wake-261 archive split. The wake-262
+   batch fix updated body-level pointers
+   across all retros to mention the split.
+   **Result**: body-level pointers OK; but
+   the "See also" footers in retro-227 +
+   retro-253 still said simply
+   `analysis/autonomous_worklog.md — full
+   per-wake trail` without mentioning the
+   archive.
+
+**Drift found + fixed**:
+
+For retros 227 + 253, the body explains the
+wake-261 split correctly but the "See also"
+footers carry an older "full per-wake trail"
+pointer that's now subtly stale — the trail
+for those retros' wake ranges (197-227 and
+228-253) is **entirely in the archive**, not
+the active worklog. Updated both footers:
+
+- **retro-227**: "[`autonomous_worklog_
+  through_253.md`] — per-wake trail for
+  wakes 1-253 (this retro's range falls
+  entirely within the wake-261 archive).
+  Wakes 254+ are in the active
+  [`autonomous_worklog.md`]."
+- **retro-253**: same pattern.
+
+This is a textbook instance of the wake-272
+parallel-staleness pattern: a multi-file fix
+(wake 262's batch update) reached most but
+not all of the relevant lines. The
+methodology filing says: drift fixes need
+cross-doc grep on the specific strings being
+replaced. The wake-262 fix replaced
+body-level worklog pointers but the See-also
+footers had different surrounding text and
+weren't matched by the search.
+
+**Generalizable reinforcement**: even a
+batch-fix wake should grep for ALL syntactic
+shapes of the stale pattern, not just the
+most-common one. "See also" footers are a
+known structural pattern that can lag.
+
+**Verification**:
+
+- `.venv/bin/python3 tools/build_site.py` →
+  clean.
+- `pytest server/javelin -q` → **456
+  passing, 1 skipped** — unchanged.
+- Wake-207 cross-check (retro ↔ README
+  link): unaffected (this edit changes
+  prose inside retros, not links between
+  retros and README).
+- Wake-225 cross-check (analysis-path
+  existence): all new pointer targets
+  (`autonomous_worklog_through_253.md`,
+  `autonomous_worklog.md`) exist.
+
+**Pattern note**: this is the **second
+drift-sweep wake** in the post-pause-
+reflection period (wake 288 was a different
+flavor — closing a static-RE thread; this
+wake is doc-drift cleanup). The 1h
+cadence-shifted shape supports both
+flavors of lightweight wake.
+
+**Cost summary**: 2 file edits in
+retrospective docs, ~6 lines of new prose
+each. Caught a real drift that had survived
+the wake-262 batch fix because the See-also
+footer text didn't match the same regex
+shape as the body-level pointer.
+
+**Blockers:** None.

@@ -214,5 +214,7 @@ current state as numbers shifted.
 - [`analysis/decision_0x065c_live_decoder.md`](decision_0x065c_live_decoder.md)
   — wake-221 design decision for the live-decoder
   90% floor.
-- [`analysis/autonomous_worklog.md`](autonomous_worklog.md)
-  — full per-wake trail.
+- [`analysis/autonomous_worklog_through_253.md`](autonomous_worklog_through_253.md)
+  — per-wake trail for wakes 1-253 (this retro's range falls
+  entirely within the wake-261 archive). Wakes 254+ are in the
+  active [`autonomous_worklog.md`](autonomous_worklog.md).

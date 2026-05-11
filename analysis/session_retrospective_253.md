@@ -224,5 +224,7 @@ question" anchor; after wake 253 both should be stable.
 - [`analysis/state_13_14_writer_investigation.md`](state_13_14_writer_investigation.md)
   — the wake-241 → 252 search log capturing the
   methodology + the wall.
-- [`analysis/autonomous_worklog.md`](autonomous_worklog.md)
-  — full per-wake trail.
+- [`analysis/autonomous_worklog_through_253.md`](autonomous_worklog_through_253.md)
+  — per-wake trail for wakes 1-253 (this retro's wake range
+  falls entirely within the wake-261 archive). Wakes 254+ are
+  in the active [`autonomous_worklog.md`](autonomous_worklog.md).
