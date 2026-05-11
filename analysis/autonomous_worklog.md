@@ -12297,3 +12297,87 @@ curated tab now see both as the lead findings.
 skipped). Site rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 157 — rep_responder dispatcher scaffold (parallel-path)
+
+**Goal**: open item #2 from the wake-150 retrospective —
+route `rep_responder.py` through the central dispatcher in
+`server/javelin/dispatch.py`. The full integration is too big
+for one wake (1024-line responder, multiple ad-hoc per-type
+paths), but the *foundation* — adding a shadow-decode call
+alongside the existing path — is small, additive, and
+zero-behavior-change. Land that as wake 157; a future wake
+can promote the shadow path to authoritative.
+
+**Built**:
+
+- **`server/rep_responder.py`** changes (~50 LOC, all
+  additive):
+  - New `from server.javelin import dispatch as _dispatch`
+    at the top.
+  - `_shadow_decode_record(self, m)` method that:
+    1. Sniffs the typed-envelope header at the start of
+       `m.payload` (the canonical 4-byte
+       `[0x00, 0x01, (id & 0x3f) | 0x80, id >> 6]` pattern).
+    2. Returns silently if the payload doesn't look typed
+       (system messages, V3 request, etc.) — skips them.
+    3. Decodes the type_id from bytes [2,3] using the
+       wire-format rule.
+    4. Logs at debug level if the type_id is unsupported
+       (e.g. an unregistered type, or 0x03 which is decode-
+       skipped intentionally).
+    5. Calls `dispatch.decode_replay_message(type_id, "R",
+       payload)` and logs the decoded class name at debug
+       level, or the exception type+message if it fails.
+    6. **Never raises.** Wrapped in try/except so a codec
+       hiccup can't crash the responder.
+  - Wired in `handle_decrypted_datagram` right after the
+    existing per-record dispatch loops, in a new
+    "Wake 157: parallel shadow-decode" block.
+
+- **Smoke-tested in isolation** (interactive only — not
+  added to the test suite) with two captured payloads:
+  - `0x15d` heartbeat ping (12 bytes): logs `[shadow]
+    type_id=0x15d -> HeartbeatPing15D`.
+  - `0x14f` session_clock beacon: logs `[shadow]
+    type_id=0x14f -> SessionClockBeacon`.
+  - Non-typed payload (e.g. system-msg body `b'\x42\x42'`):
+    silently skipped, no log emitted.
+
+**Design decisions**:
+
+- **Shadow only, no behavior change**: the responder still
+  drives the runtime from raw replay bytes for outbound
+  responses. The dispatcher's decoded output is logged for
+  validation but not consumed. A future wake can flip the
+  switch to consume it for new message kinds; existing
+  paths can be left untouched until they're stress-tested.
+- **Debug level**: shadow logs use `self.log.debug(...)`
+  so they don't add noise to the default INFO-level
+  responder output. Run the responder with `-v` /
+  `--debug` to see them in dev.
+- **No test in `server/javelin/test_codecs.py`**: pulling
+  rep_responder into the codec test path would drag in
+  pyOpenSSL + socket dependencies for a code path that's
+  already covered by the dispatcher's own tests. Inline
+  smoke-test was sufficient to confirm wiring; integration
+  tests come when the responder consumes the dispatcher
+  output for a live behavior.
+
+**What's left for full integration** (future wake):
+1. Promote the shadow path to authoritative for ONE message
+   kind (good candidate: 0x15d heartbeats — clear semantics,
+   already wire-tested).
+2. Route the existing `_handle_v3_data_record` through
+   `dispatch.decode_replay_message(0x13, "R", payload)`
+   instead of its own `parse_v3_request_*` call.
+3. Replace the raw-replay outbound path with
+   `dispatch.encode_replay_message(...)` calls for the
+   message kinds where the responder currently embeds
+   redacted captured bytes.
+
+**No test changes** (tests still 374 +1 skipped). The shadow
+path is logging-only; existing javelin codec tests already
+validate the decoders themselves.
+
+**Blockers:** None.

@@ -46,6 +46,7 @@ from server.javelin.frame import (  # noqa: E402
     parse_datagram,
     marshal_datagram,
 )
+from server.javelin import dispatch as _dispatch  # noqa: E402
 from server.javelin.replay_store import ReplayStore, ReplayMessage  # noqa: E402
 from server.javelin.v3_request import V3RegistrationRequest  # noqa: E402
 from server.javelin.wire import (  # noqa: E402
@@ -340,6 +341,52 @@ class PeerSession:
             if m.flags & 0x40:
                 self._handle_v3_data_record(m)
                 break
+
+        # Wake 157: parallel shadow-decode through the central dispatcher.
+        # No behavior change — for each inbound record, try to sniff a
+        # typed-envelope header and call `dispatch.decode_replay_message`,
+        # logging success/failure. This validates the dispatcher against
+        # live traffic before any later wake routes the responder through
+        # it for real.
+        for m in result.messages:
+            self._shadow_decode_record(m)
+
+    def _shadow_decode_record(self, m: MessageRecord) -> None:
+        """Try to decode an inbound record through the central dispatcher.
+
+        Sniffs the typed-envelope header (`[0x00, 0x01, (id & 0x3f) | 0x80,
+        id >> 6]`) at the start of `m.payload`. If present, calls
+        `dispatch.decode_replay_message(type_id, "R", payload)` and logs
+        the outcome at debug level. Never raises; never affects runtime
+        behavior. Records without a typed-envelope prefix (system msgs,
+        V3 request, etc.) are silently skipped.
+        """
+        payload = m.payload
+        if len(payload) < 4 or payload[0] != 0x00 or payload[1] != 0x01:
+            return
+        # Decode the type_id from bytes [2,3]: low 6 bits | high bits << 6
+        b2, b3 = payload[2], payload[3]
+        if not (b2 & 0x80):
+            return
+        type_id = (b2 & 0x3f) | (b3 << 6)
+        if type_id not in _dispatch.DECODERS:
+            self.log.debug(
+                f"[shadow] type_id=0x{type_id:x} not in dispatcher "
+                f"(len={len(payload)})"
+            )
+            return
+        try:
+            decoded = _dispatch.decode_replay_message(type_id, "R", payload)
+        except Exception as e:  # noqa: BLE001 — log-only, no rethrow
+            self.log.debug(
+                f"[shadow] type_id=0x{type_id:x} decode failed: "
+                f"{type(e).__name__}: {e}"
+            )
+            return
+        self.log.debug(
+            f"[shadow] type_id=0x{type_id:x} -> "
+            f"{type(decoded).__name__ if decoded is not None else 'None'}"
+        )
 
     def _handle_v3_data_record(self, m) -> None:
         """Log + reply to an inbound V3 RegistrationRequest record."""

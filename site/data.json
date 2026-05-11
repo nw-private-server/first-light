@@ -27891,6 +27891,12 @@
       "test_count": 347,
       "commit": "ef181c8",
       "subject": "analysis(wake 155): extended sub_system_id hash hunt \u2014 definitive negative"
+    },
+    {
+      "wake": null,
+      "test_count": 347,
+      "commit": "683f5b9",
+      "subject": "feat(site): promote 2 RE findings to the Findings tab"
     }
   ],
   "wire_type_families": [
