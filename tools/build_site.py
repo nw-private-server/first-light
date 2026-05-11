@@ -313,6 +313,10 @@ LDTYPE_TO_TYPE_IDS: dict[str, set[int]] = {
     "1097":  {0x1097},
     "136a":  {0x136a},
     "1096":  {0x1096},
+    "8e6":   {0x8e6},
+    # Type 76 is a generic codec used for both 0x40a and 0x1be (same wire shape).
+    "76":    {0x40a, 0x1be},
+    "9fc":   {0x9fc},
     # 0x5d1 is NOT in the captured replay (server synthesizes it for
     # the state-10 → 11 transition). Included here for completeness
     # — the coverage join against captured_types naturally drops it.

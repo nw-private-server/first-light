@@ -13691,3 +13691,80 @@ that asserts they agree.
 trivial.
 
 **Blockers:** None.
+
+## Wake 179 — live decoder + 3 codecs (8e6, handshake_blob_76, 9fc) → 26/40
+
+**Goal**: with the wake-178 invariant tests in place, push
+live-decoder coverage past 25/40. Add three fixed-size
+codecs: identity_blob_8e6 (R, 42B), handshake_blob_76
+(covers 0x40a + 0x1be, 76B), receipt_handshake_9fc (W,
+102B).
+
+**Built**:
+
+- **`site/index.html`** — three new DECODERS entries:
+  - **`0x8e6` IdentityBlob8E6** (42 bytes): TYPE_HEADER +
+    identity_uuid (16) + opaque_blob (16) + 6-byte zero
+    trailer. Validates the trailer is all-zero with a
+    precise offset+byte error.
+  - **`76` HandshakeBlob76** (76 bytes): covers BOTH
+    `0x40a` and `0x1be` since they share the wire shape.
+    Decoder reads the type_id from the header, validates
+    it's one of the two, and checks the canonical sub_id
+    `58617814` matches.
+  - **`0x9fc` ReceiptHandshake9FC** (102 bytes, W
+    direction): client→server receipt echo. Type header
+    is INSIDE the body at +0x18 (like subkey_beacon).
+    Validates `remaining_len == 0x5e` and the inner
+    `0001bc27` header; flags whether `session_uuid` and
+    `echoed_session_uuid` match (the captured behavior).
+
+- Four new preset buttons (one each for 0x8e6, 0x40a, 0x9fc;
+  hex generated via the Python codec). The 9fc preset
+  initially had a one-byte typo in the state_block (extra
+  `00`) — **the wake-172 cross-check caught it** at the
+  pre-commit test run, exactly the regression class it
+  was designed to catch.
+
+- **`tools/build_site.py`** + **`site/index.html`** maps:
+  added `8e6 → {0x8e6}`, `76 → {0x40a, 0x1be}`, `9fc →
+  {0x9fc}` to `LDTYPE_TO_TYPE_IDS`; added matching JS
+  entries to `TYPE_ID_TO_LDTYPE`. The wake-178 map-sync
+  test validates both directions remain consistent.
+
+- **`server/javelin/test_live_decoder_presets.py`**: added
+  three entries to `PYTHON_DECODERS`. All 4 new presets
+  round-trip through Python on the next pytest run.
+
+**Coverage growth**:
+- Before wake 179: **22/40 = 55.0%**, 18 uncovered.
+- After wake 179: **26/40 = 65.0%**, 14 uncovered.
+- +4 captured wire-types (`0x8e6`, `0x40a`, `0x1be`,
+  `0x9fc`) addressable from the dashboard.
+
+**Live-decoder shapes now covered**:
+- Header at +0 (most decoders).
+- Header inside body at +0x18 (subkey + 0x9fc).
+- Generic family decoder (subkey).
+- Multi-type shared shape (handshake_blob_76 for 0x40a +
+  0x1be).
+- Variable size (subkey, 0x5d1).
+- f32/f64 BE / LE handling (1096, 136a).
+- u64 via BigInt halves (136a, 0x5d1 field_2c).
+
+**Tests**: still **419 passing (+1 skipped)** — the test
+count is data-driven via the preset cross-check, so it
+didn't change despite +4 presets validated. The wake-178
+map-sync test now validates 14 JS entries (was 11).
+
+**Pattern observation**: the wake-172/178 test
+infrastructure made this 4-codec addition essentially
+risk-free. The cross-check caught the one typo I made;
+the map-sync test caught the implicit "did you update
+both sides" requirement. No way to ship a broken decoder
+silently.
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.

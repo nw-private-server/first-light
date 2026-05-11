@@ -28032,6 +28032,12 @@
       "test_count": 419,
       "commit": "f07b978",
       "subject": "feat(site): Findings cards cross-link to the live decoder"
+    },
+    {
+      "wake": null,
+      "test_count": 420,
+      "commit": "d04ff25",
+      "subject": "test(site): pin JS \u2194 Python type-id map sync invariant"
     }
   ],
   "wire_type_families": [
@@ -28550,6 +28556,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 179,
+      "title": "live decoder + 3 codecs (8e6, handshake_blob_76, 9fc) \u2192 26/40",
+      "line": 13695
+    },
+    {
       "wake": 178,
       "title": "pin \"JS \u2194 Python type-id map sync\" invariant",
       "line": 13632
@@ -28573,30 +28584,21 @@
       "wake": 174,
       "title": "live decoder coverage push: 20 \u2192 23 wire-types",
       "line": 13366
-    },
-    {
-      "wake": 173,
-      "title": "live-decoder gains the subkey_beacon family (14 wire-types)",
-      "line": 13287
     }
   ],
   "live_decoder_coverage": {
-    "covered": 22,
+    "covered": 26,
     "total": 40,
-    "percent": 55.00000000000001,
+    "percent": 65.0,
     "uncovered": [
       "0x0003",
       "0x0008",
       "0x0013",
       "0x00a4",
-      "0x01be",
-      "0x040a",
       "0x05b2",
       "0x0635",
       "0x065c",
       "0x0663",
-      "0x08e6",
-      "0x09fc",
       "0x0a95",
       "0x0ca4",
       "0x1033",

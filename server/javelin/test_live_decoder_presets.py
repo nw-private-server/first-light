@@ -27,6 +27,9 @@ from server.javelin import (
     result_token_136a,
     frame_config_1096,
     self_ident,
+    identity_blob_8e6,
+    handshake_blob_76,
+    receipt_handshake_9fc,
 )
 
 
@@ -64,6 +67,9 @@ PYTHON_DECODERS = {
     "136a":  result_token_136a.decode,
     "1096":  frame_config_1096.decode,
     "5d1":   _decode_self_ident,
+    "8e6":   identity_blob_8e6.decode,
+    "76":    handshake_blob_76.decode,
+    "9fc":   receipt_handshake_9fc.decode,
 }
 
 

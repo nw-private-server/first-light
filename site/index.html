@@ -1711,6 +1711,9 @@ a:hover { text-decoration: underline; }
         <option value="1097">0x1097 — ResultToken1097 (24 bytes)</option>
         <option value="136a">0x136a — ResultToken136A (28 bytes)</option>
         <option value="1096">0x1096 — FrameConfig (80 bytes)</option>
+        <option value="8e6">0x8e6 — IdentityBlob (42 bytes)</option>
+        <option value="76">0x40a / 0x1be — HandshakeBlob76 (76 bytes)</option>
+        <option value="9fc">0x9fc — ReceiptHandshake echo (102 bytes)</option>
         <option value="5d1">0x5d1 — PlayerManagerSelfIdent (state-10 trigger, 4 or 25+ bytes)</option>
         <option value="subkey">subkey_beacon family — 14 wire-types (44+T bytes)</option>
       </select>
@@ -1733,6 +1736,9 @@ a:hover { text-decoration: underline; }
       <button class="preset-btn" data-ldtype="1096" data-ldhex="00019642 93a3e477cb5fd51e bf85314bbc4a951a 40c00000 bf800000 39f5e41d 00005334 00000000 0000fe4c 00000000 00000e10 00000708 0b879fb3 3482a0b7 3e2aaaab 3e2aaaab 3f555555 3f555555">0x1096 frame config</button>
       <button class="preset-btn" data-ldtype="5d1" data-ldhex="00019117">0x5d1 trigger (4 bytes)</button>
       <button class="preset-btn" data-ldtype="5d1" data-ldhex="00019117 42000000 02000000 11010000 22020000 00 3412fecaefbeadde 99000000">0x5d1 structured (vec=2)</button>
+      <button class="preset-btn" data-ldtype="8e6" data-ldhex="0001a623 4c0c0ed6478a69dabf85314bbc4a951a e16343700e7b4d06a72fd9df005cd942 000000000000">0x8e6 identity blob</button>
+      <button class="preset-btn" data-ldtype="76" data-ldhex="00018a10 58617814 00000000000000000000000000000000000000000000000000000000000000 00 cbd4a18a4042c7eea46298c7499ba826ef5339aa2970e283fcf34b6f8f0786d68bf3ae45">0x40a handshake blob</button>
+      <button class="preset-btn" data-ldtype="9fc" data-ldhex="aabbccdd 0000005e f8cbed57c68b18f4bf85314bbc4a951a 0001bc27 4c0c0ed6478a69dabf85314bbc4a951a f8cbed57c68b18f4bf85314bbc4a951a 0000000000000001000000010000000000a01000000010100009 e16343700e7b4d06a72fd9df005cd942">0x9fc receipt echo</button>
     </div>
     <pre id="ld-result" class="ld-empty">(pick a preset or paste hex and press Decode)</pre>
   </div>
@@ -2107,6 +2113,9 @@ async function load() {
     "0x15d": "15d_R", "0x14f": "14f", "0x651": "651",
     "0x18a6": "18a6", "0x1b88": "1b88", "0x1097": "1097",
     "0x136a": "136a", "0x1096": "1096", "0x5d1": "5d1",
+    "0x8e6": "8e6", "0x9fc": "9fc",
+    // Both 0x40a and 0x1be share the HandshakeBlob76 codec.
+    "0x40a": "76", "0x1be": "76",
     // subkey_beacon family — all 14 share one ldtype
     "0x66b": "subkey", "0x9d3": "subkey", "0xf7f": "subkey",
     "0x101a": "subkey", "0x101d": "subkey", "0x102e": "subkey",
@@ -2466,6 +2475,84 @@ function setupLiveDecoder() {
           ["hash_b             (u32 BE)", hex0x(u32be(buf, 60))],
           ["ratio_lo           (f32 BE doubled)", f32be(64).toString() + "  (✓ matches at +0x44)"],
           ["ratio_hi           (f32 BE doubled)", f32be(72).toString() + "  (✓ matches at +0x4c)"],
+        ];
+      },
+    },
+    "8e6": {
+      label: "IdentityBlob8E6 (type 0x8e6) — identity-bundle blob (42 bytes)",
+      header: [0x00, 0x01, 0xa6, 0x23],
+      size: 42,
+      decode(buf) {
+        // Validate 6-byte zero trailer.
+        for (let i = 36; i < 42; i++) {
+          if (buf[i] !== 0) {
+            throw new Error(`zero_padding non-zero at +0x${i.toString(16)} (byte 0x${buf[i].toString(16)})`);
+          }
+        }
+        return [
+          ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x8e6)"],
+          ["identity_uuid  (16 bytes)", hexBytes(buf, 4, 16)],
+          ["opaque_blob    (16 bytes)", hexBytes(buf, 20, 16)],
+          ["zero_padding   (6 bytes)", "all zero  (✓)"],
+        ];
+      },
+    },
+    "76": {
+      // Used for both 0x40a and 0x1be — same wire shape. The decoder
+      // reads the type_id from the header bytes.
+      label: "HandshakeBlob76 (type 0x40a or 0x1be) — 76-byte handshake half",
+      minSize: 76,
+      decode(buf) {
+        if (buf.length !== 76) {
+          throw new Error(`expected exactly 76 bytes; got ${buf.length}`);
+        }
+        if (buf[0] !== 0x00 || buf[1] !== 0x01) {
+          throw new Error(`type header marker mismatch: ${hexBytes(buf, 0, 4)}`);
+        }
+        if ((buf[2] & 0x80) === 0) {
+          throw new Error(`type header byte 2 high bit unset: 0x${buf[2].toString(16)}`);
+        }
+        const typeId = (buf[2] & 0x3f) | (buf[3] << 6);
+        if (typeId !== 0x40a && typeId !== 0x1be) {
+          throw new Error(`type_id 0x${typeId.toString(16)} is not in the 0x40a/0x1be handshake-blob pair`);
+        }
+        return [
+          ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + `  (type 0x${typeId.toString(16)})`],
+          ["sub_id          (4 bytes)", hexBytes(buf, 4, 4) +
+            (hexBytes(buf, 4, 4) === "58617814" ? "  (✓ canonical)" : "  (⚠ non-canonical)")],
+          ["blob            (32 bytes)", hexBytes(buf, 8, 32)],
+          ["shared_trailer  (36 bytes)", hexBytes(buf, 40, 36)],
+        ];
+      },
+    },
+    "9fc": {
+      // Receipt-handshake echo: W-direction, 102 bytes. Type header
+      // is INSIDE the body at +0x18 (like subkey_beacon).
+      label: "ReceiptHandshake9FC (type 0x9fc, W direction) — 102-byte receipt echo",
+      size: 102,
+      decode(buf) {
+        const remaining = u32be(buf, 4);
+        if (remaining !== 0x5e) {
+          throw new Error(`remaining_len must be 0x5e; got ${hex0x(remaining)}`);
+        }
+        const innerHdr = hexBytes(buf, 24, 4);
+        if (innerHdr !== "0001bc27") {
+          throw new Error(`inner type_header mismatch at +0x18: expected 0001bc27, got ${innerHdr}`);
+        }
+        // session_uuid (envelope) and echoed_session_uuid should match.
+        const env = hexBytes(buf, 8, 16);
+        const echo = hexBytes(buf, 44, 16);
+        const echoMatch = env === echo ? "  (✓ matches envelope)" : "  (⚠ differs from envelope)";
+        return [
+          ["client_hash            (4 bytes)", hexBytes(buf, 0, 4)],
+          ["remaining_len          (u32 BE)", hex0x(remaining) + "  (✓)"],
+          ["session_uuid           (16 bytes)", env],
+          ["inner TYPE_HEADER", "0x" + hexBytes(buf, 24, 4) + "  (type 0x9fc)"],
+          ["subkey                 (16 bytes)", hexBytes(buf, 28, 16)],
+          ["echoed_session_uuid    (16 bytes)", echo + echoMatch],
+          ["state_block            (26 bytes)", hexBytes(buf, 60, 26)],
+          ["echoed_blob            (16 bytes)", hexBytes(buf, 86, 16) +
+            "  (must match 0x8e6 opaque_blob)"],
         ];
       },
     },
