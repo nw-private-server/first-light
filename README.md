@@ -11,6 +11,7 @@ First Light is in reference to the territory "First Light" that was eventually r
 - [150-wake session retrospective](analysis/session_retrospective_150.md) — wakes 1-150: 40/40 codec coverage, central dispatcher, state-10 RE breakthrough, audit arcs, 100% decompile cross-link density.
 - [Second-stretch retrospective (wakes 151-196)](analysis/session_retrospective_196.md) — rep_responder ↔ dispatcher integration foundation, live-decoder coverage at 80% (32/40 captured wire-types decodable from the Explore tab), 7-test cross-check graph. Frozen wake-196 snapshot.
 - [Third-stretch retrospective (wakes 197-227)](analysis/session_retrospective_227.md) — live-decoder coverage push to 90.0% (36/40) with the wake-221 floor decision, phase-2 emission swap + counter-advance extension, and the cross-check graph grown from 9 to 18 with five self-referential pins.
+- [Fourth-stretch retrospective (wakes 228-253)](analysis/session_retrospective_253.md) — state-machine RE closure arc: all 4 post-V3 state-spawn transitions (10→11, 11→12, 12→13, 13→14) now have writers + trigger chains identified at static-RE level. Three Ghidra-driven findings (wakes 232/247/249), one documented wall (wake 252), and the candidate-triage methodology pattern proven. MVP server-side estimate: 3 messages minimum.
 
 **Design decisions:**
 - [Why the live decoder stops at 90.0% (wake 221)](analysis/decision_0x065c_live_decoder.md) — 0x065c (12706-byte world-data-blob) deferred by explicit decision rather than reflexive shipping. Criteria + reversal conditions documented.

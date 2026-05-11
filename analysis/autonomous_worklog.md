@@ -19474,3 +19474,120 @@ simultaneously.
 README drift fix.
 
 **Blockers:** None.
+
+## Wake 254 — fourth-stretch retrospective (wakes 228-253)
+
+**Goal**: the state-machine RE arc is closed at
+static-RE (wake 252 finding). The 26-wake stretch
+from 228 (third-stretch retro shipped) to 253
+(README final update) is a coherent arc — like
+wakes 197-227 was a 31-wake arc captured at wake
+228, this stretch deserves the same frozen-
+snapshot treatment.
+
+**Built**:
+
+- **New file
+  `analysis/session_retrospective_253.md`** (~200
+  lines):
+  - **Title**: "Wakes 228-253 — fourth-stretch
+    milestones (state-machine closure arc)".
+  - **Continuation** of the 3 existing retros
+    (150 / 196 / 227); follows the established
+    structure.
+  - **Snapshot (as of wake 253)** — 5 bullets
+    covering tests, state-machine arc closure, MVP
+    server-side estimate, Findings tab growth
+    (17→21), cross-check graph (stable at 19),
+    convergence claim, dashboard.
+  - **Phase A: Doc-freshness pass + analysis-doc
+    typology** (wakes 235-239 + 244-246 + 252).
+    Captures the rolling-status-vs-snapshot
+    decision rule + the 4-genre RE artifact
+    typology (finding / decision / investigation /
+    wall) introduced at wake 252.
+  - **Phase B: State-machine RE closure arc**
+    (wakes 232/234/241/247/249/252). Split into
+    two sub-arcs (B1 wake-12 → 13 surfacing +
+    correction; B2 wake-13 → 14 candidate-triage
+    → Ghidra arc → wall). Each row of each table
+    has wake + commit + concrete step.
+  - **Phase C: Dashboard cascade** (wakes
+    230/233/240/242/243/247/248/250/251/253). The
+    wake-240 synthesis card's 5 updates + the
+    Findings tab growth + Gate-2 row's 6 updates.
+  - **Phase D: Cross-check graph + README
+    maintenance** (wakes 226/231/243/248/249/253).
+    Documents the cross-check graph reaching its
+    natural plateau at 19 (stable since wake 231).
+  - **Mid-stretch course-corrections** (wakes 229
+    / 234 / 241→249→252). Documents that
+    corrections shipped publicly, not hidden.
+  - **Open items**: the single real-GPU runtime
+    blocker (which now serves both phase-2D AND
+    NewProxy questions per wake-252 convergence),
+    NewProxy specific wire-type, 3rd capture
+    target.
+  - **See also** section linking the 3 prior
+    retros + the wake-241 investigation log +
+    the worklog.
+
+- **`README.md`** — new fourth-stretch retrospective
+  link added in the Recent milestones section:
+  > "Fourth-stretch retrospective (wakes
+  > 228-253) — state-machine RE closure arc: all
+  > 4 post-V3 state-spawn transitions ... have
+  > writers + trigger chains identified at
+  > static-RE level. Three Ghidra-driven findings
+  > (wakes 232/247/249), one documented wall
+  > (wake 252), and the candidate-triage
+  > methodology pattern proven. MVP server-side
+  > estimate: 3 messages minimum."
+
+**Verification**:
+- **wake-207 (retrospective ↔ README link)** test
+  passes: all 4 retrospective files have README
+  link entries ✓.
+- **wake-225 (analysis-path existence)**: cited
+  paths from the new doc all exist ✓ (the doc
+  itself cites the 3 prior retros + the
+  investigation log + the worklog).
+- **`categorize_doc`** returns "Retrospective"
+  for `session_retrospective_253.md` automatically.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: this is the **4th** session
+retrospective. The session-arc skeleton card
+(wake 228) said "Future arcs follow the same
+pattern: ~30-50 wakes per retrospective, snapshot
++ 3-5 phases + open-items + forward pointer."
+This retrospective covers **26 wakes**, slightly
+under the predicted 30-50 range — but the arc has
+a natural closure (state-machine RE done), so the
+slightly-shorter stretch is justified by the
+narrative.
+
+**Cross-card maintenance**: the wake-228 session-
+arc-skeleton Findings card already says "Three-
+retrospective session-arc skeleton" with a "Future
+arcs follow the same pattern" closing. That card
+will need a tiny update at some future wake to
+say "Four-retrospective" — but the prose's
+"Future arcs follow ..." extensibility claim
+already implicitly handles it. Deferring the
+update unless the prose becomes load-bearing.
+
+**Post-wake-253 forecast**:
+- Real-GPU runtime work unblocks both phase-2D
+  validation AND NewProxy wire-type ID
+  simultaneously.
+- After runtime data lands, expect a 5th-stretch
+  retrospective covering the runtime-validation
+  arc.
+- Cross-check graph likely stays at 19 unless a
+  new structural drift mode emerges.
+
+**No new tests, no new code**. New retrospective
+artifact + README link.
+
+**Blockers:** None.

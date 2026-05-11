@@ -819,6 +819,10 @@
           "label": "ghidra hunt list"
         },
         {
+          "filename": "session_retrospective_253.md",
+          "label": "session retrospective 253"
+        },
+        {
           "filename": "state_13_14_writer_investigation.md",
           "label": "state 13 14 writer investigation"
         },
@@ -881,6 +885,10 @@
         {
           "filename": "ghidra_hunt_list.md",
           "label": "ghidra hunt list"
+        },
+        {
+          "filename": "session_retrospective_253.md",
+          "label": "session retrospective 253"
         },
         {
           "filename": "state_13_14_writer_investigation.md",
@@ -956,6 +964,10 @@
       "size_bytes": 12811,
       "signature": "longlong * FUN_146c60830(longlong *param_1)",
       "related": [
+        {
+          "filename": "session_retrospective_253.md",
+          "label": "session retrospective 253"
+        },
         {
           "filename": "state_13_14_writer_investigation.md",
           "label": "state 13 14 writer investigation"
@@ -28668,6 +28680,12 @@
       "test_count": 457,
       "commit": "efa5cd1",
       "subject": "re(static): NewProxy upstream hits indirect-vtable wall (boundary doc'd)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "44a3c33",
+      "subject": "docs(readme): Gate-2 row \u2014 surface wake-252 static-RE-exhausted state"
     }
   ],
   "live_decoder_history": [
@@ -29180,6 +29198,13 @@
       "category": "Retrospective"
     },
     {
+      "filename": "session_retrospective_253.md",
+      "title": "Wakes 228-253 \u2014 fourth-stretch milestones (state-machine closure arc)",
+      "summary": "A 26-wake continuation of the [wake-150](session_retrospective_150.md), [wake-196](session_retrospective_196.md), and [wake-227](session_retrospective_227.md) retrospectives. Where wakes 197-227 grew the cross-check g\u2026",
+      "bytes": 11473,
+      "category": "Retrospective"
+    },
+    {
       "filename": "state_10_unblock_synthesis.md",
       "title": "State-10\u219211 gate \u2014 unblock synthesis (wake 111)",
       "summary": "The message that writes `2` there is `PlayerManagerSelfIdentificationMsg` (wire type `0x5d1`). 0x5d1 is NOT in the captured replay, which is why the pure-replay server can't drive the client past state 10. Unblocking \u2026",
@@ -29265,6 +29290,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 254,
+      "title": "fourth-stretch retrospective (wakes 228-253)",
+      "line": 19478,
+      "category": "docs"
+    },
+    {
       "wake": 253,
       "title": "README Gate-2 row: surface wake-252 static-RE-exhausted state",
       "line": 19380,
@@ -29293,12 +29324,6 @@
       "title": "state-13 \u2192 14 TRIGGER CHAIN identified (5 callers decomp'd)",
       "line": 18937,
       "category": "other"
-    },
-    {
-      "wake": 248,
-      "title": "drift correction: wake-247 finding propagates to README + synthesis card",
-      "line": 18840,
-      "category": "docs"
     }
   ],
   "live_decoder_coverage": {
