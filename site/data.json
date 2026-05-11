@@ -28404,6 +28404,12 @@
       "test_count": 456,
       "commit": "daa1312",
       "subject": "feat(site): Findings card for the three-retrospective session-arc skeleton"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "3b335d7",
+      "subject": "test(site): 19th cross-check \u2014 every decision doc has a README link"
     }
   ],
   "live_decoder_history": [
@@ -28926,7 +28932,7 @@
       "filename": "state_machine_summary.md",
       "title": "GameConnection State Machine \u2014 Synthesis (2026-05-07)",
       "summary": "After the V3 RegistrationResponse is accepted (already working \u2014 prior project notes confirmed `rep.ready` flips 0\u21921), the client sits in",
-      "bytes": 15652,
+      "bytes": 18122,
       "category": "Overview"
     },
     {
@@ -28994,6 +29000,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 232,
+      "title": "surface buried state-11 \u2192 12 finding in state_machine_summary",
+      "line": 17419,
+      "category": "other"
+    },
+    {
       "wake": 231,
       "title": "19th cross-check: every decision doc has a README link",
       "line": 17330,
@@ -29022,12 +29034,6 @@
       "title": "18th cross-check: every manifest wake has a referencing test",
       "line": 17005,
       "category": "test"
-    },
-    {
-      "wake": 226,
-      "title": "README \"Current status\" date + gate-2 context refresh",
-      "line": 16945,
-      "category": "docs"
     }
   ],
   "live_decoder_coverage": {

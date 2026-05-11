@@ -17415,3 +17415,100 @@ how much of the dashboard's value comes from
 docs/cards being internally consistent.
 
 **Blockers:** None.
+
+## Wake 232 — surface buried state-11 → 12 finding in state_machine_summary
+
+**Goal**: stop structural-pinning treadmill — find
+substantive RE work to do. Found one: the state-11 → 12
+gate finding from autonomous-loop wake 13 (2026-05-07)
+is documented in the worklog at lines 1071-1132 but
+never made it into the canonical
+`state_machine_summary.md`. The summary doc covers
+the state-10 → 11 RE breakthrough in detail but the
+state-11 → 12 progression is invisible to a reader of
+that doc.
+
+**Built**:
+
+- **`analysis/state_machine_summary.md`** — new
+  section "**4½. State 11 → 12 — same single-writer
+  pattern, message TBD**" inserted between the
+  ClientMessagesTrait catalog (§4) and the destroy
+  mechanism (§5). Section narrates:
+  - **Gate field**: `wrapper[+0xbc8]` (u8 byte;
+    distinct from state-10's `wrapper[+0xa0]` int).
+  - **Reader**: `FUN_145a905c0` returns the byte.
+  - **Writer**: `FUN_145a9fa00` sets it to 1, with
+    exactly one xref (an unconditional call).
+  - **Caller bridge**: `FUN_14645c660 @ 0x14645c660`
+    — decompile included verbatim. Looks up wrapper
+    pointer from `DAT_14a7ba0e0+0x60` container,
+    passes `wrapper + 0x130` to the writer.
+  - **Caller is itself a ClientMessagesTrait
+    handler** — dispatch table entry at
+    `0x14abcc45c`, 0x300 bytes from
+    PlayerManagerSelfIdentification's entry. So 11
+    → 12 is gated by a second trait message, name
+    not yet recoverable statically (metadata column
+    points into different `.rdata` segment, no
+    log-strings, no RTTI tag near entry).
+  - **Open question**: which of the 5 catalogued
+    classes? `Rejected`, `RemoteConfigChanged`, or
+    `DebugCommandResponse` are the remaining
+    candidates. Definitive ID needs a Frida hook
+    on `FUN_14645c660` logging the incoming
+    message's RTTI tag.
+  - **Why this matters**: completes the picture of
+    the post-V3 server-message sequence: at least
+    three messages (`SelfIdent` → `unknown-11→12`
+    → `LevelInfoChanged`), possibly four
+    (`unknown-13→14` per the §4 catalog's "13 → 14
+    TBD" note). Phase-2D infrastructure gets
+    heartbeats going; the next-step sequence is
+    what advances state past 11.
+
+**Sources**: data extracted from existing static-RE
+artifacts:
+- `analysis/decomp_wrapper_state12_gate.txt`
+- `analysis/decomp_wrapper_state12_gate_writer.txt`
+- `analysis/find_state12_gate_writers.txt`
+- `analysis/xrefs_FUN_145a9fa00_state12_gate_writer.txt`
+- `analysis/decomp_state12_gate_setter_caller.txt`
+- `analysis/autonomous_worklog.md` lines 1071-1132
+  (the wake-13 2026-05-07 finding entry).
+
+**Verification**: tests **456 (+1 skipped)** —
+unchanged. The state_machine_summary doc isn't
+covered by any current cross-check; this is
+narrative work, not invariant work. The wake-225
+test would catch broken paths if I mis-cited an
+analysis file, but I'm only adding new prose.
+
+**Choice: standalone "RE finding" doc vs §4½ extension?**
+Considered creating
+`analysis/state_11_12_gate_finding.md` as a separate
+doc. Decided against because:
+1. The finding is naturally a continuation of the
+   `state_machine_summary` narrative — same wrapper
+   field-offset style, same dispatch-table layout.
+2. A standalone doc would orphan from the main
+   state-machine narrative; a §4½ extension keeps
+   it adjacent to the related §4 catalog.
+3. The wake-225 + wake-231 + wake-207 cross-checks
+   already require discoverability; the
+   `state_machine_summary` doc already has a README
+   link via being indexed in `load_analysis_docs`.
+
+**Pattern note**: First substantive non-
+infrastructure wake in many iterations. The
+finding itself dates from wake 13 of the loop
+(2026-05-07); this wake surfaces it. Reminder for
+future maintainers: the worklog accumulates RE
+findings that may not get into the canonical
+summary docs unless someone explicitly pulls them
+forward. The wake-227 third-stretch retrospective
+calls out "RE work hadn't advanced for many wakes"
+— this wake addresses that with a doc consolidation
+rather than new static-RE.
+
+**Blockers:** None.

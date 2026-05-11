@@ -212,6 +212,61 @@ For MVP "enter a static world", only `PlayerManagerSelfIdentificationMsg`
 is required. `LevelInfoChanged` is required for richer post-spawn
 behavior; the other three are optional.
 
+## 4½. State 11 → 12 — same single-writer pattern, message TBD
+
+A separate gate exists for the state 11 → 12 transition, found via
+the same `FindOffsetWrites` scan that nailed the state-10 gate. The
+state-12 gate field is **`wrapper[+0xbc8]`** (a u8 byte, distinct
+from the state-10 gate's `wrapper[+0xa0]` int).
+
+```
+reader: FUN_145a905c0 — returns *(u8 *)(arg + 0xbc8)
+writer: FUN_145a9fa00 — *(u8 *)(arg + 0xbc8) = 1
+```
+
+The writer has exactly **one xref**: an unconditional call from
+`FUN_14645c660 @ 0x14645c660`. That bridge looks up the wrapper
+pointer from a global container and passes `wrapper + 0x130` to the
+state-12 gate writer:
+
+```c
+void FUN_14645c660(longlong param_1) {
+    longlong lVar1 = FUN_1406d97d0(param_1 + -0x930);
+    if (*(longlong *)(DAT_14a7ba0e0 + 0x60) != 0) {
+        FUN_145a9fa00(*(longlong *)
+                       (*(longlong *)(*(longlong *)(DAT_14a7ba0e0 + 0x60) + 0x1e0) +
+                       (longlong)*(int *)(lVar1 + 0x10) * 8) + 0x130);
+    }
+}
+```
+
+`FUN_14645c660` itself has exactly one xref — the dispatch table entry
+at `0x14abcc45c`, in the same `ClientMessagesTrait` dispatch table as
+`PlayerManagerSelfIdentification` (entry at `0x14abcc15c`, 0x300 bytes
+away). So `FUN_14645c660` is **another `ClientMessagesTrait` message
+handler** — name not yet recoverable statically because the dispatch
+table's metadata column for this row points into `0x140977xxxx`
+(different `.rdata` segment from SelfIdent and LevelInfoChanged),
+and there's no log-string or RTTI tag near the function entry.
+
+**Open question**: which one of the 5 catalogued ClientMessagesTrait
+classes is handled here? `PlayerManagerSelfIdentificationMsg` is
+known (10→11), `LevelInfoChangedMsg` is known (12→13). That leaves
+`PlayerManagerRejectedMsg`, `RemoteConfigChangedMsg`, and
+`DebugCommandResponseMsg` as candidates. None feels semantically
+right for the 11→12 step — needs a runtime trace (Frida hook on
+`FUN_14645c660` to log the incoming message body's RTTI tag) to
+identify definitively.
+
+**Why this matters**: a complete state-advance chain past gate-2
+needs at least three server messages (`SelfIdent` →
+`unknown-11→12` → `LevelInfoChanged`), possibly four
+(`unknown-13→14` after `LevelInfoChanged` per the
+`state_machine_summary` §4 catalog noting "13 → 14 TBD"). The
+phase-2D + counter-advance infrastructure shipped at wakes 204/208
+gets the heartbeat path going; the next-step server-message
+sequence is what advances state past 11.
+
 ## 5. The destroy mechanism
 
 `FUN_146b3c250` is the **`TransportLayerGridMateTickThread`** (named
