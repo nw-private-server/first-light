@@ -4185,3 +4185,75 @@ change to surface the sub-arc to the
 top-level visitor surface.
 
 **Blockers:** None.
+
+
+## Wake 287 — pause check-in (cadence-shifted)
+
+**Goal**: lightweight check-in wake after the
+wake-286 cadence shift to 1h intervals. Per
+the wake-287 menu option (a), this confirms
+no new state + acknowledges the plateau,
+serving as a heartbeat that the loop is
+intentionally on slow cadence rather than
+stuck.
+
+**State at wake 287**:
+
+- HEAD: `8fba5e8` (wake 286 — README 5th
+  bullet for destroy-event sub-arc).
+- Tests: 456 passing (+1 skipped). Unchanged.
+- Decompiles: 56. Unchanged since wake 283.
+- Findings cards: 24 (Architecture 3, RE
+  breakthrough 5, Research closure 11,
+  Wire-level finding 5).
+- Cross-checks: 19 manifest entries
+  (unchanged since wake 231).
+- Pages: live, auto-redeployed on wake-285
+  + wake-286 pushes.
+
+**Open questions (unchanged from wake-284
+reflection)**:
+
+1. V3 retry root cause — runtime trace
+   needed.
+2. NewProxy / replica-creation wire-type ID
+   — runtime trace needed.
+3. `0xFE476177` event family resolution —
+   O3DE corpus brute-force OR runtime trace.
+
+All three share the same runtime-trace
+unblocker. Static-RE has been exhausted.
+
+**Recent visitor-facing surfaces**:
+
+- README "Recent milestones" — 5th bullet
+  added wake 286 for destroy-event sub-arc.
+- README "What the project needs most" item
+  3 — rewritten wake 271 + updated wake 274
+  with current event-family picture.
+- Findings tab — 2 cards added in arc (wake
+  281: destroy-event scheduler; wake 285:
+  indirect-vtable wall pattern).
+- state_machine_summary § A3.1 — full hash
+  list + flag map.
+
+**Nothing to ship this wake**. The loop is
+intentionally idling at cadence-shifted
+intervals while the substantive RE thread
+is runtime-gated. This entry exists purely
+as a heartbeat that the loop is alive +
+intentional, not stuck.
+
+**Next wake recommendation**: continue
+cadence-shifted check-ins or stop the loop.
+The cost of one cadence-shifted check-in
+per hour is minimal; the value is mostly
+"keep alive" for any maintainer who returns
+and wants to verify the loop is in a stable
+post-arc plateau.
+
+**Cost summary**: 1 worklog check-in
+entry. No code change, no doc change, no
+test impact.
+
+**Blockers:** None.

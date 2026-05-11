@@ -28986,6 +28986,12 @@
       "test_count": 457,
       "commit": "943a782",
       "subject": "docs(site): wake-285 \u2014 Findings card for indirect-vtable wall pattern (3 instances)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "8fba5e8",
+      "subject": "docs(readme): wake-286 \u2014 surface destroy-event sub-arc as 5th Recent-milestones bullet"
     }
   ],
   "live_decoder_history": [
@@ -29590,6 +29596,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 287,
+      "title": "pause check-in (cadence-shifted)",
+      "line": 4190,
+      "category": "other"
+    },
+    {
       "wake": 286,
       "title": "README \"Recent milestones\" \u2014 surface destroy-event sub-arc as 5th bullet",
       "line": 4074,
@@ -29618,12 +29630,6 @@
       "title": "DAT_147efa330 sibling hunt: timer/delay parameter tables identified",
       "line": 3417,
       "category": "other"
-    },
-    {
-      "wake": 281,
-      "title": "surface destroy-event-family findings (README + Findings card)",
-      "line": 3309,
-      "category": "docs"
     }
   ],
   "live_decoder_coverage": {
