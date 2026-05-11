@@ -1369,11 +1369,11 @@ def load_findings():
                        "both arcs in 2-3 wakes each.",
         },
         {
-            "title": "Three-retrospective session-arc skeleton",
+            "title": "Four-retrospective session-arc skeleton",
             "category": "Architecture",
             "wake": 228,
             "summary": "The autonomous-session work is now narrated "
-                       "across three frozen retrospective documents, "
+                       "across four frozen retrospective documents, "
                        "each covering a coherent multi-wake arc: "
                        "wakes 1-150 "
                        "(`analysis/session_retrospective_150.md`) — "
@@ -1391,24 +1391,39 @@ def load_findings():
                        "counter-advance realism extension, and the "
                        "cross-check graph (which the wake-227 retro "
                        "captured at 18 invariants; the graph has since "
-                       "grown to 19 with five self-referential pins on "
-                       "the meta-pattern card itself). Each doc is a "
-                       "frozen snapshot of its arc + a forward "
-                       "pointer to the next; the wake-196 doc's "
-                       "post-snapshot deltas callout was trimmed at "
-                       "wake 229 from a verbose state-mirror to a "
+                       "grown to 19 with five self-referential pins "
+                       "on the meta-pattern card itself); **wakes "
+                       "228-253 "
+                       "(`analysis/session_retrospective_253.md`) — "
+                       "state-machine RE closure arc, all 4 post-V3 "
+                       "state-spawn transitions now have writers + "
+                       "trigger chains identified at static-RE level, "
+                       "with the wake-252 indirect-vtable wall marking "
+                       "the static-RE limit (further progress on "
+                       "NewProxy wire-type ID is runtime-dependent)**. "
+                       "Each doc is a frozen snapshot of its arc + a "
+                       "forward pointer to the next; the wake-196 "
+                       "doc's post-snapshot deltas callout was trimmed "
+                       "at wake 229 from a verbose state-mirror to a "
                        "one-line pointer once the wake-227 doc "
                        "superseded it. The wake-207 cross-check "
                        "pins each doc to a README link; the wake-225 "
                        "cross-check pins each path cited in this "
                        "card to actually exist; wake 231 added an "
                        "analogous pin for decision-doc README links. "
-                       "Future arcs follow the same pattern: ~30-50 "
+                       "Future arcs follow the same pattern: ~25-50 "
                        "wakes per retrospective, snapshot + 3-5 phases "
-                       "+ open-items + forward pointer. Investigation "
-                       "logs (introduced wake 241) are a related but "
-                       "distinct artifact — search-in-progress with "
-                       "candidate triage, not a closure.",
+                       "+ open-items + forward pointer. The wake-253 "
+                       "retro covers 26 wakes — slightly below the "
+                       "previous-arc range, but the state-machine "
+                       "closure provided a natural narrative anchor. "
+                       "Three artifact genres now coexist: "
+                       "retrospectives (frozen snapshots), decision "
+                       "docs (closed questions, wake 221), and "
+                       "investigation logs (search-in-progress with "
+                       "candidate triage, wake 241). Wake 252 added "
+                       "a 4th genre: \"wall\" — documented static-RE "
+                       "limit, runtime handoff necessary.",
         },
         {
             "title": "VM-on-Apple-Silicon ruled out for runtime testing",

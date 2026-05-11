@@ -19591,3 +19591,85 @@ update unless the prose becomes load-bearing.
 artifact + README link.
 
 **Blockers:** None.
+
+## Wake 255 — wake-228 skeleton card: 3-retro → 4-retro drift
+
+**Goal**: the wake-254 fourth-stretch retrospective
+landed but the wake-228 Architecture Findings card
+still claims "Three-retrospective session-arc
+skeleton". The wake-254 worklog noted "deferring
+the update unless the prose becomes load-bearing".
+The literal count claim in the title IS load-
+bearing — a visitor lands on the card, reads
+"Three-retrospective", but finds four
+retrospectives linked from README. Direct drift,
+correct.
+
+**Built**:
+
+- **`tools/build_site.py`** wake-228 skeleton card
+  comprehensive update:
+  - **Title**: "Three-retrospective session-arc
+    skeleton" → "**Four-retrospective session-arc
+    skeleton**".
+  - **Opening**: "across three frozen
+    retrospective documents" → "**across four
+    frozen retrospective documents**".
+  - **New 4th-retro entry** added with concrete
+    summary:
+    > "wakes 228-253
+    > (`analysis/session_retrospective_253.md`) —
+    > state-machine RE closure arc, all 4 post-V3
+    > state-spawn transitions now have writers +
+    > trigger chains identified at static-RE
+    > level, with the wake-252 indirect-vtable
+    > wall marking the static-RE limit (further
+    > progress on NewProxy wire-type ID is
+    > runtime-dependent)."
+  - **"Future arcs" extensibility note** adjusted:
+    "~30-50 wakes per retrospective" → "~25-50
+    wakes per retrospective" (the wake-253 retro
+    was 26 wakes, slightly below previous range).
+    Explicit note on the wake-253 being slightly
+    short + the state-machine closure providing
+    a natural narrative anchor.
+  - **4-genre artifact typology** surfaced
+    explicitly in the prose:
+    > "Three artifact genres now coexist:
+    > retrospectives (frozen snapshots), decision
+    > docs (closed questions, wake 221), and
+    > investigation logs (search-in-progress
+    > with candidate triage, wake 241). Wake 252
+    > added a 4th genre: 'wall' — documented
+    > static-RE limit, runtime handoff
+    > necessary."
+
+**Why this matters**: the card is the **Architecture-
+bucket project-shape claim** for the dashboard. Its
+content is load-bearing for visitors trying to
+understand how the project documents its history.
+Letting "Three-retrospective" sit while 4 exist
+creates a credibility crack.
+
+**Verification**:
+- wake-225 (analysis-path existence): the card now
+  cites all 4 retro paths; all 4 exist on disk ✓.
+- wake-209 (paired card consistency): wake-188 +
+  wake-204 pair unaffected.
+- wake-218 (manifest citation): unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: this is the **2nd update** to
+the wake-228 skeleton card (wake-244 was the
+first — drift correction on cross-check count;
+this is the second — count from 3 → 4 retros).
+The wake-244 pattern ("describe by-wake-N state +
+the since-then delta") was extended here with the
+"slightly below the previous-arc range" comment —
+giving the card a graceful-aging strategy for
+future N-th retros.
+
+**No new tests, no new code**. Single Findings
+card prose extension.
+
+**Blockers:** None.

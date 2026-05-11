@@ -1641,10 +1641,10 @@
       "summary": "Two complete audits of the 40-codec library, both closing at 0 gaps. The decoder-rejection audit (wakes 125-126) added structural-rejection tests for every codec \u2014 corrupt or wrong-sized input must raise a precise error, not silently decode garbage. The encoder round-trip audit (wakes 135-136) added populated round-trip tests for every codec \u2014 encode(decode(captured)) must equal the original bytes. Together: every codec has both halves of the wire-format contract pinned. 0 captured wire-types lack either test as of this writing. See cross_link_arc.md for the scaffold-wedge-close pattern that closed both arcs in 2-3 wakes each."
     },
     {
-      "title": "Three-retrospective session-arc skeleton",
+      "title": "Four-retrospective session-arc skeleton",
       "category": "Architecture",
       "wake": 228,
-      "summary": "The autonomous-session work is now narrated across three frozen retrospective documents, each covering a coherent multi-wake arc: wakes 1-150 (`analysis/session_retrospective_150.md`) \u2014 codec library + dispatcher + initial dashboard, ending at 40/40 captured-codec coverage and the wake-112 state-10 RE breakthrough; wakes 151-196 (`analysis/session_retrospective_196.md`) \u2014 navigable dashboard, live decoder at 80%, rep_responder \u2194 dispatcher integration foundation; wakes 197-227 (`analysis/session_retrospective_227.md`) \u2014 live decoder push to 90.0% (with the wake-221 floor decision), phase-2 emission swap + counter-advance realism extension, and the cross-check graph (which the wake-227 retro captured at 18 invariants; the graph has since grown to 19 with five self-referential pins on the meta-pattern card itself). Each doc is a frozen snapshot of its arc + a forward pointer to the next; the wake-196 doc's post-snapshot deltas callout was trimmed at wake 229 from a verbose state-mirror to a one-line pointer once the wake-227 doc superseded it. The wake-207 cross-check pins each doc to a README link; the wake-225 cross-check pins each path cited in this card to actually exist; wake 231 added an analogous pin for decision-doc README links. Future arcs follow the same pattern: ~30-50 wakes per retrospective, snapshot + 3-5 phases + open-items + forward pointer. Investigation logs (introduced wake 241) are a related but distinct artifact \u2014 search-in-progress with candidate triage, not a closure."
+      "summary": "The autonomous-session work is now narrated across four frozen retrospective documents, each covering a coherent multi-wake arc: wakes 1-150 (`analysis/session_retrospective_150.md`) \u2014 codec library + dispatcher + initial dashboard, ending at 40/40 captured-codec coverage and the wake-112 state-10 RE breakthrough; wakes 151-196 (`analysis/session_retrospective_196.md`) \u2014 navigable dashboard, live decoder at 80%, rep_responder \u2194 dispatcher integration foundation; wakes 197-227 (`analysis/session_retrospective_227.md`) \u2014 live decoder push to 90.0% (with the wake-221 floor decision), phase-2 emission swap + counter-advance realism extension, and the cross-check graph (which the wake-227 retro captured at 18 invariants; the graph has since grown to 19 with five self-referential pins on the meta-pattern card itself); **wakes 228-253 (`analysis/session_retrospective_253.md`) \u2014 state-machine RE closure arc, all 4 post-V3 state-spawn transitions now have writers + trigger chains identified at static-RE level, with the wake-252 indirect-vtable wall marking the static-RE limit (further progress on NewProxy wire-type ID is runtime-dependent)**. Each doc is a frozen snapshot of its arc + a forward pointer to the next; the wake-196 doc's post-snapshot deltas callout was trimmed at wake 229 from a verbose state-mirror to a one-line pointer once the wake-227 doc superseded it. The wake-207 cross-check pins each doc to a README link; the wake-225 cross-check pins each path cited in this card to actually exist; wake 231 added an analogous pin for decision-doc README links. Future arcs follow the same pattern: ~25-50 wakes per retrospective, snapshot + 3-5 phases + open-items + forward pointer. The wake-253 retro covers 26 wakes \u2014 slightly below the previous-arc range, but the state-machine closure provided a natural narrative anchor. Three artifact genres now coexist: retrospectives (frozen snapshots), decision docs (closed questions, wake 221), and investigation logs (search-in-progress with candidate triage, wake 241). Wake 252 added a 4th genre: \"wall\" \u2014 documented static-RE limit, runtime handoff necessary."
     },
     {
       "title": "VM-on-Apple-Silicon ruled out for runtime testing",
@@ -28686,6 +28686,12 @@
       "test_count": 457,
       "commit": "44a3c33",
       "subject": "docs(readme): Gate-2 row \u2014 surface wake-252 static-RE-exhausted state"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "c6e143e",
+      "subject": "docs(analysis): fourth-stretch retrospective (wakes 228-253)"
     }
   ],
   "live_decoder_history": [
@@ -29290,6 +29296,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 255,
+      "title": "wake-228 skeleton card: 3-retro \u2192 4-retro drift",
+      "line": 19595,
+      "category": "other"
+    },
+    {
       "wake": 254,
       "title": "fourth-stretch retrospective (wakes 228-253)",
       "line": 19478,
@@ -29317,12 +29329,6 @@
       "wake": 250,
       "title": "wake-240 synthesis card final update with wake-249 trigger chain",
       "line": 19067,
-      "category": "other"
-    },
-    {
-      "wake": 249,
-      "title": "state-13 \u2192 14 TRIGGER CHAIN identified (5 callers decomp'd)",
-      "line": 18937,
       "category": "other"
     }
   ],
