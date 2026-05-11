@@ -39,18 +39,22 @@ predicate table at § 1):
   `ClientMessagesTrait` dispatch entry, message name still TBD)
   sets the gate via `FUN_145a9fa00` without force-advancing.
 - **State 13 → 14** (`WaitingForPlayerSpawn` → `InGame`):
-  predicate `*(u8 *)(wrapper + 0x252) != 0`. **Writer is not
-  yet identified** — wake-13's `FindOffsetWrites 0x252 0x1`
-  found 3 hits, all in unrelated classes (UI text helper, Wwise
-  audio plugin, JSON helper). The real writer must use a
-  register-based / memcpy / OR-store pattern. Wake 241 added
-  a full investigation log:
+  predicate `*(u8 *)(wrapper + 0x252) != 0`. **Writer
+  identified wake 247, trigger chain wake 249**:
+  `FUN_142ffbc50` walks `wrapper[+0x1b8..+0x1c0]` and sets
+  gate on predicate match; 5 callers (decomp'd at wake 249)
+  are local state-update handlers that copy a 0x70-stride
+  collection from `param_2[+0x7d0]` into the wrapper.
+  **Wake 252 found the upstream-tracing limit**:
+  `FUN_142ff8940` (the most-informative caller) is
+  invoked indirectly via vtable at `0x14816cec0`, breaking
+  static traceability beyond that point. Identifying the
+  specific replica-creation wire-type is now a **runtime-
+  dependent question** — Frida trace on `FUN_142ff8940` or
+  the writer is the natural next step. The most likely
+  trigger remains GridMate `NewProxy` per § 2C. See
   [`state_13_14_writer_investigation.md`](state_13_14_writer_investigation.md)
-  with candidate triage (`FUN_146c60830` is the top tier-A
-  candidate), an alternative hypothesis (the gate may be set by
-  actor-spawn-complete callback rather than a server message),
-  and concrete next-step Ghidra actions including a Frida-hook
-  fallback that bypasses all the namespace heuristics.
+  for the full wake-241 → 247 → 249 → 252 arc.
 
 Other consolidated findings (see
 [`ghidra_findings.md`](ghidra_findings.md) for full detail):

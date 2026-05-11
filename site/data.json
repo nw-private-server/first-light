@@ -815,6 +815,10 @@
       "signature": "void FUN_142ff8940(longlong param_1,longlong param_2)",
       "related": [
         {
+          "filename": "ghidra_hunt_list.md",
+          "label": "ghidra hunt list"
+        },
+        {
           "filename": "state_13_14_writer_investigation.md",
           "label": "state 13 14 writer investigation"
         },
@@ -874,6 +878,10 @@
       "size_bytes": 2319,
       "signature": "void FUN_142ffbc50(longlong param_1,undefined8 param_2)",
       "related": [
+        {
+          "filename": "ghidra_hunt_list.md",
+          "label": "ghidra hunt list"
+        },
         {
           "filename": "state_13_14_writer_investigation.md",
           "label": "state 13 14 writer investigation"
@@ -948,10 +956,6 @@
       "size_bytes": 12811,
       "signature": "longlong * FUN_146c60830(longlong *param_1)",
       "related": [
-        {
-          "filename": "ghidra_hunt_list.md",
-          "label": "ghidra hunt list"
-        },
         {
           "filename": "state_13_14_writer_investigation.md",
           "label": "state 13 14 writer investigation"
@@ -28652,6 +28656,12 @@
       "test_count": 457,
       "commit": "019f8c9",
       "subject": "docs(site): wake-240 synthesis card \u2014 final wake-249 trigger-chain update"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "061a306",
+      "subject": "feat(site): Findings card #21 \u2014 candidate-triage pattern proven"
     }
   ],
   "live_decoder_history": [
@@ -29076,7 +29086,7 @@
       "filename": "ghidra_hunt_list.md",
       "title": "Ghidra Hunt List \u2014 Javelin / GridMate fingerprints in NewWorld.exe",
       "summary": "State-machine gates (see [`state_machine_summary.md`](state_machine_summary.md) for the predicate table at \u00a7 1):",
-      "bytes": 11339,
+      "bytes": 11525,
       "category": "Audit"
     },
     {
@@ -29174,7 +29184,7 @@
       "filename": "state_13_14_writer_investigation.md",
       "title": "State 13 \u2192 14 writer \u2014 investigation log",
       "summary": "&nbsp;|&nbsp; **Type**: investigation \u2192 partial finding",
-      "bytes": 16972,
+      "bytes": 19227,
       "category": "RE Finding"
     },
     {
@@ -29249,6 +29259,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 252,
+      "title": "NewProxy upstream hits indirect-vtable limit (boundary documented)",
+      "line": 19265,
+      "category": "other"
+    },
+    {
       "wake": 251,
       "title": "Findings card: candidate-triage pattern proven (21st card)",
       "line": 19168,
@@ -29276,12 +29292,6 @@
       "wake": 247,
       "title": "Ghidra session: state-13 \u2192 14 WRITER IDENTIFIED",
       "line": 18720,
-      "category": "other"
-    },
-    {
-      "wake": 246,
-      "title": "two more snapshot-doc forward-references footers (selfident, hash-search)",
-      "line": 18634,
       "category": "other"
     }
   ],

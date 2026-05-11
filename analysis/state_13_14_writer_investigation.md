@@ -184,6 +184,56 @@ a `ClientMessagesTrait` one).
   whether all 5 callers fire or only specific ones during
   the post-V3 sequence.
 
+## Wake-252 follow-up — NewProxy upstream hits indirect-vtable limit
+
+Attempted to identify the specific server message that drives the
+upstream container at `param_2[+0x7d0]` (the source the wake-249
+trigger chain copies into the wrapper).
+
+Approach: trace xrefs to `FUN_142ff8940` (the wake-249 caller that
+explicitly performs the collection copy) to find what calls it
+during the post-V3 flow.
+
+Result: **`FUN_142ff8940` has only 4 data xrefs and 0 unconditional
+calls** — all 4 data references resolve to `0x14816cec0`, a vtable
+entry. So the function is **invoked indirectly via vtable**, not
+direct-called.
+
+This means static-RE can trace the writer chain (from gate-byte back
+to the 5 callers) but **cannot statically trace the upstream caller
+chain** without finding what dispatches through that vtable. The
+vtable at `0x14816cec0` likely lives in a `Component` or similar
+class whose dispatchers are themselves invoked indirectly.
+
+**Conclusion**: Identifying the specific replica-creation wire-type
+that drives the gate-set is a **runtime-dependent question** at this
+point. Static-RE has taken the chain as far as it can:
+
+- Writer: `FUN_142ffbc50` (direct-callable) ✓
+- 5 callers (FUN_142ff8940 + 4 peers): identified, decomp'd ✓
+- Upstream caller of FUN_142ff8940: **indirect via vtable** — hits
+  the wall.
+
+A runtime Frida trace on `FUN_142ff8940` (or any of the 5 callers)
+would log the caller's stack frame and resolve the question
+immediately. This is now the natural handoff to real-GPU runtime
+work.
+
+**Final hypothesis (as substantive as static-RE can be)**: the most
+likely trigger is the GridMate `NewProxy` replica-creation command
+(see `ghidra_hunt_list.md` § 2C). The vtable indirection at
+`0x14816cec0` is consistent with replica-system code, where new
+replicas are dispatched through interface vtables. The replica
+system would add entries to a global container; FUN_142ff8940's
+collection copy uses that container as `param_2`. This wasn't
+confirmed but matches the data shape (0x70-stride entries, observer-
+notify pattern).
+
+The **MVP server-side estimate stays at 3 messages minimum**
+(SelfIdent + LevelInfoChanged + a replica-creation message); the
+specific wire-type for the third message remains "TBD pending
+runtime".
+
 ## Wake-241 original investigation (preserved below)
 
 ## Question

@@ -19261,3 +19261,118 @@ wake-251 card and learn the pattern.
 card addition + worklog entry.
 
 **Blockers:** None.
+
+## Wake 252 — NewProxy upstream hits indirect-vtable limit (boundary documented)
+
+**Goal**: continue the wake-247/249 RE arc by
+identifying the specific server message that drives
+the upstream container at `param_2[+0x7d0]`. The
+wake-241 candidate-triage pattern (Findings card
+at wake 251) suggests trying Ghidra on the next
+concrete target.
+
+**Approach**: trace xrefs to `FUN_142ff8940`
+(the wake-249 caller that explicitly performs the
+collection copy). Its caller should reveal what
+event triggers the gate-set.
+
+**Result — boundary found, not finding**:
+
+- `FUN_142ff8940` has **0 unconditional calls and
+  4 data references**, all to the same vtable
+  entry at `0x14816cec0`.
+- The function is **invoked indirectly via vtable**
+  — there's no direct caller chain to trace
+  statically.
+- The vtable at `0x14816cec0` likely lives in a
+  Component-class or similar; its dispatchers are
+  also invoked indirectly, breaking the chain
+  further.
+
+**This is a documented static-RE wall**, not a
+finding. Captured as such in the investigation
+log + ghidra_hunt_list. The state-13 → 14 RE arc
+now has:
+
+- Writer: `FUN_142ffbc50` (direct-callable) ✓
+- 5 callers (FUN_142ff8940 + 4 peers): identified,
+  decomp'd ✓
+- **Upstream caller of FUN_142ff8940: indirect
+  via vtable — wall** (wake 252).
+
+A runtime Frida trace on any of the 5 callers
+(catches the stack frame at call time) is the
+natural next step. This converts the question
+from "static-RE the dispatcher" (impossible without
+more anchors) to "log one runtime call" (cheap if
+the real-GPU host is available).
+
+**Final hypothesis (as substantive as static-RE
+can be)**: GridMate `NewProxy` (per
+ghidra_hunt_list § 2C) is the most likely trigger.
+The vtable indirection is consistent with replica-
+system code where new replicas dispatch through
+interface vtables. Wake-247/249 + wake-252
+together establish:
+
+- The state-13 gate is set by local replica-system
+  handlers (NOT a `ClientMessagesTrait` handler).
+- The handlers fire when the replica-system
+  container changes.
+- The container change is driven by the
+  replica-creation message (NewProxy most
+  plausible).
+- The specific NewProxy wire-type identification
+  is **runtime-dependent**.
+
+**MVP estimate stays at 3 messages minimum**:
+SelfIdent + LevelInfoChanged + a replica-creation
+message (specific wire-type TBD).
+
+**Built**:
+
+- **`analysis/state_13_14_writer_investigation.md`**:
+  new wake-252 follow-up section narrating the
+  attempt + the indirect-vtable wall + the
+  conclusion ("runtime-dependent at this point").
+- **`analysis/ghidra_hunt_list.md`**: state-13 →
+  14 bullet updated from "writer not yet
+  identified" to "**writer identified wake 247,
+  trigger chain wake 249, upstream hits indirect-
+  vtable wall at wake 252**". The full arc is now
+  visible from the hunt list.
+
+**Pattern note**: this is the first "documented
+static-RE wall" in this stretch. Distinct genre
+from finding/decision/investigation logs:
+- Finding: writer identified.
+- Decision: 0x065c stays out.
+- Investigation: search log with candidate triage.
+- **Wall**: static-RE limit reached, runtime
+  handoff necessary.
+
+The 4-genre typology (finding / decision /
+investigation / wall) now covers the project's
+RE artifact types. Each requires a different
+followup: findings get Findings cards;
+decisions get reversal-criteria documented;
+investigations get next-step plans; walls get
+runtime-handoff notes.
+
+**Verification**:
+- wake-225 (analysis-path existence): cited paths
+  still exist ✓.
+- wake-209 (paired card consistency): wake-188 +
+  wake-204 untouched.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Carry-over**: state-machine RE work is now
+**genuinely closed at the static-RE level**. The
+remaining open question (NewProxy wire-type
+identification) requires runtime — same blocker
+as the phase-2D real-GPU validation.
+
+**No new tests, no new code**. Documentation
+update across 2 analysis docs.
+
+**Blockers:** None.
