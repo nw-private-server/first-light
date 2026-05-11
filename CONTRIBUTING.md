@@ -21,9 +21,11 @@ source .venv/bin/activate
 pip install pytest typer
 
 # 3. Run the test suite
-pytest server/javelin/test_codecs.py
-# expect 320+ passing as of wake 115; the suite is the single source of
-# truth for codec correctness
+pytest server/javelin/
+# expect 410+ passing (+1 skipped); the suite is the single source of
+# truth for codec correctness. Scans the whole server/javelin/ dir, so
+# it picks up the codec tests, the wake-157 shadow-decode tests, and
+# the wake-162 build-tools tests at once.
 
 # 4. Eyeball a captured message hands-on
 python3 tools/decode_message.py --type 0x15d --replay-index 0 --direction R
@@ -36,10 +38,17 @@ cd site && python3 -m http.server 8000
 ```
 
 **Reference docs to read before opening a PR**:
+- [analysis/public_api.md](analysis/public_api.md) — single-page API reference for `server.javelin` (auto-generated from `__init__.py`'s `__all__` + dispatcher; re-generate with `tools/build_api_reference.py`).
 - [analysis/codec_library_overview.md](analysis/codec_library_overview.md) — layered architecture of `server/javelin/`, per-type module table, and a "how to add a new codec" walkthrough.
+- [analysis/session_retrospective_150.md](analysis/session_retrospective_150.md) — milestone snapshot covering the 150-wake autonomous session (40/40 codec coverage, central dispatcher, state-10 RE breakthrough, audit arcs, 100% decompile cross-link density).
 - [docs/post-v3-sequence.md](docs/post-v3-sequence.md) — the post-V3 message phases the captured replay covers.
 - [analysis/state_10_unblock_synthesis.md](analysis/state_10_unblock_synthesis.md) — the current open RE blocker and what's needed to crack it.
 - [analysis/autonomous_worklog.md](analysis/autonomous_worklog.md) — the wake-by-wake working journal. Long but searchable; tells you what's been tried.
+
+**Quick on-ramp paths** (see also the "Want to contribute? Pick a path." section on the [dashboard's "How it works" tab](https://nw-private-server.github.io/first-light/)):
+- **Add a new codec** — copy `server/javelin/session_clock_beacon.py` (fixed-shape) or `asset_blob_16a0.py` (variable-length). Register it in `server/javelin/dispatch.py`'s `DECODERS`/`ENCODERS`. Add a structural-rejection test + populated round-trip test to `test_codecs.py`. The dispatcher full-replay test auto-catches missed type-ids.
+- **Add a test** — codec-level: round-trip + structural-rejection pattern in `test_codecs.py`. Wider coverage: `test_shadow_decode.py` (mock-self pattern with recording log handler) or `test_build_tools.py` (pure-helper unit tests). Run `.venv/bin/pytest server/javelin/ -q`.
+- **Refresh the dashboard** — `.venv/bin/python3 tools/build_site.py` rebuilds `site/data.json` + shields.io badges. Pages auto-deploys on every push to the working branch. The public-API reference regenerates via `tools/build_api_reference.py` — re-run after touching `__init__.py` or a class docstring.
 
 ---
 
@@ -80,9 +89,9 @@ Tools already set up:
 Once RE identifies the post-V3 message sequence, someone needs to implement it in `server/rep_responder.py`. The file already handles the V3 registration exchange and replay of early captured messages — the next step is implementing whatever the client waits for after that.
 
 Other server work that doesn't require RE breakthroughs:
+- **rep_responder ↔ dispatcher integration.** The wake-157 shadow-decode scaffold (`_shadow_decode_record`) already routes every inbound record through the central `server/javelin/dispatch.py` at debug-log level. The next step is *consuming* that output — promote one wire-type at a time to authoritative dispatcher consumption. 0x15d (heartbeat) is the obvious first candidate; the wake-158 lock-down tests already cover the shadow path.
 - **Carrier-level reliable ACK on the V3 request** — currently we don't send one in the same envelope as the V3 response. Mixed Nuts' working impl does (`flag=0x18` piggyback). May or may not be the entire fix for the V3 retry loop; ~5 lines of code to test.
 - **Multi-peer support** in `rep_responder.py` (currently single-peer only).
-- **More codec coverage.** `test_codecs.py` covers the V3 round-trip; `frame.py`'s parse/marshal paths for the chunked / multi-record cases have less coverage.
 - **Capture replay validation.** Make `_pump_replay` more configurable from the CLI (timing jitter, drop simulations) so we can stress-test the replay path.
 
 ### 4. Documentation

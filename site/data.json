@@ -27972,6 +27972,12 @@
       "test_count": 411,
       "commit": "97044a6",
       "subject": "feat(site): contributor ramp-up walkthrough on \"How it works\" tab"
+    },
+    {
+      "wake": null,
+      "test_count": 413,
+      "commit": "9b35286",
+      "subject": "feat(site): Recent activity strip on Overview tab"
     }
   ],
   "wire_type_families": [
@@ -28490,6 +28496,10 @@
   ],
   "recent_wakes": [
     {
+      "wake": 169,
+      "title": "CONTRIBUTING.md sync with the wake-167 dashboard cards"
+    },
+    {
       "wake": 168,
       "title": "\"Recent activity\" strip on Overview"
     },
@@ -28508,10 +28518,6 @@
     {
       "wake": 164,
       "title": "badge transparency: 347 \u2192 410"
-    },
-    {
-      "wake": 163,
-      "title": "Findings tab auto-categorized into 4 themes"
     }
   ]
 }

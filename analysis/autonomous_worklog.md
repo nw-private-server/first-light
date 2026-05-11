@@ -13051,3 +13051,53 @@ visitors always see the *actual* most-recent activity.
 trivial.
 
 **Blockers:** None.
+
+## Wake 169 — CONTRIBUTING.md sync with the wake-167 dashboard cards
+
+**Goal**: wake 167 added 3 contributor-on-ramp cards on the
+"How it works" tab. CONTRIBUTING.md should carry the same
+guidance for visitors who land there first — and it was
+notably out of date (claimed "expect 320+ passing as of wake
+115" when the suite is now 410+).
+
+**Built**:
+
+- **`CONTRIBUTING.md`** updates:
+  - **Quick-start test count refreshed**: "320+ passing as
+    of wake 115" → "410+ passing (+1 skipped)" and the test
+    target switched from `pytest server/javelin/test_codecs.py`
+    to `pytest server/javelin/`, matching wake 164's
+    badge fix. Notes that the wider invocation pulls in the
+    shadow-decode + build-tools test files at once.
+  - **Reference docs list expanded** with two newer high-
+    value reads: `analysis/public_api.md` (auto-generated
+    API ref, wake 161) and `analysis/session_retrospective_150.md`
+    (wake 150 milestone snapshot).
+  - **"Quick on-ramp paths" block added** that mirrors the
+    wake-167 dashboard cards verbatim (Add a codec / Add a
+    test / Refresh the dashboard) with the same template-
+    module + test-pattern + tool pointers. Cross-links to
+    the dashboard's contributor section so visitors can
+    pick either entry point.
+  - **"Python / server implementation" section** got a new
+    leading bullet for the rep_responder ↔ dispatcher
+    integration (wake 157 shadow scaffold + wake 158 lock-
+    down). Calls out 0x15d as the obvious first
+    authoritative-promotion candidate. Dropped the obsolete
+    "more codec coverage" bullet (40/40 captured types are
+    covered; the gap closed at wake 109).
+
+**Why this matters**: visitors arriving via the README's
+`CONTRIBUTING.md` link were getting stale guidance — they'd
+run a narrower test command, miss the public API doc, and
+not see the rep_responder integration as the obvious next
+landing spot. The dashboard's contributor cards and
+`CONTRIBUTING.md` now point at the same artifacts and use
+the same vocabulary, so a contributor can move between them
+without context-switching.
+
+**No code changes**, no test changes (still 412 passing +1
+skipped). The dashboard's contributor section is unchanged
+in this wake — wake 167 already shipped that.
+
+**Blockers:** None.
