@@ -27960,6 +27960,12 @@
       "test_count": 410,
       "commit": "f429c1d",
       "subject": "docs(api): patch 4 class docstrings so public_api.md shows real summaries"
+    },
+    {
+      "wake": null,
+      "test_count": 411,
+      "commit": "af3bbb2",
+      "subject": "docs+test: chart annotation + parse_sections coverage invariant"
     }
   ],
   "wire_type_families": [

@@ -12946,3 +12946,57 @@ generator's input parser is the right level of investment.
   trivial.
 
 **Blockers:** None.
+
+## Wake 167 — contributor ramp-up walkthrough on "How it works"
+
+**Goal**: the dashboard has had no on-ramp for new
+contributors. A visitor reading the project page can see the
+codec library, the wire framings, the timeline — but if they
+want to *add* something, they're on their own to figure out
+where to start. Add three short paths at the bottom of the
+"How it works" tab so newcomers have a one-click entry point.
+
+**Built**:
+
+- **`site/index.html`**: new "Want to contribute? Pick a
+  path." section at the end of the "How it works" tab,
+  rendered as three responsive cards in a CSS grid (auto-
+  fit, min-width 260px — single-column on mobile, 3-up on
+  desktop):
+  1. **Add a new codec** — links to
+     `codec_coverage.md`, `session_clock_beacon.py` /
+     `asset_blob_16a0.py` as templates, `dispatch.py` for
+     registration, `test_codecs.py` for the test pattern.
+     Notes the dispatcher full-replay test auto-catches
+     missed type-ids.
+  2. **Add a test** — points at the round-trip + rejection
+     pattern in `test_codecs.py`, plus the wider-coverage
+     mock-self pattern in `test_shadow_decode.py` (wake 158)
+     and the pure-helper pattern in `test_build_tools.py`
+     (wake 162). Notes the badge auto-updates.
+  3. **Refresh the dashboard** — `python3
+     tools/build_site.py` rebuild flow, Pages auto-deploy
+     timing, and `build_api_reference.py` as the
+     complement when class docstrings change.
+  Plus a closing pointer to `CONTRIBUTING.md` and the
+  `server/javelin/README.md` overview for broader context.
+
+- **New CSS**: `.contrib-paths` (CSS-grid container with
+  auto-fit min-260px columns), `.contrib-card` (surface /
+  border / radius matching existing card styles),
+  `.contrib-h` (accent-colored heading), `.contrib-card p`
+  (dim 13px body text). Inline `code` styling matches the
+  rest of the page.
+
+**Why on "How it works" instead of a new tab**: the
+existing "How it works" tab is the natural read-this-first
+page for visitors trying to understand the codebase. A
+contributor-on-ramp at the bottom of that page catches the
+right audience without adding a navbar item. If the
+contributing section grows beyond ~3 cards, it can promote
+to its own tab; right now it doesn't justify the click.
+
+**No code changes** beyond HTML/CSS. No test changes (still
+410 passing + 1 skipped). Site rebuild trivial.
+
+**Blockers:** None.
