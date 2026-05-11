@@ -11822,7 +11822,44 @@ for types that have shipped codecs (0x08, 0x13, 0x651, 0x1033,
 - Library health snapshot wake-85 → wake-146 with the
   current test count (346) and module count (36).
 
-**No code changes**, no test changes. Doc-only refresh.
+**No code changes**, no test changes. Wake-147 doc-only refresh.
 Tests still 346 (+1 skipped).
+
+**Blockers:** None.
+
+## Wake 148 — second worked example on "How it works"
+
+**Goal**: the wake-140 tab walked through a 12-byte heartbeat
+ping — about as simple as it gets. Add a second walkthrough for
+`InitMessage18A6` so visitors see how the pipeline scales to a
+more involved message (40 bytes with an identity bundle and
+multiple structured fields).
+
+**Built**:
+
+- `site/index.html`: new 6-step pipeline section right after
+  the heartbeat example, using a real captured 0x18a6 body:
+  1. Raw 40 bytes off the wire (two-line hex)
+  2. Type header decode (`0xa6 0x62` → `0x18a6`)
+  3. **Identity bundle** breakdown: first 8 bytes
+     `first_uuid_half` (green), second 8 bytes
+     `session_uuid_lower` (yellow). Cross-links to the
+     Wire-type families panel for the 7 sub-system families
+     that share session_uuid_lower.
+  4. Structured tail: flags, second_id (8 bytes),
+     build_version, counter+pad — each color-coded.
+  5. Dataclass output
+  6. **Why this one matters**: the counter-coupled pair
+     relationship with `0x1a59` and cross-link to the
+     wake-121 identity-bundle correlation findings.
+
+**Result**: the "How it works" tab now demonstrates the full
+spectrum — the simplest (heartbeat) and a representative
+complex one (init beacon with identity bundle). Together they
+explain enough of the pattern that visitors can reason about
+the other 38 captured wire-types by analogy.
+
+**No code changes** to `server/`. Tests still 346 (+1 skipped).
+Site rebuild trivial.
 
 **Blockers:** None.

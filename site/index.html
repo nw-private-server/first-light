@@ -1181,6 +1181,108 @@ a:hover { text-decoration: underline; }
 
   </div>
 
+  <div class="section-h">A more involved example: identity-bundle messages</div>
+  <p style="color: var(--text-dim); font-size: 14px;">
+    Heartbeats are about as simple as it gets. Most captured types
+    have more pieces. Here's the same 6-step walkthrough for an
+    <code>InitMessage18A6</code> (wire type <code>0x18a6</code>) — a
+    40-byte server-side beacon with an identity bundle and a counter
+    that the client echoes back as <code>0x1a59</code>.
+  </p>
+
+  <div class="pipeline">
+
+    <div class="step">
+      <div class="step-n">1</div>
+      <div class="step-body">
+        <div class="step-h">Raw bytes off the wire (40 bytes)</div>
+        <pre class="step-code">00 01 a6 62  f8 cb ed 57 c6 8b 18 f4  bf 85 31 4b bc 4a 95 1a
+01 01 00 00  9c fa 58 61 78 14 69 f2  65 03 00 00  00 00 02 01</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-n">2</div>
+      <div class="step-body">
+        <div class="step-h">Type header → 0x18a6</div>
+        <p class="step-desc">
+          Same decode rule as before:
+          <code>(0xa6 &amp; 0x7f) | (0x62 &lt;&lt; 6) = 0x18a6</code>.
+        </p>
+        <pre class="step-code"><span class="hl-h">00 01 a6 62</span>  …
+└── type 0x18a6 ─┘</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-n">3</div>
+      <div class="step-body">
+        <div class="step-h">Identity bundle (next 16 bytes)</div>
+        <p class="step-desc">
+          Most non-trivial messages carry a 16-byte identity tag right
+          after the type header. It splits as two 8-byte halves:
+        </p>
+        <pre class="step-code">           <span class="hl-c">f8 cb ed 57 c6 8b 18 f4</span>  <span class="hl-n">bf 85 31 4b bc 4a 95 1a</span>
+           └─ first_uuid_half ─┘  └ session_uuid_lower ┘</pre>
+        <p class="step-desc">
+          The <code>session_uuid_lower</code> (yellow) is constant
+          across this whole session — see the
+          <a href="#overview">Wire-type families</a> panel for the
+          7 sub-system families it appears in.
+        </p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-n">4</div>
+      <div class="step-body">
+        <div class="step-h">Structured tail</div>
+        <p class="step-desc">
+          The remaining 20 bytes are 5 typed fields the codec knows
+          the layout of:
+        </p>
+        <pre class="step-code">…  <span class="hl-h">01 01</span>  <span class="hl-c">00 00</span>  <span class="hl-n">9c fa 58 61 78 14 69 f2</span>  <span class="hl-h">65 03 00 00</span>  <span class="hl-c">00 00 02 01</span>
+   ↑     ↑     ↑                       ↑           ↑
+   flags pad   second_id (8 bytes)     build_ver   counter+pad
+   = 257       = 9cfa58617814 69f2     = 869       = 1</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-n">5</div>
+      <div class="step-body">
+        <div class="step-h">Dataclass output</div>
+        <pre class="step-code">InitMessage18A6(
+    first_uuid_half = b'\xf8\xcb\xedW\xc6\x8b\x18\xf4',
+    session_uuid_lower = b'\xbf\x851K\xbcJ\x95\x1a',
+    second_id = b'\x9c\xfaXax\x14i\xf2',
+    counter = 1,
+    flags = 257,
+    build_version = 869,
+)</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-n">6</div>
+      <div class="step-body">
+        <div class="step-h">Why this one matters</div>
+        <p class="step-desc">
+          The <code>counter</code> field is what makes
+          <code>InitMessage18A6</code> a <em>counter-coupled pair</em>
+          with <code>0x1a59</code> (SessionSubkeyBeacon). Each
+          <code>0x18a6</code> the server sends carries an incrementing
+          counter; the client's <code>0x1a59</code> reply echoes the
+          same counter so the server can confirm the link is alive.
+          Both sit in the same <code>f8cbed57c68b18f4</code>
+          sub-system family — see the Wire-type families panel for
+          the cross-correlation table from wake 121.
+        </p>
+      </div>
+    </div>
+
+  </div>
+
   <div class="section-h">More involved messages have more pieces</div>
   <p style="color: var(--text-dim); font-size: 14px;">
     Most messages aren't this simple. A typical body has:

@@ -27827,6 +27827,12 @@
       "test_count": 347,
       "commit": "54ea0d4",
       "subject": "docs(analysis): refresh codec library overview \u2014 current state through wake 145"
+    },
+    {
+      "wake": null,
+      "test_count": 347,
+      "commit": "0b1b820",
+      "subject": "docs(analysis): refresh codec_coverage.md \u2014 40/40 codec'd state"
     }
   ],
   "wire_type_families": [
