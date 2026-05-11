@@ -1000,3 +1000,89 @@ change to address a long-recognized minor
 issue.
 
 **Blockers:** None.
+
+
+## Wake 265 — wake-200 Findings card cleanup
+
+**Goal**: the wake-200 "Remaining 4 uncovered
+wire-types" card had been updated several times
+(216 after 0x0635 ship, 217 after 0x12f6 ship,
+221 after the decision doc) and the prose
+accumulated meta-commentary about its own
+update history — "Updated wakes 216, 217, and
+221; this card now tracks the current count
+rather than the wake-200 snapshot of 6". That
+sentence is process-narration; the card should
+just present current state. The change history
+belongs in git + worklog, not in the visitor-
+facing card.
+
+**Built**:
+
+- **`tools/build_site.py`** — rewrote the
+  wake-200 card summary (~33 lines → ~28 lines):
+  - **Removed**: meta-commentary about update
+    wakes ("Updated wakes 216, 217, and 221;
+    this card now tracks...").
+  - **Restructured**: clearer three-block
+    organization with **bold labels** —
+    "**Three are structurally unable to add**"
+    (lists 0x0003, 0x0008, 0x0013 with their
+    structural reasons) → "**The fourth is a
+    deliberate decision**" (0x065c + decision-
+    doc pointer) → complexity reference
+    (wake 213's 0x0635 + wake 217's 0x12f6 as
+    upper-end comparators).
+  - **Preserved**: the decision-doc path
+    citation (wake-225 cross-check), the
+    "90.0% is the floor by design, not by
+    accident" closer, and all the technical
+    details (record counts, byte sizes,
+    structural categorization).
+
+**Verification**:
+
+- `.venv/bin/python3 tools/build_site.py` →
+  clean (decompiles 46, replay_decoded 177).
+- `pytest server/javelin -q` → **456 passing,
+  1 skipped** — unchanged.
+- Wake-225 cross-check: `analysis/decision_
+  0x065c_live_decoder.md` citation preserved;
+  cross-check still satisfied.
+- Wake-218 cross-check (manifest-wake citation
+  in wake-210 card): wake-200 is not a
+  manifest wake, no impact.
+- `grep -rn "wake-200 snapshot\|Updated wakes
+  216"` confirmed no other code depends on
+  the removed phrasing (only one stale
+  worklog-archive entry references it as
+  historical context, which is correct).
+
+**Pattern note**: this is a *prose-cleanup*
+wake, not a content-update wake. The card's
+information content is unchanged; what
+shifted is the signal-to-noise ratio. The
+removed meta-commentary was a fossil from the
+period when the card was actively being
+amended — once the answer stabilized (wake
+221's decision doc fixed the 0x065c question
+definitively), the update trail became
+clutter.
+
+**General principle (worth recording)**:
+visitor-facing prose should describe *what
+is true*, not *how the truth was
+established*. The latter belongs in commits +
+worklog. When prose accumulates an "Updated
+wakes X, Y, Z" tail, that's a signal the
+content has stabilized and the tail can be
+removed. Filing this as a Findings-card
+hygiene heuristic for future cleanup passes.
+
+**Cost summary**: 1 file edit (~30-line prose
+rewrite). Single targeted commit. The
+information content + critical citations are
+preserved; only the meta-commentary was
+removed.
+
+**Blockers:** None.
