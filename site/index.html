@@ -1699,6 +1699,7 @@ a:hover { text-decoration: underline; }
         <option value="1097">0x1097 — ResultToken1097 (24 bytes)</option>
         <option value="136a">0x136a — ResultToken136A (28 bytes)</option>
         <option value="1096">0x1096 — FrameConfig (80 bytes)</option>
+        <option value="5d1">0x5d1 — PlayerManagerSelfIdent (state-10 trigger, 4 or 25+ bytes)</option>
         <option value="subkey">subkey_beacon family — 14 wire-types (44+T bytes)</option>
       </select>
       <button id="ld-decode" class="preset-btn ld-decode">Decode</button>
@@ -1718,6 +1719,8 @@ a:hover { text-decoration: underline; }
       <button class="preset-btn" data-ldtype="1097" data-ldhex="00019742 f8cbed57c68b18f4bf85314bbc4a951a 00000002">0x1097 result token</button>
       <button class="preset-btn" data-ldtype="136a" data-ldhex="0001aa4d f8cbed57c68b18f4bf85314bbc4a951a 0000000000000001">0x136a result token</button>
       <button class="preset-btn" data-ldtype="1096" data-ldhex="00019642 93a3e477cb5fd51e bf85314bbc4a951a 40c00000 bf800000 39f5e41d 00005334 00000000 0000fe4c 00000000 00000e10 00000708 0b879fb3 3482a0b7 3e2aaaab 3e2aaaab 3f555555 3f555555">0x1096 frame config</button>
+      <button class="preset-btn" data-ldtype="5d1" data-ldhex="00019117">0x5d1 trigger (4 bytes)</button>
+      <button class="preset-btn" data-ldtype="5d1" data-ldhex="00019117 42000000 02000000 11010000 22020000 00 3412fecaefbeadde 99000000">0x5d1 structured (vec=2)</button>
     </div>
     <pre id="ld-result" class="ld-empty">(pick a preset or paste hex and press Decode)</pre>
   </div>
@@ -2401,6 +2404,69 @@ function setupLiveDecoder() {
           ["hash_b             (u32 BE)", hex0x(u32be(buf, 60))],
           ["ratio_lo           (f32 BE doubled)", f32be(64).toString() + "  (✓ matches at +0x44)"],
           ["ratio_hi           (f32 BE doubled)", f32be(72).toString() + "  (✓ matches at +0x4c)"],
+        ];
+      },
+    },
+    "5d1": {
+      // Wire type 0x5d1 — PlayerManagerSelfIdentificationMsg, the state-10
+      // → 11 unblock trigger (wake 112 RE finding). Two on-wire forms:
+      //   (a) 4-byte trigger: just the TYPE_HEADER (server signals
+      //       "self-identify" with no body — handler sources fields from
+      //       session state).
+      //   (b) 25+-byte structured form: TYPE_HEADER + 21-byte minimum
+      //       body (u32 field_0, u32 vec_len, [u32 × vec_len], u8
+      //       debug_flag, u64 LE field_2c, u32 field_34).
+      label: "PlayerManagerSelfIdent (type 0x5d1) — state-10 → 11 unblock trigger",
+      header: [0x00, 0x01, 0x91, 0x17],
+      minSize: 4,
+      decode(buf) {
+        // Trigger form: header-only.
+        if (buf.length === 4) {
+          return [
+            ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x5d1)"],
+            ["form", "trigger (4-byte header-only)"],
+            ["note", "handler sources identity from session state"],
+          ];
+        }
+        // Structured form: need at least 4 + 21 = 25 bytes.
+        if (buf.length < 25) {
+          throw new Error(
+            `buffer is ${buf.length} bytes; expected either 4 (trigger) ` +
+            `or ≥25 (structured); the 5-24 byte range is invalid`
+          );
+        }
+        const field0 = u32le(buf, 4);
+        const vecLen = u32le(buf, 8);
+        const vecBytes = 4 * vecLen;
+        const expectedSize = 4 + 4 + 4 + vecBytes + 1 + 8 + 4;
+        if (buf.length !== expectedSize) {
+          throw new Error(
+            `length mismatch: declared vector has ${vecLen} u32 elements ` +
+            `(${vecBytes} bytes); expected total ${expectedSize} bytes, got ${buf.length}`
+          );
+        }
+        const vecOffset = 12;
+        const vecItems = [];
+        for (let i = 0; i < vecLen; i++) {
+          vecItems.push("0x" + u32le(buf, vecOffset + i * 4).toString(16));
+        }
+        const debugFlagOff = vecOffset + vecBytes;
+        const debugFlag = buf[debugFlagOff];
+        // u64 LE — read two u32 LE halves and combine via BigInt.
+        const f2cOff = debugFlagOff + 1;
+        const f2cLo = u32le(buf, f2cOff);
+        const f2cHi = u32le(buf, f2cOff + 4);
+        const f2c = (BigInt(f2cHi) << 32n) | BigInt(f2cLo);
+        const f34 = u32le(buf, f2cOff + 8);
+        return [
+          ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x5d1)"],
+          ["form", `structured (${buf.length} bytes; vec_len=${vecLen})`],
+          ["field_0      (u32 LE)", hex0x(field0) + "  (= " + field0 + ")"],
+          ["field_08     (u32 LE vector)", vecItems.length ? `[${vecItems.join(", ")}]` : "[] (empty)"],
+          ["debug_flag   (u8)", "0x" + debugFlag.toString(16).padStart(2, "0") +
+            (debugFlag === 0 ? "  (✓ production-safe)" : "  (⚠ debug-only branch)")],
+          ["field_2c     (u64 LE)", "0x" + f2c.toString(16)],
+          ["field_34     (u32 LE)", hex0x(f34) + "  (= " + f34 + ")"],
         ];
       },
     },

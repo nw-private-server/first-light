@@ -13494,3 +13494,65 @@ dropdown option count.
 trivial.
 
 **Blockers:** None.
+
+## Wake 176 — live decoder gains 0x5d1 PlayerManagerSelfIdent
+
+**Goal**: 0x5d1 is the state-10 → 11 unblock trigger codec
+(wake 112 RE breakthrough — already on the Findings tab).
+Surfacing it in the live decoder lets a visitor reading the
+Findings card click through and inspect the actual wire form.
+High RE-relevance for one of the smaller decoders.
+
+**Built**:
+
+- **`site/index.html`**: new `5d1` decoder entry handling
+  **both wire forms**:
+  - **4-byte trigger form**: just the TYPE_HEADER
+    `00 01 91 17`. Renders 3 rows including a note that
+    the handler sources identity from session state.
+  - **25+ byte structured form**: TYPE_HEADER + 21-byte
+    minimum body. Decoder reads `field_0 (u32 LE)`,
+    `field_08 (u32 LE vector with length prefix)`,
+    `debug_flag (u8)` (flags 0 = production-safe / 1 =
+    debug-only branch), `field_2c (u64 LE via BigInt
+    halves)`, `field_34 (u32 LE)`. Validates total length
+    against the declared vector length and rejects the
+    invalid 5-24 byte range with a precise error.
+  - Two preset buttons: trigger form (4 bytes) and a
+    structured form with vec_len=2 (33 bytes).
+
+- **`server/javelin/test_live_decoder_presets.py`**: the
+  cross-check test now handles `5d1` via a small wrapper
+  `_decode_self_ident()` that accepts the 4-byte trigger
+  (validates it equals `TYPE_HEADER`) OR delegates to
+  `self_ident.decode_typed()` for ≥25-byte buffers. Both
+  presets cross-check clean.
+
+- **`tools/build_site.py`** (`LDTYPE_TO_TYPE_IDS`): added
+  the `5d1 → {0x5d1}` mapping. Note that 0x5d1 isn't in
+  the captured replay (server synthesizes it), so the
+  captured-coverage join naturally drops it — coverage
+  stays at 22/40. This is correct behavior, not a bug.
+
+**Why this matters for visitors**: the wake-112 Findings
+card now has a "see it decoded" path. A visitor curious
+about "state-10 trigger" can click the preset and see
+exactly what the server needs to synthesize to unblock the
+state machine. The `debug_flag = 0` check in the decoder
+output highlights the wake-111 production-safety
+constraint inline.
+
+**Tests**: 418 → still **418 passing (+1 skipped)** —
+the wake-172 cross-check absorbed the two new presets via
+the new `_decode_self_ident` wrapper.
+
+**Live-decoder coverage** stays at 22/40 captured types (the
+new decoder handles a synthesized type that's not in the
+captured set). Total wire-types decodable on the dashboard:
+24 (22 captured + 0x5d1 synthesized + the trigger form of
+0x5d1 as a degenerate case).
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.

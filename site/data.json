@@ -28014,6 +28014,12 @@
       "test_count": 417,
       "commit": "18dd084",
       "subject": "feat(site): live decoder + 3 codecs (1097, 136a, 1096) \u2192 23/40"
+    },
+    {
+      "wake": null,
+      "test_count": 419,
+      "commit": "0c6d370",
+      "subject": "feat(site): live-decoder coverage indicator (22/40 = 55%)"
     }
   ],
   "wire_type_families": [
@@ -28532,6 +28538,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 176,
+      "title": "live decoder gains 0x5d1 PlayerManagerSelfIdent",
+      "line": 13498
+    },
+    {
       "wake": 175,
       "title": "live-decoder coverage indicator (22/40 = 55%)",
       "line": 13431
@@ -28555,11 +28566,6 @@
       "wake": 171,
       "title": "live-decoder gains SessionIdentityBeacon (0x1b88)",
       "line": 13177
-    },
-    {
-      "wake": 170,
-      "title": "Recent-activity strip is now deep-linkable",
-      "line": 13105
     }
   ],
   "live_decoder_coverage": {

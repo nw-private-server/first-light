@@ -26,11 +26,28 @@ from server.javelin import (
     result_token_1097,
     result_token_136a,
     frame_config_1096,
+    self_ident,
 )
 
 
 REPO = Path(__file__).resolve().parents[2]
 INDEX_HTML = REPO / "site" / "index.html"
+
+
+def _decode_self_ident(buf: bytes):
+    """Accept either the 4-byte trigger or the 25+-byte structured form.
+
+    The JS decoder handles both forms; mirror that for the cross-check
+    test. Trigger form is just the TYPE_HEADER with no body — confirm
+    the header bytes match, return a sentinel."""
+    if len(buf) == 4:
+        if buf != self_ident.TYPE_HEADER:
+            raise ValueError(
+                f"trigger form must equal TYPE_HEADER {self_ident.TYPE_HEADER.hex()}; "
+                f"got {buf.hex()}"
+            )
+        return "trigger"
+    return self_ident.decode_typed(buf)
 
 
 # `data-ldtype` → callable that takes raw bytes and returns the
@@ -46,6 +63,7 @@ PYTHON_DECODERS = {
     "1097":  result_token_1097.decode,
     "136a":  result_token_136a.decode,
     "1096":  frame_config_1096.decode,
+    "5d1":   _decode_self_ident,
 }
 
 
