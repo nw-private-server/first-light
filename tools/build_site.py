@@ -963,7 +963,7 @@ def load_findings():
                        "no clean single-writer was found.",
         },
         {
-            "title": "Post-V3 state-spawn ladder: 4 transitions mapped (1 writer still open)",
+            "title": "Post-V3 state-spawn ladder: 4 transitions mapped (all 4 writers identified)",
             "category": "RE breakthrough",
             "wake": 240,
             "summary": "Static-RE has mapped the post-V3 state-spawn "

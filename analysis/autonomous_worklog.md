@@ -4565,3 +4565,112 @@ of new prose. Caught 4 instances of the
 content" pattern.
 
 **Blockers:** None.
+
+
+## Wake 291 — deferred pointer fix + Findings-card title drift
+
+**Goal**: cadence-shifted wake. Two
+concrete items: (1) resolve the
+`clientmessagestrait_wire_formats.md:275`
+deferred pointer from wake 290 (which
+worklog file has the "param_1 offset"
+map?). (2) extend the drift sweep into a
+different shape — Findings-card titles that
+might be stale relative to their bodies.
+
+**Built**:
+
+**Item 1 — `clientmessagestrait_wire_formats.md:275`**:
+Verified via grep: the "param_1 offset"
+outer-struct map is at line 4746 of
+`autonomous_worklog_through_253.md` (the
+archive). The pointer was pointing at the
+active worklog. Fixed: now points at the
+archive with a note that new offsets should
+be appended to the active worklog if
+extending.
+
+**Item 2 — wake-240 Findings card title
+drift**: scanning for "single writer" /
+"sole writer" patterns surfaced
+`tools/build_site.py:966`:
+
+> "title": "Post-V3 state-spawn ladder:
+> **4 transitions mapped (1 writer still
+> open)**"
+
+The card BODY (updated through wakes
+232/234/247/249/252) clearly states
+"writer + trigger chain identified (wakes
+247, 249)" and names `FUN_142ffbc50`. So
+the title contradicts its own body — it
+was written at wake 240 when the state-
+13→14 writer was still open, and the body
+updates propagated correctly but the
+title was never refreshed.
+
+Updated the title to "(all 4 writers
+identified)". Visitor reading the
+Findings tab no longer sees a
+self-contradicting card.
+
+**Pattern note**: this is **a new drift
+mode worth filing**: **card-title drift
+where the body has been updated through
+multiple wakes but the title still
+reflects an earlier wake's framing**. The
+title is set once and rarely re-read
+during body updates. The wake-265 +
+wake-268 hygiene heuristics covered
+body-prose drift; titles are a separate
+surface.
+
+**Generalizable rule (new)**: when
+updating a Findings card's body, also
+verify the title still accurately
+summarizes the current body. Title drift
+is especially insidious because the
+title is the visitor's first read on the
+card and disproportionately shapes their
+mental model of the finding.
+
+**Verification**:
+
+- `.venv/bin/python3 tools/build_site.py` →
+  clean.
+- `pytest server/javelin -q` → **456
+  passing, 1 skipped** — unchanged.
+- Wake-225 cross-check (analysis paths):
+  no path changes, no impact.
+- Wake-214 cross-check (wake-210 card
+  count claim): not affected (wake-240
+  card edit didn't touch numeric claims).
+- Wake-218 cross-check (manifest wake
+  citations in wake-210 card): not
+  affected.
+
+**Pattern summary of the drift-sweep
+arc** (wakes 274/289/290/291):
+
+| Wake | Drift caught | Sweep shape |
+|---|---|---|
+| 274 | Destroy-trigger "remaining" framing | Archive audit |
+| 289 | See-also footers (2 retros) | Retrospective re-read |
+| 290 | Worklog pointers (4 docs) | Cross-doc grep variants |
+| 291 | Card title vs body (1 card) | Single-writer pattern scan |
+
+**Pattern**: each sweep shape catches a
+DIFFERENT category of drift. Batch fixes
+catch the dominant pattern of their
+target; followup audits in DIFFERENT
+shapes catch new patterns. The audit-mode
+plateau pays off because each shape
+explores a different drift surface.
+
+**Cost summary**: 2 single-line edits
+(clientmessagestrait_wire_formats.md
+deferred pointer + wake-240 card title).
+Bounded cadence-shifted output; cumulative
+audit-arc value high.
+
+**Blockers:** None.

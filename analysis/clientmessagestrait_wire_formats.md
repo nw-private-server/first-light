@@ -272,5 +272,7 @@ When a new sibling handler is decompiled:
    `FUN_1402d13a0` or `FUN_1464027b0`), decompile that helper to
    recover any structural fields the handler doesn't read.
 4. Cross-check stored offsets in `param_1` against the existing
-   `outer-struct map` in `analysis/autonomous_worklog.md` (search
-   for "param_1 offset"); add new offsets there.
+   `outer-struct map` in
+   `analysis/autonomous_worklog_through_253.md` (in the wake-261
+   archive — search for "param_1 offset"); add new offsets to
+   the active `autonomous_worklog.md` if extending.

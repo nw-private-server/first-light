@@ -1641,7 +1641,7 @@
       "summary": "The state 12 \u2192 13 transition is gated by **wrapper[+0xbc8] != 0** (per the state-machine summary predicate table). The primary path is **LevelInfoChangedMsg**'s handler (FUN_146446800) which **directly forces state to 13**. A separate scan (`FindOffsetWrites 0xbc8 0x1`) found that there is also a **soft writer** of the gate byte that sets wrapper[+0xbc8] = 1 without force-advancing: FUN_145a9fa00 (one-line setter, exactly one xref). The state machine then advances 12 \u2192 13 on its next tick via the normal predicate. The writer's single caller is FUN_14645c660 \u2014 itself a ClientMessagesTrait dispatch-table entry (at 0x14abcc45c, 0x300 bytes from PlayerManagerSelfIdentification's entry). So a **second trait message** (name TBD) provides an alternative path to advance state past 12 without sending the full LevelInfoChanged payload. Static-RE can't recover the message name because that dispatch row's metadata column points into a different `.rdata` segment with no log-strings or RTTI tag near the entry. Candidates are the 3 unmapped ClientMessagesTrait classes (PlayerManagerRejectedMsg, RemoteConfigChangedMsg, DebugCommandResponseMsg); definitive ID needs a runtime Frida trace hooking FUN_14645c660 to log the incoming RTTI tag. Finding originated at autonomous-loop wake 13 (2026-05-07) and was surfaced into `analysis/state_machine_summary.md` \u00a7 4\u00bd at wake 232 (with a wake-234 correction \u2014 the wake-232 prose mistakenly framed this as the 11\u219212 gate; 11\u219212 is actually a re-check on wrapper[+0xa0] that auto-fires once 10\u219211 lands). State 13 \u2192 14 (entering InGame) remains TBD \u2014 wrapper[+0x252] is its gate but no clean single-writer was found."
     },
     {
-      "title": "Post-V3 state-spawn ladder: 4 transitions mapped (1 writer still open)",
+      "title": "Post-V3 state-spawn ladder: 4 transitions mapped (all 4 writers identified)",
       "category": "RE breakthrough",
       "wake": 240,
       "summary": "Static-RE has mapped the post-V3 state-spawn ladder end-to-end. States 10 \u2192 14 form the spawn sequence (10=WaitingForREPConnection, 11=WaitingForActorGameConnection, 12=WaitingForSpawnPoint, 13=WaitingForPlayerSpawn, 14=InGame \u2014 names recovered from the table at 0x1484f9ff0). Each transition reads a different field on the `GameConnectionWrapper` sub-object at `gc + 0x130`: **10\u219211** `*(int)(wrapper+0xa0) == 2`, written by `FUN_145a87010` (onConnectionSuccess) called from `FUN_146454c00` (PlayerManagerSelfIdentification handler); wire trigger 0x5d1 (wake 112). **11\u219212** `*(int)(wrapper+0xa0) != 0` \u2014 inverted check on the same field, auto-fires once 10\u219211 lands. **12\u219213** `*(u8)(wrapper+0xbc8) != 0` \u2014 primary path: LevelInfoChangedMsg's handler (`FUN_146446800`) directly forces state to 13; secondary path: `FUN_14645c660` (another ClientMessagesTrait dispatch entry, message TBD) sets the gate byte via `FUN_145a9fa00` (wake 232/234). **13\u219214** `*(u8)(wrapper+0x252) != 0` \u2014 **writer + trigger chain identified (wakes 247, 249)**. Writer is `FUN_142ffbc50` in the 0x142ff connection-namespace; walks a 0x70-stride collection at `wrapper[+0x1b8..+0x1c0]`, sets the gate to 1 if any entry matches `param_2` via two predicates, emits a notification callback. Wake-249 decompiled all 5 caller xrefs \u2014 they're local state-update functions, not message handlers. The most informative caller (`FUN_142ff8940`) explicitly **copies a 0x70-stride collection from an upstream container at `param_2[+0x7d0]` INTO `wrapper[+0x1b8]`** then re-evaluates the gate. So the trigger chain is: **server replica-creation message (likely GridMate `NewProxy`) \u2192 client replica system populates `param_2[+0x7d0]` \u2192 caller fires, copies into wrapper \u2192 writer matches predicate, sets gate \u2192 state advances**. **MVP server-side estimate (revised)**: **3 messages minimum** \u2014 SelfIdent + LevelInfoChanged + a replica-creation message. The wake-241 alt hypothesis (\"only 2 messages needed\") was directionally right (local-system-driven) but quantitatively off (the local system is driven by a server message, just not a `ClientMessagesTrait` one). See `analysis/state_machine_summary.md` \u00a7 1 for the predicate table, \u00a7 4\u00bd for the wake-232 12\u219213 writer details, and `analysis/state_13_14_writer_investigation.md` for the full wake-241 \u2192 247 \u2192 249 RE arc. The wake-112 + wake-232 individual cards capture earlier breakthroughs; this synthesis card surfaces the complete 4-transition picture + the closed-at-static-RE-level state."
@@ -29010,6 +29010,12 @@
       "test_count": 457,
       "commit": "8f865d9",
       "subject": "docs(analysis): wake-289 \u2014 retro re-read sweep catches 2 See-also pointer drifts"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "cf9c285",
+      "subject": "docs: wake-290 \u2014 wider drift sweep catches 4 more worklog-pointer drifts"
     }
   ],
   "live_decoder_history": [
@@ -29336,7 +29342,7 @@
       "filename": "clientmessagestrait_wire_formats.md",
       "title": "Javelin::ClientMessagesTrait \u2014 wire-format reference",
       "summary": "The two messages documented here have shipping Python encoders + unit tests in `server/javelin/`:",
-      "bytes": 13173,
+      "bytes": 13262,
       "category": "RE Finding"
     },
     {
@@ -29614,6 +29620,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 291,
+      "title": "deferred pointer fix + Findings-card title drift",
+      "line": 4570,
+      "category": "other"
+    },
+    {
       "wake": 290,
       "title": "wider drift sweep: 3 more worklog-pointer drifts caught",
       "line": 4458,
@@ -29642,12 +29654,6 @@
       "title": "README \"Recent milestones\" \u2014 surface destroy-event sub-arc as 5th bullet",
       "line": 4074,
       "category": "docs"
-    },
-    {
-      "wake": 285,
-      "title": "Findings card for the indirect-vtable wall pattern (3 instances)",
-      "line": 3969,
-      "category": "site"
     }
   ],
   "live_decoder_coverage": {
