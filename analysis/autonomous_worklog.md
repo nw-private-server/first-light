@@ -12381,3 +12381,61 @@ path is logging-only; existing javelin codec tests already
 validate the decoders themselves.
 
 **Blockers:** None.
+
+## Wake 158 — lock down the shadow-decode wiring with 9 tests
+
+**Goal**: phase 2A of the wake-157 work. Before promoting any
+type to authoritative, pin the shadow path's behavior so future
+edits can't silently regress it. Test it in isolation so a
+codec hiccup, a missing type_id, or a refactor of the
+envelope-sniff logic all surface as a single failing
+assertion.
+
+**Built**:
+
+- **`server/javelin/test_shadow_decode.py`** (~160 LOC):
+  9 tests against `PeerSession._shadow_decode_record`,
+  exercised via a stub `self` that carries a recording log
+  handler (no SSL, no socket, no PeerSession construction —
+  the method only touches `self.log`).
+  - **3 round-trip tests** (typed envelope decodes through
+    the dispatcher and logs the decoded class name):
+    - `test_shadow_decodes_0x15d_heartbeat_ping`
+    - `test_shadow_decodes_0x14f_clock_beacon`
+    - `test_shadow_decodes_0x651_empty_marker`
+  - **3 silent-skip tests** (non-typed payloads must produce
+    zero log entries):
+    - `test_shadow_skips_short_payload` (under 4 bytes)
+    - `test_shadow_skips_wrong_envelope_prefix` (not `00 01`)
+    - `test_shadow_skips_envelope_byte2_missing_marker_bit`
+      (high bit not set in byte 2 — fails the typed-envelope
+      sniff before reaching the dispatcher)
+  - **1 unsupported-type-id test**:
+    `test_shadow_logs_unsupported_type_id` — picks `0x3fff`
+    (encoded `0xbf 0xff`) which isn't in DECODERS; expects
+    the "not in dispatcher" log entry.
+  - **2 codec-failure tests**:
+    `test_shadow_logs_decode_failure_without_raising` (0x15d
+    with a wrong-sized body → ValueError caught, "decode
+    failed: ValueError" logged) and
+    `test_shadow_does_not_raise_on_decoder_exception`
+    (belt-and-suspenders sweep across three malformed
+    payloads — none should propagate).
+
+- **`_RecordingHandler`** helper at the top of the test file
+  is a minimal `logging.Handler` that stashes records in a
+  list. Each test gets a fresh stub-self with its own
+  logger + handler so tests are fully isolated.
+
+**Result**: 374 → 383 tests passing (+9, +1 still skipped).
+The shadow-decode wiring is now pinned at the unit level. A
+future wake can promote the shadow path to authoritative
+(start with `0x15d`, since semantics are simple and the test
+already covers the decode path) without worrying that the
+wiring itself has silently rotted.
+
+**No `server/rep_responder.py` changes** — the wake-157
+behavior is what got tested; this wake added no new
+production code, only test coverage.
+
+**Blockers:** None.

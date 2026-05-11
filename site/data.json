@@ -27897,6 +27897,12 @@
       "test_count": 347,
       "commit": "683f5b9",
       "subject": "feat(site): promote 2 RE findings to the Findings tab"
+    },
+    {
+      "wake": null,
+      "test_count": 347,
+      "commit": "909706b",
+      "subject": "feat(rep_responder): parallel shadow-decode through central dispatcher"
     }
   ],
   "wire_type_families": [
