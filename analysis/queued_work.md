@@ -1,7 +1,10 @@
 # Queued / deferred work
 
 > Consolidates "next steps" and "deferred" items mentioned across
-> wakes 66-83 in `analysis/autonomous_worklog.md`. Last bulk update
+> wakes 66-83 in
+> [`analysis/autonomous_worklog_through_253.md`](autonomous_worklog_through_253.md)
+> (the wake-261 archive split — wakes 1-253 are there; wakes 254+
+> are in the active `autonomous_worklog.md`). Last bulk update
 > wake 83; targeted closures + the "Major progress since wake 83"
 > section below were added at wake 235.
 >

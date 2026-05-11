@@ -12,7 +12,9 @@ write-ups for all 4 state-spawn transitions (10→11, 11→12,
 chains identified; the remaining open thread (specific
 replica-creation wire-type) is documented as runtime-dependent.
 Each wake is a single commit; the per-wake trail lives in
-[`autonomous_worklog.md`](autonomous_worklog.md).
+[`autonomous_worklog_through_253.md`](autonomous_worklog_through_253.md)
+(wake-261 archive split — wakes 1-253 there; wakes 254+ in
+active `autonomous_worklog.md`).
 
 ## Snapshot (as of wake 253)
 

@@ -8,8 +8,10 @@ a navigable visitor surface, extended the live decoder to
 cover 80% of captured wire-types, started consuming the
 dispatcher from `rep_responder.py`, and grew a 7-test cross-
 check graph that pins the dashboard's structural invariants.
-Each wake is a single commit; the per-wake trail lives in
-[`autonomous_worklog.md`](autonomous_worklog.md).
+Each wake is a single commit; the per-wake trail for this
+retrospective's range lives in the wake-261 archive
+[`autonomous_worklog_through_253.md`](autonomous_worklog_through_253.md)
+(wakes 254+ are in the active `autonomous_worklog.md`).
 
 ## Snapshot (as of wake 196)
 

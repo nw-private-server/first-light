@@ -28734,6 +28734,12 @@
       "test_count": 457,
       "commit": "0b7ab53",
       "subject": "docs(worklog): wake-260 pause-reflection \u2014 what's left after 259 wakes"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "d56919a",
+      "subject": "docs(worklog): split autonomous_worklog at wake-253 boundary (1800 -> 20155 lines)"
     }
   ],
   "live_decoder_history": [
@@ -29067,7 +29073,7 @@
       "filename": "codec_coverage.md",
       "title": "Codec coverage map",
       "summary": "Both audits (decoder rejection + encoder round-trip) are at **0 gaps** as of wake 136 \u2014 see [`codec_test_audit.md`](codec_test_audit.md) and [`codec_encoder_audit.md`](codec_encoder_audit.md).",
-      "bytes": 10770,
+      "bytes": 10831,
       "category": "Overview"
     },
     {
@@ -29158,7 +29164,7 @@
       "filename": "ghidra_hunt_list.md",
       "title": "Ghidra Hunt List \u2014 Javelin / GridMate fingerprints in NewWorld.exe",
       "summary": "State-machine gates (see [`state_machine_summary.md`](state_machine_summary.md) for the predicate table at \u00a7 1):",
-      "bytes": 11525,
+      "bytes": 11661,
       "category": "Audit"
     },
     {
@@ -29193,7 +29199,7 @@
       "filename": "queued_work.md",
       "title": "Queued / deferred work",
       "summary": "For a structured narrative of the 150+ wakes that followed, see:",
-      "bytes": 8972,
+      "bytes": 9134,
       "category": "Overview"
     },
     {
@@ -29228,28 +29234,28 @@
       "filename": "session_retrospective_150.md",
       "title": "150-wake autonomous session \u2014 milestones",
       "summary": "150 wakes of a self-paced autonomous /loop session, all on `claude/vacation-2026-05-06`. This doc summarizes the major milestones for any future maintainer or contributor browsing the project history. Each wake is a s\u2026",
-      "bytes": 10082,
+      "bytes": 10194,
       "category": "Retrospective"
     },
     {
       "filename": "session_retrospective_196.md",
       "title": "Wakes 151-196 \u2014 second-stretch milestones",
       "summary": "A 46-wake continuation of the [wake-150 milestone retrospective](session_retrospective_150.md). Where wakes 1-150 built the codec library + the wire-complete dispatcher + initial dashboard, wakes 151-196 turned the da\u2026",
-      "bytes": 12396,
+      "bytes": 12527,
       "category": "Retrospective"
     },
     {
       "filename": "session_retrospective_227.md",
       "title": "Wakes 197-227 \u2014 third-stretch milestones",
       "summary": "A 31-wake continuation of the [wake-150 retrospective](session_retrospective_150.md) and the [wake-196 retrospective](session_retrospective_196.md). Where wakes 1-150 built the codec library + dispatcher + initial das\u2026",
-      "bytes": 11281,
+      "bytes": 11396,
       "category": "Retrospective"
     },
     {
       "filename": "session_retrospective_253.md",
       "title": "Wakes 228-253 \u2014 fourth-stretch milestones (state-machine closure arc)",
       "summary": "A 26-wake continuation of the [wake-150](session_retrospective_150.md), [wake-196](session_retrospective_196.md), and [wake-227](session_retrospective_227.md) retrospectives. Where wakes 197-227 grew the cross-check g\u2026",
-      "bytes": 11473,
+      "bytes": 11588,
       "category": "Retrospective"
     },
     {
@@ -29270,7 +29276,7 @@
       "filename": "state_machine_summary.md",
       "title": "GameConnection State Machine \u2014 Synthesis (2026-05-07)",
       "summary": "After the V3 RegistrationResponse is accepted (already working \u2014 prior project notes confirmed `rep.ready` flips 0\u21921), the client sits in",
-      "bytes": 20454,
+      "bytes": 20576,
       "category": "Overview"
     },
     {
@@ -29338,6 +29344,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 262,
+      "title": "wake-261 deferred drift: batch fix worklog references",
+      "line": 771,
+      "category": "docs"
+    },
+    {
       "wake": 261,
       "title": "worklog file split (wakes 1-253 archived)",
       "line": 704,
@@ -29366,12 +29378,6 @@
       "title": "Wall Findings card (22nd card, 4-genre typology completes)",
       "line": 289,
       "category": "site"
-    },
-    {
-      "wake": 256,
-      "title": "wake-211 meta-card: \"Stable at 19\" annotation",
-      "line": 224,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {

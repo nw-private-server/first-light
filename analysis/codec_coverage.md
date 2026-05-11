@@ -81,8 +81,9 @@ sub-system family. If it does, the codec can either:
 2. Add a typed `(type_id, trailer_size)` entry to
    `subkey_beacon.KNOWN_FAMILY` (for trailer-only variants).
 3. Author a dedicated codec following the conventions in
-   any of the existing modules — see the worklog
-   (`autonomous_worklog.md`) wakes 66-80 for the patterns.
+   any of the existing modules — see the archived worklog
+   ([`autonomous_worklog_through_253.md`](autonomous_worklog_through_253.md))
+   wakes 66-80 for the patterns.
 
 For any new codec:
 - Put the wire layout in the module docstring with byte offsets.

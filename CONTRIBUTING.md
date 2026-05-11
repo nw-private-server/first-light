@@ -43,7 +43,7 @@ cd site && python3 -m http.server 8000
 - [analysis/session_retrospective_150.md](analysis/session_retrospective_150.md) — milestone snapshot covering the 150-wake autonomous session (40/40 codec coverage, central dispatcher, state-10 RE breakthrough, audit arcs, 100% decompile cross-link density).
 - [docs/post-v3-sequence.md](docs/post-v3-sequence.md) — the post-V3 message phases the captured replay covers.
 - [analysis/state_10_unblock_synthesis.md](analysis/state_10_unblock_synthesis.md) — the current open RE blocker and what's needed to crack it.
-- [analysis/autonomous_worklog.md](analysis/autonomous_worklog.md) — the wake-by-wake working journal. Long but searchable; tells you what's been tried.
+- [analysis/autonomous_worklog.md](analysis/autonomous_worklog.md) — the active wake-by-wake working journal (wake 254 onwards). Earlier wakes (1-253) in [analysis/autonomous_worklog_through_253.md](analysis/autonomous_worklog_through_253.md). Long but searchable; tells you what's been tried.
 
 **Quick on-ramp paths** (see also the "Want to contribute? Pick a path." section on the [dashboard's "How it works" tab](https://nw-private-server.github.io/first-light/)):
 - **Add a new codec** — copy `server/javelin/session_clock_beacon.py` (fixed-shape) or `asset_blob_16a0.py` (variable-length). Register it in `server/javelin/dispatch.py`'s `DECODERS`/`ENCODERS`. Add a structural-rejection test + populated round-trip test to `test_codecs.py`. The dispatcher full-replay test auto-catches missed type-ids.

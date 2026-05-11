@@ -3,8 +3,11 @@
 150 wakes of a self-paced autonomous /loop session, all on
 `claude/vacation-2026-05-06`. This doc summarizes the major
 milestones for any future maintainer or contributor browsing
-the project history. Each wake is a single commit; the worklog
-(`autonomous_worklog.md`) has the full per-wake trail.
+the project history. Each wake is a single commit; the wakes
+1-253 worklog is in
+[`autonomous_worklog_through_253.md`](autonomous_worklog_through_253.md)
+(wake-261 archive split; wakes 254+ in the active
+`autonomous_worklog.md`).
 
 > **Continued in the [second-stretch retrospective
 > (wakes 151-196)](session_retrospective_196.md)** — this doc

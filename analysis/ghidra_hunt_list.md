@@ -10,7 +10,9 @@
 > [`ghidra_findings.md`](ghidra_findings.md), the
 > [`state_machine_summary.md`](state_machine_summary.md), and the
 > wake-90-onward entries in
-> [`autonomous_worklog.md`](autonomous_worklog.md). The 40/40
+> [`autonomous_worklog_through_253.md`](autonomous_worklog_through_253.md)
+> (the wake-261 archive split; wakes 254+ are in the active
+> [`autonomous_worklog.md`](autonomous_worklog.md)). The 40/40
 > captured-wire-type codec coverage shipped at wake 109. The
 > "Major findings since wake 109" section below + targeted closures
 > were added at wake 236.

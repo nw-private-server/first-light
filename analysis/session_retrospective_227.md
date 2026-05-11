@@ -14,7 +14,9 @@ realism extension, and grew the dashboard cross-check
 graph from 9 invariants to 18 (with five
 self-referential pins that bottom out cleanly). Each
 wake is a single commit; the per-wake trail lives in
-[`autonomous_worklog.md`](autonomous_worklog.md).
+[`autonomous_worklog_through_253.md`](autonomous_worklog_through_253.md)
+(wake-261 archive split — wakes 1-253 there; wakes 254+ in
+active `autonomous_worklog.md`).
 
 > **Continued in the [fourth-stretch retrospective
 > (wakes 228-253)](session_retrospective_253.md)** — this

@@ -767,3 +767,80 @@ grows past readability" is now the project's
 standard for accumulating-state docs.
 
 **Blockers:** None.
+
+## Wake 262 — wake-261 deferred drift: batch fix worklog references
+
+**Goal**: the wake-261 worklog split left 7 docs
+citing `autonomous_worklog.md` for wake-N entries
+where N < 254. Those references semantically point
+at the archive now. The wake-261 worklog explicitly
+deferred the batch fix to a follow-up wake; this is
+that wake.
+
+**Built**: 7 doc references updated:
+
+- **`DASHBOARD.md`** line 172: split-aware
+  description "Active wake-by-wake history (wake
+  254 onwards). Earlier wakes (1-253) in
+  [archive]."
+- **`CONTRIBUTING.md`** line 46: same pattern —
+  "active ... onwards" + archive link.
+- **`analysis/ghidra_hunt_list.md`** "wake-90-
+  onward entries" pointer redirected to archive
+  (wake 90 is pre-254).
+- **`analysis/queued_work.md`** "wakes 66-83 in
+  ..." pointer redirected to archive.
+- **`analysis/codec_coverage.md`** "wakes 66-80"
+  pointer redirected to archive.
+- **`analysis/state_machine_summary.md`** "from
+  the autonomous worklog" pointer redirected to
+  archive.
+- **All 4 retrospectives** (150 / 196 / 227 /
+  253) "Each wake is a single commit; the per-
+  wake trail lives in ..." pointers redirected
+  to archive (since each retro's range is
+  pre-254). The wake-253 retro's "See also"
+  section also updated.
+
+**Common pattern** used across all 7: cite the
+archive as the primary target for pre-254 wakes,
+with a parenthetical "wakes 254+ in active
+`autonomous_worklog.md`" note. This preserves
+both targets' discoverability.
+
+**Verification**:
+- wake-225 (analysis-path existence): card prose
+  unaffected; this fix is on doc-to-doc links,
+  not Findings-card prose.
+- wake-207 (retrospective ↔ README): all 4
+  retros still linked from README; this fix
+  changes prose inside the retros, not their
+  filename.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Remaining `autonomous_worklog.md` references**
+(functional, NOT drift):
+- `tools/build_site.py:191, 248`: EXCLUDED set
+  entries (filter out the active worklog from
+  doc indexing).
+- `tools/build_site.py:442`: recent-wakes scanner
+  reading the active worklog.
+
+These are intentional — the active file should
+NOT appear in the Findings-tab analysis-doc
+index (it's append-only and refreshed every wake),
+and the recent-wakes scanner should read the
+active file (not the archive).
+
+**Pattern note**: this is the 9th batch doc-
+freshness wake (235/236/237/238/239 + 244/245/246
++ this wake's batch). The wake-261 split was the
+infrastructure change; this wake propagates its
+implications to all downstream references. After
+this wake, "pre-254 worklog reference" is no
+longer a drift mode anywhere in the repo.
+
+**Cost summary**: 7 prose edits, each 1-3 lines.
+Single batch commit.
+
+**Blockers:** None.

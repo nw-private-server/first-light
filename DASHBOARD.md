@@ -169,7 +169,7 @@ info/                     # captures + community drops
 | [`docs/post-v3-sequence.md`](docs/post-v3-sequence.md) | 22-phase post-V3 sequence with codec column |
 | [`analysis/static_re_handshake_signing.md`](analysis/static_re_handshake_signing.md) | Static-RE note on the 36-byte handshake-family trailer |
 | [`analysis/static_re_1033_merkle.md`](analysis/static_re_1033_merkle.md) | Static-RE note on 0x1033 chunk pool |
-| [`analysis/autonomous_worklog.md`](analysis/autonomous_worklog.md) | Detailed wake-by-wake history (90+ entries) |
+| [`analysis/autonomous_worklog.md`](analysis/autonomous_worklog.md) | Active wake-by-wake history (wake 254 onwards). Earlier wakes (1-253) in [`autonomous_worklog_through_253.md`](analysis/autonomous_worklog_through_253.md). |
 
 ## Branch + commit
 

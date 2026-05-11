@@ -1,10 +1,11 @@
 # GameConnection State Machine — Synthesis (2026-05-07)
 
 > Consolidates findings A1–A3 from the autonomous worklog
-> (`analysis/autonomous_worklog.md`, branch
-> `claude/vacation-2026-05-06`). Captures the post-V3 protocol picture
-> in one place so the maintainer doesn't have to re-derive it from
-> nine wake entries.
+> ([`analysis/autonomous_worklog_through_253.md`](autonomous_worklog_through_253.md)
+> — wake-261 archive split; wakes 254+ in active
+> `autonomous_worklog.md`; branch `claude/vacation-2026-05-06`).
+> Captures the post-V3 protocol picture in one place so the
+> maintainer doesn't have to re-derive it from nine wake entries.
 >
 > All addresses are virtual (image base `0x140000000`) on the live
 > Steam build downloaded 2026-05-06. RVAs in older Ghidra notes were
