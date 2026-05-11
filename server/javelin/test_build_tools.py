@@ -20,6 +20,7 @@ from tools.build_site import (  # noqa: E402
     categorize_wake_title,
     _enrich_families,
     load_findings,
+    load_live_decoder_history,
     load_recent_wakes,
     load_live_decoder_coverage,
     _coverage_badge_color,
@@ -792,6 +793,53 @@ def test_findings_meta_card_count_matches_manifest():
             f"{bucket!r} (matching manifest); summary excerpt: "
             f"{card['summary'][card['summary'].find(bucket):card['summary'].find(bucket)+80]!r}"
         )
+
+
+def test_live_decoder_history_last_entry_matches_current_coverage():
+    """16th cross-check (wake 224) — pins the wake-223 coverage
+    progression chart's last entry to the live badge value.
+
+    Drift mode: someone adds a new ldtype to LDTYPE_TO_TYPE_IDS
+    (badge auto-recomputes to 37/40) but forgets to append a new
+    milestone to load_live_decoder_history() (chart still ends at
+    36/40). The dashboard's overview-tab chart would silently
+    diverge from the badge across the top of the page.
+
+    Asserts the last entry of `load_live_decoder_history()` matches
+    the current `load_live_decoder_coverage()` result against the
+    captured-types set in data.json. The chart can lag behind the
+    badge only by one wake — the SAME commit that adds the codec
+    must also append a milestone.
+
+    Why not also pin the chart's earlier history entries against
+    git-log-mined data? Those are historical and frozen; only the
+    last entry can drift against current state. Pinning just the
+    tail keeps the test cheap."""
+    import json
+    repo = Path(__file__).resolve().parents[2]
+    with (repo / "site" / "data.json").open() as f:
+        data = json.load(f)
+    cov = load_live_decoder_coverage(data["captured_types"])
+    hist = load_live_decoder_history()
+    assert hist, "load_live_decoder_history() returned an empty list"
+    last = hist[-1]
+    assert last["covered"] == cov["covered"], (
+        f"chart's last entry shows {last['covered']}/{last['total']} "
+        f"but the badge computes {cov['covered']}/{cov['total']}. "
+        f"If you just added a new ldtype to LDTYPE_TO_TYPE_IDS, "
+        f"append a corresponding milestone to "
+        f"load_live_decoder_history() in tools/build_site.py."
+    )
+    assert last["total"] == cov["total"], (
+        f"chart's last entry total ({last['total']}) differs from "
+        f"the live count of captured types ({cov['total']})"
+    )
+    # Percent should match too (recomputed deterministically).
+    expected_percent = 100.0 * cov["covered"] / cov["total"]
+    assert abs(last["percent"] - expected_percent) < 0.01, (
+        f"chart's last entry percent ({last['percent']}) differs "
+        f"from the recomputed value ({expected_percent:.1f}%)"
+    )
 
 
 def test_cross_check_manifest_wake_numbers_are_unique_across_buckets():

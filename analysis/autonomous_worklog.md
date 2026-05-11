@@ -16763,3 +16763,102 @@ value, but that's overkill for a hardcoded list
 with low growth velocity.
 
 **Blockers:** None.
+
+## Wake 224 — 16th cross-check: coverage chart last-entry matches badge
+
+**Goal**: wake 223's "future wake could add a cross-
+check that the last milestone's percentage matches
+the current badge" — that future wake is this one.
+The wake-223 chart entries are hardcoded in
+`load_live_decoder_history()`; the badge value is
+auto-recomputed from `LDTYPE_TO_TYPE_IDS` ∩
+captured types. If someone adds a new ldtype to the
+map (badge auto-ticks) but forgets to append a new
+milestone to the chart (chart stays at the previous
+plateau), the dashboard's top-of-page badge silently
+diverges from its overview-tab chart.
+
+Earlier I flagged this as "overkill for a hardcoded
+list with low growth velocity" — reconsidered:
+recurring forward-menu items proved low-velocity
+isn't no-velocity, and the test is cheap.
+
+**Built**:
+
+- **`tools/build_site.py`**:
+  - **`CROSS_CHECK_MANIFEST` updated**: added 224
+    to "Generated output integrity" bucket → 4
+    entries → total 16. (Placement under "Generated
+    output integrity" because the test pins one
+    generated asset — the chart — against another
+    — the badge.)
+  - **Wake-210 card text updated atomically**:
+    - Title: "15 invariants" → "**16 invariants**".
+    - Summary opening: "15 pytest tests" →
+      "**16 pytest tests**".
+    - Generated output integrity bucket: "(3 tests:
+      …)" → "(4 tests: …, **224 coverage-chart
+      last-entry matches badge**)".
+    - Benefit: "15" → "**16 silent failure modes**".
+    - Test cost: "~340 lines" → "**~360 lines**".
+    - Closing: "becomes test 16" → "**becomes test
+      17**".
+    - Closing line extended: "wake 224 closes the
+      loop on the wake-223 coverage chart by tying
+      its last entry to the live badge value."
+
+- **`server/javelin/test_build_tools.py`**:
+  - Imports `load_live_decoder_history` from
+    `tools.build_site`.
+  - **New test
+    `test_live_decoder_history_last_entry_matches_current_coverage`**:
+    - Loads `data.json`, computes
+      `load_live_decoder_coverage(captured_types)`.
+    - Asserts the chart's last entry's `covered`,
+      `total`, and `percent` all match (percent
+      tolerance of 0.01 since it's a derived float).
+    - Assertion message: "If you just added a new
+      ldtype to LDTYPE_TO_TYPE_IDS, append a
+      corresponding milestone to
+      load_live_decoder_history()" — actionable
+      remediation hint.
+  - Docstring explicitly notes "the chart can lag
+    behind the badge only by one wake — the SAME
+    commit that adds the codec must also append a
+    milestone."
+
+**Verification**:
+- New test passes: 36/40 (90.0%) matches between
+  chart and badge.
+- wake-214 self-referential test passes: card
+  claims 16 invariants, manifest sums to 16 ✓.
+- wake-218 citation test passes: 224 appears in
+  card prose as bare integer ✓.
+- wake-222 uniqueness test passes: 224 only
+  appears in "Generated output integrity" bucket ✓.
+
+**Cross-check graph at wake 224**: **16 tests** —
+Code structure 7, Generated output integrity 4,
+Doc/navigation drift 5.
+
+**Self-referential structure**: the 3-test
+self-referential triple (214/218/222) on the
+wake-210 meta-pattern card still bottoms out
+cleanly. Wake 224 is a NEW kind of check — it
+pins ONE generated asset (chart) against ANOTHER
+(badge), not against the manifest. So it sits
+in the Generated output integrity bucket, not in
+the self-referential cluster.
+
+**Pattern note**: this is the **7th** test under
+the "Generated output integrity" lens (counting
+the manifest entries plus the live-decoder
+coverage test that's already covered indirectly).
+The bucket now spans: preset hex round-trip (172),
+badge color thresholds (201), api-ref idempotency
+(202), and **chart ↔ badge consistency (224)**.
+
+**Test count**: **453 passing (+1 skipped)** — up
+from 452 (wake 223). +1 new test as planned.
+
+**Blockers:** None.

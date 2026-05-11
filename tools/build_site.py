@@ -877,7 +877,7 @@ FINDINGS_CATEGORY_ORDER = [
 # loudly. Bucket names match the card prose verbatim.
 CROSS_CHECK_MANIFEST: dict[str, list[int]] = {
     "Code structure":              [162, 166, 178, 184, 185, 196, 222],
-    "Generated output integrity":  [172, 201, 202],
+    "Generated output integrity":  [172, 201, 202, 224],
     "Doc/navigation drift":        [207, 209, 210, 214, 218],
 }
 
@@ -1005,10 +1005,10 @@ def load_findings():
                        "real-GPU validation.",
         },
         {
-            "title": "Cross-check test graph: 15 invariants pinning dashboard + workflow drift",
+            "title": "Cross-check test graph: 16 invariants pinning dashboard + workflow drift",
             "category": "Research closure",
             "wake": 210,
-            "summary": "15 pytest tests now form a structural drift "
+            "summary": "16 pytest tests now form a structural drift "
                        "safety net for the dashboard + workflow. Each "
                        "pins a discrete failure mode that wouldn't "
                        "surface as a product bug — silent prose drift, "
@@ -1020,12 +1020,14 @@ def load_findings():
                        "`parse_sections`, 166 parser coverage, 178 "
                        "JS↔Python LDTYPE map sync, 184 linkify map ↔ "
                        "coverage map, 185 preset coverage, 196 "
-                       "shadow/validate-helper lockdown parity, "
-                       "**222 manifest wake-numbers unique across "
-                       "buckets**); **Generated output integrity** "
-                       "(3 tests: 172 preset hex round-trip, 201 "
+                       "shadow/validate-helper lockdown parity, 222 "
+                       "manifest wake-numbers unique across "
+                       "buckets); **Generated output integrity** "
+                       "(4 tests: 172 preset hex round-trip, 201 "
                        "badge color thresholds, 202 api-ref "
-                       "idempotency + on-disk consistency); "
+                       "idempotency + on-disk consistency, "
+                       "**224 coverage-chart last-entry matches "
+                       "badge**); "
                        "**Doc/navigation drift** "
                        "(5 tests: 207 retrospective ↔ README link, "
                        "209 Findings-card pair consistency, 210 "
@@ -1036,17 +1038,19 @@ def load_findings():
                        "is &lt;30 lines and self-documents the drift "
                        "mode in its docstring, including a pointer "
                        "to where the maintainer should fix the "
-                       "regression. Test cost: ~340 lines total. "
-                       "Benefit: 15 silent failure modes converted "
+                       "regression. Test cost: ~360 lines total. "
+                       "Benefit: 16 silent failure modes converted "
                        "to loud pytest failures with precise "
                        "remediation hints. Pattern is extensible — "
                        "any future structural invariant becomes test "
-                       "16; wakes 214 and 218 together enforce "
+                       "17; wakes 214 and 218 together enforce "
                        "that both the count claim AND the wake-number "
                        "citations here match `CROSS_CHECK_MANIFEST` "
                        "in `tools/build_site.py`; wake 222 pins the "
                        "manifest itself against bucket-cross-"
-                       "contamination.",
+                       "contamination; wake 224 closes the loop on "
+                       "the wake-223 coverage chart by tying its "
+                       "last entry to the live badge value.",
         },
         {
             "title": "Server↔client counter pairs",
