@@ -28380,6 +28380,12 @@
       "test_count": 456,
       "commit": "6407823",
       "subject": "test(site): 18th cross-check \u2014 every manifest wake has a referencing test"
+    },
+    {
+      "wake": null,
+      "test_count": 456,
+      "commit": "4652607",
+      "subject": "docs(analysis): third-stretch retrospective (wakes 197-227)"
     }
   ],
   "live_decoder_history": [
@@ -28881,7 +28887,7 @@
       "filename": "session_retrospective_196.md",
       "title": "Wakes 151-196 \u2014 second-stretch milestones",
       "summary": "A 46-wake continuation of the [wake-150 milestone retrospective](session_retrospective_150.md). Where wakes 1-150 built the codec library + the wire-complete dispatcher + initial dashboard, wakes 151-196 turned the da\u2026",
-      "bytes": 13197,
+      "bytes": 12396,
       "category": "Retrospective"
     },
     {
@@ -28970,6 +28976,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 229,
+      "title": "simplify wake-196 delta callout (now superseded by wake-227 retro)",
+      "line": 17195,
+      "category": "other"
+    },
+    {
       "wake": 228,
       "title": "third-stretch retrospective (wakes 197-227)",
       "line": 17096,
@@ -28998,12 +29010,6 @@
       "title": "16th cross-check: coverage chart last-entry matches badge",
       "line": 16767,
       "category": "test"
-    },
-    {
-      "wake": 223,
-      "title": "live-decoder coverage chart on the dashboard",
-      "line": 16688,
-      "category": "site"
     }
   ],
   "live_decoder_coverage": {

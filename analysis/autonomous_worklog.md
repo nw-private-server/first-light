@@ -17191,3 +17191,64 @@ Phase 1/Phase 2 organization. ~210 lines total.
 documentation artifact.
 
 **Blockers:** None.
+
+## Wake 229 — simplify wake-196 delta callout (now superseded by wake-227 retro)
+
+**Goal**: with the wake-228 third-stretch
+retrospective live, the wake-196 retrospective's
+delta callout is duplicate state. The callout was
+refreshed twice (wake 206, wake 220) and grew
+verbose with each iteration. Trim it to a pointer
+that links the third-stretch doc, so future
+maintainers don't have to keep two delta-callouts
+in sync.
+
+**Built**:
+
+- **`analysis/session_retrospective_196.md`** delta
+  callout simplified:
+  - **Before**: ~20-line block listing tests (451),
+    coverage (90% / 36/40), 17 Findings cards, 14
+    cross-check tests, phase-2 arc + extension,
+    live-decoder progression timeline.
+  - **After**: ~7-line pointer pinning the doc as
+    "wakes 151-196 snapshot" + linking forward to
+    the [third-stretch retrospective
+    (wakes 197-227)](session_retrospective_227.md)
+    with a one-line summary.
+  - The wake-204 mention in the closing line stays
+    (since the Phase 2 table below was extended to
+    include it) — readers of THIS doc still see the
+    full phase-2 arc.
+
+**Why the trim?** Three reasons:
+1. **No duplicate state**: the wake-227 retrospective
+   has 5 phases, a snapshot, and detailed tables. The
+   wake-196 callout was reproducing a subset of that
+   information.
+2. **Drift surface eliminated**: each refresh of the
+   callout (wake 206, wake 220) was a manual update
+   that could go stale. A pointer-only callout has no
+   drift surface.
+3. **Reader experience**: a visitor landing on the
+   wake-196 doc and seeing "Post-wake-196 deltas (as
+   of wake 219)" might think they're getting the
+   complete current state; they're not. The pointer
+   redirects to the canonical source.
+
+**Verification**:
+- wake-207 retrospective ↔ README cross-check passes:
+  both `session_retrospective_150.md` and
+  `session_retrospective_196.md` and
+  `session_retrospective_227.md` are linked from
+  README.
+- wake-225 analysis-path cross-check passes: only the
+  wake-200 card cites an analysis path
+  (`decision_0x065c_live_decoder.md`), which still
+  exists.
+- Tests **455 (+1 skipped)** — unchanged.
+
+**No code changes, no test changes**. Pure prose
+simplification.
+
+**Blockers:** None.
