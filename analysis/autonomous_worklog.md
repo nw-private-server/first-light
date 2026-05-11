@@ -3553,3 +3553,148 @@ and produces a concrete new wordlist for
 the next brute-force pass.
 
 **Blockers:** None.
+
+
+## Wake 283 — vtable+0x608 verification attempt + Findings card refresh
+
+**Goal**: per wake-282's recommendation,
+verify the "schedule event in N seconds"
+hypothesis by finding the implementation of
+`vtable+0x608` for the type that's the
+receiver of the emit calls. If it's named
+ScheduleEvent / QueueEvent / SetTimer /
+similar, the hypothesis is confirmed.
+
+**Attempted approach**:
+
+1. Xref FUN_146b64550 (one of the emitters)
+   to find its callers — found a single
+   caller `FUN_146b5d110` + a DATA xref at
+   vtable-like address `14ac16958`.
+2. Decompile FUN_146b5d110 — it's a 3-line
+   thunk that calls FUN_146b64550 with the
+   same `param_4` it received. No structural
+   help in identifying `param_4`'s vtable.
+3. Xref FUN_146b5d110 — 0 direct calls, 1
+   DATA xref from another vtable-like
+   address `14858f9b0`. Same RPC-shim
+   pattern as wake 276's V3-send chain.
+4. Dump the suspected vtable at `14ac16958`
+   — the data was **misaligned for an 8-byte
+   qword vtable**. The output showed values
+   like `0x6b64a7606b64550` which decompose
+   into 4-byte halves matching binary RVAs.
+   This is **not a regular vtable**; it's a
+   different table format (possibly RTTI or
+   a CRTP-style template instantiation
+   table).
+
+**Negative result**: cannot cleanly identify
+the vtable that hosts slot 0x608 via static
+xref chasing. The receiver type is reached
+through:
+- Multiple shim functions (FUN_146b5d110 etc.)
+- Multiple template-instantiation vtables
+  (14ac16958, 14858f9b0, others)
+- 4-byte-aligned data tables rather than
+  conventional 8-byte vtables
+
+This is **a 3rd indirect-vtable wall**
+matching the wake-252 and wake-276 patterns.
+For this codebase, vtable boundary crossings
+above a certain depth are not statically
+tractable.
+
+**Pivoted to option (c) — Findings card
+refresh**: the wake-281 card I added at
+wake 281 said "broadcast event" but wake
+282's float-table finding reframes it as
+"deferred-broadcast scheduled at 1.5-2.0s".
+Updated:
+
+- **Card title**: "Destroy-event broadcast"
+  → "Destroy-event scheduler" (semantic
+  shift).
+- **Card body**: extended the "Wakes 278-280
+  reopened" sentence to "Wakes 278-282
+  reopened... and re-interpreted the
+  float-pool entry DAT_147efa330 as a delay
+  parameter from a discrete table of
+  seconds-values (1.5, 2.0, 6.0, 8.0, 30.0,
+  60.0, 120.0)". Reframed the event as
+  "deferred-broadcast Carrier lifecycle
+  event scheduled at 1.5-2.0s via
+  vtable+0x608 (a timer/scheduler call,
+  wake 282 hypothesis)".
+
+**Built**:
+
+- `analysis/xrefs_FUN_146b64550_emitter_callers.txt`
+  — 1 direct caller + 1 DATA xref (shim
+  pattern).
+- `analysis/decomp_FUN_146b5d110_emitter_caller.txt`
+  — 13-line shim decomp.
+- `analysis/xrefs_FUN_146b5d110.txt` — 0
+  direct calls, 1 DATA xref.
+- `analysis/vtable_dump_14ac16958.txt` —
+  misaligned dump showing the table is not a
+  standard 8-byte vtable.
+
+**Verification**:
+
+- `tools/build_site.py` → clean. Decompiles
+  55 → 56 (new FUN_146b5d110).
+- `pytest server/javelin -q` → **456
+  passing, 1 skipped** — unchanged.
+- Wake-225 cross-check: not affected (card
+  prose references analysis docs that
+  exist).
+
+**Pattern note**: the **3rd indirect-vtable
+wall now confirmed**. This adds confidence
+to the wake-252 / wake-276 pattern: for the
+GridMate Carrier RPC system, *every* upstream
+trace beyond the immediate caller hits an
+indirect dispatch. The vtable+0x608 identity
+cannot be resolved statically from the
+emitter side.
+
+**Forward implications**:
+
+1. The "scheduler" hypothesis stands as the
+   most-likely interpretation (DAT_147efa330
+   is a float-delay table; 4 emitters use
+   it; the destroy-flag-after-30s symptom
+   matches the 30.0 entry).
+2. Confirmation requires either (a) runtime
+   trace on FUN_140fb3560 logging the
+   `vtable+0x608` call argument structure
+   live, or (b) finding the implementation
+   via a different static angle —
+   potentially through the AZ::Name CRC
+   table if the EBus is registered there.
+3. The wake-281 card now correctly reflects
+   the scheduler model with the wake-282
+   delay-table evidence cited.
+
+**Generalizable principle filed**:
+**indirect-vtable walls compound**. Three
+walls now (wake 252 / wake 276 / wake 283)
+all hit the same pattern: function chain
+→ shim → vtable → ?. Future static-RE in
+this codebase should treat **any
+vtable+offset call as a likely wall** and
+budget accordingly. Don't pursue vtable
+upstream resolution as a primary thread —
+use it as evidence that runtime trace is
+the path.
+
+**Cost summary**: 1 Ghidra xref + 1
+decompile + 1 vtable dump + 2 build_site.py
+edits (card title + body). The negative
+result on vtable verification is balanced
+by the visitor-facing card refresh, which
+keeps the wake-282 scheduler finding
+discoverable.
+
+**Blockers:** None.

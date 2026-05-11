@@ -5,7 +5,7 @@
     "codec_module_count": 36,
     "captured_type_count": 40,
     "registry_entry_count": 3487,
-    "decompile_count": 55,
+    "decompile_count": 56,
     "named_captured_types": 5
   },
   "captured_types": [
@@ -1002,6 +1002,15 @@
       "related": []
     },
     {
+      "name": "FUN_146b5d110",
+      "addr": "146b5d110",
+      "stem": "decomp_FUN_146b5d110_emitter_caller",
+      "lines": 14,
+      "size_bytes": 340,
+      "signature": "void FUN_146b5d110(undefined8 param_1,undefined4 param_2,longlong *param_3,undefined8 param_4)",
+      "related": []
+    },
+    {
       "name": "FUN_146b621c0",
       "addr": "146b621c0",
       "stem": "decomp_FUN_146b621c0_fe476177_2hits",
@@ -1692,10 +1701,10 @@
       "summary": "Static-RE has natural termination points where further progress requires runtime data. The state-13 \u2192 14 RE arc (closed wakes 247 + 249) traced the writer + 5-caller trigger chain, but the **upstream** of the trigger chain hits a wall: the most-informative caller (`FUN_142ff8940`) has 0 unconditional call xrefs and 4 data references, all to a single vtable entry at `0x14816cec0`. The function is invoked indirectly through that vtable, so static-RE can't trace the caller chain further without finding what dispatches through the vtable \u2014 and that dispatcher is itself indirect, recursively. Identifying the specific server message that triggers the gate-set (likely GridMate `NewProxy` per `ghidra_hunt_list.md` \u00a7 2C) is now genuinely **runtime-dependent**. A Frida hook on any of the 5 callers catches the stack frame at call-time and resolves the question immediately. This is documented as the **4th RE artifact genre \u2014 \"wall\"** \u2014 distinct from finding (writer identified), decision (question closed with criteria, e.g. 0x065c at wake 221), and investigation (search log with candidate triage, e.g. wake 241). The 4-genre typology is now established in the wake-228 skeleton card. Walls aren't failures \u2014 they're explicit handoff points to a different research method (here: runtime trace). Without a documented wall, future contributors might assume more static-RE could close the question; the wall card prevents wasted effort. See `analysis/state_13_14_writer_investigation.md` for the wake-252 wall section."
     },
     {
-      "title": "Destroy-event broadcast: 4 emitters, 5 subscribers, 7 Carrier flags",
+      "title": "Destroy-event scheduler: 4 emitters, 5 subscribers, 7 Carrier flags",
       "category": "RE breakthrough",
       "wake": 280,
-      "summary": "Wake 8 identified a single writer (`FUN_140fb3560:452`) that sets a destroy flag at `[R13+0xfd]` when `AZ::Crc32` event `0xFE476177` fires. Wake 9 declared this a dead end after 65 candidate strings failed to reverse the CRC. Wakes 278-280 reopened the question by enumerating 7 of 29 hit sites for `0xFE476177` (wake 9's tool bug had blocked context capture). The picture transformed: `0xFE476177` is a **general-purpose Carrier lifecycle broadcast event** fired from at least 4 emitter sites (`FUN_1402af830`, `FUN_140fb84b0`, `FUN_146b64550`, `FUN_1471f4260`) all using the pattern `local=0xFE476177; (*vtable+0x608)(arg, DAT_147efa330)`, and received by 5 subscribers each writing a distinct Carrier-state flag: `[+0xcd]` (`FUN_1471f15d0`), `[+0xcf]` (`FUN_146074880`), `[+0xda]` (`FUN_146b621c0`), `[+0xfd]` (`FUN_140fb3560` \u2014 the wake-8 destroy flag, one subscriber response among many), and `[+0x179]` (`FUN_1402a6310`). The Carrier state structure has at least 7 lifecycle-related flags (including `[+0xd9]` and `[+0xfc]` written by adjacent events) in the byte range `[+0xcd]` \u2192 `[+0x179]`. **The event family** dispatched alongside `0xFE476177` totals ~50 related `AZ::Crc32` hashes \u2014 `0xF2D0BB74`, `0x53E4E683`, `0xDECE4567`, `0xAD273586`, `0x8E281F3D`, plus shared sub-action hashes and namespace IDs. **Implication for the destroy-loop framing**: the destroy chain is one subscriber's response to a broader broadcast \u2014 not the event's primary purpose. The event is likely `OnDisconnect` / `OnConnectionLost` / similar Carrier lifecycle broadcast. Resolving the family name now has 50\u00d7 the surface area of the wake-9 attempt: a single hash match (via O3DE-corpus brute-force using `analysis/crc32_FE476177_brute_force.py`, OR runtime Frida hook on any emitter or subscriber) identifies the EBus and constrains the other 49 hashes to the same event class."
+      "summary": "Wake 8 identified a single writer (`FUN_140fb3560:452`) that sets a destroy flag at `[R13+0xfd]` when `AZ::Crc32` event `0xFE476177` fires. Wake 9 declared this a dead end after 65 candidate strings failed to reverse the CRC. Wakes 278-282 reopened the question by enumerating 7 of 29 hit sites for `0xFE476177` (wake 9's tool bug had blocked context capture) and by re-interpreting the float-pool entry `DAT_147efa330` as a **delay parameter** from a discrete table of seconds-values (1.5, 2.0, 6.0, 8.0, 30.0, 60.0, 120.0). The picture transformed: `0xFE476177` is a **deferred-broadcast Carrier lifecycle event** scheduled at 1.5-2.0s via `vtable+0x608` (a timer/scheduler call, wake 282 hypothesis) fired from at least 4 emitter sites (`FUN_1402af830`, `FUN_140fb84b0`, `FUN_146b64550`, `FUN_1471f4260`) all using the pattern `local=0xFE476177; (*vtable+0x608)(arg, DAT_147efa330)`, and received by 5 subscribers each writing a distinct Carrier-state flag: `[+0xcd]` (`FUN_1471f15d0`), `[+0xcf]` (`FUN_146074880`), `[+0xda]` (`FUN_146b621c0`), `[+0xfd]` (`FUN_140fb3560` \u2014 the wake-8 destroy flag, one subscriber response among many), and `[+0x179]` (`FUN_1402a6310`). The Carrier state structure has at least 7 lifecycle-related flags (including `[+0xd9]` and `[+0xfc]` written by adjacent events) in the byte range `[+0xcd]` \u2192 `[+0x179]`. **The event family** dispatched alongside `0xFE476177` totals ~50 related `AZ::Crc32` hashes \u2014 `0xF2D0BB74`, `0x53E4E683`, `0xDECE4567`, `0xAD273586`, `0x8E281F3D`, plus shared sub-action hashes and namespace IDs. **Implication for the destroy-loop framing**: the destroy chain is one subscriber's response to a broader broadcast \u2014 not the event's primary purpose. The event is likely `OnDisconnect` / `OnConnectionLost` / similar Carrier lifecycle broadcast. Resolving the family name now has 50\u00d7 the surface area of the wake-9 attempt: a single hash match (via O3DE-corpus brute-force using `analysis/crc32_FE476177_brute_force.py`, OR runtime Frida hook on any emitter or subscriber) identifies the EBus and constrains the other 49 hashes to the same event class."
     },
     {
       "title": "Server\u2194client counter pairs",
@@ -28947,6 +28956,12 @@
       "test_count": 457,
       "commit": "db28219",
       "subject": "docs(site): wake-281 \u2014 surface destroy-event-family findings to README + Findings card"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "5c181ba",
+      "subject": "re(static): wake-282 \u2014 DAT_147efa330 is start of a timer/delay float table; vtable+0x608 is \"schedule event in N seconds"
     }
   ],
   "live_decoder_history": [
@@ -29551,6 +29566,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 283,
+      "title": "vtable+0x608 verification attempt + Findings card refresh",
+      "line": 3558,
+      "category": "site"
+    },
+    {
       "wake": 282,
       "title": "DAT_147efa330 sibling hunt: timer/delay parameter tables identified",
       "line": 3417,
@@ -29578,12 +29599,6 @@
       "wake": 278,
       "title": "AZ::Name table hunt finds a sibling dispatcher (FUN_146b621c0)",
       "line": 2785,
-      "category": "other"
-    },
-    {
-      "wake": 277,
-      "title": "O3DE corpus brute-force attempt for AZ::Crc32(0xFE476177)",
-      "line": 2649,
       "category": "other"
     }
   ],

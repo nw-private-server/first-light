@@ -1271,7 +1271,7 @@ def load_findings():
                        "for the wake-252 wall section.",
         },
         {
-            "title": "Destroy-event broadcast: 4 emitters, 5 subscribers, 7 Carrier flags",
+            "title": "Destroy-event scheduler: 4 emitters, 5 subscribers, 7 Carrier flags",
             "category": "RE breakthrough",
             "wake": 280,
             "summary": "Wake 8 identified a single writer "
@@ -1279,13 +1279,19 @@ def load_findings():
                        "flag at `[R13+0xfd]` when `AZ::Crc32` event "
                        "`0xFE476177` fires. Wake 9 declared this a "
                        "dead end after 65 candidate strings failed "
-                       "to reverse the CRC. Wakes 278-280 reopened "
+                       "to reverse the CRC. Wakes 278-282 reopened "
                        "the question by enumerating 7 of 29 hit "
                        "sites for `0xFE476177` (wake 9's tool bug "
-                       "had blocked context capture). The picture "
-                       "transformed: `0xFE476177` is a "
-                       "**general-purpose Carrier lifecycle "
-                       "broadcast event** fired from at least 4 "
+                       "had blocked context capture) and by re-"
+                       "interpreting the float-pool entry "
+                       "`DAT_147efa330` as a **delay parameter** "
+                       "from a discrete table of seconds-values "
+                       "(1.5, 2.0, 6.0, 8.0, 30.0, 60.0, 120.0). "
+                       "The picture transformed: `0xFE476177` is "
+                       "a **deferred-broadcast Carrier lifecycle "
+                       "event** scheduled at 1.5-2.0s via "
+                       "`vtable+0x608` (a timer/scheduler call, "
+                       "wake 282 hypothesis) fired from at least 4 "
                        "emitter sites (`FUN_1402af830`, "
                        "`FUN_140fb84b0`, `FUN_146b64550`, "
                        "`FUN_1471f4260`) all using the pattern "
