@@ -842,6 +842,49 @@ def test_live_decoder_history_last_entry_matches_current_coverage():
     )
 
 
+def test_every_manifest_wake_has_a_referencing_test():
+    """18th cross-check (wake 227) — closes the manifest-vs-tests
+    loop on `CROSS_CHECK_MANIFEST`. The wake-214 test asserts the
+    wake-210 card's count matches the manifest sum; the wake-218
+    test asserts manifest wakes appear in the card; the wake-222
+    test asserts manifest wakes are unique across buckets. But
+    none of those catches the drift mode 'manifest entry added
+    without writing the corresponding test'.
+
+    Scans every `server/javelin/test_*.py` file for `wake N`
+    references (case-insensitive, whitespace-tolerant — handles
+    both 'wake 222' and the rare 'wake\\n222' that arises from
+    line-wrapped docstrings). For each wake in
+    `CROSS_CHECK_MANIFEST`, asserts it appears in at least one
+    test file. The pattern is loose on purpose: older tests use
+    varied phrasings ('Wake 201 invariant', '(wake 166):',
+    'wake 178 promoted it to ...') and forcing a strict naming
+    convention isn't worth the bulk-rename cost.
+
+    Failure mode it catches: future maintainer adds wake 999 to
+    CROSS_CHECK_MANIFEST, updates the wake-210 card claim, but
+    forgets the test. No current cross-check catches it. This
+    test fails with 'wake 999 missing from any test docstring'."""
+    import re
+    repo = Path(__file__).resolve().parents[2]
+    text_blob = ""
+    for test_file in sorted((repo / "server" / "javelin").glob("test_*.py")):
+        text_blob += test_file.read_text(errors="replace")
+    referenced = {
+        int(m.group(1))
+        for m in re.finditer(r"[Ww]ake\s+(\d+)", text_blob)
+    }
+    manifest_wakes = {
+        w for bucket in CROSS_CHECK_MANIFEST.values() for w in bucket
+    }
+    missing = sorted(manifest_wakes - referenced)
+    assert not missing, (
+        f"CROSS_CHECK_MANIFEST entries without a test docstring "
+        f"reference: {missing}. Either write the test (its docstring "
+        f"should cite the wake number) or remove the manifest entry."
+    )
+
+
 def test_cross_check_manifest_wake_numbers_are_unique_across_buckets():
     """15th cross-check (wake 222) — defensive pin on the manifest
     itself. CROSS_CHECK_MANIFEST groups cross-check test wakes into

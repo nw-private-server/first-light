@@ -8,7 +8,8 @@ that populates the textarea). The JS DECODERS port the Python
 codecs byte-for-byte — which means if a preset's hex decodes
 through Python, it'll decode through JS too. This test pins the
 "presets decode" invariant at the Python side so a future preset
-addition with a typo is caught immediately.
+addition with a typo is caught immediately. (CROSS_CHECK_MANIFEST
+references this as wake 172, the preset hex round-trip pin.)
 """
 
 from __future__ import annotations

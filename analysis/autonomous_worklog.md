@@ -17001,3 +17001,94 @@ passing (+1 skipped)** — unchanged. Pure README
 freshness pass.
 
 **Blockers:** None.
+
+## Wake 227 — 18th cross-check: every manifest wake has a referencing test
+
+**Goal**: close the last unpin'd axis around
+`CROSS_CHECK_MANIFEST`. The wake-214 test asserts
+the wake-210 card count = manifest sum; wake-218
+asserts manifest wakes appear in the card prose;
+wake-222 asserts manifest wakes are unique across
+buckets. But none of those catches the drift mode
+"manifest entry added without writing the
+corresponding test function".
+
+**Built**:
+
+- **`server/javelin/test_live_decoder_presets.py`**
+  module docstring extended: "(CROSS_CHECK_MANIFEST
+  references this as wake 172, the preset hex
+  round-trip pin.)" — one-line tweak so the wake-172
+  manifest entry resolves to a discoverable test
+  citation. The preset test file is the right home
+  for the wake-172 pin even though wake 172 isn't
+  in its history; the test pins the wake-172
+  invariant in spirit (preset hex must round-trip).
+- **`tools/build_site.py`**:
+  - **`CROSS_CHECK_MANIFEST`**: added 227 to
+    "Code structure" bucket → 8 entries → total 18.
+  - **Wake-210 card text updated atomically**:
+    - Title: "17 invariants" → "**18 invariants**".
+    - Summary opening: "17 pytest tests" →
+      "**18 pytest tests**".
+    - Code structure bucket: "(7 tests: …)" →
+      "(8 tests: …, **227 every manifest wake has
+      a referencing test function**)".
+    - Benefit: "17" → "**18 silent failure modes**".
+    - Test cost: "~380 lines" → "**~400 lines**".
+    - Closing: "becomes test 18" → "**becomes
+      test 19**".
+    - Closing line extended: "wake 227 closes the
+      manifest-vs-tests loop — every manifest
+      entry must have a test function citing the
+      wake number."
+
+- **`server/javelin/test_build_tools.py`**:
+  - **New test
+    `test_every_manifest_wake_has_a_referencing_test`**:
+    - Reads all `server/javelin/test_*.py` files
+      into one blob.
+    - Regex `r"[Ww]ake\s+(\d+)"` collects every
+      `wake N` reference (case-insensitive,
+      whitespace-tolerant — handles line-wrapped
+      docstrings like the wake-178 case).
+    - Asserts every CROSS_CHECK_MANIFEST wake
+      appears in at least one such reference.
+    - Assertion message tells the maintainer to
+      either write the test or remove the manifest
+      entry.
+    - Loose-pattern by design: older tests use
+      varied citation styles ('Wake 201 invariant',
+      '(wake 166):', etc.) and forcing a strict
+      naming convention isn't worth the bulk-
+      rename cost.
+
+**Verification**: 4 self-referential tests +
+new wake-227 test all pass against current state:
+- 214 (count): card claims 18, manifest sums to
+  18 ✓.
+- 218 (citations): 227 appears in card prose ✓.
+- 222 (uniqueness): 227 only in "Code structure"
+  bucket ✓.
+- 224 (chart-vs-badge): unaffected ✓.
+- 225 (analysis-doc paths): unaffected ✓.
+- **227 (manifest-vs-tests)**: all 18 manifest
+  wakes have docstring citations ✓.
+
+**Self-referential cluster at wake 227**: the
+wake-210 meta-pattern card is now pinned on **5**
+axes — count (214), citations (218), uniqueness
+(222), chart-vs-badge (224 — adjacent
+"Generated output integrity" check), and
+manifest-vs-tests (227 — adjacent "Code structure"
+check). The recursion is genuinely complete: no
+fourth axis of the manifest can drift silently.
+
+**Cross-check graph at wake 227**: **18 tests** —
+Code structure 8, Generated output integrity 4,
+Doc/navigation drift 6.
+
+**Test count**: **455 passing (+1 skipped)** — up
+from 454 (wake 226). +1 new test as planned.
+
+**Blockers:** None.

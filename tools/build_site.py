@@ -876,7 +876,7 @@ FINDINGS_CATEGORY_ORDER = [
 # added to the manifest that forgets to update the card prose fails
 # loudly. Bucket names match the card prose verbatim.
 CROSS_CHECK_MANIFEST: dict[str, list[int]] = {
-    "Code structure":              [162, 166, 178, 184, 185, 196, 222],
+    "Code structure":              [162, 166, 178, 184, 185, 196, 222, 227],
     "Generated output integrity":  [172, 201, 202, 224],
     "Doc/navigation drift":        [207, 209, 210, 214, 218, 225],
 }
@@ -1005,10 +1005,10 @@ def load_findings():
                        "real-GPU validation.",
         },
         {
-            "title": "Cross-check test graph: 17 invariants pinning dashboard + workflow drift",
+            "title": "Cross-check test graph: 18 invariants pinning dashboard + workflow drift",
             "category": "Research closure",
             "wake": 210,
-            "summary": "17 pytest tests now form a structural drift "
+            "summary": "18 pytest tests now form a structural drift "
                        "safety net for the dashboard + workflow. Each "
                        "pins a discrete failure mode that wouldn't "
                        "surface as a product bug — silent prose drift, "
@@ -1016,13 +1016,15 @@ def load_findings():
                        "heuristics — but would degrade contributor "
                        "experience or documentation legibility. The "
                        "graph splits into three buckets: "
-                       "**Code structure** (7 tests: wake 162 "
+                       "**Code structure** (8 tests: wake 162 "
                        "`parse_sections`, 166 parser coverage, 178 "
                        "JS↔Python LDTYPE map sync, 184 linkify map ↔ "
                        "coverage map, 185 preset coverage, 196 "
                        "shadow/validate-helper lockdown parity, 222 "
                        "manifest wake-numbers unique across "
-                       "buckets); **Generated output integrity** "
+                       "buckets, **227 every manifest wake has a "
+                       "referencing test function**); "
+                       "**Generated output integrity** "
                        "(4 tests: 172 preset hex round-trip, 201 "
                        "badge color thresholds, 202 api-ref "
                        "idempotency + on-disk consistency, "
@@ -1040,12 +1042,12 @@ def load_findings():
                        "is &lt;30 lines and self-documents the drift "
                        "mode in its docstring, including a pointer "
                        "to where the maintainer should fix the "
-                       "regression. Test cost: ~380 lines total. "
-                       "Benefit: 17 silent failure modes converted "
+                       "regression. Test cost: ~400 lines total. "
+                       "Benefit: 18 silent failure modes converted "
                        "to loud pytest failures with precise "
                        "remediation hints. Pattern is extensible — "
                        "any future structural invariant becomes test "
-                       "18; wakes 214 and 218 together enforce "
+                       "19; wakes 214 and 218 together enforce "
                        "that both the count claim AND the wake-number "
                        "citations here match `CROSS_CHECK_MANIFEST` "
                        "in `tools/build_site.py`; wake 222 pins the "
@@ -1053,7 +1055,10 @@ def load_findings():
                        "contamination; wake 224 closes the loop on "
                        "the wake-223 coverage chart; wake 225 "
                        "prevents card prose from referencing "
-                       "renamed or deleted analysis files.",
+                       "renamed or deleted analysis files; wake 227 "
+                       "closes the manifest-vs-tests loop — every "
+                       "manifest entry must have a test function "
+                       "citing the wake number.",
         },
         {
             "title": "Server↔client counter pairs",
