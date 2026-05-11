@@ -28728,6 +28728,12 @@
       "test_count": 457,
       "commit": "2a45dc0",
       "subject": "docs(site): wake-228 skeleton card \u2014 explicit cross-links to genre exemplars"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "0b7ab53",
+      "subject": "docs(worklog): wake-260 pause-reflection \u2014 what's left after 259 wakes"
     }
   ],
   "live_decoder_history": [
@@ -29332,39 +29338,39 @@
   ],
   "recent_wakes": [
     {
+      "wake": 261,
+      "title": "worklog file split (wakes 1-253 archived)",
+      "line": 704,
+      "category": "docs"
+    },
+    {
       "wake": 260,
       "title": "pause-reflection: what's left after 259 wakes",
-      "line": 20002,
+      "line": 549,
       "category": "other"
     },
     {
       "wake": 259,
       "title": "wake-228 skeleton card: explicit cross-links to genre exemplars",
-      "line": 19925,
+      "line": 472,
       "category": "other"
     },
     {
       "wake": 258,
       "title": "retrospective chain forward-pointers (wake-150, wake-227)",
-      "line": 19843,
+      "line": 390,
       "category": "docs"
     },
     {
       "wake": 257,
       "title": "Wall Findings card (22nd card, 4-genre typology completes)",
-      "line": 19742,
+      "line": 289,
       "category": "site"
     },
     {
       "wake": 256,
       "title": "wake-211 meta-card: \"Stable at 19\" annotation",
-      "line": 19677,
-      "category": "other"
-    },
-    {
-      "wake": 255,
-      "title": "wake-228 skeleton card: 3-retro \u2192 4-retro drift",
-      "line": 19595,
+      "line": 224,
       "category": "other"
     }
   ],

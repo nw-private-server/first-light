@@ -189,6 +189,7 @@ def load_analysis_docs():
     """
     EXCLUDED = {
         "autonomous_worklog.md",
+        "autonomous_worklog_through_253.md",  # wake-261 archive split
     }
     out = []
     for md in sorted((REPO / "analysis").glob("*.md")):
@@ -245,6 +246,7 @@ def load_decompile_annotations():
     """
     EXCLUDED = {
         "autonomous_worklog.md",
+        "autonomous_worklog_through_253.md",  # wake-261 archive split
         "codec_test_audit.md",
     }
     stems = [p.stem.replace("decomp_", "")
