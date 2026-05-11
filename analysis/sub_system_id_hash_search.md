@@ -64,6 +64,47 @@ The experiment was bounded by:
    pointer, an AzCore `TypeInfo` struct, or a process-internal
    pointer. None of those are recoverable from static data.
 
+## Update (wake 155): extended hunt with xxhash, mmh3, CRC-64-ECMA
+
+The wake-122 "obvious follow-up" called for re-running the
+search with `pip install xxhash mmh3` and a CRC-64-style hash.
+Done — see [`sub_system_id_hash_search_v2.py`](sub_system_id_hash_search_v2.py)
+for the script.
+
+**Setup**: same 11 captured `sub_system_id` targets, same 312
+named registry entries (8 string permutations each), same 3,487
+registry UUIDs (parsed-bytes + ASCII-string forms), same BE/LE
+byte-order swap. Added 6 new hash variants on top of the
+wake-122 7-variant set:
+
+- `xxh3_64` (xxhash 3-family, 64-bit)
+- `xxh64` (xxhash classic 64-bit)
+- `mmh3.hash64()` low half (MurmurHash3 128-bit / lower 64 bits)
+- `mmh3.hash64()` high half (upper 64 bits)
+- `mmh3.hash_bytes()[:8]` (128-bit truncated to first 8)
+- CRC-64-ECMA (polynomial `0xc96c5795d7870f42`) — the simplest
+  AzCore-flavored 64-bit CRC without pulling in a CRC dep
+
+**Result (wake 155)**: **246,220 hash invocations checked → 0
+matches**. The extended search ruled in 13 hash families × 2
+byte-orderings × 9,470 byte-inputs and found nothing.
+
+**Implication**: the deterministic-hash hypothesis is now ruled
+out across every standard 64-bit hash family a game engine
+might plausibly use. The remaining live hypotheses are:
+
+1. **Session-scoped allocation** (runtime-derived per session) —
+   the most likely, and the path the rest of this doc explores.
+2. **Hash of indirect data** (vtable pointers, internal
+   TypeInfo structs, etc.) — testable only with runtime data.
+3. **Custom AzCore hash function** not covered by xxhash / mmh3
+   / CRC-64 — vanishingly unlikely given the variety tested but
+   technically not 0-probability.
+
+A second-capture comparison (below) remains the decisive test.
+
+---
+
 ## What now points to "session-scoped allocation"
 
 With the simple-hash hypothesis weakened, the most likely

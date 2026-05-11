@@ -12189,3 +12189,63 @@ walkthrough explains.
 skipped). Site rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 155 — identity-bundle hash hunt extension (definitive negative)
+
+**Goal**: open item #4 from the wake-150 retrospective. Wake 122
+ruled out FNV-1a-64, SHA-1, SHA-256, MD5, and double-CRC32 as
+the function mapping registry-entry names to the 11 captured
+`sub_system_id` values. The cheap follow-up was always to
+`pip install xxhash mmh3` and re-run. Doing that now gives a
+definitive answer.
+
+**Built**:
+
+- **`analysis/sub_system_id_hash_search_v2.py`** (~140 LOC):
+  reusable script that loads `info/typeregistry.json`
+  (3487 UUIDs, 312 named entries), permutes each name 8 ways
+  (raw / lower / upper / leaf / leaf-lower / nows-lower /
+  Javelin-prefix / Javelin::ClientMessagesTrait-prefix),
+  computes 13 hash variants per byte-input, swaps BE/LE byte
+  order, and compares against the wake-121 set of 11
+  captured sub_system_ids. The 13 variants are:
+  - wake-122 (replayed): FNV-1a-64, SHA-1[first8], SHA-1[last8],
+    SHA-256[first8], MD5[first8], MD5[last8], double-CRC32
+  - **wake-155 additions**: xxh3_64, xxh64,
+    mmh3.hash64()-lo, mmh3.hash64()-hi, mmh3.hash_bytes()[:8],
+    CRC-64-ECMA (polynomial 0xc96c5795d7870f42 —
+    AzCore-flavored 64-bit CRC implemented inline so the
+    script has no extra deps beyond xxhash + mmh3).
+
+- **Result**: **246,220 hash invocations × 0 matches**. The
+  extended hunt ruled in 13 hash families × 2 byte-orderings ×
+  9,470 byte-inputs and produced nothing.
+
+- **`analysis/sub_system_id_hash_search.md`**: added a wake-155
+  update section between the wake-122 "What this does NOT rule
+  out" and the "session-scoped allocation" sections. Notes the
+  setup, the negative result, and the 3 remaining live
+  hypotheses (session-scoped allocation = most likely; hash of
+  indirect data e.g. vtable pointers = testable only with
+  runtime data; custom AzCore hash not covered = vanishingly
+  unlikely but not 0-probability).
+
+**Why this matters**: the wake-122 negative was always
+suggestive but not definitive — the obvious gap was the
+non-stdlib hash families (xxhash, MurmurHash3) that game
+engines actually use. Closing that gap means the "deterministic
+hash of class name" hypothesis is now thoroughly dead, leaving
+"session-scoped allocation" as the strongly-favored hypothesis.
+The decisive test (second-session capture comparison) is
+unchanged but the priors going into it are now much sharper.
+
+**Dependencies**: `pip install xxhash mmh3` was added to the
+project venv. Both libs are small (xxhash 1MB, mmh3 200KB),
+single-purpose, and well-maintained. No project-wide
+`requirements.txt` change is needed — the script imports them
+and prints a clear error if missing.
+
+**No code changes** to `server/`. Tests still 374 (+1 skipped).
+Site rebuild trivial.
+
+**Blockers:** None.

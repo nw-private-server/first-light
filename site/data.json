@@ -27869,6 +27869,12 @@
       "test_count": 347,
       "commit": "cebe231",
       "subject": "docs(analysis): doc-staleness audit \u2014 3 files refreshed"
+    },
+    {
+      "wake": null,
+      "test_count": 347,
+      "commit": "1a58638",
+      "subject": "feat: README retrospective link + 0x18a6 in live decoder"
     }
   ],
   "wire_type_families": [
@@ -28214,7 +28220,7 @@
       "filename": "sub_system_id_hash_search.md",
       "title": "`sub_system_id` \u2194 class name hash search (wake 122)",
       "summary": "The 11 distinct `sub_system_id` values from the captured replay (see `identity_bundle_correlation.md`) might be deterministic hashes of class names, in which case computing the hash of each of the 312 named registry e\u2026",
-      "bytes": 4012,
+      "bytes": 5767,
       "category": "RE Finding"
     },
     {
