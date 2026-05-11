@@ -4069,3 +4069,119 @@ reflection's "1-2 more small-drift wakes
 recommended" plan.
 
 **Blockers:** None.
+
+
+## Wake 286 — README "Recent milestones" — surface destroy-event sub-arc as 5th bullet
+
+**Goal**: per wake-284's pause-reflection
+plan ("1-2 more small-drift wakes then
+pause/cadence-shift"), this is the second
+small-drift wake (wake 285 was the first
+with the indirect-vtable-wall Findings
+card). After this wake: cadence-shift.
+
+The wakes-278-285 destroy-event-family
+sub-arc is the most substantive RE work
+since wake 252, but it currently lives only
+in the worklog + state_machine_summary +
+two Findings cards. It should surface at
+the top-level README "Recent milestones"
+section as a 5th bullet alongside the 4
+retrospectives — the visitor-facing "what's
+recent" surface.
+
+**Built**:
+
+**`README.md` — added a 5th bullet** at the
+top of "Recent milestones (newest first)",
+before the wake-228-253 retrospective:
+
+- **Title framing**: "Destroy-event family
+  sub-arc (wakes 278-285)" — explicitly
+  labels it as a sub-arc, not a
+  retrospective doc.
+- **Content**: summarizes the 4-emitter /
+  5-subscriber / 5-flag picture, names the
+  flag offsets, mentions the scheduler
+  hypothesis with the float-delay table,
+  cites 3 indirect-vtable walls
+  (252/276/283).
+- **Pointers**: state_machine_summary §
+  A3.1 for full detail; live dashboard's
+  Findings tab (cards "Destroy-event
+  scheduler" + "Indirect-vtable wall
+  pattern").
+- **Explicit not-a-retro note**: "Not a
+  retrospective doc — sub-arc summarized
+  in the live dashboard's Findings tab" so
+  visitors don't expect a follow-pointer
+  to a retro file.
+
+**Verification**:
+
+- `.venv/bin/python3 tools/build_site.py` →
+  clean.
+- `pytest server/javelin -q` → **456
+  passing, 1 skipped** — unchanged.
+- Wake-207 cross-check (retrospective ↔
+  README link): not affected — the new
+  bullet doesn't link to a retro file, so
+  no retro→README invariant changes.
+- Wake-225 cross-check (analysis paths in
+  Findings prose): not affected — this
+  edit is in README, not Findings prose.
+- The wake-264 "newest first" ordering
+  convention preserved (the new bullet is
+  at the top, newer than the wake-253
+  retro).
+
+**Pattern note**: this is the **third
+visitor-facing surfacing wake** for the
+destroy-event arc (after wake 281's
+Findings card + wake 285's wall-pattern
+card). The arc's findings now have **three
+discoverable surfaces**:
+1. Top-level README "Recent milestones"
+   (this wake).
+2. Live dashboard Findings tab × 2 cards
+   (wakes 281 + 285).
+3. Detailed prose in
+   `analysis/state_machine_summary.md` §
+   A3.1 + worklog wakes 274-283.
+
+This is **the maximum reasonable visitor-
+surfacing for a sub-arc without a formal
+retrospective**. The convention now: when a
+sub-arc is substantive enough to surface on
+README but doesn't have a retro doc, frame
+it as a "sub-arc" bullet and point at the
+Findings cards as the canonical
+discoverable detail.
+
+**Arc closure**: wake-284's plan called for
+"1-2 more small-drift wakes then pause/
+cadence-shift". Wake 285 was first
+(indirect-vtable-wall Findings card), wake
+286 is second (this README bullet). The
+2-wake post-reflection follow-up is now
+complete. **Next wake should cadence-shift**
+to longer intervals (60+ min) since:
+- All visitor surfaces are current.
+- The destroy-event arc is substantively
+  closed at static-RE level.
+- No new RE thread has emerged that's more
+  tractable than the runtime-trace
+  unblocker.
+
+**Forward menu for wake 287**: stop the
+loop, or cadence-shift to 1-2 hour
+intervals for opportunistic check-ins.
+Either is appropriate per the wake-284
+reflection.
+
+**Cost summary**: 1 README bullet addition
+(~3 lines of new prose). Smallest possible
+change to surface the sub-arc to the
+top-level visitor surface.
+
+**Blockers:** None.

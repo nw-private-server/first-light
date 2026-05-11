@@ -28980,6 +28980,12 @@
       "test_count": 457,
       "commit": "92b41ce",
       "subject": "docs(worklog): wake-284 \u2014 pause-reflection on 17-wake arc 267-283"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "943a782",
+      "subject": "docs(site): wake-285 \u2014 Findings card for indirect-vtable wall pattern (3 instances)"
     }
   ],
   "live_decoder_history": [
@@ -29584,6 +29590,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 286,
+      "title": "README \"Recent milestones\" \u2014 surface destroy-event sub-arc as 5th bullet",
+      "line": 4074,
+      "category": "docs"
+    },
+    {
       "wake": 285,
       "title": "Findings card for the indirect-vtable wall pattern (3 instances)",
       "line": 3969,
@@ -29612,12 +29624,6 @@
       "title": "surface destroy-event-family findings (README + Findings card)",
       "line": 3309,
       "category": "docs"
-    },
-    {
-      "wake": 280,
-      "title": "emitter / subscriber split surfaces (4 more dispatchers examined)",
-      "line": 3135,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {
