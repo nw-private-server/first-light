@@ -15047,3 +15047,52 @@ cross-check now validates 21 hex strings.
 trivial.
 
 **Blockers:** None.
+
+## Wake 199 — live decoder +0xca4 AssetCountTable → 34/40 (85%)
+
+**Goal**: continue coverage push past 82.5%. Add `0x0ca4`
+AssetCountTable — variable-length count-prefixed (hash_id,
+value) records. Captured singleton has 10 records (102
+bytes); the preset uses 5 records (62 bytes) for a compact
+demo.
+
+**Built**:
+
+- **`site/index.html`** — new DECODERS entry:
+  - **`0xca4` AssetCountTableCA4** (22+ bytes, variable):
+    R direction; TYPE_HEADER `00 01 a4 32` + identity_uuid
+    (16) + count (u8) + count × 8-byte records (each:
+    u8x4 hash_id + u32 BE value) + trailer (u8 = 0x01).
+    Decoder validates size against declared count + trailer
+    byte; renders 5 field rows including the full record
+    list inline as `hash_id → value` (e.g. `aabbccdd → 43`).
+
+- One preset button: a synthesized 5-record table with the
+  hash_ids `aabbccdd → 43`, `11223344 → 6`, etc. Hex
+  generated via the Python codec.
+
+- **Both maps + cross-check test updated in lockstep**. All
+  three structural cross-check tests pass on first run.
+
+**Coverage growth**:
+- Before wake 199: **33/40 = 82.5%**, 7 uncovered.
+- After wake 199: **34/40 = 85.0%**, 6 uncovered.
+- Uncovered now: `0x0003` (REPClient response, encode-only),
+  `0x0008` (chunked_stream meta-codec), `0x0013` (V3 request,
+  encoder-only), `0x0635` (action_history, complex),
+  `0x065c` (world_data, complex), `0x12f6` (keybinding,
+  complex).
+
+The remaining 6 uncovered all have structural reasons (3
+encoder-only / meta-codec; 3 substantial-complexity variable
+records). 85% effectively saturates the "tractable simple
+decoders" category — further coverage growth would need
+non-trivial JS ports of the complex variable-records codecs.
+
+**Tests**: still **430 passing (+1 skipped)** — preset
+cross-check now validates 22 hex strings.
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.

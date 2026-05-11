@@ -37,6 +37,7 @@ from server.javelin import (
     vivox_config_1067,
     level_descriptor_663,
     asset_blob_16a0,
+    asset_count_table_ca4,
 )
 
 
@@ -84,6 +85,7 @@ PYTHON_DECODERS = {
     "1067":  vivox_config_1067.decode,
     "663":   level_descriptor_663.decode,
     "16a0":  asset_blob_16a0.decode,
+    "ca4":   asset_count_table_ca4.decode,
 }
 
 

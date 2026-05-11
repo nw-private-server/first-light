@@ -28176,6 +28176,12 @@
       "test_count": 431,
       "commit": "f74782f",
       "subject": "docs(analysis): second-stretch retrospective (wakes 151-196)"
+    },
+    {
+      "wake": null,
+      "test_count": 431,
+      "commit": "75e06d4",
+      "subject": "feat(site): live decoder +0x16a0 AssetBlob Small \u2192 33/40 (82.5%)"
     }
   ],
   "wire_type_families": [
@@ -28701,6 +28707,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 199,
+      "title": "live decoder +0xca4 AssetCountTable \u2192 34/40 (85%)",
+      "line": 15051
+    },
+    {
       "wake": 198,
       "title": "live decoder +0x16a0 AssetBlob \u2192 33/40 (82.5%)",
       "line": 14989
@@ -28724,24 +28735,18 @@
       "wake": 194,
       "title": "Findings card for the rep_responder integration foundation",
       "line": 14730
-    },
-    {
-      "wake": 193,
-      "title": "Findings card for the 80% live-decoder coverage milestone",
-      "line": 14683
     }
   ],
   "live_decoder_coverage": {
-    "covered": 33,
+    "covered": 34,
     "total": 40,
-    "percent": 82.5,
+    "percent": 85.0,
     "uncovered": [
       "0x0003",
       "0x0008",
       "0x0013",
       "0x0635",
       "0x065c",
-      "0x0ca4",
       "0x12f6"
     ]
   }

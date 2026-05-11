@@ -1724,6 +1724,7 @@ a:hover { text-decoration: underline; }
         <option value="1067">0x1067 — VivoxConfig (variable, 23+ bytes)</option>
         <option value="663">0x663 — LevelDescriptor (110 bytes)</option>
         <option value="16a0">0x16a0 — AssetBlob Small (153 bytes)</option>
+        <option value="ca4">0xca4 — AssetCountTable (22+ bytes, variable records)</option>
         <option value="5d1">0x5d1 — PlayerManagerSelfIdent (state-10 trigger, 4 or 25+ bytes)</option>
         <option value="subkey">subkey_beacon family — 14 wire-types (44+T bytes)</option>
       </select>
@@ -1756,6 +1757,7 @@ a:hover { text-decoration: underline; }
       <button class="preset-btn" data-ldtype="1067" data-ldhex="0001a741 f8cbed57c68b18f4bf85314bbc4a951a 2068747470733a2f2f6e7778702e7777772e7669766f782e636f6d2f617069322f 0f616d617a6f6e393035302d6e653833 0f406e7778702e7669766f782e636f6d 00">0x1067 vivox config</button>
       <button class="preset-btn" data-ldtype="663" data-ldhex="0001a319 144e6577576f726c645f5669746165457465726e61 1e636f61746c696375652f4e6577576f726c645f5669746165457465726e61 45000000418000004620280046402800 0000000000000000 01010000 9cfa5861781469f2 65030000 000001010100000000c17f9be48f">0x663 level descriptor</button>
       <button class="preset-btn" data-ldtype="16a0" data-ldhex="0001a05a 4c0c0ed6478a69dabf85314bbc4a951a 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 00010008 4974656d506f6f6c 24 41414141414141414141414141414141414141414141414141414141414141414141414141414141 000000000000000bcccccccccccccccccccccccccc">0x16a0 asset blob (small)</button>
+      <button class="preset-btn" data-ldtype="ca4" data-ldhex="0001a432 f8cbed57c68b18f4bf85314bbc4a951a 05 aabbccdd 0000002b 11223344 00000006 55667788 00000001 99aabbcc 000000e2 deadbeef 00000518 01">0xca4 asset count table (5 records)</button>
     </div>
     <pre id="ld-result" class="ld-empty">(pick a preset or paste hex and press Decode)</pre>
   </div>
@@ -1823,7 +1825,7 @@ const TYPE_ID_TO_LDTYPE = {
   "0x8e6": "8e6", "0x9fc": "9fc",
   "0xa4": "a4", "0x1033": "1033",
   "0x5b2": "5b2", "0xa95": "a95",
-  "0x1067": "1067", "0x663": "663", "0x16a0": "16a0",
+  "0x1067": "1067", "0x663": "663", "0x16a0": "16a0", "0xca4": "ca4",
   // Both 0x40a and 0x1be share the HandshakeBlob76 codec.
   "0x40a": "76", "0x1be": "76",
   // subkey_beacon family — all 14 share one ldtype
@@ -2694,6 +2696,40 @@ function setupLiveDecoder() {
           ["state_block            (26 bytes)", hexBytes(buf, 60, 26)],
           ["echoed_blob            (16 bytes)", hexBytes(buf, 86, 16) +
             "  (must match 0x8e6 opaque_blob)"],
+        ];
+      },
+    },
+    "ca4": {
+      // R-direction asset count table: 4 + 16 (uuid) + 1 (count) +
+      // 8*N (records: u8x4 hash_id + u32 BE value) + 1 (trailer).
+      label: "AssetCountTableCA4 (type 0xca4) — count-prefixed (hash_id, value) table",
+      header: [0x00, 0x01, 0xa4, 0x32],
+      minSize: 22,
+      decode(buf) {
+        const count = buf[20];
+        const expectedSize = 21 + 8 * count + 1;
+        if (buf.length !== expectedSize) {
+          throw new Error(`size mismatch: count=${count} declares ${expectedSize} bytes; got ${buf.length}`);
+        }
+        const trailer = buf[buf.length - 1];
+        if (trailer !== 0x01) {
+          throw new Error(`trailer mismatch: expected 0x01, got 0x${trailer.toString(16)}`);
+        }
+        // Build a compact rendering: list all records inline.
+        const recordLines = [];
+        for (let i = 0; i < count; i++) {
+          const off = 21 + 8 * i;
+          const hashId = hexBytes(buf, off, 4);
+          const value = u32be(buf, off + 4);
+          recordLines.push(`${hashId} → ${value}`);
+        }
+        return [
+          ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0xca4)"],
+          ["identity_uuid  (16 bytes)", hexBytes(buf, 4, 16)],
+          ["record_count   (u8)", count.toString()],
+          [`records        (${count} × 8 bytes)`,
+            recordLines.length ? recordLines.join("  ") : "(none)"],
+          ["trailer        (u8)", "0x01  (✓)"],
         ];
       },
     },
