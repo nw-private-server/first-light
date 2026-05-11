@@ -16941,3 +16941,63 @@ patterns are useful structural shapes.
 from 453 (wake 224). +1 new test as planned.
 
 **Blockers:** None.
+
+## Wake 226 — README "Current status" date + gate-2 context refresh
+
+**Goal**: the README's "Current status" header date
+reads **2026-05-05** but the autonomous loop has
+been running since then with meaningful
+infrastructure deltas. A first-time visitor lands
+at the README, reads "2026-05-05", and concludes
+the project is stale. Bump the date and surface the
+phase-2D + counter-advance infrastructure that
+landed since.
+
+**Built**:
+
+- **`README.md`** "Current status" block:
+  - **Date**: "2026-05-05" → "**2026-05-11**".
+  - **Gate-2 row extended**: the original retry-loop
+    description stays intact (that's still the
+    active blocker for the next real-GPU run);
+    appended an "Infrastructure for the next
+    experiment landed since 2026-05-05" sentence
+    surfacing the two feature flags:
+    - `heartbeat_use_dispatcher` (emission swap,
+      wake 204).
+    - `heartbeat_advance_counter` (counter
+      mutation, wake 208).
+  - Both flags described as "default off and proven
+    byte-equivalent to the captured replay path".
+  - Closing: "Real-GPU validation will flip them
+    and observe the retry loop" — concrete next
+    step for whoever does the runtime run.
+
+**Choice: date-only vs date + context?** Date-only
+would be a 1-character change. But the visitor
+landing here cares about the gate-2 status, not the
+date abstractly — a stale date is just a proxy for
+"is the project still moving?". Surfacing the
+post-2026-05-05 infrastructure deltas answers the
+real question.
+
+**Choice: extend gate-2 row vs new section?** New
+section would be more visible but would shift the
+table layout. Inline extension keeps the gate
+status as a one-row-per-gate scan-target.
+
+**Verification**:
+- wake-207 retrospective ↔ README test still passes
+  (link line at README:12 unchanged).
+- wake-225 analysis-path test still passes
+  (no new analysis paths cited from cards).
+- The Current Status block now reads chronologically
+  consistent with what a visitor finds in the linked
+  retrospective (wake 219 deltas + phase-2D
+  narrative).
+
+**No code changes, no test changes**. Tests **454
+passing (+1 skipped)** — unchanged. Pure README
+freshness pass.
+
+**Blockers:** None.

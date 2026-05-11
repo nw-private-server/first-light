@@ -20,12 +20,12 @@ Once the official servers go down, all knowledge of the wire protocol becomes mu
 
 ---
 
-## Current status (2026-05-05)
+## Current status (2026-05-11)
 
 | Gate | Description | Status |
 |------|-------------|--------|
 | 1 | Auth flow (HTTPS / OmniSDK / character creation) | **Complete** |
-| 2 | Javelin REP — DTLS handshake + V3 registration | **V3 response accepted by client; `rep.ready` flips 0→1; client then re-sends V3 every ~500ms anyway and the session is destroyed after ~30s. That retry loop is the active blocker.** |
+| 2 | Javelin REP — DTLS handshake + V3 registration | **V3 response accepted by client; `rep.ready` flips 0→1; client then re-sends V3 every ~500ms anyway and the session is destroyed after ~30s. That retry loop is the active blocker.** Infrastructure for the next experiment landed since 2026-05-05: the rep_responder ↔ central-dispatcher integration arc is shipped behind two feature flags (`heartbeat_use_dispatcher` for emission swap, `heartbeat_advance_counter` for counter mutation), both default off and proven byte-equivalent to the captured replay path. Real-GPU validation will flip them and observe the retry loop. |
 | 3 | World streaming (post-registration server messages) | Not started |
 | 4 | Input / movement / actor replication | Not started |
 

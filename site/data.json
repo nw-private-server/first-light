@@ -28362,6 +28362,12 @@
       "test_count": 454,
       "commit": "d8423ad",
       "subject": "test(site): 16th cross-check \u2014 coverage chart's last entry matches badge"
+    },
+    {
+      "wake": null,
+      "test_count": 455,
+      "commit": "ac66903",
+      "subject": "test(site): 17th cross-check \u2014 analysis-doc paths in Findings prose exist"
     }
   ],
   "live_decoder_history": [
@@ -28945,6 +28951,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 226,
+      "title": "README \"Current status\" date + gate-2 context refresh",
+      "line": 16945,
+      "category": "docs"
+    },
+    {
       "wake": 225,
       "title": "17th cross-check: analysis-doc paths in Findings prose must exist",
       "line": 16866,
@@ -28973,12 +28985,6 @@
       "title": "0x065c decision document (90% is the floor by design)",
       "line": 16500,
       "category": "other"
-    },
-    {
-      "wake": 220,
-      "title": "README retrospective summary + retrospective doc deltas refresh",
-      "line": 16427,
-      "category": "docs"
     }
   ],
   "live_decoder_coverage": {
