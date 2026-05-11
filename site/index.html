@@ -383,6 +383,76 @@ main { padding: 16px; max-width: 1100px; margin: 0 auto; }
   color: var(--accent);
 }
 
+/* Live decoder */
+.live-decoder {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.ld-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.ld-row select {
+  flex: 1;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 13px;
+}
+.ld-decode {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+}
+#ld-hex {
+  width: 100%;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+}
+#ld-hex:focus {
+  outline: 1px solid var(--accent);
+  border-color: var(--accent);
+}
+#ld-result {
+  background: #0a0d12;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin: 8px 0 0;
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre;
+  overflow-x: auto;
+}
+#ld-result.ld-empty { color: var(--text-dim); font-style: italic; }
+#ld-result.ld-ok { color: var(--green); }
+#ld-result.ld-err { color: #f85149; }
+.kbd {
+  font-family: ui-monospace, monospace;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 11px;
+}
+
 /* Byte-pattern playground */
 .bpresult {
   background: var(--surface);
@@ -1342,7 +1412,42 @@ a:hover { text-decoration: underline; }
 </section>
 
 <section class="tab" data-tab="explore">
+
   <details class="faq" open>
+    <summary>Live decoder</summary>
+    <div class="a">
+      Paste a captured message body as hex, pick its wire-type, and
+      see the decoded fields. The parsing runs entirely in your
+      browser — same wire-layout rules as the Python codecs in
+      <code>server/javelin/</code>. Currently supports four simple
+      shapes; click a preset below to populate with a real captured
+      payload. (Press <span class="kbd">Ctrl/Cmd+Enter</span> in the
+      hex box to decode.)
+    </div>
+  </details>
+  <div class="live-decoder">
+    <div class="ld-row">
+      <select id="ld-type">
+        <option value="15d_R">0x15d R — heartbeat ping (12 bytes)</option>
+        <option value="15d_W">0x15d W — heartbeat ack (36 bytes)</option>
+        <option value="14f">0x14f — session_clock beacon (12 bytes)</option>
+        <option value="651">0x651 — empty marker (4 bytes)</option>
+      </select>
+      <button id="ld-decode" class="preset-btn ld-decode">Decode</button>
+    </div>
+    <textarea id="ld-hex" rows="3" spellcheck="false"
+      placeholder="Hex bytes (with or without spaces, e.g. 00 01 9d 05 00 03 6e f6 af 91 2d 74)"></textarea>
+    <div class="presets" id="ld-presets">
+      <span class="presets-label">Try a captured payload:</span>
+      <button class="preset-btn" data-ldtype="15d_R" data-ldhex="00019d05 00036ef6 af912d74">0x15d ping</button>
+      <button class="preset-btn" data-ldtype="15d_W" data-ldhex="65c50b2b 0000001c 00000000000000000000000000000000 00019d05 00036ef6 af912d74">0x15d ack</button>
+      <button class="preset-btn" data-ldtype="14f" data-ldhex="00018f05 0b888d68 7b13001a">0x14f clock beacon</button>
+      <button class="preset-btn" data-ldtype="651" data-ldhex="00019119">0x651 empty marker</button>
+    </div>
+    <pre id="ld-result" class="ld-empty">(pick a preset or paste hex and press Decode)</pre>
+  </div>
+
+  <details class="faq" open style="margin-top: 28px;">
     <summary>Byte-pattern search</summary>
     <div class="a">
       Search all 177 captured message bodies for a hex byte pattern.
@@ -1681,6 +1786,182 @@ async function load() {
 
   // ---- Byte-pattern playground ----
   setupBytePatternSearch(data);
+  setupLiveDecoder();
+}
+
+// ---- Live decoder (Explore tab) ----
+//
+// Browser-side ports of the simpler Python codecs in
+// `server/javelin/`. Same wire-layout rules; if Python decodes,
+// JS decodes the same bytes to the same fields.
+function setupLiveDecoder() {
+  const typeSel = document.getElementById("ld-type");
+  const hexBox = document.getElementById("ld-hex");
+  const resultEl = document.getElementById("ld-result");
+  const decodeBtn = document.getElementById("ld-decode");
+  if (!typeSel || !hexBox || !resultEl || !decodeBtn) return;
+
+  function parseHex(raw) {
+    const cleaned = raw.toLowerCase().replace(/\s+/g, "");
+    if (!cleaned) return null;
+    if (!/^[0-9a-f]+$/.test(cleaned)) {
+      throw new Error("Non-hex character in input (allowed: 0-9, a-f, whitespace).");
+    }
+    if (cleaned.length % 2 !== 0) {
+      throw new Error(`Odd-length hex (${cleaned.length} chars) — must be byte-pairs.`);
+    }
+    const out = new Uint8Array(cleaned.length / 2);
+    for (let i = 0; i < out.length; i++) {
+      out[i] = parseInt(cleaned.substr(i * 2, 2), 16);
+    }
+    return out;
+  }
+
+  function u32be(buf, off) {
+    return (
+      (buf[off] * 0x1000000) +
+      (buf[off + 1] << 16) +
+      (buf[off + 2] << 8) +
+      buf[off + 3]
+    ) >>> 0;
+  }
+  function hexBytes(buf, off, len) {
+    let s = "";
+    for (let i = 0; i < len; i++) {
+      s += buf[off + i].toString(16).padStart(2, "0");
+    }
+    return s;
+  }
+  function hex0x(n) { return "0x" + (n >>> 0).toString(16); }
+
+  const DECODERS = {
+    "15d_R": {
+      label: "HeartbeatPing15D (type 0x15d, R direction)",
+      header: [0x00, 0x01, 0x9d, 0x05],
+      size: 12,
+      decode(buf) {
+        return [
+          ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x15d)"],
+          ["counter (u32 BE)", hex0x(u32be(buf, 4)) + "  (= " + u32be(buf, 4) + ")"],
+          ["nonce   (u32 BE)", hex0x(u32be(buf, 8))],
+        ];
+      },
+    },
+    "15d_W": {
+      label: "HeartbeatAck15D (type 0x15d, W direction)",
+      header: null,
+      size: 36,
+      decode(buf) {
+        const remaining = u32be(buf, 4);
+        if (remaining !== 0x1c) {
+          throw new Error(`remaining_len must be 0x1c; got ${hex0x(remaining)}`);
+        }
+        for (let i = 8; i < 24; i++) {
+          if (buf[i] !== 0) {
+            throw new Error(`padding non-zero at +${i.toString(16)} (byte 0x${buf[i].toString(16)})`);
+          }
+        }
+        const innerHdr = hexBytes(buf, 24, 4);
+        if (innerHdr !== "00019d05") {
+          throw new Error(`echoed_ping type header mismatch: expected 00019d05, got ${innerHdr}`);
+        }
+        return [
+          ["client_hash      (4 bytes)", "0x" + hexBytes(buf, 0, 4)],
+          ["remaining_len    (u32 BE)", hex0x(remaining) + "  (✓)"],
+          ["padding          (16 bytes)", "all zero  (✓)"],
+          ["echoed_ping.TYPE_HEADER", "0x" + hexBytes(buf, 24, 4) + "  (type 0x15d)"],
+          ["echoed_ping.counter", hex0x(u32be(buf, 28)) + "  (= " + u32be(buf, 28) + ")"],
+          ["echoed_ping.nonce", hex0x(u32be(buf, 32))],
+        ];
+      },
+    },
+    "14f": {
+      label: "SessionClockBeacon (type 0x14f)",
+      header: [0x00, 0x01, 0x8f, 0x05],
+      size: 12,
+      decode(buf) {
+        return [
+          ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x14f)"],
+          ["session_clock (u32 BE)", hex0x(u32be(buf, 4))],
+          ["nonce         (u32 BE)", hex0x(u32be(buf, 8))],
+        ];
+      },
+    },
+    "651": {
+      label: "EmptyMarker651 (type 0x651)",
+      header: [0x00, 0x01, 0x91, 0x19],
+      size: 4,
+      decode(buf) {
+        return [["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x651, zero payload)"]];
+      },
+    },
+  };
+
+  function run() {
+    resultEl.classList.remove("ld-empty", "ld-ok", "ld-err");
+    let buf;
+    try {
+      buf = parseHex(hexBox.value);
+    } catch (err) {
+      resultEl.textContent = "✗ " + err.message;
+      resultEl.classList.add("ld-err");
+      return;
+    }
+    if (!buf) {
+      resultEl.textContent = "(pick a preset or paste hex and press Decode)";
+      resultEl.classList.add("ld-empty");
+      return;
+    }
+    const dec = DECODERS[typeSel.value];
+    if (!dec) {
+      resultEl.textContent = "✗ unknown wire-type selection";
+      resultEl.classList.add("ld-err");
+      return;
+    }
+    try {
+      if (buf.length !== dec.size) {
+        throw new Error(`expected exactly ${dec.size} bytes; got ${buf.length}`);
+      }
+      if (dec.header) {
+        for (let i = 0; i < 4; i++) {
+          if (buf[i] !== dec.header[i]) {
+            const want = dec.header.map(b => b.toString(16).padStart(2, "0")).join("");
+            throw new Error(`type header mismatch: expected ${want}, got ${hexBytes(buf, 0, 4)}`);
+          }
+        }
+      }
+      const fields = dec.decode(buf);
+      const maxName = Math.max(...fields.map(([k]) => k.length));
+      const lines = [dec.label, ""];
+      for (const [k, v] of fields) {
+        lines.push("  " + k.padEnd(maxName, " ") + "  =  " + v);
+      }
+      resultEl.textContent = lines.join("\n");
+      resultEl.classList.add("ld-ok");
+    } catch (err) {
+      resultEl.textContent = "✗ " + err.message;
+      resultEl.classList.add("ld-err");
+    }
+  }
+
+  decodeBtn.addEventListener("click", run);
+  hexBox.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      run();
+    }
+  });
+
+  const presets = document.getElementById("ld-presets");
+  if (presets) {
+    presets.addEventListener("click", (ev) => {
+      const btn = ev.target.closest(".preset-btn");
+      if (!btn || !btn.dataset.ldtype) return;
+      typeSel.value = btn.dataset.ldtype;
+      hexBox.value = btn.dataset.ldhex;
+      run();
+    });
+  }
 }
 
 function setupBytePatternSearch(data) {

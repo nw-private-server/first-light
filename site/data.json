@@ -27851,6 +27851,12 @@
       "test_count": 347,
       "commit": "dc5799a",
       "subject": "docs(analysis): 150-wake session retrospective"
+    },
+    {
+      "wake": null,
+      "test_count": 347,
+      "commit": "5935962",
+      "subject": "feat(site): group analysis docs by category on Findings tab"
     }
   ],
   "wire_type_families": [

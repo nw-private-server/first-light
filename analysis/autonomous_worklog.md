@@ -11998,3 +11998,69 @@ older worklog entry; the actual count has drifted upward across
 recent wakes).
 
 **Blockers:** None.
+
+## Wake 152 — inline live-decoder on Explore tab
+
+**Goal**: open-item #3 from the wake-150 retrospective. The
+Explore tab had a byte-pattern search but no way to actually
+decode a captured payload visually — visitors had to clone the
+repo and run `tools/decode_message.py` for that. Port the
+simpler Python codecs to JS so the decode is fully in-browser.
+
+**Built**:
+
+- `site/index.html`:
+  - New "Live decoder" panel above byte-pattern search:
+    type-id dropdown (4 options — `0x15d` ping, `0x15d`
+    ack, `0x14f` clock beacon, `0x651` empty marker), hex
+    textarea, Decode button, result block, and 4 preset
+    buttons that drop a real captured payload into the
+    box and run the decoder.
+  - `setupLiveDecoder()`: parses the hex, validates length
+    + type-header, runs the matching `DECODERS[]` entry,
+    and renders an aligned-key field list. Errors surface
+    inline in red (`✗ remaining_len must be 0x1c…`); a
+    successful decode renders in green.
+  - JS port of the codecs:
+    - **`0x15d` R** (12 bytes): TYPE_HEADER →
+      `counter (u32 BE)` → `nonce (u32 BE)`.
+    - **`0x15d` W** (36 bytes): `client_hash (4)` →
+      `remaining_len (u32 BE = 0x1c)` → 16-zero pad →
+      echoed_ping (inner 12-byte ping).
+    - **`0x14f`** (12 bytes): TYPE_HEADER →
+      `session_clock` → `nonce`.
+    - **`0x651`** (4 bytes): TYPE_HEADER only, zero
+      payload.
+  - CSS: `.live-decoder`, `.ld-row`, `#ld-hex`,
+    `#ld-result.ld-{empty,ok,err}` (green/red theming),
+    plus a `.kbd` style for the `Ctrl+Enter` hint.
+
+**Wire-layout fidelity**: each JS decoder mirrors the matching
+Python codec's `decode()` byte-for-byte — same offsets, same
+big-endian width, same header-check semantics. Validated
+against the four preset captures:
+
+| Preset | Hex | JS output |
+|---|---|---|
+| 0x15d ping | `00019d05 00036ef6 af912d74` | counter=0x36ef6, nonce=0xaf912d74 |
+| 0x15d ack | `65c50b2b 0000001c …pad… 00019d05 00036ef6 af912d74` | client_hash=65c50b2b, echoed_ping.counter=0x36ef6 |
+| 0x14f clock | `00018f05 0b888d68 7b13001a` | session_clock=0x0b888d68, nonce=0x7b13001a |
+| 0x651 empty | `00019119` | (zero payload) |
+
+The byte-pattern search preset handler and the live-decoder
+preset handler share the `.preset-btn` CSS class but are
+scoped to `#bytepattern-presets` / `#ld-presets`
+respectively — no event-listener collision.
+
+**Result**: visitors can paste arbitrary 4-, 12-, or 36-byte
+hex into the dashboard and see exactly which codec field each
+byte slot maps to, with the same error messages the Python
+codec would raise. The presets give a one-click on-ramp for
+the four shipped types. No backend dependency — works on a
+static Pages deploy.
+
+**No code changes** to `server/`. Tests still 374 (+1 skipped).
+Site rebuild went from 386,233 → 386,363 bytes (no data
+changes; just the index.html UI delta is what matters).
+
+**Blockers:** None.
