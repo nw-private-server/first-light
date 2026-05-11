@@ -281,10 +281,16 @@ level descriptor. The complete state-advance chain past gate-2
 needs `SelfIdent` (10→11→12, since 11→12 uses inverted substate
 predicate on the same `wrapper[+0xa0]` field that 10→11 already
 set to 2) and *some* 12→13 trigger (LevelInfoChanged direct-force,
-OR this soft-writer + a tick). State 13 → 14 (entering InGame) is
-still TBD — `wrapper[+0x252]` is its gate but the writer scan
-(`FindOffsetWrites 0x252 0x1`, see worklog A4.2) found no clean
-single-writer; that may be a register-based or memcpy write.
+OR this soft-writer + a tick). **State 13 → 14 (entering InGame)
+gate writer is RE'd at wake 247**: `FUN_142ffbc50` writes
+`wrapper[+0x252]` after walking `wrapper[+0x1b8..+0x1c0]`. Wake
+249 decompiled its 5 callers — all local state-update handlers
+that copy a 0x70-stride collection from an upstream container
+into `wrapper[+0x1b8]`. Wake 252 traced the upstream and hit an
+indirect-vtable wall at `0x14816cec0`, so identifying the
+specific wire-type for the replica-creation message that lands
+in the collection is runtime-dependent (likely GridMate
+`NewProxy`). See [`state_13_14_writer_investigation.md`](state_13_14_writer_investigation.md).
 
 The phase-2D + counter-advance infrastructure shipped at wakes
 204/208 gets the heartbeat path going; this next-step server-
@@ -421,7 +427,7 @@ must send **one** message after V3 RegistrationResponse:
 | A2.7 | Are there sibling lifecycle handlers besides ConnectionSuccess (Failed, Closed, Lost)? | not started |
 | A2.9 | What's the dispatch table layout at `0x14abcc15c` that picks `FUN_146454c00`? | partial — static decode hard, runtime is easier |
 | A2.10 | Where is `PlayerManagerRejectedMsg` handler? | partial — not on `GameMessagePort` log channel |
-| A2.11 | Trace logger (`FUN_141721c20`) xrefs — sibling-of-SelfIdent handler hunt | not started |
+| A2.11 | Trace logger (`FUN_141721c20`) xrefs — sibling-of-SelfIdent handler hunt | static-exhausted — 99 callers, no filter pattern surfaces `PlayerManagerRejected`; runtime hook is the practical path |
 | A3.1 | What does `0xFE476177` hash to? | partial — string stripped, runtime needed |
 | A4 | Are there *other* writers of `gc[+0x1530]` outside `FUN_14644a070`? | not started |
 

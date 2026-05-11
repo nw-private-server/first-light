@@ -2324,3 +2324,160 @@ docs that had been quietly wrong since
 wake 267 onward.
 
 **Blockers:** None.
+
+
+## Wake 275 — archive audit pass (catches state-13→14 drift in state_machine_summary)
+
+**Goal**: per wake-274's meta-finding that
+the worklog archive (sealed wake 261)
+contains substantive findings not
+discoverable from narrative docs, audit
+remaining live-doc claims against the
+archive's [x] DONE and [~] PARTIAL entries.
+The wake-274 fix surfaced the wake-8
+destroy-trigger resolution; this wake checks
+whether any other resolved tasks are still
+framed as open in current docs.
+
+**Method**:
+
+1. **List archive [x] DONE entries** —
+   `grep -n "^- \[x\]"
+   analysis/autonomous_worklog_through_253.md`
+   returned ~10 tasks (A1, A2, A2.5–2.8, A3,
+   A4, A4.1, A5).
+2. **List archive [~] PARTIAL entries** —
+   ~4 tasks (A2.9, A2.10, A3.1, A4.2, A4.3,
+   A2.11).
+3. **For each, grep live docs for the cited
+   function name / RVA / question** to check
+   surface status.
+4. **Look for stale TBD / "not started" /
+   "still open" markers** across live
+   analysis docs.
+
+**Findings**:
+
+✓ **Most archive [x] tasks are properly
+surfaced** in current docs:
+- A2.5 (writers of `wrapper[+0xa0]`) →
+  state_machine_summary § 1 + Findings card.
+- A3 (destroy trigger) → fixed wake 274.
+- A4 (FUN_14645fd70 xrefs + state-name
+  table) → state_machine_summary § 2.
+- A4.1 (state-12 gate writer FUN_145a9fa00 +
+  caller FUN_14645c660) →
+  state_machine_summary § 4½ + Findings card.
+
+✗ **One substantive drift found**:
+`state_machine_summary.md:285` (§ 4½ closing
+paragraph) said "State 13 → 14 (entering
+InGame) is still TBD — `wrapper[+0x252]` is
+its gate but the writer scan
+(`FindOffsetWrites 0x252 0x1`, see worklog
+A4.2) found no clean single-writer; that may
+be a register-based or memcpy write." But
+wake 247 resolved this — writer is
+`FUN_142ffbc50` walking
+`wrapper[+0x1b8..+0x1c0]`. The "still TBD"
+prose was left over from before wake 247.
+
+Drift was NOT caught by:
+- Wake-225 cross-check (analysis-path
+  existence in Findings prose) — this is a
+  state-machine-doc paragraph, not Findings
+  prose.
+- Wake-218 cross-check (manifest wake
+  citations in wake-210 card) — also out of
+  scope.
+- Wake-272 sweep methodology (greps on
+  specific stale strings) — the stale prose
+  doesn't share text patterns with the
+  wake-271 framings.
+
+✓ **Minor consistency fix**: A2.11 entry in
+state_machine_summary's "Open questions"
+table said "not started", but the archive
+records it as "DEFERRED — 99 callers, static
+path exhausted, runtime needed." Updated
+the live table to match archive truth:
+"static-exhausted — 99 callers, no filter
+pattern surfaces PlayerManagerRejected;
+runtime hook is the practical path."
+
+**Built**:
+
+**`analysis/state_machine_summary.md`** — two
+edits:
+
+1. **§ 4½ closing paragraph (line 285)**:
+   replaced the "still TBD" / "writer scan
+   found no clean single-writer" prose with
+   the wake-247/249/252 resolution: writer is
+   `FUN_142ffbc50`, 5 callers decompiled at
+   wake 249 are local state-update handlers
+   copying a 0x70-stride collection from an
+   upstream container; wake 252's upstream
+   trace hit an indirect-vtable wall at
+   `0x14816cec0`. Pointer to
+   `state_13_14_writer_investigation.md`
+   for the full arc.
+
+2. **§ 8 Open questions table, A2.11 row**:
+   "not started" → "static-exhausted — 99
+   callers, no filter pattern surfaces
+   `PlayerManagerRejected`; runtime hook is
+   the practical path" (matches archive's
+   wake-9 DEFERRED status).
+
+**Verification**:
+
+- `.venv/bin/python3 tools/build_site.py` →
+  clean.
+- `pytest server/javelin -q` → **456 passing,
+  1 skipped** — unchanged.
+- All other [x] DONE archive tasks verified
+  to be surfaced correctly in live docs (no
+  additional drift found in this pass).
+
+**Meta-pattern reinforced**: the wake-274
+"cross-doc grep against archive for cited
+'remaining' work" methodology, applied
+proactively, caught one substantive drift
+(state-13→14 TBD framing) that had been
+present since pre-wake-247. This validates
+the archive-audit pattern as a *periodic
+hygiene exercise* — not every wake, but
+worth running every ~50 wakes after
+significant new findings ship.
+
+**Drift age estimate**: the
+state_machine_summary.md "13→14 still TBD"
+prose has been wrong since wake 247
+(2026-05-something). It propagated through
+wakes 247/249/252's findings being shipped
+to the Gate-2 row and Findings cards
+without the § 4½ closing paragraph being
+updated. That's ~25 wakes of stale prose in
+a canonical analysis doc.
+
+**Generalizable principle**: when shipping a
+significant finding (like "the state-13
+writer was identified"), the cross-doc
+grep should include *the previously open
+question's framing* — e.g. grep for "13→14"
++ "TBD" + "writer scan" after shipping a
+13→14 writer finding. The wake-247 commit
+updated the Gate-2 row and added Findings
+cards but didn't touch state_machine_summary
+§ 4½ which had been written with the older
+"TBD" framing in place.
+
+**Cost summary**: 2 file edits in
+`state_machine_summary.md` (§ 4½ paragraph +
+§ 8 A2.11 row). Plus the audit methodology
+notes recorded here. Modest change but
+closes a real drift in the canonical state-
+machine analysis doc.
+
+**Blockers:** None.
