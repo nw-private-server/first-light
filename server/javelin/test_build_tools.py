@@ -21,6 +21,7 @@ from tools.build_site import (  # noqa: E402
     load_findings,
     load_recent_wakes,
     load_live_decoder_coverage,
+    _coverage_badge_color,
     CATEGORY_ORDER,
     FINDINGS_CATEGORY_ORDER,
     LDTYPE_TO_TYPE_IDS,
@@ -389,6 +390,56 @@ def test_findings_linkify_map_matches_build_site_coverage_map():
             f"entry in JS TYPE_ID_TO_LDTYPE — the Findings linkify will "
             f"silently skip this type"
         )
+
+
+def test_coverage_badge_color_thresholds():
+    """Wake 201 invariant. The wake-195 live-decoder shields badge
+    uses 4 color steps tied to fixed percentage thresholds: ≥80%
+    brightgreen, ≥60% blue, ≥40% yellow, else orange. A future tweak
+    to the function body (e.g. a typo in the threshold or a
+    different palette) would silently change the visual progression
+    on the README badge. Pin the 4 thresholds explicitly so any
+    such tweak fails here.
+
+    Walks the percentage range with values that bracket each
+    threshold from both sides — 0/39/40/41/59/60/61/79/80/81/100 —
+    and asserts each falls in the expected bucket.
+    """
+    # Below the 40% threshold → orange.
+    for pct in (0, 1, 25, 39, 39.99):
+        assert _coverage_badge_color(pct) == "orange", f"{pct}% should be orange"
+    # 40-59% → yellow.
+    for pct in (40, 40.5, 50, 59, 59.99):
+        assert _coverage_badge_color(pct) == "yellow", f"{pct}% should be yellow"
+    # 60-79% → blue.
+    for pct in (60, 65, 70, 79, 79.99):
+        assert _coverage_badge_color(pct) == "blue", f"{pct}% should be blue"
+    # 80% and above → brightgreen.
+    for pct in (80, 85, 90, 99, 100):
+        assert _coverage_badge_color(pct) == "brightgreen", f"{pct}% should be brightgreen"
+
+
+def test_current_coverage_badge_matches_data_json():
+    """Wake 201: the live badge JSON (`site/badge-live-decoder.json`)
+    must agree with the color the function picks for the *current*
+    coverage percentage in `site/data.json`. Catches a forgotten
+    rebuild (build_site not re-run after a coverage change) or a
+    map drift that left the badge stale."""
+    import json as _json
+    repo = Path(__file__).resolve().parents[2]
+    data = _json.loads((repo / "site" / "data.json").read_text())
+    cov = data.get("live_decoder_coverage", {})
+    cov_total = cov.get("total", 0)
+    cov_covered = cov.get("covered", 0)
+    cov_pct = (cov_covered / cov_total * 100.0) if cov_total else 0.0
+    expected_color = _coverage_badge_color(cov_pct)
+    badge = _json.loads((repo / "site" / "badge-live-decoder.json").read_text())
+    assert badge.get("color") == expected_color, (
+        f"badge-live-decoder.json color is {badge.get('color')!r} but "
+        f"current coverage {cov_pct:.1f}% should produce {expected_color!r}. "
+        f"Did you forget to run `tools/build_site.py` after a coverage "
+        f"change?"
+    )
 
 
 def test_every_shadow_or_validate_helper_has_a_lockdown_test():

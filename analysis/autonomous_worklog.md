@@ -15155,3 +15155,45 @@ type-name extension).
 passing (+1 skipped)**.
 
 **Blockers:** None.
+
+## Wake 201 — badge-color invariant (2 new tests)
+
+**Goal**: pin the wake-195 live-decoder badge's color-step
+thresholds at the test level. A future tweak to the
+function body (typo'd threshold, different palette, etc.)
+would silently change the visual progression on the README
+badge; the new test catches it.
+
+**Built**:
+
+- **`tools/build_site.py`**: extracted the badge-color
+  logic from `write_badges()` into a new pure helper
+  `_coverage_badge_color(pct: float) -> str`. Same
+  behavior — ≥80% brightgreen / ≥60% blue / ≥40% yellow /
+  else orange. The helper is now importable for testing.
+- **`server/javelin/test_build_tools.py`** (+2 tests):
+  - `test_coverage_badge_color_thresholds` — walks the
+    percentage range with values that bracket each
+    threshold (0, 39, 40, 41, 59, 60, 61, 79, 80, 81,
+    100) and asserts each falls in the expected bucket.
+    A future tweak to a single threshold fails with the
+    specific bracketing value and expected color.
+  - `test_current_coverage_badge_matches_data_json` —
+    end-to-end check: the live badge JSON's color matches
+    what the helper picks for the current data.json
+    coverage. Catches a forgotten `build_site.py` re-run
+    or a stale badge file.
+
+**Tests**: 430 → **432 passing (+1 skipped)**.
+
+**Pattern continuation**: this is the **8th** dashboard
+cross-check test (wakes 162, 166, 172, 178, 184, 185,
+196, **201**). The 201 invariant is similar in shape to
+178 (pins a data relationship) — both watch for
+silent-drift between source-of-truth code and rendered
+output, with precise failure messages.
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.

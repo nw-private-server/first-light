@@ -1324,6 +1324,29 @@ def build_data():
     }
 
 
+def _coverage_badge_color(pct: float) -> str:
+    """Map a coverage percentage to a shields.io badge color.
+
+    The visual progression is intentional: a future contributor's
+    +1-decoder push that crosses a threshold (40, 60, 80) bumps the
+    badge color visibly. Wake-201 invariant test pins these
+    thresholds so a future tweak to the function body fails loudly.
+
+    Thresholds:
+      - ≥80% → brightgreen
+      - ≥60% → blue
+      - ≥40% → yellow
+      - below 40% → orange
+    """
+    if pct >= 80:
+        return "brightgreen"
+    if pct >= 60:
+        return "blue"
+    if pct >= 40:
+        return "yellow"
+    return "orange"
+
+
 def write_badges(data: dict) -> None:
     """Emit shields.io endpoint JSON files for README badges.
 
@@ -1336,14 +1359,8 @@ def write_badges(data: dict) -> None:
     cov = data.get("live_decoder_coverage", {})
     cov_covered = cov.get("covered", 0)
     cov_total = cov.get("total", 0)
-    # Color rule for live-decoder badge: green ≥80%, blue ≥60%, yellow ≥40%, orange below.
     cov_pct = (cov_covered / cov_total * 100.0) if cov_total else 0.0
-    cov_color = (
-        "brightgreen" if cov_pct >= 80 else
-        "blue"        if cov_pct >= 60 else
-        "yellow"      if cov_pct >= 40 else
-        "orange"
-    )
+    cov_color = _coverage_badge_color(cov_pct)
     badges = {
         "tests": {
             "schemaVersion": 1,
