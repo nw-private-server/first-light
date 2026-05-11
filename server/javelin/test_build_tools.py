@@ -281,6 +281,24 @@ def test_load_recent_wakes_returns_newest_first():
         )
 
 
+def test_load_recent_wakes_includes_stable_line_numbers():
+    """Wake 170 added a `line` field so the front-end can deep-link
+    each entry to `?plain=1#L<line>`. Pin: every entry has a
+    positive int line number, and line numbers are monotonically
+    decreasing across the newest-first list (newer wakes appear later
+    in the file so their line number is higher)."""
+    entries = load_recent_wakes(limit=6)
+    lines = [e.get("line") for e in entries]
+    for e in entries:
+        ln = e.get("line")
+        assert isinstance(ln, int) and ln > 0, (
+            f"wake {e.get('wake')} line must be positive int; got {ln}"
+        )
+    assert lines == sorted(lines, reverse=True), (
+        f"line numbers should decrease in newest-first order; got {lines}"
+    )
+
+
 def test_load_recent_wakes_respects_limit():
     assert len(load_recent_wakes(limit=1)) == 1
     assert len(load_recent_wakes(limit=3)) == 3

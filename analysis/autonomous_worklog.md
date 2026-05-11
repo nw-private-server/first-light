@@ -13101,3 +13101,75 @@ skipped). The dashboard's contributor section is unchanged
 in this wake — wake 167 already shipped that.
 
 **Blockers:** None.
+
+## Wake 170 — Recent-activity strip is now deep-linkable
+
+**Goal**: each entry in the wake-168 Recent-activity strip
+was plain text — visitors who clicked through to read more
+landed on the worklog and had to scroll/Ctrl+F to find the
+specific entry. Make each row a deep-link to its worklog
+position so one click takes the visitor straight to the
+relevant section.
+
+**Built**:
+
+- **`tools/build_site.py`**: `load_recent_wakes()` now
+  captures the source-file **line number** alongside `wake`
+  + `title`. Implementation uses `re.finditer` + `bisect`
+  to convert each match's character offset to a 1-based
+  line number cheaply (no extra IO; the worklog text is
+  already read once). Returns
+  `[{wake, title, line}, ...]` newest-first.
+
+- **`site/index.html`**: each Recent-activity row's title is
+  now an anchor wrapping the title text. URL pattern:
+  ```
+  github.com/.../analysis/autonomous_worklog.md?plain=1#L<line>
+  ```
+  The `?plain=1` flag is important — it forces GitHub to
+  render the **raw source view** where `#L<n>` anchors
+  actually work. The rendered-markdown view doesn't honor
+  line anchors at all.
+
+  Line numbers stay stable across commits because the
+  worklog is append-only: an N+1-th wake entry adds lines
+  at the bottom, so older entries' line numbers don't shift.
+
+  Hover styling: dotted accent underline on hover; muted
+  body color at rest. Matches the rest of the dashboard's
+  link treatment.
+
+- **`server/javelin/test_build_tools.py`** (+1 test):
+  `test_load_recent_wakes_includes_stable_line_numbers` —
+  pins two invariants: (1) every entry has a positive
+  integer `line` field, (2) line numbers are monotonically
+  decreasing across the newest-first list (newer wakes
+  appear later in the file so their line number is
+  higher). The second invariant catches the most likely
+  regression: a refactor that loses ordering or
+  miscalculates line offsets.
+
+**Verified output** (six newest-first entries currently
+displayed):
+- wake 169 / line 13055 → CONTRIBUTING.md sync
+- wake 168 / line 13004 → Recent-activity strip
+- wake 167 / line 12950 → contributor ramp-up walkthrough
+- wake 166 / line 12894 → chart annotation + invariant
+- wake 165 / line 12833 → public-API doc polish
+- wake 164 / line 12775 → badge transparency
+
+Tests: 412 → **413 passing (+1 skipped)**.
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial — `data.json` gained ~80 bytes per recent_wakes
+entry.
+
+**Why `?plain=1` instead of slug anchors**: GitHub auto-
+generates heading anchors from markdown `## Title` lines,
+but the slugification rules collapse em-dashes, quotes, and
+other punctuation unpredictably. Line-anchor + plain-view
+is bulletproof and survives any future heading-text edits
+(only the *line number* needs to stay current, and the
+build_site re-run captures that automatically).
+
+**Blockers:** None.

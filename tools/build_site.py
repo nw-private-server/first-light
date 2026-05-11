@@ -299,30 +299,46 @@ def load_test_count():
 
 def load_recent_wakes(limit: int = 6):
     """Tail the autonomous worklog and return the most recent N wake
-    headlines as a list of `{wake, title}` dicts (newest first).
+    headlines as a list of `{wake, title, line}` dicts (newest first).
 
-    Wake-167's "Recent activity" strip on the Overview tab consumes
-    this. Re-runs cheaply (regex over the worklog, no git calls), and
-    stays in sync automatically — every commit that appends a new
-    wake entry refreshes this list on the next build_site run.
+    The "Recent activity" strip on the Overview tab consumes this.
+    Re-runs cheaply (regex over the worklog, no git calls), and stays
+    in sync automatically — every commit that appends a new wake
+    entry refreshes this list on the next build_site run.
+
+    The `line` field (added wake 170) lets the front-end deep-link
+    each entry to the corresponding `?plain=1#L<line>` raw-view on
+    GitHub. Line numbers stay stable across commits because the
+    worklog is append-only.
     """
     worklog = REPO / "analysis" / "autonomous_worklog.md"
     try:
         text = worklog.read_text(errors="replace")
     except OSError:
         return []
-    # Match: `## Wake 167 — title goes here`
-    headers = re.findall(
+    # Match: `## Wake 167 — title goes here`. Capture line numbers
+    # alongside via finditer + manual position-to-line conversion.
+    pattern = re.compile(
         r"^##\s+Wake\s+(\d+)\s+[—-]\s+(.+?)\s*$",
-        text,
         flags=re.MULTILINE,
     )
+    # Pre-compute line offsets so we can convert each match position
+    # to a 1-based line number cheaply.
+    line_starts = [0]
+    for i, ch in enumerate(text):
+        if ch == "\n":
+            line_starts.append(i + 1)
+    import bisect
+    headers = []
+    for m in pattern.finditer(text):
+        line_no = bisect.bisect_right(line_starts, m.start())
+        headers.append((int(m.group(1)), m.group(2), line_no))
     if not headers:
         return []
     # Newest-first means *last in the file*. Take the tail.
     tail = headers[-limit:]
     tail.reverse()
-    return [{"wake": int(n), "title": t} for n, t in tail]
+    return [{"wake": w, "title": t, "line": ln} for w, t, ln in tail]
 
 
 def load_test_count_history():

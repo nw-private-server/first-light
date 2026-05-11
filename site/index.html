@@ -356,6 +356,15 @@ main { padding: 16px; max-width: 1100px; margin: 0 auto; }
   font-size: 12px;
   color: var(--accent);
 }
+.recent-link {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px dotted transparent;
+}
+.recent-link:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
 
 /* Contributor ramp-up cards (wake 167) */
 .contrib-paths {
@@ -1772,14 +1781,22 @@ async function load() {
     safeDraw("test-history", drawTestHistory);
   }
 
-  // ---- Recent activity (wake 168) ----
+  // ---- Recent activity (wake 168, deep-linked wake 170) ----
   const recentEl = document.getElementById("recent-wakes");
   if (recentEl && Array.isArray(data.recent_wakes)) {
+    const baseUrl = "https://github.com/nw-private-server/first-light/blob/claude/vacation-2026-05-06/analysis/autonomous_worklog.md";
     for (const w of data.recent_wakes) {
       const li = document.createElement("li");
+      // Wake 170: link to the raw-view (?plain=1) with line anchor.
+      // The rendered-markdown view doesn't honor `#L<n>` anchors, but
+      // ?plain=1 forces source view where they work. Line numbers
+      // stay stable across commits because the worklog is append-only.
+      const url = w.line
+        ? `${baseUrl}?plain=1#L${w.line}`
+        : baseUrl;
       li.innerHTML =
         `<span class="recent-wake-n">wake ${w.wake}</span> ` +
-        escapeHtml(w.title);
+        `<a href="${url}" target="_blank" rel="noopener" class="recent-link">${escapeHtml(w.title)}</a>`;
       recentEl.appendChild(li);
     }
   }
