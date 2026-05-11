@@ -38,6 +38,7 @@ from server.javelin import (
     level_descriptor_663,
     asset_blob_16a0,
     asset_count_table_ca4,
+    action_history_635,
 )
 
 
@@ -86,6 +87,7 @@ PYTHON_DECODERS = {
     "663":   level_descriptor_663.decode,
     "16a0":  asset_blob_16a0.decode,
     "ca4":   asset_count_table_ca4.decode,
+    "635":   action_history_635.decode,
 }
 
 

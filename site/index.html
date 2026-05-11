@@ -1746,6 +1746,7 @@ a:hover { text-decoration: underline; }
         <option value="663">0x663 — LevelDescriptor (110 bytes)</option>
         <option value="16a0">0x16a0 — AssetBlob Small (153 bytes)</option>
         <option value="ca4">0xca4 — AssetCountTable (22+ bytes, variable records)</option>
+        <option value="635">0x635 W — ActionHistory beacon (93+ bytes, 15-byte history records)</option>
         <option value="5d1">0x5d1 — PlayerManagerSelfIdent (state-10 trigger, 4 or 25+ bytes)</option>
         <option value="subkey">subkey_beacon family — 14 wire-types (44+T bytes)</option>
       </select>
@@ -1779,6 +1780,7 @@ a:hover { text-decoration: underline; }
       <button class="preset-btn" data-ldtype="663" data-ldhex="0001a319 144e6577576f726c645f5669746165457465726e61 1e636f61746c696375652f4e6577576f726c645f5669746165457465726e61 45000000418000004620280046402800 0000000000000000 01010000 9cfa5861781469f2 65030000 000001010100000000c17f9be48f">0x663 level descriptor</button>
       <button class="preset-btn" data-ldtype="16a0" data-ldhex="0001a05a 4c0c0ed6478a69dabf85314bbc4a951a 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 00010008 4974656d506f6f6c 24 41414141414141414141414141414141414141414141414141414141414141414141414141414141 000000000000000bcccccccccccccccccccccccccc">0x16a0 asset blob (small)</button>
       <button class="preset-btn" data-ldtype="ca4" data-ldhex="0001a432 f8cbed57c68b18f4bf85314bbc4a951a 05 aabbccdd 0000002b 11223344 00000006 55667788 00000001 99aabbcc 000000e2 deadbeef 00000518 01">0xca4 asset count table (5 records)</button>
+      <button class="preset-btn" data-ldtype="635" data-ldhex="a24e2975 00000055 1a954abc4b3185bfbe37c3d8592618e0 0001b518 fbde4b9a600d428f bf85314bbc4a951a 00010000 91020600 000101000000000000000001 2007194b 000000ac0f01 01 01 00000001 c0802000808080800300000001">0x635 action history (counter=1, first-send)</button>
     </div>
     <pre id="ld-result" class="ld-empty">(pick a preset or paste hex and press Decode)</pre>
   </div>
@@ -1847,6 +1849,7 @@ const TYPE_ID_TO_LDTYPE = {
   "0xa4": "a4", "0x1033": "1033",
   "0x5b2": "5b2", "0xa95": "a95",
   "0x1067": "1067", "0x663": "663", "0x16a0": "16a0", "0xca4": "ca4",
+  "0x635": "635",
   // Both 0x40a and 0x1be share the HandshakeBlob76 codec.
   "0x40a": "76", "0x1be": "76",
   // subkey_beacon family — all 14 share one ldtype
@@ -2984,6 +2987,82 @@ function setupLiveDecoder() {
           [`flags            (${count} bytes)`,
             preview + (count > 24 ? "…" : "") +
             `  (${ones} ones, ${zeros} zeros, ${count - ones - zeros} other)`],
+        ];
+      },
+    },
+    "635": {
+      // Wire type 0x635 — ActionHistory beacon (W direction). Variable
+      // size: 93 base bytes + 15 bytes per outstanding history record.
+      // Captured 5 times (seq 0x6e..0x72) with counter 1..5 and 0..4
+      // history records each. Decoder validates header offsets (the
+      // TYPE_HEADER lives at +0x18, not 0; this is a full W envelope),
+      // remaining_len = total-8, counter_u8 == counter_u32, and that
+      // (total - 93) is a clean multiple of 15. Surfaces counter, the
+      // first_send flag, history-record counters, and second_id.
+      label: "ActionHistory635 (type 0x635 W) — input/action beacon",
+      header: null,
+      minSize: 93,
+      decode(buf) {
+        const total = buf.length;
+        if (total < 93) {
+          throw new Error(`min size 93; got ${total}`);
+        }
+        const historyArea = total - 93;
+        if (historyArea % 15 !== 0) {
+          throw new Error(`history area must be a multiple of 15; got ${historyArea} bytes`);
+        }
+        const historyCount = historyArea / 15;
+        // remaining_len at +4 must equal total - 8.
+        const remaining = u32be(buf, 4);
+        if (remaining !== total - 8) {
+          throw new Error(`remaining_len mismatch: declared ${hex0x(remaining)}, expected ${hex0x(total - 8)}`);
+        }
+        // TYPE_HEADER at +0x18 must be 00 01 b5 18.
+        const innerHdr = hexBytes(buf, 0x18, 4);
+        if (innerHdr !== "0001b518") {
+          throw new Error(`type header mismatch at +0x18: expected 0001b518, got ${innerHdr}`);
+        }
+        // counter_u8 at +0x4a must equal counter_u32 BE at +0x4c.
+        const counterU8 = buf[0x4a];
+        const counterU32 = u32be(buf, 0x4c);
+        if (counterU8 !== counterU32) {
+          throw new Error(`counter mismatch: u8=${counterU8} vs u32=${counterU32}`);
+        }
+        // const_d at +0x4b must be 0x01.
+        if (buf[0x4b] !== 0x01) {
+          throw new Error(`const_d at +0x4b: expected 0x01, got 0x${buf[0x4b].toString(16)}`);
+        }
+        const firstSendFlag = hexBytes(buf, 0x2c, 4);
+        const firstSendDisplay = firstSendFlag === "00010000"
+          ? "00010000  (first-send)"
+          : firstSendFlag === "00000000" ? "00000000  (subsequent)"
+          : `${firstSendFlag}  (unexpected)`;
+        // Decode each 15-byte history record. They run counter-1,
+        // counter-2, ... in descending order in the captured set.
+        const historyLines = [];
+        for (let i = 0; i < historyCount; i++) {
+          const off = 0x5d + 15 * i;
+          const recCounter = buf[off + 4];
+          historyLines.push(`rec ${i}: counter=${recCounter}  shape=${hexBytes(buf, off, 4)}|${buf[off+4].toString(16).padStart(2,"0")}|${hexBytes(buf, off+5, 10)}`);
+        }
+        return [
+          ["client_hash         (4 bytes)", hexBytes(buf, 0, 4)],
+          ["remaining_len       (u32 BE)", hex0x(remaining) + "  (✓ = total-8)"],
+          ["session_uuid        (16 bytes)", hexBytes(buf, 8, 16)],
+          ["TYPE_HEADER  @+0x18", "0x" + innerHdr + "  (type 0x635)"],
+          ["second_id           (8 bytes)", hexBytes(buf, 0x1c, 8)],
+          ["session_uuid_lower  (8 bytes)", hexBytes(buf, 0x24, 8)],
+          ["first_send_flag     (4 bytes)", firstSendDisplay],
+          ["const_a             (4 bytes)", hexBytes(buf, 0x30, 4)],
+          ["const_b             (12 bytes)", hexBytes(buf, 0x34, 12)],
+          ["second_id_b         (4 bytes)", hexBytes(buf, 0x40, 4)],
+          ["const_c             (6 bytes)", hexBytes(buf, 0x44, 6)],
+          ["counter_u8  @+0x4a", counterU8.toString() + "  (= " + hex0x(counterU8) + ")"],
+          ["const_d     @+0x4b", "0x01  (✓)"],
+          ["counter_u32  (u32 BE)", counterU32.toString() + "  (✓ matches u8)"],
+          ["trailer             (13 bytes)", hexBytes(buf, 0x50, 13)],
+          [`history_records  (${historyCount} × 15 bytes)`,
+            historyLines.length ? historyLines.join("  ") : "(none — counter=1 first-send)"],
         ];
       },
     },

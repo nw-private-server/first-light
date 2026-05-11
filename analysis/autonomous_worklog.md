@@ -15917,3 +15917,86 @@ across all nine.
 skipped)**. Site rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 213 — 0x635 ActionHistory live decoder (coverage 34→35)
+
+**Goal**: 0x635 ActionHistory was the most complex of
+the 6 uncovered captured wire-types (per wake-200
+Findings card). Variable-size W-direction beacon —
+93 base bytes + 15 per outstanding history record.
+Python codec exists since wake 78 era; the missing
+piece was the JS DECODER + dropdown wiring. Add it
+and push live-decoder coverage from 34/40 (85%) to
+35/40 (87.5%).
+
+**Built**:
+
+- **`tools/build_site.py`**: added `"635": {0x635}`
+  to `LDTYPE_TO_TYPE_IDS`.
+- **`site/index.html`**:
+  - **`TYPE_ID_TO_LDTYPE`**: added `"0x635": "635"`.
+  - **Dropdown option**: "0x635 W — ActionHistory
+    beacon (93+ bytes, 15-byte history records)".
+  - **Preset button** with the captured `seq 0x6e`
+    hex (counter=1, first-send variant, 0 history
+    records, 93 bytes). Real captured bytes pulled
+    from `action_history_635.py` self-test.
+  - **DECODER entry** (~70 lines): validates
+    `minSize >= 93`, `(total - 93) % 15 == 0`,
+    `remaining_len == total - 8`, `TYPE_HEADER` at
+    +0x18, `counter_u8 == counter_u32`, `const_d ==
+    0x01` at +0x4b. Surfaces 16 fields including
+    first_send flag interpretation
+    (`00010000` = first-send, `00000000` = subsequent)
+    and decodes each 15-byte history record showing
+    its embedded counter.
+- **`server/javelin/test_live_decoder_presets.py`**:
+  registered `action_history_635.decode` in
+  `PYTHON_DECODERS` so the wake-172 preset hex
+  round-trip cross-check accepts the new preset.
+
+**Verification**:
+- wake-178 JS↔Python LDTYPE map sync: passes (the
+  cross-check fires on every build; mismatch would
+  fail loudly).
+- wake-172 preset hex round-trip: passes (the captured
+  0x6e bytes decode cleanly through the Python codec
+  exactly as the JS decoder does).
+- wake-185 preset coverage: passes (every covered
+  ldtype, including `635`, now has at least one
+  preset button).
+- Live-decoder coverage badge: **35/40 (87.5%)** —
+  up from 34/40 (85%).
+- 4 captured 0x635 variants (seq 0x6f..0x72 with
+  counter 2..5 and 1..4 history records) decode
+  through the same path — the JS decoder handles
+  variable history-area length automatically via the
+  `(total - 93) % 15` check.
+
+**Remaining uncovered** (per wake-200 Findings card):
+0x0003 (encoder-only), 0x0008 (meta-codec), 0x0013
+(encoder-only), 0x065c (complex variable-records),
+0x12f6 (complex). Three of the five are structurally
+unable to be live-decoder-tested without
+infrastructure changes; the remaining two (0x065c
+and 0x12f6) are candidates for future wakes.
+
+**Note on the wake-200 Findings card prose drift**:
+the wake-200 card explicitly listed 0x0635 as one of
+the 6 uncovered with the reason "complex variable-
+length history-record stream — codec exists at Python
+side but the per-record state semantics aren't
+self-evident enough to render without speculation."
+This wake fulfills the codec adoption — the per-record
+state is rendered as raw hex shape since the semantics
+remain conjectural (the per-record 80 80 80 80 03 00
+00 00 01 pattern is constant across the captured set).
+The wake-200 card's prose will be one wake-fresh out
+of date until a future wake updates it.
+
+**No code changes** to `server/javelin/` codecs —
+existing wake-78 era `action_history_635.py` was used
+as-is. Tests **449 passing (+1 skipped)** —
+unchanged. Coverage delta is the value here.
+
+**Blockers:** None.
