@@ -15628,3 +15628,72 @@ as a fallback if the real-GPU run uncovers anything
 surprising.
 
 **Blockers:** None.
+
+## Wake 209 — 11th cross-check: phase-2 arc Findings card pair consistency
+
+**Goal**: two Findings cards narrate the rep_responder ↔
+dispatcher integration arc — one keyed to wake 188
+(the foundation, "a future wake can flip the switch")
+and one keyed to wake 204 (the closure, "shipped behind
+a feature flag"). They reference the same 5-step arc
+(wakes 157, 158, 187, 188, 204), and they will drift if
+a future maintainer edits one without updating the
+other. Pin the invariant with the 11th cross-check test.
+
+**Built**:
+
+- **`server/javelin/test_build_tools.py`**: new test
+  `test_phase2_arc_findings_card_pair_consistent`:
+  - Loads both cards via `load_findings()`.
+  - Asserts the wake-188 card mentions wakes 157, 158,
+    187, 188 (foundation scope).
+  - Asserts the wake-204 card mentions all of the above
+    plus 204 (closure superset).
+  - Asymmetric: foundation card need not mention the
+    closure wake (the closure didn't narratively exist
+    when the foundation was written).
+  - Case-insensitive `\b[Ww]ake N\b` regex — handles both
+    "Wake 157" and "wake 157" forms across the prose.
+  - Docstring explains the drift mode and what counts
+    as foundation vs closure scope.
+  - ~30 lines of test code + 18-line docstring.
+
+**Verification**: passes against current state. Confirmed
+test scope is the right one by inspecting the actual
+card text:
+- wake-188 card uses "Wake 157", "wake 158", "Wake 187",
+  "wake 188" (mixed caps; regex handles both).
+- wake-204 card uses "wake 157", "wake 158", "wake 187",
+  "wake 188", and bolded "**wake 204 actual emission
+  swap**" — all in lowercase.
+
+**Cross-check graph at wake 209**: **11 tests** now —
+adding paired-card consistency to wake 207's set of 10.
+The graph splits naturally:
+- **Code structure**: 162 (parse_sections), 166 (parser
+  coverage), 178 (JS↔Python map sync), 184 (linkify
+  map↔coverage map), 185 (preset coverage), 196
+  (workflow conventions).
+- **Generated output integrity**: 172 (preset hex
+  round-trip), 201 (badge color thresholds), 202
+  (api-ref idempotency).
+- **Doc/navigation drift**: 207 (retrospective ↔ README
+  link), **209 (Findings card pair consistency)**.
+
+The "doc/navigation drift" bucket grew from 1 → 2 with
+this wake. Distinct from the others because failures
+would be invisible in product behavior but degrade
+dashboard or documentation legibility for future
+contributors.
+
+**Pattern note**: this is the **8th** cross-check test
+that doesn't touch product code or generated assets —
+purely structural. The wake-209 test specifically pins
+a story that exists in TWO places (the foundation and
+closure cards); future arcs that grow into 3+ cards
+could extend the same pattern.
+
+**Test count**: **442 passing (+1 skipped)** — up from
+441 (wake 208).
+
+**Blockers:** None.

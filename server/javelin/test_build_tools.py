@@ -626,6 +626,56 @@ def test_every_finding_has_required_render_fields():
 # ---------------------------------------------------------------------------
 
 
+def test_phase2_arc_findings_card_pair_consistent():
+    """11th cross-check (wake 209): the rep_responder ↔ dispatcher
+    integration arc spans 5 wakes (157 inbound shadow, 158 inbound
+    lockdown, 187 outbound probe, 188 outbound lockdown, 204
+    emission swap). Two Findings cards narrate this arc:
+
+      - Keyed to wake 188 — the *foundation* card. Tells the story
+        as of wake 188 ("two-step shadow/validate proof... a future
+        wake can flip the switch"). Narrates the first 4 steps.
+      - Keyed to wake 204 — the *closure* card. Tells the story
+        with the emission swap shipped. Narrates all 5 steps.
+
+    Drift mode: someone edits one card to change a step number,
+    add a step, or rename a wake, but forgets to update the other.
+    Pin the consistency: both cards must reference every wake
+    appropriate to their scope.
+
+    Asymmetric design: the closure card MUST mention every wake the
+    foundation card mentions (it's a superset narrative) plus its
+    own closing wake. The foundation card need not mention the
+    closure (that wake didn't exist when the foundation was
+    written, narratively speaking)."""
+    import re
+    cards = {f["wake"]: f for f in load_findings()}
+    foundation_arc = [157, 158, 187, 188]
+    closure_arc = foundation_arc + [204]
+    foundation = cards.get(188)
+    closure = cards.get(204)
+    assert foundation is not None, (
+        "expected a Findings card keyed to wake 188 (phase-2 foundation)"
+    )
+    assert closure is not None, (
+        "expected a Findings card keyed to wake 204 (phase-2 closure)"
+    )
+    # Case-insensitive "wake NNN" match. Catches both "Wake 157" and
+    # "wake 157" forms used across the two summaries.
+    for wake in foundation_arc:
+        pattern = re.compile(rf"\b[Ww]ake {wake}\b")
+        assert pattern.search(foundation["summary"]), (
+            f"foundation card (wake 188) summary missing reference "
+            f"to wake {wake} — phase-2 arc has drifted between cards"
+        )
+    for wake in closure_arc:
+        pattern = re.compile(rf"\b[Ww]ake {wake}\b")
+        assert pattern.search(closure["summary"]), (
+            f"closure card (wake 204) summary missing reference "
+            f"to wake {wake} — phase-2 arc has drifted between cards"
+        )
+
+
 def test_every_retrospective_doc_has_readme_entry():
     """Structural drift mode: someone writes a new
     `analysis/session_retrospective_*.md` but forgets to link it from
