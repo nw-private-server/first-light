@@ -2481,3 +2481,166 @@ closes a real drift in the canonical state-
 machine analysis doc.
 
 **Blockers:** None.
+
+
+## Wake 276 — V3 send-scheduler hunt (external-review-driven pivot)
+
+**Goal**: external review (delivered between
+wakes 275 and 276) reframed the V3 retry
+question as "what predicate cancels the next
+V3 send?", not "what does rep.ready=1 mean?".
+Their strongest concrete suggestion: hunt the
+V3 *send scheduler* statically — find the
+function that arms the ~500ms retry interval,
+and decompile its "done" predicate. If
+findable, that predicate is the boolean we
+need to satisfy server-side.
+
+**Method**: classic call-chain hunt from the
+known V3 RegistrationRequest builder
+(`FUN_146b66820`) upward.
+
+**Findings**:
+
+1. **`FUN_146b66820`** (V3 builder, already
+   RE'd at connection_lifecycle_decompiles.md
+   line 46) constructs `RegistrationRequestV3Msg`
+   in memory.
+
+2. **`FUN_146aaa130`** (`clientconnectionmsg_sender`)
+   is the V3 sender wrapper. Returns `200`
+   on success (logs "ClientConnectionMsg sent")
+   or `400` on missing character_id ("Missing
+   character id"). Single direct caller found:
+   `FUN_146b11020` at instruction `146b11047`.
+   Also one DATA xref at `14ac102d4` (= a
+   vtable slot).
+
+3. **`FUN_146b11020`** (decompiled at this wake)
+   is a **3-line dispatch shim**:
+   ```c
+   uVar1 = FUN_140fe8e30(local_20, param_3);
+   FUN_146aaa130(param_1 + 8, param_2, uVar1);
+   return param_2;
+   ```
+   No retry logic. No state check. Just
+   deserializes param_3 and forwards.
+
+4. **`FUN_146b11020` xrefs**: **0 direct calls,
+   2 DATA xrefs from `14858b2b0`**. The shim
+   is reachable ONLY through a vtable.
+
+5. **Vtable `14858b2b0`** is a **16-entry RPC
+   interface vtable** with `FUN_146b11020` at
+   slot [0]. The other 15 slots contain
+   `FUN_146b13380`, `FUN_146b10110`,
+   `FUN_14046dc90`, ..., all in the
+   `0x146axxxxx`-`0x146bxxxxx` range
+   (REPClient region). This is a GridMate RPC
+   binding (likely `RpcBindInterface` or
+   similar AzCore-style RPC binding pattern).
+
+**Conclusion (negative result, with positive
+implication)**: the V3 send path **walls at the
+same indirect-vtable pattern as the wake-252
+state-13→14 upstream trace**. The retry loop
+is NOT inline in any function reachable by
+direct call-chain traversal from `FUN_146aaa130`
+— it's invoked through an RPC binding the
+client itself drives via its own state.
+
+**This validates the external review's
+prediction** that runtime tracing is the path:
+the "registration watchdog" they hypothesized
+exists, but it's behind the vtable wall.
+Hooking the vtable slot dispatch (or
+`FUN_146aaa130` directly) at runtime would
+identify the calling state-machine; static-RE
+cannot.
+
+**What this DOESN'T close**: the external
+review's suggestion to **brute-force `0xFE476177`
+against the O3DE public source corpus**
+remains a tractable static-RE thread that's
+been incompletely tried. Wake 9's attempt used
+~65 hand-picked names against zlib CRC32; the
+review correctly notes (a) AzCore uses its own
+CRC32 polynomial, not zlib's, and (b) the
+right corpus is `AZ_CRC` / `Crc32(...)` /
+`AZ_CRC_CE` callsites in O3DE source, not
+hand-picked names. That's a future wake's
+work — needs O3DE checkout + AzCore Crc32
+algorithm extraction + bulk computation.
+
+**Built**:
+
+- `analysis/decomp_FUN_146b11020_v3_caller.txt`
+  — the 3-line shim decomp.
+- `analysis/xrefs_FUN_146aaa130_v3_sender.txt`
+  — xref dump showing single direct caller.
+- `analysis/xrefs_FUN_146b11020.txt` — xref
+  dump showing only DATA refs from vtable.
+- `analysis/vtable_dump_14858b2b0.txt` — 16-
+  entry vtable contents.
+
+**Verification**:
+
+- `.venv/bin/python3 tools/build_site.py` →
+  not run (no doc changes; pure analysis
+  artifacts).
+- `pytest server/javelin -q` → unchanged
+  (no code changes).
+
+**Pattern note**: this is now the **second
+static-RE thread that hits the indirect-
+vtable wall** (first was wake 252 on
+state-13→14 upstream). Pattern: RPC-message
+dispatch and timer-driven state machines both
+use vtable indirection in AzCore/GridMate
+patterns, so any "what calls this" hunt that
+needs to cross the message-dispatch boundary
+hits this wall. **Generalizable**: for this
+codebase, static-RE on call paths above a
+vtable boundary is not productive without
+either (a) the vtable's full RTTI/typeinfo
+to recover the interface type, or (b)
+runtime tracing.
+
+**Cost summary**: 4 small Ghidra runs
+(FindXrefs × 2, HeadlessDecompile × 1,
+DumpVtable × 1), 4 analysis artifacts saved.
+No doc updates beyond this worklog entry —
+the wake-271 README/CONTRIBUTING framing
+("real-GPU host with Frida is the single
+highest-leverage unblocker") is reinforced
+by this finding rather than changed.
+
+**Forward implications for the loop**:
+
+1. The destroy-trigger writer hunt is closed
+   (wake 274 surfacing).
+2. The state-13→14 question is closed at
+   static-RE limit (wake 252).
+3. The V3 send-scheduler hunt is now also at
+   the static-RE limit (this wake).
+4. The remaining tractable static-RE thread
+   is the O3DE corpus brute-force for
+   `0xFE476177` — that's a future wake.
+5. Runtime trace on a real-GPU host with
+   Frida resolves the V3-retry root cause
+   (predicate of the registration watchdog),
+   the NewProxy wire-type ID (state-13→14),
+   and the `0xFE476177` event name —
+   **three blockers resolved by one
+   experiment**.
+
+**External-review value confirmed**: the
+review's reframing of "two registered
+concepts" (REP/V3 parser accepts vs login/
+session coordinator considers complete) is
+consistent with this finding — the
+registration watchdog is in the "session
+coordinator" layer that the REP-level
+rep.ready=1 doesn't satisfy.
+
+**Blockers:** None.

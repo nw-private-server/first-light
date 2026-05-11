@@ -5,7 +5,7 @@
     "codec_module_count": 36,
     "captured_type_count": 40,
     "registry_entry_count": 3487,
-    "decompile_count": 46,
+    "decompile_count": 47,
     "named_captured_types": 5
   },
   "captured_types": [
@@ -955,6 +955,15 @@
           "label": "wrapper setter decompiles"
         }
       ]
+    },
+    {
+      "name": "FUN_146b11020",
+      "addr": "146b11020",
+      "stem": "decomp_FUN_146b11020_v3_caller",
+      "lines": 13,
+      "size_bytes": 273,
+      "signature": "undefined8 FUN_146b11020(longlong param_1,undefined8 param_2,undefined8 param_3)",
+      "related": []
     },
     {
       "name": "FUN_146c60830",
@@ -28818,6 +28827,12 @@
       "test_count": 457,
       "commit": "b64ccf6",
       "subject": "docs: wake-274 \u2014 destroy-trigger framing fix, surfaces buried wake-8 resolution"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "d23b14e",
+      "subject": "docs(analysis): wake-275 \u2014 archive audit pass, fix state-13\u219214 \"still TBD\" drift"
     }
   ],
   "live_decoder_history": [
@@ -29422,6 +29437,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 276,
+      "title": "V3 send-scheduler hunt (external-review-driven pivot)",
+      "line": 2486,
+      "category": "other"
+    },
+    {
       "wake": 275,
       "title": "archive audit pass (catches state-13\u219214 drift in state_machine_summary)",
       "line": 2329,
@@ -29450,12 +29471,6 @@
       "title": "README \"What the project needs most right now\" rewrite",
       "line": 1702,
       "category": "docs"
-    },
-    {
-      "wake": 270,
-      "title": "4-genre Findings card audit (caught wake-228 broken cross-link)",
-      "line": 1578,
-      "category": "site"
     }
   ],
   "live_decoder_coverage": {
