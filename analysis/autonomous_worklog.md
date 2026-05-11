@@ -15280,3 +15280,93 @@ the Findings tab; this only surfaces them in the README
 top-of-file).
 
 **Blockers:** None.
+
+## Wake 204 — phase-2D: actual heartbeat emission swap (feature-flagged off)
+
+**Goal**: the wake-187/188 work proved the dispatcher
+encoder produces byte-identical heartbeat output to the
+captured replay bytes. Time to ship the actual emission
+swap — gated behind a feature flag (default off) so it
+adds zero observable behavior change in the default
+configuration. A future operator can flip the flag and
+get dispatcher-encoded heartbeats; the captured-replay
+path remains the safe default until a real-GPU host
+validates the swap end-to-end.
+
+**Built**:
+
+- **`server/rep_responder.py`**:
+  - **`heartbeat_use_dispatcher: bool = False`** — new
+    PeerSession field. Default preserves wake-203 behavior
+    exactly. Flip to True to enable the phase-2D path.
+  - **`_heartbeat_decoded` cache**: the wake-187 startup
+    probe now also stores the decoded heartbeat object as
+    a side effect on the success path. The phase-2D
+    emission path consumes it without re-running decode
+    each tick.
+  - **`_send_dispatched_heartbeat()`** — new method,
+    called from `_pump_replay` when the flag is on.
+    Re-encodes the cached decoded heartbeat via
+    `dispatch.encode_replay_message(0x15d, decoded)`,
+    rebuilds a `ReplayMessage` with the fresh body via
+    `dataclass.replace`, and routes it through the
+    existing `_send_replay_message` path (preserving
+    seq/channel/envelope handling).
+  - **First-send INFO log**: the first dispatched
+    heartbeat logs at INFO level so an operator knows the
+    swap took effect; subsequent heartbeats log at DEBUG
+    (avoiding log flood).
+  - **Runtime-failure fallback**: if the dispatcher's
+    encode raises at runtime, the path logs a WARN and
+    falls back to the captured-replay path. The responder
+    keeps emitting; a bug in the dispatcher can't take
+    down the heartbeat stream.
+
+- **`server/javelin/test_heartbeat_encode_validate.py`** —
+  3 new tests (joining the existing 8):
+  - `test_phase2d_dispatched_emission_byte_identical_to_replay`
+    end-to-end: with the flag on, the bytes passed to
+    `_send_replay_message` equal the captured replay
+    bytes. The wake-187/188 wire-format equality is now
+    plumbed through the actual emission call site.
+  - `test_phase2d_dispatched_emission_logs_first_send_at_info`
+    — first call → INFO; second call → DEBUG.
+  - `test_phase2d_dispatched_emission_falls_back_on_encode_failure`
+    — patches the dispatcher's encoder to raise; asserts
+    the WARN log fires, the fallback runs with the original
+    captured-replay bytes, and the responder doesn't
+    propagate the exception.
+
+- **Tests**: 434 → **437 passing (+1 skipped)**.
+
+**Phase-2 arc complete** (rep_responder ↔ dispatcher
+integration):
+1. ✓ Wake 157: inbound shadow decode (logging-only).
+2. ✓ Wake 158: 9-test lockdown of inbound shadow.
+3. ✓ Wake 187: outbound encode-validation probe
+   (logging-only).
+4. ✓ Wake 188: 8-test lockdown of outbound probe.
+5. ✓ **Wake 204: actual emission swap behind feature flag
+   (default off), 3 lockdown tests for the dispatched
+   path.**
+
+**What's still in front of this**:
+- Real-GPU host validation: flip the flag, observe
+  whether the client still accepts the heartbeats. The
+  wire-format equality is byte-proven, but client-side
+  validation (e.g. monotonic counter checks) could
+  surface a subtle bug.
+- Counter-advance: future wake mutates `decoded.counter`
+  / `decoded.nonce` between sends to make heartbeats
+  actually advance (closer to real server behavior).
+  The wake-188 mismatch-path test already exists; that
+  test would fail if a counter mismatch surfaces.
+
+**No runtime behavior change in the default
+configuration**. The captured-replay path stays the
+default. Flipping the flag is a single constructor
+override; the operator-visible signal is the
+`[phase-2D] first dispatcher-encoded heartbeat sent`
+INFO line.
+
+**Blockers:** None.

@@ -170,6 +170,18 @@ class PeerSession:
         self.post_replay_heartbeat_ms = 500
         self._heartbeat_msg: ReplayMessage | None = None
         self._next_heartbeat_at: float = 0.0
+        # Wake 204 phase-2D: when True, the heartbeat emission path
+        # generates fresh bytes via `dispatch.encode_replay_message`
+        # instead of replaying `_heartbeat_msg.body`. Defaults to
+        # False (current behavior unchanged). The wake-187/188 startup
+        # probe + lockdown tests proved the dispatcher path produces
+        # byte-identical output for the cached heartbeat, so flipping
+        # this flag should be observable only via the [phase-2D] log
+        # line announcing the source. Future wakes can extend the
+        # dispatched path to advance the counter/nonce per-emission.
+        self.heartbeat_use_dispatcher = False
+        self._heartbeat_decoded: object | None = None
+        self._heartbeat_dispatched_count: int = 0
         self.handshake_done = False
         self.out_seq = 0  # outbound Carrier-envelope sequence number
         # Per-channel outbound sequence + reliable-sequence counters. GridMate
@@ -429,6 +441,9 @@ class PeerSession:
                 f"heartbeat ({len(roundtripped)} bytes) — emission-path swap "
                 f"would be safe."
             )
+            # Wake 204: cache the decoded heartbeat so the phase-2D
+            # path can re-encode without re-running decode each tick.
+            self._heartbeat_decoded = decoded
         else:
             # Diff the first differing offset for diagnosis.
             diff_at = next(
@@ -734,8 +749,64 @@ class PeerSession:
             return
         if now < self._next_heartbeat_at:
             return
-        self._send_replay_message(self._heartbeat_msg, is_heartbeat=True)
+        # Wake 204 phase-2D: choose the heartbeat source.
+        # `heartbeat_use_dispatcher=False` (default) preserves the
+        # existing behavior; True uses the dispatcher path.
+        if (self.heartbeat_use_dispatcher
+                and self._heartbeat_decoded is not None
+                and self._heartbeat_msg.type_id == 0x15d):
+            self._send_dispatched_heartbeat()
+        else:
+            self._send_replay_message(self._heartbeat_msg, is_heartbeat=True)
         self._next_heartbeat_at = now + (self.post_replay_heartbeat_ms / 1000.0)
+
+    def _send_dispatched_heartbeat(self) -> None:
+        """Wake 204 phase-2D: emit a 0x15d heartbeat via the central
+        dispatcher's encoder instead of the captured replay bytes.
+
+        Re-encodes the cached `_heartbeat_decoded` object on each
+        call via `dispatch.encode_replay_message(0x15d, ...)`. Since
+        the cached object's counter/nonce don't change between calls,
+        the encoded bytes are identical across heartbeats and
+        byte-identical to `_heartbeat_msg.body` — proven safe by the
+        wake-187/188 lockdown. A future wake can mutate the
+        decoded object's counter/nonce per-call to make the
+        heartbeats actually advance (closer to real server behavior).
+
+        The first invocation logs at INFO so an operator can see the
+        path switched; subsequent invocations log at debug level only.
+        """
+        try:
+            fresh_body = _dispatch.encode_replay_message(
+                0x15d, self._heartbeat_decoded
+            )
+        except Exception as e:  # noqa: BLE001
+            # Defensive: if the dispatcher path fails at runtime,
+            # fall back to the captured-replay path and log.
+            self.log.warning(
+                f"[phase-2D] dispatcher heartbeat encode failed at runtime: "
+                f"{type(e).__name__}: {e}; falling back to replay bytes"
+            )
+            self._send_replay_message(self._heartbeat_msg, is_heartbeat=True)
+            return
+        # Substitute the fresh body into the cached ReplayMessage for
+        # this emission. The captured ReplayMessage carries the right
+        # seq/channel/direction/etc. metadata; only the body bytes are
+        # being regenerated.
+        from dataclasses import replace as _dc_replace
+        fresh_msg = _dc_replace(self._heartbeat_msg, body=fresh_body)
+        self._heartbeat_dispatched_count += 1
+        if self._heartbeat_dispatched_count == 1:
+            self.log.info(
+                f"[phase-2D] first dispatcher-encoded heartbeat sent "
+                f"({len(fresh_body)} bytes); subsequent heartbeats will "
+                f"use the same path at DEBUG level"
+            )
+        else:
+            self.log.debug(
+                f"[phase-2D] dispatcher heartbeat #{self._heartbeat_dispatched_count}"
+            )
+        self._send_replay_message(fresh_msg, is_heartbeat=True)
 
     def _send_replay_message(self, msg: ReplayMessage, is_heartbeat: bool = False) -> None:
         """Wrap a captured typed-stream body in a Carrier record + envelope.

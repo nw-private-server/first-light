@@ -199,6 +199,78 @@ def test_decoder_returning_none_logs_debug_and_skips():
 # ---------------------------------------------------------------------------
 
 
+def _phase2d_stub(captured_list=None, send_fail=False):
+    """Build a stub-self set up for phase-2D testing: populates
+    `_heartbeat_decoded` via the wake-187 probe + attaches an
+    instance-level `_send_replay_message` mock that records what
+    the dispatched path would emit."""
+    stub = _stub_self(_make_heartbeat_msg())
+    PeerSession._validate_dispatcher_heartbeat_encode_matches(stub)
+    stub.heartbeat_use_dispatcher = True
+    stub._heartbeat_dispatched_count = 0
+    captured_list = captured_list if captured_list is not None else []
+    def fake_send(msg, is_heartbeat=False):
+        captured_list.append((msg.body, is_heartbeat))
+    stub._send_replay_message = fake_send
+    stub._captured = captured_list
+    return stub
+
+
+def test_phase2d_dispatched_emission_byte_identical_to_replay():
+    """Wake 204 phase-2D: with `heartbeat_use_dispatcher=True`, the
+    bytes the responder writes must equal the bytes the
+    `heartbeat_use_dispatcher=False` path would write. Wake-187/188
+    proved the wire-format equality; this confirms
+    `_send_dispatched_heartbeat` plumbs it through to the actual
+    emission call site."""
+    stub = _phase2d_stub()
+    PeerSession._send_dispatched_heartbeat(stub)
+    assert len(stub._captured) == 1
+    body, is_hb = stub._captured[0]
+    assert is_hb is True
+    assert body == CAPTURED_PING_BODY, (
+        f"dispatched-path body {body.hex()} differs from captured "
+        f"replay body {CAPTURED_PING_BODY.hex()}"
+    )
+
+
+def test_phase2d_dispatched_emission_logs_first_send_at_info():
+    """First dispatched heartbeat logs at INFO; subsequent at DEBUG.
+    Gives operators a clear marker in the responder log when the
+    swap takes effect."""
+    stub = _phase2d_stub()
+    PeerSession._send_dispatched_heartbeat(stub)
+    PeerSession._send_dispatched_heartbeat(stub)
+    info = stub._handler.at(logging.INFO)
+    debug = stub._handler.at(logging.DEBUG)
+    assert any("first dispatcher-encoded heartbeat sent" in m for m in info)
+    assert any("dispatcher heartbeat #2" in m for m in debug)
+
+
+def test_phase2d_dispatched_emission_falls_back_on_encode_failure():
+    """If `dispatch.encode_replay_message` raises at runtime, the
+    dispatched path must NOT crash. It must log WARN and fall back
+    to the replay-bytes path."""
+    from unittest.mock import patch
+    from server.javelin import dispatch
+    stub = _phase2d_stub()
+    def crashing_encode(_type_id, _msg):
+        raise RuntimeError("simulated runtime crash")
+    with patch.object(dispatch, "encode_replay_message", crashing_encode):
+        PeerSession._send_dispatched_heartbeat(stub)
+    # The fallback path called `_send_replay_message` once with the
+    # original captured body.
+    assert len(stub._captured) == 1
+    body, _ = stub._captured[0]
+    assert body == CAPTURED_PING_BODY
+    warn = stub._handler.at(logging.WARNING)
+    assert any(
+        "dispatcher heartbeat encode failed at runtime" in m
+        and "falling back to replay bytes" in m
+        for m in warn
+    )
+
+
 def test_probe_never_raises_across_corrupt_bodies():
     """Sweep a few malformed bodies that would each trigger different
     failure modes in the decoder/encoder. All of them must produce a
