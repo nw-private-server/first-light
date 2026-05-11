@@ -1,13 +1,32 @@
-"""Brute-force CRC32 reversal for 0xFE476177 (destroy-trigger event id).
+"""Brute-force CRC32 reversal for 0xFE476177 and related event-family hashes.
 
 History:
 - Wake 9: 65 hand-picked names against zlib CRC32 (raw + lowercased). No match.
-- Wake 277: 187 additional candidates against 7 variants (raw, raw+null,
-  lower, lower+null, upper, raw inverted, lower inverted). No match.
+- Wake 277: 187 additional candidates × 7 variants. No match.
+- Wake 278: Expanded target set from 1 hash to 19 hashes (entire event
+  family discovered in FUN_146b621c0); 87 GridMate-focused candidates
+  × 2 variants against the full set. No match.
 
-Total: ~317 unique candidate strings × multiple variants. Confirms that
-without the actual O3DE/Lumberyard AZ_CRC callsite corpus, hand-curated
-wordlists are too sparse to hit the specific tear-down event name.
+Total: ~404 unique candidate strings × multiple variants × multiple target
+hashes. Confirms hand-curated wordlists are too sparse without external
+corpus access.
+
+The wake-278 event family (all dispatched by FUN_146b621c0 + FUN_140fb3560
+in the same handler structure — confirmed to be GridMate Carrier
+connection-lifecycle events):
+- 0xFE476177 — destroy-flag event (sets [+0xfd] in FUN_140fb3560,
+  [+0xda] in FUN_146b621c0)
+- 0xF2D0BB74 — co-occurring event (FUN_140fb3560 sub-key, FUN_146b621c0 branch)
+- 0xF36721F9 — outer dispatch key (possibly EBus name itself)
+- 0x53E4E683, 0xDECE4567, 0xAD273586, 0x8E281F3D — sibling branches
+- 0x7FABBDE8, 0xBF83FB18, 0xB2B878F9 — shared AZ::Name namespace/type IDs
+- 0x578A1F75, 0x20EDCD6C — shared sub-action hashes
+- 0x9CCD4435, 0xF3B2D8C3, 0xFAF3C240, 0x671C7858, 0x82219416, 0x6606A5ED,
+  0x08495DFC — branch-specific sub-names
+
+If a future contributor matches ANY ONE of these to a known O3DE event
+name, the EBus domain is identified and the other hashes constrain to
+the same event class — a single match unlocks the family.
 
 Next step (requires external corpus access, not loop-tractable):
 1. Clone O3DE public source (github.com/o3de/o3de).

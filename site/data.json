@@ -5,7 +5,7 @@
     "codec_module_count": 36,
     "captured_type_count": 40,
     "registry_entry_count": 3487,
-    "decompile_count": 47,
+    "decompile_count": 48,
     "named_captured_types": 5
   },
   "captured_types": [
@@ -963,6 +963,15 @@
       "lines": 13,
       "size_bytes": 273,
       "signature": "undefined8 FUN_146b11020(longlong param_1,undefined8 param_2,undefined8 param_3)",
+      "related": []
+    },
+    {
+      "name": "FUN_146b621c0",
+      "addr": "146b621c0",
+      "stem": "decomp_FUN_146b621c0_fe476177_2hits",
+      "lines": 221,
+      "size_bytes": 5859,
+      "signature": "void FUN_146b621c0(undefined8 param_1,undefined8 param_2,longlong *param_3,longlong param_4,",
       "related": []
     },
     {
@@ -28839,6 +28848,12 @@
       "test_count": 457,
       "commit": "ad72a46",
       "subject": "re(static): wake-276 \u2014 V3 send-scheduler hunt, hits same indirect-vtable wall as wake 252"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "64ed3d7",
+      "subject": "re(static): wake-277 \u2014 broader CRC32 brute-force for 0xFE476177, exhausted"
     }
   ],
   "live_decoder_history": [
@@ -29443,6 +29458,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 278,
+      "title": "AZ::Name table hunt finds a sibling dispatcher (FUN_146b621c0)",
+      "line": 2785,
+      "category": "other"
+    },
+    {
       "wake": 277,
       "title": "O3DE corpus brute-force attempt for AZ::Crc32(0xFE476177)",
       "line": 2649,
@@ -29471,12 +29492,6 @@
       "title": "snapshot-doc scan (codec_library_overview + integration_status)",
       "line": 2012,
       "category": "code"
-    },
-    {
-      "wake": 272,
-      "title": "parallel-staleness sweep (closes the wake-271 pattern)",
-      "line": 1844,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {

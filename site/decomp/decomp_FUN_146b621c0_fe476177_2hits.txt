@@ -1,0 +1,221 @@
+// FUN_146b621c0 @ 146b621c0
+
+void FUN_146b621c0(undefined8 param_1,undefined8 param_2,longlong *param_3,longlong param_4,
+                  longlong param_5)
+
+{
+  longlong lVar1;
+  char cVar2;
+  undefined **local_68;
+  undefined4 local_60;
+  undefined8 local_5c;
+  undefined2 local_54;
+  undefined1 local_52;
+  undefined **local_50;
+  undefined4 uStack_48;
+  undefined4 uStack_44;
+  undefined4 uStack_40;
+  undefined2 uStack_3c;
+  undefined1 uStack_3a;
+  undefined1 uStack_39;
+  char *local_38;
+  undefined **local_30;
+  undefined4 local_28;
+  undefined8 local_24;
+  undefined2 local_1c;
+  undefined1 local_1a;
+  
+  lVar1 = param_5;
+  if (*(int *)(param_5 + 0x28) == 0x53e4e683) {
+    local_5c = 0;
+    local_54 = 0;
+    local_52 = 0;
+    uStack_44 = 0;
+    uStack_40 = 0;
+    uStack_3c = 0;
+    uStack_3a = 0;
+    local_24 = 0;
+    local_1c = 0;
+    local_1a = 0;
+    local_68 = &PTR_LAB_147ef8d50;
+    local_60 = 0x7fabbde8;
+    local_50 = &PTR_LAB_147ef8d50;
+    uStack_48 = 0xbf83fb18;
+    local_30 = &PTR_LAB_147ef8d50;
+    local_28 = 0x9ccd4435;
+    (**(code **)(*param_3 + 0x360))(param_3,&local_30,&local_50,&local_68);
+    local_30 = &PTR_LAB_147ef8d50;
+    local_24 = 0;
+    local_1c = 0;
+    local_1a = 0;
+    local_28 = 0x53e4e683;
+    (**(code **)(*param_3 + 0x628))(param_3,&local_30);
+    local_30 = &PTR_LAB_147ef8d50;
+    local_24 = 0;
+    local_1c = 0;
+    local_1a = 0;
+    local_28 = 0x8495dfc;
+    cVar2 = (**(code **)(*param_3 + 0x3d0))(param_3,&local_30);
+    if (cVar2 == '\0') {
+      local_24 = 0;
+      local_1c = 0;
+      local_1a = 0;
+      uStack_40 = 0;
+      uStack_3c = 0;
+      uStack_3a = 0;
+      uStack_39 = 0;
+      local_50 = (undefined **)0x0;
+      uStack_48 = 0;
+      uStack_44 = 0;
+      local_38 = "AZStd::allocator";
+      local_30 = &PTR_LAB_147ef8d50;
+      local_28 = 0x8495dfc;
+      (**(code **)(*param_3 + 0x3b8))(param_3,&local_30,0,0,&local_50,0);
+    }
+  }
+  if (*(int *)(lVar1 + 0x28) == -0x2131ba99) {
+    local_24 = 0;
+    local_1c = 0;
+    local_1a = 0;
+    uStack_44 = 0;
+    uStack_40 = 0;
+    uStack_3c = 0;
+    uStack_3a = 0;
+    local_5c = 0;
+    local_54 = 0;
+    local_52 = 0;
+    local_30 = &PTR_LAB_147ef8d50;
+    local_28 = 0x7fabbde8;
+    local_50 = &PTR_LAB_147ef8d50;
+    uStack_48 = 0xbf83fb18;
+    local_68 = &PTR_LAB_147ef8d50;
+    local_60 = 0xf3b2d8c3;
+    (**(code **)(*param_3 + 0x360))(param_3,&local_68,&local_50,&local_30);
+    local_30 = &PTR_LAB_147ef8d50;
+    local_24 = 0;
+    local_1c = 0;
+    local_1a = 0;
+    local_28 = 0xdece4567;
+    (**(code **)(*param_3 + 0x628))(param_3,&local_30);
+    local_30 = &PTR_LAB_147ef8d50;
+    local_24 = 0;
+    local_1c = 0;
+    local_1a = 0;
+    local_28 = 0xfaf3c240;
+    cVar2 = (**(code **)(*param_3 + 0x3d0))(param_3,&local_30);
+    if (cVar2 == '\0') {
+      local_24 = 0;
+      local_1c = 0;
+      local_1a = 0;
+      uStack_40 = 0;
+      uStack_3c = 0;
+      uStack_3a = 0;
+      uStack_39 = 0;
+      local_50 = (undefined **)0x0;
+      uStack_48 = 0;
+      uStack_44 = 0;
+      local_38 = "AZStd::allocator";
+      local_30 = &PTR_LAB_147ef8d50;
+      local_28 = 0xfaf3c240;
+      (**(code **)(*param_3 + 0x3b8))(param_3,&local_30,0,0,&local_50,0);
+    }
+  }
+  if (*(int *)(lVar1 + 0x28) == -0x52d8ca7a) {
+    *(undefined1 *)(param_4 + 0xd9) = 1;
+    local_24 = 0;
+    local_1c = 0;
+    local_1a = 0;
+    local_30 = &PTR_LAB_147ef8d50;
+    local_28 = 0xad273586;
+    (**(code **)(*param_3 + 0x628))(param_3,&local_30);
+  }
+  if (*(int *)(lVar1 + 0x28) == -0xd2f448c) {
+    local_24 = 0;
+    local_1c = 0;
+    local_1a = 0;
+    uStack_44 = 0;
+    uStack_40 = 0;
+    uStack_3c = 0;
+    uStack_3a = 0;
+    local_5c = 0;
+    local_54 = 0;
+    local_52 = 0;
+    local_30 = &PTR_LAB_147ef8d50;
+    local_28 = 0xb2b878f9;
+    local_50 = &PTR_LAB_147ef8d50;
+    uStack_48 = 0xbf83fb18;
+    local_68 = &PTR_LAB_147ef8d50;
+    local_60 = 0x671c7858;
+    (**(code **)(*param_3 + 0x360))(param_3,&local_68,&local_50,&local_30);
+    local_24 = 0;
+    local_1c = 0;
+    local_1a = 0;
+    uStack_40 = 0;
+    uStack_3c = 0;
+    uStack_3a = 0;
+    uStack_39 = 0;
+    local_50 = (undefined **)0x0;
+    uStack_48 = 0;
+    uStack_44 = 0;
+    local_38 = "AZStd::allocator";
+    local_30 = &PTR_LAB_147ef8d50;
+    local_28 = 0x6606a5ed;
+    (**(code **)(*param_3 + 0x3b8))(param_3,&local_30,0,0,&local_50,0);
+    param_5._0_4_ = 1;
+    local_24 = 0;
+    local_1c = 0;
+    local_1a = 0;
+    local_30 = &PTR_LAB_147ef8d50;
+    local_28 = 0x578a1f75;
+    (**(code **)(*param_3 + 0x398))(param_3,&local_30,&param_5,0,1);
+    param_5._0_4_ = 1;
+    local_24 = 0;
+    local_1c = 0;
+    local_1a = 0;
+    local_30 = &PTR_LAB_147ef8d50;
+    local_28 = 0x20edcd6c;
+    (**(code **)(*param_3 + 0x398))(param_3,&local_30,&param_5,0,1);
+    local_30 = &PTR_LAB_147ef8d50;
+    local_24 = 0;
+    local_1c = 0;
+    local_1a = 0;
+    local_28 = 0xf2d0bb74;
+    (**(code **)(*param_3 + 0x628))(param_3,&local_30);
+  }
+  if (*(int *)(lVar1 + 0x28) == -0x1b89e89) {
+    *(undefined1 *)(param_4 + 0xda) = 1;
+    local_24 = 0;
+    local_1c = 0;
+    local_1a = 0;
+    local_30 = &PTR_LAB_147ef8d50;
+    local_28 = 0xfe476177;
+    (**(code **)(*param_3 + 0x628))(param_3,&local_30);
+  }
+  if (*(int *)(lVar1 + 0x28) == -0x71d7e0c3) {
+    local_24 = 0;
+    local_1c = 0;
+    local_1a = 0;
+    uStack_44 = 0;
+    uStack_40 = 0;
+    uStack_3c = 0;
+    uStack_3a = 0;
+    local_5c = 0;
+    local_54 = 0;
+    local_52 = 0;
+    local_30 = &PTR_LAB_147ef8d50;
+    local_28 = 0xb2b878f9;
+    local_50 = &PTR_LAB_147ef8d50;
+    uStack_48 = 0xbf83fb18;
+    local_68 = &PTR_LAB_147ef8d50;
+    local_60 = 0x82219416;
+    (**(code **)(*param_3 + 0x360))(param_3,&local_68,&local_50,&local_30);
+    local_30 = &PTR_LAB_147ef8d50;
+    local_24 = 0;
+    local_1c = 0;
+    local_1a = 0;
+    local_28 = 0x8e281f3d;
+    (**(code **)(*param_3 + 0x628))(param_3,&local_30);
+  }
+  return;
+}
+

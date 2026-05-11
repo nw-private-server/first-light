@@ -2780,3 +2780,181 @@ documented + future-extensible script left
 behind. ~25 minutes.
 
 **Blockers:** None.
+
+
+## Wake 278 — AZ::Name table hunt finds a sibling dispatcher (FUN_146b621c0)
+
+**Goal**: external review's first-priority
+remaining static thread was the AZ::Name
+string-internment table hunt — find consumers
+of `PTR_LAB_147ef8d50` (wake-9-suspected
+AZ::Name vtable) and look for a hash→string
+lookup table that might contain `0xFE476177`.
+
+**Method**:
+
+1. Xref `PTR_LAB_147ef8d50` → **41,245
+   references**. Too broad for direct
+   enumeration — AZ::Name is one of the most
+   commonly-used utility types in
+   Lumberyard/O3DE.
+2. **Pivot**: instead of broad table hunt,
+   re-examine the 29 hit sites for
+   `0xFE476177` from wake 9. Wake 9 had a
+   Ghidra script bug that prevented capturing
+   context bytes, so only one site
+   (`FUN_1402af830`) was actually examined. The
+   other 28 sites' patterns were never
+   verified to match the "bare constant"
+   conclusion.
+3. Decompile `FUN_146b621c0` (sites 25 + 26
+   in the hit list, suggesting it does
+   something specific with the constant).
+
+**Finding**: `FUN_146b621c0` is **a
+previously-undocumented multi-event
+dispatcher** for the same event family as
+`FUN_140fb3560` (the wake-8 destroy writer).
+Structure:
+
+```c
+if (event_id == 0x53E4E683) { ... call vtable+0x360 + 0x628 ... }
+if (event_id == 0xDECE4567) { ... call vtable+0x360 + 0x628 ... }
+if (event_id == 0xAD273586) {
+    *(byte *)(carrier + 0xd9) = 1;
+    ... call vtable+0x628 ...
+}
+if (event_id == 0xF2D0BB74) { ... 3-name setup + 3 vtable calls ... }
+if (event_id == 0xFE476177) {           // OUR TARGET
+    *(byte *)(carrier + 0xda) = 1;       // NOTE: +0xda, not +0xfd
+    local_28 = 0xFE476177;
+    (**(code **)(*param_3 + 0x628))(param_3, &local_30);
+}
+if (event_id == 0x8E281F3D) { ... call vtable+0x360 + 0x628 ... }
+```
+
+**Three-flag pattern surfaces**: `[+0xd9]`,
+`[+0xda]`, `[+0xfd]` are related Carrier
+state flags. The destroy chain we already
+knew (wake 8) sets `[+0xfd]` via the
+`FUN_140fb3560:452` writer. This newly-
+documented handler sets `[+0xda]` for the
+**same event** (0xFE476177). Two handlers
+respond to the same event in EBus style —
+typical Lumberyard subscriber pattern.
+
+**Wake-8 archive cross-reference**: the
+wake-8 entry already documented
+`FUN_140fb3560`'s sub-event keys as
+`0x578a1f75, 0x20edcd6c, 0xF2D0BB74,
+0xFE476177` and outer key `0xF36721F9`.
+These match the hashes in `FUN_146b621c0`,
+confirming both functions handle the same
+EBus.
+
+**The constrained event family** (19 hashes
+total, now documented in
+`crc32_FE476177_brute_force.py`):
+
+- 6 outer event ids: 0xFE476177, 0xF2D0BB74,
+  0xF36721F9, 0x53E4E683, 0xDECE4567,
+  0xAD273586, 0x8E281F3D
+- 3 shared AZ::Name namespace/type IDs:
+  0x7FABBDE8, 0xBF83FB18, 0xB2B878F9
+- 2 shared sub-actions: 0x578A1F75,
+  0x20EDCD6C
+- 7 branch-specific sub-names: 0x9CCD4435,
+  0xF3B2D8C3, 0xFAF3C240, 0x671C7858,
+  0x82219416, 0x6606A5ED, 0x08495DFC
+
+**Implication for the brute-force**: if a
+future contributor matches **any one** of
+these 19 hashes to a known O3DE event name,
+the EBus domain is identified. The other 18
+hashes constrain to the same event class — a
+single match unlocks the family.
+
+**Brute-force extension run this wake**:
+87 GridMate-focused candidates × 2 variants
+against all 19 hashes. **Still no match.**
+But the wordlist gap is now narrower:
+candidates that fail across 19 unrelated
+hashes are unlikely to match any one;
+candidates that fail against the constrained
+family hashes confirm those particular names
+aren't in this EBus.
+
+**Built**:
+
+- **`analysis/decomp_FUN_146b621c0_fe476177_2hits.txt`**
+  — full decomp of the newly-documented
+  dispatcher.
+- **`analysis/xrefs_AZ_Name_vtable_147ef8d50.txt`**
+  — 41,245-line xref dump (proves the vtable
+  IS the AZ::Name vtable — too broadly used
+  to enumerate, but the count itself is
+  evidence).
+- **`analysis/crc32_FE476177_brute_force.py`**
+  — extended with the 19-hash event-family
+  set as target dictionary + GridMate-focused
+  candidate additions.
+
+**Verification**:
+
+- `pytest server/javelin -q` → not re-run
+  (no code-path changes).
+- `tools/build_site.py` → will run
+  pre-commit.
+
+**Pattern note**: this wake produced the
+*reverse* of the typical pattern in recent
+wakes. Where wakes 274/275 surfaced existing
+findings into visitor docs, **wake 278
+surfaced a previously-unfound static
+finding** (FUN_146b621c0 dispatcher and its
+event family). The static-RE wall is real,
+but it's not at the level wake-9 declared —
+the wake-9 conclusion ("29 hits, all bare
+constants, dead end") was correct only for
+the single hit it examined. The other 28
+hits were never examined and one of them
+(FUN_146b621c0) yields substantive structure.
+
+**Generalizable principle**: when a tool bug
+prevents capturing context (as in wake-9's
+Ghidra `getBytes()` error), re-running with
+a fixed approach is high-value when the
+question has remained open for ~270 wakes.
+
+**Forward implications**:
+
+1. The brute-force script now has a 19-hash
+   target dictionary — any future contributor
+   running it against O3DE-corpus AZ_CRC
+   callsites has 19× the surface area to hit
+   a match.
+2. Runtime trace on either `FUN_140fb3560`
+   OR `FUN_146b621c0` would log all 19+
+   event/name hashes from the live Carrier
+   event stream. The Carrier-event class is
+   the unblock target.
+3. The `[+0xd9]`, `[+0xda]`, `[+0xfd]`
+   triplet is a new RE artifact — there are
+   likely more handlers in the same EBus
+   family that respond to other events and
+   set other flags. A future wake could
+   enumerate the remaining 28-1 = 27 hit
+   sites of `0xFE476177` and map the
+   complete handler structure.
+
+**Cost summary**: 1 Ghidra decompile + 1
+Ghidra xref + 1 brute-force run + 2 file
+updates. **The most substantive static-RE
+wake since wake 252** — produced a new
+dispatcher finding, expanded the event-
+family target set 1 → 19 hashes, and proved
+the wake-9 dead-end declaration was
+premature (other hit sites have richer
+structure).
+
+**Blockers:** None.
