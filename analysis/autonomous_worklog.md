@@ -15777,3 +15777,72 @@ the work mix at a glance.
 442 (wake 209). +7 tests for the wake-210 work.
 
 **Blockers:** None.
+
+## Wake 211 — Findings card: cross-check test graph as a meta-pattern
+
+**Goal**: 12 cross-check tests now form a structural
+drift safety net across the dashboard + workflow. The
+graph is non-obvious from outside: each test sits in
+its own scope (test_build_tools.py mostly), the
+boundaries between buckets aren't documented anywhere
+discoverable, and the meta-pattern itself ("any
+structural invariant should be a pytest test") isn't
+surfaced. Add a Findings card that captures the graph
+as a single artifact future contributors can read in
+one place.
+
+**Built**:
+
+- **`tools/build_site.py`**: new Findings card in the
+  Research closure cluster (now the **8th** in that
+  bucket — equals the wake-200 "remaining uncovered
+  types" claim as one of the biggest concentrations):
+  - **Title**: "Cross-check test graph: 12 invariants
+    pinning dashboard + workflow drift" (wake 210).
+  - **Three-bucket structure** narrated in prose:
+    - **Code structure** (6 tests: 162, 166, 178,
+      184, 185, 196).
+    - **Generated output integrity** (3 tests: 172,
+      201, 202).
+    - **Doc/navigation drift** (3 tests: 207, 209,
+      210).
+  - **Cost/benefit framing**: ~280 lines total cost
+    for 12 silent failure modes converted to loud
+    pytest failures. Extensible — any future
+    structural invariant becomes test 13.
+  - HTML-escaped `&lt;30 lines` since the summary
+    renders through the same HTML-escape path as
+    other cards.
+
+**Findings tab now**: **16 cards** across 4 categories:
+- **Research closure: 8** (largest bucket): hash
+  ruled out, type-id catalog false lead, audit arcs
+  closed, 80% live-decoder coverage, rep_responder
+  foundation, remaining-6-uncovered, phase-2D swap
+  shipped, **NEW: cross-check graph meta-pattern**.
+- Wire-level finding: 5
+- RE breakthrough: 2
+- Architecture: 1
+
+**Pattern note**: this is the **8th** Findings card
+added since wake-163 categorization shipped (wake 156,
+180, 189, 193, 194, 200, 205, 211). All single dict
+entries; "zero new infrastructure" property holds
+across all eight. The meta-pattern card is unusual
+within Research closure — most cards close out a
+hypothesis or research question; this one captures a
+structural pattern that's still actively growing. As
+the graph extends (test 13, 14, etc.) the card's
+"12 invariants" claim will need updating, but the
+wake-209 paired-card invariant test won't catch this
+drift because it only pins the wake-188/wake-204 pair.
+A future wake could add a self-referential test that
+counts cross-check tests vs. the claim in this card —
+that would close the loop, but adds little value for
+how rarely it'd trigger.
+
+**No code changes**. Tests still **449 passing (+1
+skipped)**. Site rebuild trivial; the new card appears
+on the Findings tab at the next page load.
+
+**Blockers:** None.

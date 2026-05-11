@@ -1449,6 +1449,12 @@
       "summary": "Cross-correlation of the 11 sub_system_ids across captured wire-types: 7 of 11 are shared by multiple message kinds, surfacing in-session sub-system groupings. Notable correlations: 0x18a6\u21940x1a59 (counter-coupled init pair, shared ID f8cbed57c68b18f4), 0x8e6\u21940x9fc (identity blob + receipt echo), 0x1096\u21940x1097 (frame config + spawn-confirmation token), and the 3-way 0x102e+0x1033+0x192c (sub_system_id ce81136a2b7ad33e \u2014 opaque-blob fragmented across three message types). All 7 cards drilldown from the Overview tab's family panel."
     },
     {
+      "title": "Cross-check test graph: 12 invariants pinning dashboard + workflow drift",
+      "category": "Research closure",
+      "wake": 210,
+      "summary": "12 pytest tests now form a structural drift safety net for the dashboard + workflow. Each pins a discrete failure mode that wouldn't surface as a product bug \u2014 silent prose drift, stale generated assets, broken category heuristics \u2014 but would degrade contributor experience or documentation legibility. The graph splits into three buckets: **Code structure** (6 tests: wake 162 `parse_sections`, 166 parser coverage, 178 JS\u2194Python LDTYPE map sync, 184 linkify map \u2194 coverage map, 185 preset coverage, 196 shadow/validate-helper lockdown parity); **Generated output integrity** (3 tests: 172 preset hex round-trip, 201 badge color thresholds, 202 api-ref idempotency + on-disk consistency); **Doc/navigation drift** (3 tests: 207 retrospective \u2194 README link, 209 Findings-card pair consistency, 210 recent-wake category membership). Each test is &lt;30 lines and self-documents the drift mode in its docstring, including a pointer to where the maintainer should fix the regression. Test cost: ~280 lines total. Benefit: 12 silent failure modes converted to loud pytest failures with precise remediation hints. Pattern is extensible \u2014 any future structural invariant becomes test 13."
+    },
+    {
       "title": "Server\u2194client counter pairs",
       "category": "Wire-level finding",
       "wake": 78,
@@ -28260,6 +28266,12 @@
       "test_count": 443,
       "commit": "0051dfa",
       "subject": "test(site): 11th cross-check \u2014 phase-2 arc Findings card pair stays in sync"
+    },
+    {
+      "wake": null,
+      "test_count": 450,
+      "commit": "27b0198",
+      "subject": "feat(site): recent-activity category pills + 12th cross-check"
     }
   ],
   "wire_type_families": [
@@ -28785,6 +28797,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 211,
+      "title": "Findings card: cross-check test graph as a meta-pattern",
+      "line": 15781,
+      "category": "test"
+    },
+    {
       "wake": 210,
       "title": "recent-activity category pills",
       "line": 15701,
@@ -28813,12 +28831,6 @@
       "title": "update wake-197 retrospective with wake-204 swap + post-196 deltas",
       "line": 15431,
       "category": "docs"
-    },
-    {
-      "wake": 205,
-      "title": "Findings card for the phase-2D swap",
-      "line": 15374,
-      "category": "site"
     }
   ],
   "live_decoder_coverage": {
