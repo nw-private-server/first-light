@@ -12701,3 +12701,73 @@ runs: `categorize_doc` (wake 151), `_enrich_families` (wake 159),
 changes — pure test coverage. Site rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 163 — Findings tab auto-categorized into 4 themes
+
+**Goal**: wake 156 brought the curated Findings list to 9
+cards, but they were rendered as a flat scroll. Mirror the
+wake-151 analysis-doc grouping pattern — bucket findings by
+theme so visitors hitting the tab can scan it in seconds.
+
+**Built**:
+
+- **`tools/build_site.py`**:
+  - New `FINDINGS_CATEGORY_ORDER` constant — 4 themes, in
+    intended render sequence:
+    1. **RE breakthrough** — concrete protocol/state-machine
+       advances
+    2. **Wire-level finding** — confirmed wire-format details
+       (CRC, type-id mapping, identity bundles, etc.)
+    3. **Research closure** — negative results / ruled-out
+       hypotheses
+    4. **Architecture** — environment + tooling decisions
+  - Each entry in `load_findings()` grew a `"category"`
+    field. Tagged the 9 shipped cards:
+    - **RE breakthrough (2)**: state-10 gate predicate +
+      trigger (wake 112), type-name extraction limit +
+      unblock spec (wake 97).
+    - **Wire-level finding (4)**: W-direction CRC32 (wake
+      90), wire-type-id == typeIndex (wake 90), cross-codec
+      identity-bundle map (wake 78), server↔client counter
+      pairs (wake 78).
+    - **Research closure (2)**: sub_system_id hash hypothesis
+      ruled out (wake 155), type-id catalog tables are
+      Unicode case-folding (wake 88 — earlier hypothesis
+      ruled out).
+    - **Architecture (1)**: VM-on-Apple-Silicon ruled out
+      (wake 70).
+  - `data.json` now includes `findings_categories` field
+    so the front-end can render in the intended order.
+
+- **`site/index.html`**:
+  - Findings-tab renderer now buckets cards by category,
+    emits a category header (name + count badge) per
+    non-empty group using the existing
+    `.analysis-cat-header` CSS (already in place from
+    wake 151).
+  - Backwards-compatible: if `f.category` is missing
+    (older data.json), defaults to "RE breakthrough".
+
+- **`server/javelin/test_build_tools.py`** (+2 tests):
+  - `test_every_finding_has_a_known_category` — invariant:
+    every shipped finding's category must be in
+    `FINDINGS_CATEGORY_ORDER`. A typo or dropped tag would
+    silently bucket the card under a fallback.
+  - `test_every_finding_has_required_render_fields` —
+    shape check: title / wake / summary all present, wake
+    is int, summary is non-empty.
+
+**Result**: Findings tab now opens with 4 themed groups
+(2 / 4 / 2 / 1 cards). Visitors scanning for "what's the
+big static-RE result?" land on the RE breakthrough section
+first; visitors hunting "what hypotheses got ruled out?"
+go straight to Research closure. The grouping reuses the
+wake-151 analysis-doc-grouping CSS so the visual treatment
+is consistent across the two indexed tabs.
+
+**Tests**: 407 → **409 passing (+1 skipped)** with the 2 new
+invariants. No production-code regression.
+
+**No `server/javelin/` codec changes**. Site rebuild trivial.
+
+**Blockers:** None.

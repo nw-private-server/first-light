@@ -18,7 +18,9 @@ sys.path.insert(0, str(REPO))
 from tools.build_site import (  # noqa: E402
     categorize_doc,
     _enrich_families,
+    load_findings,
     CATEGORY_ORDER,
+    FINDINGS_CATEGORY_ORDER,
 )
 from tools.build_api_reference import (  # noqa: E402
     parse_sections,
@@ -224,3 +226,32 @@ def test_parse_sections_populates_member_names():
         # carried in).
         for n in names:
             assert '"' not in n, f"member name {n!r} carries quote in {heading!r}"
+
+
+# ---------------------------------------------------------------------------
+#  load_findings + FINDINGS_CATEGORY_ORDER (wake 163)
+# ---------------------------------------------------------------------------
+
+
+def test_every_finding_has_a_known_category():
+    """Each curated finding must be tagged with a category that's in
+    FINDINGS_CATEGORY_ORDER so the front-end groups it correctly. A
+    typo or accidentally-dropped tag would silently dump the card
+    under a fallback bucket on the dashboard."""
+    for f in load_findings():
+        assert "category" in f, f"finding {f['title']!r} has no category"
+        assert f["category"] in FINDINGS_CATEGORY_ORDER, (
+            f"finding {f['title']!r} has unknown category {f['category']!r}"
+        )
+
+
+def test_every_finding_has_required_render_fields():
+    """The front-end renders `title`, `wake`, `summary` for each card.
+    Pin the shape so a refactor can't drop one silently."""
+    for f in load_findings():
+        for key in ("title", "wake", "summary"):
+            assert key in f, f"finding {f.get('title', '?')!r} missing {key!r}"
+        assert isinstance(f["wake"], int), (
+            f"finding {f['title']!r} wake must be int; got {type(f['wake'])}"
+        )
+        assert f["summary"], f"finding {f['title']!r} has empty summary"

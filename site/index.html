@@ -1843,16 +1843,34 @@ async function load() {
   }
   setupFilter("decomp-search", decompList.children);
 
-  // ---- Findings ----
+  // ---- Findings (grouped by category, wake 163) ----
   const findingsList = document.getElementById("findings-list");
+  const findingsOrder = data.findings_categories || [
+    "RE breakthrough", "Wire-level finding", "Research closure", "Architecture"];
+  const findingsByCat = new Map(findingsOrder.map(c => [c, []]));
   for (const f of data.findings) {
-    const div = document.createElement("div");
-    div.className = "finding";
-    div.innerHTML = `
-      <h3>${escapeHtml(f.title)} <span class="wake">wake ${f.wake}</span></h3>
-      <p>${escapeHtml(f.summary)}</p>
-    `;
-    findingsList.appendChild(div);
+    const cat = f.category || "RE breakthrough";
+    if (!findingsByCat.has(cat)) findingsByCat.set(cat, []);
+    findingsByCat.get(cat).push(f);
+  }
+  for (const cat of findingsByCat.keys()) {
+    const cards = findingsByCat.get(cat);
+    if (!cards.length) continue;
+    const header = document.createElement("div");
+    header.className = "analysis-cat-header";
+    header.innerHTML =
+      `<span class="cat-name">${escapeHtml(cat)}</span>` +
+      `<span class="cat-count">${cards.length}</span>`;
+    findingsList.appendChild(header);
+    for (const f of cards) {
+      const div = document.createElement("div");
+      div.className = "finding";
+      div.innerHTML = `
+        <h3>${escapeHtml(f.title)} <span class="wake">wake ${f.wake}</span></h3>
+        <p>${escapeHtml(f.summary)}</p>
+      `;
+      findingsList.appendChild(div);
+    }
   }
 
   // ---- Analysis docs index (grouped by category) ----

@@ -1408,46 +1408,55 @@
   "findings": [
     {
       "title": "sub_system_id deterministic-hash hypothesis ruled out",
+      "category": "Research closure",
       "wake": 155,
       "summary": "13 hash families \u00d7 9,470 byte-inputs \u00d7 2 byte-orderings = 246,220 hash invocations checked \u2192 0 matches. xxh3_64, xxh64, mmh3 \u00d73, CRC-64-ECMA all tested on top of the wake-122 FNV/SHA/MD5/CRC32 set. The 11 captured sub_system_ids are not deterministic hashes of any registry name or UUID. Session-scoped allocation is now the strongly-favored remaining hypothesis."
     },
     {
       "title": "State-10 gate predicate + trigger identified",
+      "category": "RE breakthrough",
       "wake": 112,
       "summary": "The state-10 \u2192 11 transition is gated by *(int*)(wrapper+0xa0) == 2 (corrected from the earlier +0x130 hypothesis). The trigger is wire type 0x5d1 (PlayerManagerSelfIdentificationMsg) \u2014 not in the captured replay, so the server must synthesize it. Codec is wire-bound; ready for runtime testing."
     },
     {
       "title": "W-direction CRC32 confirmed",
+      "category": "Wire-level finding",
       "wake": 90,
       "summary": "The 4-byte field at offset 0 of every captured W-direction message is standard zlib CRC32 over (correlation_uuid + envelope), big-endian. Validated 37 of 39 captured W messages."
     },
     {
       "title": "Wire-type-id == typeIndex from runtime registry",
+      "category": "Wire-level finding",
       "wake": 90,
       "summary": "info/typeregistry.json (3487 entries) maps each registered type's typeIndex to (uuid, handler, baseVtable). Verified: typeIndex == wire-format type-id. 6 captured types now have authoritative names."
     },
     {
       "title": "Type-id catalog tables are Unicode case-folding",
+      "category": "Research closure",
       "wake": 88,
       "summary": "An earlier candidate dispatch table at 0x149f41880 turned out to be the binary's Unicode case-folding lookup, NOT a protocol type-id catalog. The 16960-entry size and the 0x40A\u21920x45A (Cyrillic Tshe \u2192 tshe) mappings gave it away."
     },
     {
       "title": "Cross-codec identity-bundle map (11 sub-systems)",
+      "category": "Wire-level finding",
       "wake": 78,
       "summary": "Every captured type's 16-byte identity field decomposes as [sub_system_id:8][session_uuid_lower:8]. 11 distinct sub_system_id values surfaced across the codec library, each tied to a specific message family."
     },
     {
       "title": "Server\u2194client counter pairs",
+      "category": "Wire-level finding",
       "wake": 78,
       "summary": "Four R/W-coupled message pairs documented: 0x18a6\u21940x1a59 (counter-coupled 1\u21922\u21923\u21924), 0x15d ping\u2194ack (verbatim echo), 0x14f R (clock baseline), 0x8e6\u21940x9fc (16-byte hash echo)."
     },
     {
       "title": "VM-on-Apple-Silicon ruled out for runtime testing",
+      "category": "Architecture",
       "wake": 70,
       "summary": "Both UTM and Parallels Desktop fail at GPU detection: paravirtualized GPU presents VendorId=DeviceId=0 to DXGI; the renderer-init rejects. Real-GPU host (AWS g4dn.xlarge or physical Windows) is the next step."
     },
     {
       "title": "Type-name extraction limit + unblock spec",
+      "category": "RE breakthrough",
       "wake": 97,
       "summary": "Static-only methodology recovered 5 confirmed captured-type names (REPClient::*, etc.) and 297 of 312 named registry entries. Pushing past 5 captured names needs runtime data \u2014 see analysis/typename_unblock_spec.md."
     }
@@ -27927,6 +27936,12 @@
       "test_count": 347,
       "commit": "a9a5124",
       "subject": "docs(api): generated public-API reference for server.javelin"
+    },
+    {
+      "wake": null,
+      "test_count": 347,
+      "commit": "76cae3c",
+      "subject": "test(tools): 24 tests pin build_site + build_api_reference helpers (407 total)"
     }
   ],
   "wire_type_families": [
@@ -28436,5 +28451,11 @@
     "RE Finding",
     "Decompile",
     "Audit"
+  ],
+  "findings_categories": [
+    "RE breakthrough",
+    "Wire-level finding",
+    "Research closure",
+    "Architecture"
   ]
 }

@@ -658,12 +658,26 @@ def load_wire_type_families():
     ]
 
 
+FINDINGS_CATEGORY_ORDER = [
+    "RE breakthrough",
+    "Wire-level finding",
+    "Research closure",
+    "Architecture",
+]
+
+
 def load_findings():
     """Pull a curated list of major findings from the worklog (the last
-    few wake entries' headlines)."""
+    few wake entries' headlines).
+
+    Each entry carries a `category` tag for grouping on the Findings
+    tab (wake 163). Categories must be one of
+    `FINDINGS_CATEGORY_ORDER`.
+    """
     return [
         {
             "title": "sub_system_id deterministic-hash hypothesis ruled out",
+            "category": "Research closure",
             "wake": 155,
             "summary": "13 hash families × 9,470 byte-inputs × 2 byte-"
                        "orderings = 246,220 hash invocations checked → 0 "
@@ -676,6 +690,7 @@ def load_findings():
         },
         {
             "title": "State-10 gate predicate + trigger identified",
+            "category": "RE breakthrough",
             "wake": 112,
             "summary": "The state-10 → 11 transition is gated by "
                        "*(int*)(wrapper+0xa0) == 2 (corrected from the "
@@ -687,6 +702,7 @@ def load_findings():
         },
         {
             "title": "W-direction CRC32 confirmed",
+            "category": "Wire-level finding",
             "wake": 90,
             "summary": "The 4-byte field at offset 0 of every captured "
                        "W-direction message is standard zlib CRC32 over "
@@ -695,6 +711,7 @@ def load_findings():
         },
         {
             "title": "Wire-type-id == typeIndex from runtime registry",
+            "category": "Wire-level finding",
             "wake": 90,
             "summary": "info/typeregistry.json (3487 entries) maps each "
                        "registered type's typeIndex to (uuid, handler, "
@@ -703,6 +720,7 @@ def load_findings():
         },
         {
             "title": "Type-id catalog tables are Unicode case-folding",
+            "category": "Research closure",
             "wake": 88,
             "summary": "An earlier candidate dispatch table at 0x149f41880 "
                        "turned out to be the binary's Unicode case-folding "
@@ -712,6 +730,7 @@ def load_findings():
         },
         {
             "title": "Cross-codec identity-bundle map (11 sub-systems)",
+            "category": "Wire-level finding",
             "wake": 78,
             "summary": "Every captured type's 16-byte identity field "
                        "decomposes as [sub_system_id:8][session_uuid_lower:8]. "
@@ -721,6 +740,7 @@ def load_findings():
         },
         {
             "title": "Server↔client counter pairs",
+            "category": "Wire-level finding",
             "wake": 78,
             "summary": "Four R/W-coupled message pairs documented: "
                        "0x18a6↔0x1a59 (counter-coupled 1→2→3→4), "
@@ -729,6 +749,7 @@ def load_findings():
         },
         {
             "title": "VM-on-Apple-Silicon ruled out for runtime testing",
+            "category": "Architecture",
             "wake": 70,
             "summary": "Both UTM and Parallels Desktop fail at GPU "
                        "detection: paravirtualized GPU presents "
@@ -738,6 +759,7 @@ def load_findings():
         },
         {
             "title": "Type-name extraction limit + unblock spec",
+            "category": "RE breakthrough",
             "wake": 97,
             "summary": "Static-only methodology recovered 5 confirmed "
                        "captured-type names (REPClient::*, etc.) and 297 of "
@@ -1041,6 +1063,7 @@ def build_data():
         "decompile_groups": decompile_groups,
         "analysis_docs": analysis_docs,
         "analysis_doc_categories": CATEGORY_ORDER,
+        "findings_categories": FINDINGS_CATEGORY_ORDER,
     }
 
 
