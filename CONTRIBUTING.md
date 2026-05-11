@@ -82,8 +82,8 @@ The Gate-2 retry loop — the client re-sending V3 every ~500ms after our server
 - **State-12→13**: wake 232/234 — `LevelInfoChangedMsg` primary path identified.
 - **State-13→14**: wake 247/249 — writer `FUN_142ffbc50` fires from 5 local handlers; one copies a 0x70-stride collection into `wrapper[+0x1b8]`. Wake 252's upstream trace hit an **indirect-vtable wall at `0x14816cec0`** — the static-RE limit on this question.
 
-Remaining static-RE worth pursuing:
-- **`FUN_146b3c250 + 0x58f`** — the destroy trigger. Find what writes to `[R13+0xfd]` (the byte that fires the session-destroy loop). This may be the V3-retry root cause and is independent of the state-spawn ladder.
+Remaining open RE questions (both gated on real-GPU host + Frida, not on more static analysis):
+- **Destroy-trigger event name (`0xFE476177`)** — `FUN_140fb3560:452` writes `[R13+0xfd]` when an `AZ::Crc32(0xFE476177)` event fires, but the release-build has the source string stripped (wake 8/9). A Frida hook on `FUN_140fb3560` logging the event-id argument structure would identify it.
 - **NewProxy / GridMate replica wire-type identification** — the wake-252 analysis estimates the MVP server-side message set as SelfIdent + LevelInfoChanged + a replica-creation message. The third is currently hypothesized as GridMate `NewProxy`; runtime trace is the natural confirmation.
 
 If you do RE work, drop findings in `analysis/` as a new `.md` file. See [`state_13_14_writer_investigation.md`](analysis/state_13_14_writer_investigation.md) for the candidate-triage methodology used to identify FUN_142ffbc50.

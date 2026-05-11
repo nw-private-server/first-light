@@ -91,10 +91,13 @@ right destroy handler when the connection's
 `destroy_flag_writer` fires (cross-linked from
 `state_machine_summary.md`). Used in the chain that fires when
 the post-V3 state-machine doesn't advance within the timeout
-window. The state-10→11 mechanism itself is RE'd
-(wake 111-112) — the destroy trigger writer
-(`FUN_146b3c250 + 0x58f`) is the remaining open static-RE
-question on this chain (still finds what writes `[R13+0xfd]`).
+window. The state-10→11 mechanism is RE'd (wake 111-112) and the
+destroy-trigger writer is RE'd too (wake 8): `[R13+0xfd]` is a
+skip-timeout-and-flush flag on the GridMate Carrier, with sole
+writer `FUN_140fb3560:452` gated by `AZ::Crc32(0xFE476177)`.
+Static-RE on this chain is therefore complete; identifying the
+specific lifecycle event name behind `0xFE476177` requires a
+runtime trace (release-build stripped the source string).
 
 ## Response handlers (server → client)
 

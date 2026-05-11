@@ -28806,6 +28806,12 @@
       "test_count": 457,
       "commit": "0f90b56",
       "subject": "docs: wake-272 \u2014 parallel-staleness sweep, 4 sibling sites of wake-271 framing"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "34c13c3",
+      "subject": "docs(analysis): wake-273 \u2014 snapshot-doc scan, count + date-stamp drift fixes"
     }
   ],
   "live_decoder_history": [
@@ -29391,7 +29397,7 @@
       "filename": "wrapper_setter_decompiles.md",
       "title": "Wrapper-setter and dispatcher decompiles \u2014 overview",
       "summary": "Companion to `state_machine_summary.md` and `connection_lifecycle_decompiles.md`. Covers the remaining decompile files that didn't fit either of those writeups \u2014 mostly the per-substate wrapper writers, the response-s\u2026",
-      "bytes": 5436,
+      "bytes": 5656,
       "category": "Decompile"
     }
   ],
@@ -29409,6 +29415,12 @@
     "Architecture"
   ],
   "recent_wakes": [
+    {
+      "wake": 274,
+      "title": "destroy-trigger framing fix (catches wake-271/272 self-introduced drift)",
+      "line": 2155,
+      "category": "other"
+    },
     {
       "wake": 273,
       "title": "snapshot-doc scan (codec_library_overview + integration_status)",
@@ -29437,12 +29449,6 @@
       "wake": 269,
       "title": "wake-218 + wake-231 docstring symmetry with wake-225 convention",
       "line": 1466,
-      "category": "other"
-    },
-    {
-      "wake": 268,
-      "title": "Findings-card prose-tail scan (wake-265 hygiene heuristic applied)",
-      "line": 1336,
       "category": "other"
     }
   ],

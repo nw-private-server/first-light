@@ -2150,3 +2150,177 @@ counts + retrospective pointer). Small
 final-wake-of-arc fix.
 
 **Blockers:** None.
+
+
+## Wake 274 — destroy-trigger framing fix (catches wake-271/272 self-introduced drift)
+
+**Goal**: wake-274 menu offered substantive RE
+pivot (option b) to the destroy-trigger writer
+hunt — listed as remaining static-RE in
+README + CONTRIBUTING + wrapper_setter docs.
+Started the pivot by reading prior work in the
+worklog archive **and discovered the hunt was
+already DONE at wake 8 (2026-05-07)**.
+
+The README/CONTRIBUTING/wrapper_setter framings
+of "FUN_146b3c250 + 0x58f as remaining static-
+RE" are **self-introduced drift** that I shipped
+across wakes 267 (CONTRIBUTING section 2 rewrite)
+and 271 (README rewrite), reaffirmed at wake 272
+(wrapper_setter update). At no point in that arc
+did I grep the worklog archive for the function
+name to verify it was actually still open.
+
+This is exactly the cross-doc-grep failure mode
+the wake-272 sweep was meant to prevent — but
+applied to citing closed work as open, rather
+than the more common pattern of citing open work
+as if it were the current blocker.
+
+**Wake-8 finding (resurrected from the
+worklog archive)**:
+- `FUN_146b3c250 + 0x58f` is the **READER** of
+  `[R13+0xfd]` (the spot in
+  `TransportLayerGridMateTickThread` that
+  triggers destroy when the flag is set).
+- The **WRITER** is `FUN_140fb3560:452`.
+- The write is **gated by an event-id of
+  `0xFE476177`** — an `AZ::Crc32` hash whose
+  source string was **stripped from the
+  release build** (29 references to the
+  constant, 0 adjacent string literals).
+- Static-RE is therefore **complete** on this
+  chain. Identifying the specific lifecycle
+  event name behind `0xFE476177` requires a
+  **runtime trace** (Frida hook on
+  `FUN_140fb3560` to log the event-id
+  argument structure).
+- This is documented in
+  `analysis/state_machine_summary.md` at §
+  A3.1, and the wake-8/9 worklog entries in
+  the archive.
+
+**Built**:
+
+**`README.md`** — rewrote "What the project
+needs most right now" item 3:
+- **Was**: "Remaining static-RE worth
+  pursuing. FUN_146b3c250 + 0x58f — find what
+  writes to [R13+0xfd]..."
+- **Now**: "Runtime trace on FUN_140fb3560 to
+  identify the destroy-trigger event name." +
+  full context (writer identified at wake 8,
+  event-id is AZ::Crc32(0xFE476177), release-
+  build stripped the string, Frida hook would
+  resolve, pointer to state_machine_summary
+  § A3.1).
+
+**`CONTRIBUTING.md`** — rewrote "Remaining
+static-RE worth pursuing" → "Remaining open
+RE questions (both gated on real-GPU host +
+Frida, not on more static analysis)":
+- Replaced the "FUN_146b3c250 + 0x58f"
+  bullet with "Destroy-trigger event name
+  (0xFE476177)" — names FUN_140fb3560:452
+  as the writer, frames the Frida hook as
+  the resolution path.
+- Kept the NewProxy/GridMate bullet
+  unchanged (still genuinely runtime-
+  dependent open question).
+
+**`analysis/wrapper_setter_decompiles.md`** —
+rewrote the destroy-chain paragraph:
+- **Was**: "destroy trigger writer
+  (FUN_146b3c250 + 0x58f) is the remaining
+  open static-RE question on this chain"
+  (my wake-272 edit, factually wrong).
+- **Now**: "destroy-trigger writer is RE'd
+  too (wake 8): [R13+0xfd] is a skip-timeout-
+  and-flush flag on GridMate Carrier, with
+  sole writer FUN_140fb3560:452 gated by
+  AZ::Crc32(0xFE476177). Static-RE on this
+  chain is therefore complete."
+
+**Verification**:
+
+- `.venv/bin/python3 tools/build_site.py` →
+  clean.
+- `pytest server/javelin -q` → **456 passing,
+  1 skipped** — unchanged.
+- Cross-doc sweep on `FUN_146b3c250` /
+  `FUN_140fb3560` / `0xFE476177` to verify
+  consistency:
+  - `state_machine_summary.md` has the
+    canonical writeup (wake-8 finding intact
+    + § A3.1 documenting the static-blocked
+    secondary question).
+  - `autonomous_worklog_through_253.md` has
+    the original A3/A3.1 task entries
+    (archive — historical record).
+  - No other docs cite the function names.
+
+**Pattern note (significant)**: this is the
+first time the cross-doc-grep sweep has been
+applied to *closed work* (verifying a cited
+"remaining" task is actually still open),
+not just *open work* (catching parallel stale
+framing of open issues). The wake-272 pattern
+covered the second; **the first is a new
+failure mode**: drift fixes can introduce
+drift by citing already-resolved work as
+open.
+
+**Updated cross-doc-grep methodology**: when
+a drift fix cites a *new* technical task
+(function name, RVA, specific question) as
+"remaining" or "open", also grep the worklog
+archive for the same identifier to verify
+the task hasn't been previously resolved.
+A 1-second grep would have caught this drift
+at wake 267 before it propagated through
+wakes 271 / 272 / 273.
+
+**This is the second worth-recording failure
+mode in the doc-freshness arc** — the first
+was "cross-doc grep needed for parallel
+staleness" (wakes 267/271/272), now the
+second is "cross-doc grep also needed to
+verify currently-cited 'remaining' work
+hasn't been resolved earlier". Both should
+be in any drift-fix wake's pre-commit
+checklist.
+
+**Substantive RE outcome**: the wake-274
+"substantive RE pivot" picked option (b)
+expecting to attempt the destroy-trigger
+writer hunt cold. Instead the wake produced
+a **prior-work-recovery** finding: wake 8's
+resolution had been buried in the archive
+and wasn't surfaced in any visitor-facing
+doc. After this wake, the destroy-trigger
+RE state is correctly reflected across
+README + CONTRIBUTING + wrapper_setter +
+state_machine_summary.
+
+**Meta-finding**: the worklog archive (sealed
+at wake 261) contains substantive findings
+that are *not* discoverable from the
+narrative docs. Visitor-facing prose has
+been catching up — but verification against
+the archive is a missing step in the
+doc-freshness pass. A future wake could
+audit all "remaining static-RE" claims
+against the archive's resolved-task records.
+
+**Cost summary**: 3 file edits (README +
+CONTRIBUTING + wrapper_setter), each
+~6-12 lines. Plus the methodology update
+recorded in the worklog. **This is the
+single most-substantive doc-freshness wake
+of the arc** — surfaced a buried wake-8
+finding to the README's "what the project
+needs most" section, and corrected three
+docs that had been quietly wrong since
+wake 267 onward.
+
+**Blockers:** None.
