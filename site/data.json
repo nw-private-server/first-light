@@ -29070,6 +29070,12 @@
       "test_count": 457,
       "commit": "c33d675",
       "subject": "docs(worklog): wake-299 \u2014 signaling heartbeat"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "a7fbcee",
+      "subject": "docs(worklog): wake-300 \u2014 signaling heartbeat (milestone wake)"
     }
   ],
   "live_decoder_history": [
@@ -29674,6 +29680,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 301,
+      "title": "signaling heartbeat",
+      "line": 5120,
+      "category": "code"
+    },
+    {
       "wake": 300,
       "title": "signaling heartbeat (milestone wake)",
       "line": 5111,
@@ -29702,12 +29714,6 @@
       "title": "signaling heartbeat",
       "line": 5069,
       "category": "code"
-    },
-    {
-      "wake": 295,
-      "title": "loop resumed post-stop (signaling check-in)",
-      "line": 5026,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {

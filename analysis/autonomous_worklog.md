@@ -5115,3 +5115,10 @@ Loop count milestone — 300 wakes since the
 session resumed at wake 254.
 
 **Blockers:** None.
+
+
+## Wake 301 — signaling heartbeat
+
+State unchanged. Codex still pending.
+
+**Blockers:** None.
