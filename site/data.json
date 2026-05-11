@@ -1583,6 +1583,12 @@
       "summary": "19 pytest tests now form a structural drift safety net for the dashboard + workflow. Each pins a discrete failure mode that wouldn't surface as a product bug \u2014 silent prose drift, stale generated assets, broken category heuristics \u2014 but would degrade contributor experience or documentation legibility. The graph splits into three buckets: **Code structure** (8 tests: wake 162 `parse_sections`, 166 parser coverage, 178 JS\u2194Python LDTYPE map sync, 184 linkify map \u2194 coverage map, 185 preset coverage, 196 shadow/validate-helper lockdown parity, 222 manifest wake-numbers unique across buckets, **227 every manifest wake has a referencing test function**); **Generated output integrity** (4 tests: 172 preset hex round-trip, 201 badge color thresholds, 202 api-ref idempotency + on-disk consistency, **224 coverage-chart last-entry matches badge**); **Doc/navigation drift** (7 tests: 207 retrospective \u2194 README link, 209 Findings-card pair consistency, 210 recent-wake category membership, 214 self-referential card-count \u2194 manifest consistency, 218 wake-number citations match manifest, 225 every analysis-doc path cited in a Findings card exists on disk, **231 every decision doc has a README link**). Each test is &lt;30 lines and self-documents the drift mode in its docstring, including a pointer to where the maintainer should fix the regression. Test cost: ~420 lines total. Benefit: 19 silent failure modes converted to loud pytest failures with precise remediation hints. Pattern is extensible \u2014 any future structural invariant becomes test 20; wakes 214 and 218 together enforce that both the count claim AND the wake-number citations here match `CROSS_CHECK_MANIFEST` in `tools/build_site.py`; wake 222 pins the manifest itself against bucket-cross-contamination; wake 224 closes the loop on the wake-223 coverage chart; wake 225 prevents card prose from referencing renamed or deleted analysis files; wake 227 closes the manifest-vs-tests loop; wake 231 extends the wake-207 retrospective-link pattern to decision docs."
     },
     {
+      "title": "Static-RE candidate-triage pattern proven (state-13\u219214 case study)",
+      "category": "Research closure",
+      "wake": 251,
+      "summary": "The state-13 \u2192 14 writer question was deferred for ~10 wakes after the wake-13 FindOffsetWrites scan came up empty. Wake 241 broke the deferral cycle by **shipping a candidate-triage investigation log** instead of trying to find the writer in one wake \u2014 the log enumerated all 18+ candidates from the offset-scan, ranked them into 4 tiers, named the most-likely (`FUN_146c60830` as tier-A), and listed 5 concrete next-step Ghidra actions. **Wake 247 Ghidra session** decompiled both top candidates: tier-A turned out to be a false-positive constructor (zeros the byte, doesn't set it), but tier-B `FUN_142ffbc50` was the writer. **Wake 249 Ghidra session** decompiled all 5 caller xrefs and identified the trigger chain: local replica-system handlers fire when an upstream container at `param_2[+0x7d0]` changes; they copy 0x70-stride entries into the wrapper and re-evaluate the predicate. Reusable pattern: when static-RE on a specific question keeps deferring across wakes, **ship the candidate-triage log first** \u2014 it converts \"I keep deferring this\" into \"the next person with Ghidra access has a 30-minute path to a finding\". Tier-A being a false-positive doesn't invalidate the pattern; it validates triaging multiple candidates rather than betting on one. The wake-241 \u2192 247 \u2192 249 arc spans 3 wakes and produced one writer + one trigger chain \u2014 a rate the deferral-cycle had been blocking. See `analysis/state_13_14_writer_investigation.md` for the full log preserving the wake-241 investigation, wake-247 writer-found, and wake-249 caller-analysis sections."
+    },
+    {
       "title": "Server\u2194client counter pairs",
       "category": "Wire-level finding",
       "wake": 78,
@@ -28640,6 +28646,12 @@
       "test_count": 457,
       "commit": "81b5ada",
       "subject": "re(static): state 13->14 TRIGGER CHAIN identified \u2014 5 callers decomp'd"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "019f8c9",
+      "subject": "docs(site): wake-240 synthesis card \u2014 final wake-249 trigger-chain update"
     }
   ],
   "live_decoder_history": [
@@ -29237,6 +29249,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 251,
+      "title": "Findings card: candidate-triage pattern proven (21st card)",
+      "line": 19168,
+      "category": "site"
+    },
+    {
       "wake": 250,
       "title": "wake-240 synthesis card final update with wake-249 trigger chain",
       "line": 19067,
@@ -29264,12 +29282,6 @@
       "wake": 246,
       "title": "two more snapshot-doc forward-references footers (selfident, hash-search)",
       "line": 18634,
-      "category": "other"
-    },
-    {
-      "wake": 245,
-      "title": "state_10_unblock_synthesis.md forward references",
-      "line": 18552,
       "category": "other"
     }
   ],

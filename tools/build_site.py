@@ -1176,6 +1176,49 @@ def load_findings():
                        "pattern to decision docs.",
         },
         {
+            "title": "Static-RE candidate-triage pattern proven (state-13→14 case study)",
+            "category": "Research closure",
+            "wake": 251,
+            "summary": "The state-13 → 14 writer question was "
+                       "deferred for ~10 wakes after the wake-13 "
+                       "FindOffsetWrites scan came up empty. Wake "
+                       "241 broke the deferral cycle by **shipping a "
+                       "candidate-triage investigation log** instead "
+                       "of trying to find the writer in one wake — "
+                       "the log enumerated all 18+ candidates from "
+                       "the offset-scan, ranked them into 4 tiers, "
+                       "named the most-likely (`FUN_146c60830` as "
+                       "tier-A), and listed 5 concrete next-step "
+                       "Ghidra actions. **Wake 247 Ghidra session** "
+                       "decompiled both top candidates: tier-A turned "
+                       "out to be a false-positive constructor (zeros "
+                       "the byte, doesn't set it), but tier-B "
+                       "`FUN_142ffbc50` was the writer. **Wake 249 "
+                       "Ghidra session** decompiled all 5 caller "
+                       "xrefs and identified the trigger chain: "
+                       "local replica-system handlers fire when an "
+                       "upstream container at `param_2[+0x7d0]` "
+                       "changes; they copy 0x70-stride entries into "
+                       "the wrapper and re-evaluate the predicate. "
+                       "Reusable pattern: when static-RE on a "
+                       "specific question keeps deferring across "
+                       "wakes, **ship the candidate-triage log first** "
+                       "— it converts \"I keep deferring this\" into "
+                       "\"the next person with Ghidra access has a "
+                       "30-minute path to a finding\". Tier-A being "
+                       "a false-positive doesn't invalidate the "
+                       "pattern; it validates triaging multiple "
+                       "candidates rather than betting on one. The "
+                       "wake-241 → 247 → 249 arc spans 3 wakes and "
+                       "produced one writer + one trigger chain — a "
+                       "rate the deferral-cycle had been blocking. "
+                       "See "
+                       "`analysis/state_13_14_writer_investigation.md` "
+                       "for the full log preserving the wake-241 "
+                       "investigation, wake-247 writer-found, and "
+                       "wake-249 caller-analysis sections.",
+        },
+        {
             "title": "Server↔client counter pairs",
             "category": "Wire-level finding",
             "wake": 78,

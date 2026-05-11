@@ -19164,3 +19164,100 @@ foreseeable future.
 synthesis-card drift fix.
 
 **Blockers:** None.
+
+## Wake 251 — Findings card: candidate-triage pattern proven (21st card)
+
+**Goal**: the wake-247 + 249 work produced
+substantive findings (writer + trigger chain). The
+wake-240 synthesis card narrates the RESULT. The
+wake-241 → 247 → 249 arc itself is a reusable **RE
+methodology** — "ship a candidate-triage log when a
+question keeps deferring; then run Ghidra against
+ranked candidates". A separate Findings card can
+surface this pattern without competing with the
+synthesis card.
+
+**Built**:
+
+- **`tools/build_site.py`** new Findings card
+  inserted after the wake-210 meta-pattern card:
+  - **Title**: "Static-RE candidate-triage pattern
+    proven (state-13→14 case study)".
+  - **Category**: Research closure (closes the
+    question "how do we make progress on deferred
+    static-RE work?"). Not RE breakthrough — the
+    actual breakthroughs are already in the wake-247
+    finding + wake-240 synthesis cards. This card
+    documents the METHODOLOGY.
+  - **Wake**: 251.
+  - **Summary** (~350 words): narrates the 3-wake
+    arc with the wake-241 candidate-triage log,
+    wake-247 writer-found Ghidra session
+    (tier-A false-positive → tier-B was the answer),
+    and wake-249 caller-analysis Ghidra session
+    (5 callers decomp'd → trigger chain identified).
+    Calls out the **reusable rule** explicitly:
+    > "when static-RE on a specific question keeps
+    > deferring across wakes, **ship the candidate-
+    > triage log first**".
+  - Cites `state_13_14_writer_investigation.md`
+    as the case-study artifact.
+
+**Findings tab now**: **21 cards**:
+- Research closure: 10 (+1, still the dominant
+  bucket)
+- Wire-level finding: 5
+- RE breakthrough: 4
+- Architecture: 2
+
+**Why a "methodology" Findings card now**:
+- The wake-228 retrospective-skeleton card sets
+  precedent for project-shape Architecture cards.
+- The wake-211 cross-check meta-pattern card sets
+  precedent for "structural pattern" Research-
+  closure cards.
+- This wake's card extends both — it captures a
+  **process pattern** (how to make static-RE
+  progress) that's distinct from a structural
+  pattern (testing infrastructure) or project-shape
+  pattern (retrospective skeleton).
+
+**Verification**:
+- wake-225 (analysis-path existence): card cites
+  `state_13_14_writer_investigation.md` — exists ✓.
+- wake-218 (manifest citation): unaffected.
+- wake-227 (manifest-vs-tests): unaffected.
+- wake-209 (paired card consistency): wake-188 +
+  wake-204 pair untouched.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: 14th Findings card added since
+wake-163 categorization. "Zero new infrastructure"
+property still holds — single dict entry.
+
+**Cross-card placement**: card sits adjacent to the
+wake-210 meta-pattern card (the cross-check graph
+narrative). Both are Research closure pattern cards
+but distinct — one is about testing infrastructure,
+one is about RE workflow.
+
+**Discoverability cascade complete**:
+1. README Gate-2 row — high-level claim.
+2. Findings tab wake-240 synthesis card —
+   complete 4-transition picture.
+3. **Findings tab wake-251 methodology card** —
+   how the picture was completed (this wake).
+4. `state_machine_summary.md` § 1 — predicate
+   table.
+5. `state_13_14_writer_investigation.md` — search
+   log.
+
+5 surfaces from "what the project knows" to "how
+the project found out". A future contributor stuck
+on a similar deferred RE question can land on the
+wake-251 card and learn the pattern.
+
+**No new tests, no new code**. Single Findings
+card addition + worklog entry.
+
+**Blockers:** None.
