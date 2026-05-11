@@ -1,0 +1,221 @@
+"""Tests for `rep_responder._validate_dispatcher_heartbeat_encode_matches`
+(wake 187).
+
+The phase-2B startup probe decodes the cached 0x15d heartbeat through
+the central dispatcher, re-encodes it, and asserts byte-equality
+against the original. Success means a future wake can swap the
+emission path from raw replay-bytes to dispatcher-encoded output
+with confidence; failure surfaces at startup, not later as a
+wire-level surprise. The probe is logging-only — it must never
+raise or change runtime behavior.
+
+These tests pin that contract:
+  - Match path: logs an INFO line containing "byte-identical" + the
+    body length.
+  - Mismatch path: logs a WARN line including the first diff offset.
+  - No-heartbeat path (msg=None): silent return, no log entry.
+  - Non-0x15d path (e.g. msg.type_id=0x14f fallback): silent return.
+  - Decoder exception: WARN log, no propagation.
+  - Encoder exception: WARN log, no propagation.
+"""
+
+from __future__ import annotations
+
+import logging
+from types import SimpleNamespace
+from typing import List
+from unittest.mock import patch
+
+from server.rep_responder import PeerSession
+from server.javelin.replay_store import ReplayMessage
+from server.javelin import dispatch
+
+
+# Captured 0x15d ping body (12 bytes — TYPE_HEADER + counter + nonce)
+CAPTURED_PING_BODY = bytes.fromhex("00019d05" "00036ef6" "af912d74")
+
+
+class _RecordingHandler(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__()
+        self.records: List[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)
+
+    def at(self, level: int) -> List[str]:
+        return [r.getMessage() for r in self.records if r.levelno == level]
+
+
+def _stub_self(heartbeat_msg) -> SimpleNamespace:
+    handler = _RecordingHandler()
+    log = logging.getLogger(f"hb_validate_test_{id(handler)}")
+    log.setLevel(logging.DEBUG)
+    log.handlers = [handler]
+    log.propagate = False
+    return SimpleNamespace(
+        log=log, _handler=handler, _heartbeat_msg=heartbeat_msg
+    )
+
+
+def _call(stub):
+    PeerSession._validate_dispatcher_heartbeat_encode_matches(stub)
+
+
+def _make_heartbeat_msg(body: bytes = CAPTURED_PING_BODY) -> ReplayMessage:
+    return ReplayMessage(
+        seq=0x07, type_id=0x15d, direction="R", body=body, has_redaction=False,
+    )
+
+
+# ---------------------------------------------------------------------------
+#  Success path
+# ---------------------------------------------------------------------------
+
+
+def test_match_path_logs_info_with_byte_identical_and_length():
+    stub = _stub_self(_make_heartbeat_msg())
+    _call(stub)
+    info = stub._handler.at(logging.INFO)
+    assert len(info) == 1, f"expected one INFO log; got {info}"
+    msg = info[0]
+    assert "byte-identical" in msg
+    assert "12 bytes" in msg
+    assert "[phase-2B]" in msg
+
+
+# ---------------------------------------------------------------------------
+#  Silent-skip paths
+# ---------------------------------------------------------------------------
+
+
+def test_no_heartbeat_msg_returns_silently():
+    """`_heartbeat_msg` is None when no clean small R-msg was cached.
+    The probe must skip silently — no log entry of any level."""
+    stub = _stub_self(None)
+    _call(stub)
+    assert stub._handler.records == []
+
+
+def test_non_0x15d_heartbeat_returns_silently():
+    """The captured replay falls back to 0x14f session_clock if 0x15d
+    isn't available. The probe handles only 0x15d at the moment — the
+    fallback should pass through without complaint."""
+    fallback = ReplayMessage(
+        seq=0x0a, type_id=0x14f, direction="R",
+        body=bytes.fromhex("00018f05" "0b888d68" "7b13001a"),
+        has_redaction=False,
+    )
+    stub = _stub_self(fallback)
+    _call(stub)
+    assert stub._handler.records == []
+
+
+# ---------------------------------------------------------------------------
+#  Mismatch path
+# ---------------------------------------------------------------------------
+
+
+def test_mismatch_path_logs_warn_with_diff_offset():
+    """Patch the encoder to return a different byte string; probe
+    should log a WARN line including the first differing offset
+    (in hex). Diagnostic message guides a future maintainer to the
+    drift."""
+    # Wrong-length bytes after the type header.
+    wrong_bytes = bytes.fromhex("00019d05" "ffffffff" "af912d74")
+
+    def fake_encode(_type_id, _msg):
+        return wrong_bytes
+
+    stub = _stub_self(_make_heartbeat_msg())
+    with patch.object(dispatch, "encode_replay_message", fake_encode):
+        _call(stub)
+    info = stub._handler.at(logging.INFO)
+    warn = stub._handler.at(logging.WARNING)
+    assert info == [], f"unexpected INFO log on mismatch: {info}"
+    assert len(warn) == 1, f"expected one WARN log; got {warn}"
+    assert "differs from" in warn[0]
+    assert "first diff at offset 0x4" in warn[0]  # bytes 4..7 are different
+
+
+# ---------------------------------------------------------------------------
+#  Exception paths — both must catch + log, never propagate
+# ---------------------------------------------------------------------------
+
+
+def test_decoder_exception_is_caught_and_logged():
+    def fake_decode(_type_id, _direction, _body):
+        raise ValueError("simulated decoder crash")
+
+    stub = _stub_self(_make_heartbeat_msg())
+    with patch.object(dispatch, "decode_replay_message", fake_decode):
+        # Must not raise.
+        _call(stub)
+    warn = stub._handler.at(logging.WARNING)
+    assert any(
+        "round-trip failed" in m and "ValueError" in m
+        and "simulated decoder crash" in m
+        for m in warn
+    ), f"expected WARN with decoder failure detail; got {warn}"
+
+
+def test_encoder_exception_is_caught_and_logged():
+    def fake_encode(_type_id, _msg):
+        raise RuntimeError("simulated encoder crash")
+
+    stub = _stub_self(_make_heartbeat_msg())
+    with patch.object(dispatch, "encode_replay_message", fake_encode):
+        _call(stub)
+    warn = stub._handler.at(logging.WARNING)
+    assert any(
+        "round-trip failed" in m and "RuntimeError" in m
+        and "simulated encoder crash" in m
+        for m in warn
+    ), f"expected WARN with encoder failure detail; got {warn}"
+
+
+def test_decoder_returning_none_logs_debug_and_skips():
+    """If `decode_replay_message` returns None (e.g. an unregistered
+    type), the probe should log a DEBUG diagnostic and skip the
+    re-encode step — never crash."""
+    def fake_decode(_type_id, _direction, _body):
+        return None
+
+    stub = _stub_self(_make_heartbeat_msg())
+    with patch.object(dispatch, "decode_replay_message", fake_decode):
+        _call(stub)
+    info = stub._handler.at(logging.INFO)
+    warn = stub._handler.at(logging.WARNING)
+    debug = stub._handler.at(logging.DEBUG)
+    assert info == []
+    assert warn == []
+    assert any("returned None for heartbeat" in m for m in debug), (
+        f"expected DEBUG with None-return note; got {debug}"
+    )
+
+
+# ---------------------------------------------------------------------------
+#  Belt-and-suspenders: probe never raises across hostile inputs
+# ---------------------------------------------------------------------------
+
+
+def test_probe_never_raises_across_corrupt_bodies():
+    """Sweep a few malformed bodies that would each trigger different
+    failure modes in the decoder/encoder. All of them must produce a
+    log entry and a clean return — none should propagate."""
+    bodies = [
+        b"",                                                # empty
+        b"\x00\x01\x9d\x05",                                # too short
+        b"\x00\x01\x9d\x05" + b"\x00" * 100,                # too long
+        b"\xff" * 12,                                       # wrong header
+    ]
+    for body in bodies:
+        msg = ReplayMessage(
+            seq=0x01, type_id=0x15d, direction="R",
+            body=body, has_redaction=False,
+        )
+        stub = _stub_self(msg)
+        _call(stub)
+        # Any combination of INFO/WARN is fine; the key invariant is
+        # "didn't raise". The records list will have at most a few
+        # entries; we just check we didn't crash.

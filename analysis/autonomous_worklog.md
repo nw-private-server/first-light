@@ -14322,3 +14322,81 @@ warrants for one-shot validation).
 trivial.
 
 **Blockers:** None.
+
+## Wake 188 — phase-2C lockdown: 8 tests pin wake-187 encode validation
+
+**Goal**: mirror the wake-158 pattern (which locked down wake
+157's inbound shadow path) for wake 187's outbound encode-
+validation probe. 8 tests cover every branch of
+`_validate_dispatcher_heartbeat_encode_matches`; the next
+wake can promote the actual emission-path swap with
+confidence that the foundation is pinned.
+
+**Built**:
+
+- **`server/javelin/test_heartbeat_encode_validate.py`** (~190
+  LOC, 8 tests). Same stub-self + recording-log-handler
+  pattern as wake 158:
+  - **Match path**: `test_match_path_logs_info_with_byte_identical_and_length`
+    — with the real captured 0x15d ping body, the probe
+    logs an INFO line containing "byte-identical" and the
+    body length "12 bytes".
+  - **Silent-skip paths** (2 tests):
+    - `test_no_heartbeat_msg_returns_silently` — None msg
+      → no log records of any level.
+    - `test_non_0x15d_heartbeat_returns_silently` — the
+      0x14f fallback path (when the captured replay has
+      no 0x15d) passes through cleanly.
+  - **Mismatch path**: `test_mismatch_path_logs_warn_with_diff_offset`
+    — patches `dispatch.encode_replay_message` to return
+    bytes that differ at offset 0x4. Probe logs WARN with
+    "first diff at offset 0x4" in the message.
+  - **Exception paths** (2 tests + 1 belt-and-suspenders):
+    - `test_decoder_exception_is_caught_and_logged` — patches
+      `decode_replay_message` to raise ValueError; probe
+      catches + logs WARN with the exception type and
+      message.
+    - `test_encoder_exception_is_caught_and_logged` —
+      patches `encode_replay_message` to raise
+      RuntimeError; same handling.
+    - `test_decoder_returning_none_logs_debug_and_skips` —
+      a None return from decode (unregistered type) is
+      handled with a DEBUG log, no WARN, no INFO.
+    - `test_probe_never_raises_across_corrupt_bodies` —
+      sweeps 4 malformed body shapes (empty, too-short,
+      too-long, wrong-header). The probe must never
+      raise across any of them.
+
+- **All 8 tests pass** on the first run. Tests: 421 →
+  **429 passing (+1 skipped)**.
+
+**Pattern win**: this is the **second 8-test-style lockdown**
+test file for an integration-step shadow/validation helper:
+- Wake 158: 9 tests for `_shadow_decode_record` (inbound).
+- Wake 188: 8 tests for `_validate_dispatcher_heartbeat_encode_matches`
+  (outbound).
+
+Together they form a uniform pattern for "before flipping
+a switch, prove it works under every reasonable failure
+mode." Future rep_responder integration steps (e.g. routing
+0x13 V3 requests through the dispatcher, swapping outbound
+beacons to dispatcher-encoded fresh bytes) can each get the
+same shape: shadow/validate first, lock down with 6-9 tests,
+then flip.
+
+**No production-code changes**. The wake-187 probe is
+unchanged; this wake only adds test coverage.
+
+**Phase-2 progress** (rep_responder ↔ dispatcher integration):
+1. ✓ Wake 157: inbound shadow decode (logging-only).
+2. ✓ Wake 158: 9-test lockdown of the inbound shadow.
+3. ✓ Wake 187: outbound encode-validation probe (logging-only).
+4. ✓ Wake 188: **8-test lockdown of the outbound probe.**
+5. Future: promote ONE outbound type (start with 0x15d
+   heartbeat — already validated) from raw-replay to
+   dispatcher-encoded.
+6. Future: lockdown for the promoted path.
+
+**Tests**: 421 → **429 passing (+1 skipped)**.
+
+**Blockers:** None.
