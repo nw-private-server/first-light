@@ -4674,3 +4674,117 @@ Bounded cadence-shifted output; cumulative
 audit-arc value high.
 
 **Blockers:** None.
+
+
+## Wake 292 — systematic Findings-card title scan: wake-291 drift was isolated
+
+**Goal**: per wake-291's new drift mode
+filing (card-title drift as a separate
+surface from body prose), validate at scale
+by scanning ALL 24 Findings card titles
+against their bodies. Test whether wake 240
+was a one-off or a systemic pattern.
+
+**Method**: dumped all card titles + body
+opening prose via the `load_findings()` API,
+then read through each pair for body-vs-
+title consistency.
+
+**Result**: **clean negative — 24 cards
+checked, 0 additional title drift**. The
+wake-291 wake-240 fix was the only instance.
+
+**Cards verified** (organized by category):
+
+- **Architecture (3)**: wake 70 / 228 /
+  283 — all title-body consistent.
+- **RE breakthrough (5)**: wake 97 / 112 /
+  232 / 240 (just fixed) / 280 — all
+  consistent post-fix.
+- **Research closure (11)**: wake 88 / 136
+  / 155 / 188 / 192 / 200 / 204 / 208 /
+  210 / 251 / 252 — all consistent.
+- **Wire-level finding (5)**: wake 78 ×2 /
+  90 ×2 / 121 — all consistent.
+
+**Borderline cases verified**:
+
+- **wake 121** "Sub-system families: 7 of
+  11 IDs span multiple wire-types" — body
+  confirms "7 of 11 are shared by multiple
+  message kinds". ✓
+- **wake 204 / 208** — distinct cards for
+  the same phase-2D arc; titles correctly
+  scope to wake-204's emission swap vs
+  wake-208's counter-advance extension. ✓
+- **wake 232** "State-12 → 13 second writer
+  identified (LevelInfoChanged is the
+  primary)" — body matches the primary/
+  secondary writer narrative. ✓
+- **wake 240** (already fixed at wake 291)
+  — confirmed correct post-fix.
+
+**Pattern conclusion**: title drift is
+**real but rare** in this codebase. The
+wake-291 finding caught one of 24 cards
+(4% drift rate). Doesn't justify a
+systematic cross-check test (the cost of
+maintaining a title-vs-body invariant
+exceeds the drift catch rate), but is
+worth filing as a periodic-audit pattern:
+
+**Generalizable rule**: when shipping a
+card body update, also verify the title
+still summarizes the body. A systematic
+24-card scan once per ~30 wakes catches
+isolated cases at low cost.
+
+**Verification**:
+
+- `pytest server/javelin -q` → not re-run
+  (no code changes this wake).
+- `tools/build_site.py` → no changes.
+
+**Pattern note**: this is a **clean
+negative result** wake — like wake 277 +
+288 in the destroy-event arc. Negative
+results are valuable when they bound a
+hypothesis ("title drift is isolated, not
+systemic"). The cost of the scan was
+~5 minutes; the value is preventing
+future hypothesis inflation (assuming
+title drift is common when it isn't).
+
+**The 5-wake drift-sweep arc** is now
+complete:
+
+| Wake | Drift caught | Sweep shape |
+|---|---|---|
+| 274 | Destroy-trigger "remaining" framing (1 site) | Archive audit |
+| 289 | See-also footers (2 retros) | Retro re-read |
+| 290 | Worklog pointers (4 docs) | Cross-doc grep variants |
+| 291 | Card title vs body (1 card) + deferred pointer (1 doc) | Single-writer pattern scan |
+| 292 | None (clean negative) | Systematic title scan |
+
+**Total**: 8 real drifts caught + 1 clean
+negative bound across 5 sweep wakes. The
+audit-mode plateau pays off. The negative
+at wake 292 is a **natural stopping signal**
+— the systematic scan didn't find anything,
+suggesting the easy-to-find drifts have
+been collected.
+
+**Forward implication**: the drift-sweep
+arc has reached diminishing returns. Next
+wakes should either pause-cadence further
+(2-3h) or stop the loop. The handoff is
+genuinely complete; further sweeps will
+likely produce negative results.
+
+**Cost summary**: pure analytical wake +
+worklog entry. No code or doc changes.
+Validates the wake-291 drift mode at scale
+and bounds it as isolated rather than
+systemic.
+
+**Blockers:** None.

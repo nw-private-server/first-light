@@ -29016,6 +29016,12 @@
       "test_count": 457,
       "commit": "cf9c285",
       "subject": "docs: wake-290 \u2014 wider drift sweep catches 4 more worklog-pointer drifts"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "179820d",
+      "subject": "docs: wake-291 \u2014 deferred pointer fix + Findings-card title drift"
     }
   ],
   "live_decoder_history": [
@@ -29620,6 +29626,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 292,
+      "title": "systematic Findings-card title scan: wake-291 drift was isolated",
+      "line": 4679,
+      "category": "other"
+    },
+    {
       "wake": 291,
       "title": "deferred pointer fix + Findings-card title drift",
       "line": 4570,
@@ -29648,12 +29660,6 @@
       "title": "pause check-in (cadence-shifted)",
       "line": 4190,
       "category": "other"
-    },
-    {
-      "wake": 286,
-      "title": "README \"Recent milestones\" \u2014 surface destroy-event sub-arc as 5th bullet",
-      "line": 4074,
-      "category": "docs"
     }
   ],
   "live_decoder_coverage": {
