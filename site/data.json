@@ -1596,7 +1596,7 @@
       "title": "Cross-check test graph: 19 invariants pinning dashboard + workflow drift",
       "category": "Research closure",
       "wake": 210,
-      "summary": "19 pytest tests now form a structural drift safety net for the dashboard + workflow. Each pins a discrete failure mode that wouldn't surface as a product bug \u2014 silent prose drift, stale generated assets, broken category heuristics \u2014 but would degrade contributor experience or documentation legibility. The graph splits into three buckets: **Code structure** (8 tests: wake 162 `parse_sections`, 166 parser coverage, 178 JS\u2194Python LDTYPE map sync, 184 linkify map \u2194 coverage map, 185 preset coverage, 196 shadow/validate-helper lockdown parity, 222 manifest wake-numbers unique across buckets, **227 every manifest wake has a referencing test function**); **Generated output integrity** (4 tests: 172 preset hex round-trip, 201 badge color thresholds, 202 api-ref idempotency + on-disk consistency, **224 coverage-chart last-entry matches badge**); **Doc/navigation drift** (7 tests: 207 retrospective \u2194 README link, 209 Findings-card pair consistency, 210 recent-wake category membership, 214 self-referential card-count \u2194 manifest consistency, 218 wake-number citations match manifest, 225 every analysis-doc path cited in a Findings card exists on disk, **231 every decision doc has a README link**). Each test is &lt;30 lines and self-documents the drift mode in its docstring, including a pointer to where the maintainer should fix the regression. Test cost: ~420 lines total. Benefit: 19 silent failure modes converted to loud pytest failures with precise remediation hints. Pattern is extensible \u2014 any future structural invariant becomes test 20; wakes 214 and 218 together enforce that both the count claim AND the wake-number citations here match `CROSS_CHECK_MANIFEST` in `tools/build_site.py`; wake 222 pins the manifest itself against bucket-cross-contamination; wake 224 closes the loop on the wake-223 coverage chart; wake 225 prevents card prose from referencing renamed or deleted analysis files; wake 227 closes the manifest-vs-tests loop; wake 231 extends the wake-207 retrospective-link pattern to decision docs."
+      "summary": "19 pytest tests now form a structural drift safety net for the dashboard + workflow. Each pins a discrete failure mode that wouldn't surface as a product bug \u2014 silent prose drift, stale generated assets, broken category heuristics \u2014 but would degrade contributor experience or documentation legibility. The graph splits into three buckets: **Code structure** (8 tests: wake 162 `parse_sections`, 166 parser coverage, 178 JS\u2194Python LDTYPE map sync, 184 linkify map \u2194 coverage map, 185 preset coverage, 196 shadow/validate-helper lockdown parity, 222 manifest wake-numbers unique across buckets, **227 every manifest wake has a referencing test function**); **Generated output integrity** (4 tests: 172 preset hex round-trip, 201 badge color thresholds, 202 api-ref idempotency + on-disk consistency, **224 coverage-chart last-entry matches badge**); **Doc/navigation drift** (7 tests: 207 retrospective \u2194 README link, 209 Findings-card pair consistency, 210 recent-wake category membership, 214 self-referential card-count \u2194 manifest consistency, 218 wake-number citations match manifest, 225 every analysis-doc path cited in a Findings card exists on disk, **231 every decision doc has a README link**). Each test is &lt;30 lines and self-documents the drift mode in its docstring, including a pointer to where the maintainer should fix the regression. Test cost: ~420 lines total. Benefit: 19 silent failure modes converted to loud pytest failures with precise remediation hints. Pattern is extensible \u2014 any future structural invariant becomes test 20; wakes 214 and 218 together enforce that both the count claim AND the wake-number citations here match `CROSS_CHECK_MANIFEST` in `tools/build_site.py`; wake 222 pins the manifest itself against bucket-cross-contamination; wake 224 closes the loop on the wake-223 coverage chart; wake 225 prevents card prose from referencing renamed or deleted analysis files; wake 227 closes the manifest-vs-tests loop; wake 231 extends the wake-207 retrospective-link pattern to decision docs. **Stable at 19 since wake 231** \u2014 no obvious structural drift mode remains unpinned in the current dashboard surface area; further cross-check additions would be incremental over-pinning without proportional value. The graph is now treated as essentially complete; future additions are expected only when a new structural surface (e.g. a new doc genre or a new generated-asset format) emerges."
     },
     {
       "title": "Static-RE candidate-triage pattern proven (state-13\u219214 case study)",
@@ -28692,6 +28692,12 @@
       "test_count": 457,
       "commit": "c6e143e",
       "subject": "docs(analysis): fourth-stretch retrospective (wakes 228-253)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "c89d3ed",
+      "subject": "docs(site): wake-228 skeleton card \u2014 3 retros -> 4 retros drift correction"
     }
   ],
   "live_decoder_history": [
@@ -29296,6 +29302,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 256,
+      "title": "wake-211 meta-card: \"Stable at 19\" annotation",
+      "line": 19677,
+      "category": "other"
+    },
+    {
       "wake": 255,
       "title": "wake-228 skeleton card: 3-retro \u2192 4-retro drift",
       "line": 19595,
@@ -29324,12 +29336,6 @@
       "title": "Findings card: candidate-triage pattern proven (21st card)",
       "line": 19168,
       "category": "site"
-    },
-    {
-      "wake": 250,
-      "title": "wake-240 synthesis card final update with wake-249 trigger chain",
-      "line": 19067,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {

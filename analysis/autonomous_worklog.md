@@ -19673,3 +19673,68 @@ future N-th retros.
 card prose extension.
 
 **Blockers:** None.
+
+## Wake 256 — wake-211 meta-card: "Stable at 19" annotation
+
+**Goal**: cross-check graph has been at 19
+invariants since wake 231 — 25 wakes of stability.
+The wake-210 meta-pattern Findings card's prose
+accurately reflects the wake-231 state but doesn't
+signal that the graph has stabilized. Visitor
+reading the card sees "19 invariants" + "becomes
+test 20" but has no signal whether the graph is
+actively growing.
+
+**Built**:
+
+- **`tools/build_site.py`** wake-210 meta-card
+  closing line extended:
+  - Added: "**Stable at 19 since wake 231** — no
+    obvious structural drift mode remains
+    unpinned in the current dashboard surface
+    area; further cross-check additions would be
+    incremental over-pinning without
+    proportional value. The graph is now treated
+    as essentially complete; future additions are
+    expected only when a new structural surface
+    (e.g. a new doc genre or a new generated-
+    asset format) emerges."
+
+**Why now**: also consistent with the wake-228
+skeleton-card update at wake 255 ("4-genre artifact
+typology established"). With the typology
+explicit + the cross-check graph stable, the
+dashboard's structural-pinning layer reads as
+mature rather than active-growth.
+
+**Verification**:
+- wake-214 self-referential test (count): card
+  claims 19 invariants, manifest sums to 19 ✓.
+- wake-218 (citations): all 19 manifest wakes
+  cited in card prose ✓.
+- wake-222 (manifest uniqueness): unaffected.
+- wake-224 (chart vs badge): unaffected.
+- wake-225 (analysis-path existence): unaffected.
+- wake-227 (manifest-vs-tests): unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: this is the 7th update to the
+wake-210 meta-pattern card (initial creation
+wake 211, count updates at 214/218/222/224/225/227/
+231 as the graph grew). The "Stable at 19" line
+is the **first stability annotation** on this
+card — it marks the transition from
+active-growth phase to maturity.
+
+**Cross-card maturity signal**: combined with
+wake-255's skeleton-card update ("Four-
+retrospective" + 4-genre typology) and the
+wake-253 retrospective's framing, the dashboard
+now consistently signals **the project has
+reached a static-RE plateau**. Future substantive
+work is gated on runtime data (real-GPU host).
+
+**No new tests, no new code**. Single Findings
+card stability annotation.
+
+**Blockers:** None.

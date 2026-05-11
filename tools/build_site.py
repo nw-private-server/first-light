@@ -1173,7 +1173,16 @@ def load_findings():
                        "renamed or deleted analysis files; wake 227 "
                        "closes the manifest-vs-tests loop; wake 231 "
                        "extends the wake-207 retrospective-link "
-                       "pattern to decision docs.",
+                       "pattern to decision docs. **Stable at 19 "
+                       "since wake 231** — no obvious structural "
+                       "drift mode remains unpinned in the current "
+                       "dashboard surface area; further cross-check "
+                       "additions would be incremental over-pinning "
+                       "without proportional value. The graph is "
+                       "now treated as essentially complete; future "
+                       "additions are expected only when a new "
+                       "structural surface (e.g. a new doc genre or "
+                       "a new generated-asset format) emerges.",
         },
         {
             "title": "Static-RE candidate-triage pattern proven (state-13→14 case study)",
