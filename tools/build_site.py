@@ -157,12 +157,34 @@ def load_decompiles():
     return out
 
 
+CATEGORY_ORDER = ["Retrospective", "Overview", "RE Finding", "Decompile", "Audit"]
+
+
+def categorize_doc(filename: str) -> str:
+    """Bucket an analysis/*.md filename into a Findings-tab category."""
+    name = filename[:-3] if filename.endswith(".md") else filename
+    if "retrospect" in name or name in ("cross_link_arc", "MORNING_BRIEF"):
+        return "Retrospective"
+    if "_audit" in name or name == "ghidra_hunt_list":
+        return "Audit"
+    if "_decompiles" in name or name == "ghidra_findings":
+        return "Decompile"
+    if name in {
+        "codec_library_overview", "codec_coverage",
+        "replay_message_inventory", "message_inventory",
+        "integration_status", "queued_work", "state_machine_summary",
+    }:
+        return "Overview"
+    return "RE Finding"
+
+
 def load_analysis_docs():
     """Index of `analysis/*.md` writeups for the dashboard.
 
     For each doc: extract its first heading as the title, the first
-    paragraph after the title as a summary, and the filename. Excludes
-    noisy bookkeeping docs (worklog) and per-decomp text dumps.
+    paragraph after the title as a summary, the filename, and a
+    category (one of `CATEGORY_ORDER`). Excludes noisy bookkeeping
+    docs (worklog) and per-decomp text dumps.
     """
     EXCLUDED = {
         "autonomous_worklog.md",
@@ -209,6 +231,7 @@ def load_analysis_docs():
             "title": title,
             "summary": summary,
             "bytes": len(text),
+            "category": categorize_doc(md.name),
         })
     return out
 
@@ -953,6 +976,7 @@ def build_data():
         "wire_type_families": wire_type_families,
         "decompile_groups": decompile_groups,
         "analysis_docs": analysis_docs,
+        "analysis_doc_categories": CATEGORY_ORDER,
     }
 
 

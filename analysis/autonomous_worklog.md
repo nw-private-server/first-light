@@ -11936,3 +11936,65 @@ file.
 skipped). Site rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 151 — analysis-doc category grouping on Findings tab
+
+**Goal**: the Findings tab listed 33 `analysis/*.md` writeups as a
+flat scroll. Visitors hunting for a retrospective or an audit
+had to read every title. Group by category so the index is
+scannable.
+
+**Built**:
+
+- `tools/build_site.py`:
+  - `categorize_doc(filename)` buckets docs into one of 5
+    categories: Retrospective, Overview, RE Finding,
+    Decompile, Audit. Pattern-based: `*_audit.md` →
+    Audit; `*_decompiles.md` + `ghidra_findings.md` →
+    Decompile; explicit allow-list for Overview docs;
+    `*retrospect*` + `cross_link_arc` + `MORNING_BRIEF` →
+    Retrospective; everything else → RE Finding.
+  - `load_analysis_docs()` adds a `category` field on each
+    doc entry.
+  - `CATEGORY_ORDER` ships under `analysis_doc_categories`
+    in `data.json` so the front-end can render in the
+    intended sequence (Retrospective first — surfaces the
+    wake-150 milestone — then Overview / RE Finding /
+    Decompile / Audit).
+- `site/index.html`:
+  - Findings-tab renderer now buckets docs by category,
+    emits a `<div class="analysis-cat-header">` per group
+    (name + count badge), then the docs.
+  - Each doc card grows a `.cat-pill` tag on the title row
+    so categories are still visible after the search filter
+    collapses headers.
+  - New `setupAnalysisDocFilter()` is category-aware: it
+    walks `container.children` keeping track of the current
+    header, then hides any header whose group has zero
+    surviving matches.
+  - CSS additions: `.analysis-cat-header` (uppercase label
+    with bottom border) and `.cat-pill` (small grey tag on
+    the right of each title).
+
+**Category distribution** (33 docs):
+
+| Category | Count |
+|---|---:|
+| Retrospective | 3 |
+| Overview | 7 |
+| RE Finding | 16 |
+| Decompile | 3 |
+| Audit | 4 |
+
+**Result**: the Findings index is now scannable in seconds. The
+session-retrospective and cross-link-arc docs surface at the
+top of the page (Retrospective group); the audit docs no longer
+hide between RE findings. Search filter still works and
+collapses empty headers as it narrows.
+
+**No code changes** to `server/`. javelin tests still pass (374
+passed +1 skipped — the snapshot count of 346 reflects an
+older worklog entry; the actual count has drifted upward across
+recent wakes).
+
+**Blockers:** None.

@@ -652,6 +652,43 @@ tr:hover { background: var(--surface-2); }
   margin-top: 6px;
   line-height: 1.5;
 }
+.analysis-cat-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 18px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-dim);
+}
+.analysis-cat-header .cat-name { font-weight: 700; color: var(--accent); }
+.analysis-cat-header .cat-count {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+.analysis-doc .title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.analysis-doc .cat-pill {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border-radius: 3px;
+  padding: 2px 6px;
+}
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 .repo-link {
@@ -1604,21 +1641,42 @@ async function load() {
     findingsList.appendChild(div);
   }
 
-  // ---- Analysis docs index ----
+  // ---- Analysis docs index (grouped by category) ----
   const adocsEl = document.getElementById("analysis-docs");
   if (adocsEl) {
+    const order = data.analysis_doc_categories || [
+      "Retrospective", "Overview", "RE Finding", "Decompile", "Audit"];
+    const byCat = new Map(order.map(c => [c, []]));
     for (const d of (data.analysis_docs || [])) {
-      const div = document.createElement("div");
-      div.className = "analysis-doc";
-      const url = `https://github.com/nw-private-server/first-light/blob/claude/vacation-2026-05-06/analysis/${encodeURIComponent(d.filename)}`;
-      div.innerHTML = `
-        <div class="title"><a href="${url}" target="_blank" rel="noopener">${escapeHtml(d.title)}</a></div>
-        <div class="meta">${escapeHtml(d.filename)} · ${d.bytes.toLocaleString()} bytes</div>
-        ${d.summary ? `<div class="summary">${escapeHtml(d.summary)}</div>` : ""}
-      `;
-      adocsEl.appendChild(div);
+      const cat = d.category || "RE Finding";
+      if (!byCat.has(cat)) byCat.set(cat, []);
+      byCat.get(cat).push(d);
     }
-    setupFilter("analysis-search", adocsEl.children);
+    const baseUrl = "https://github.com/nw-private-server/first-light/blob/claude/vacation-2026-05-06/analysis/";
+    for (const cat of byCat.keys()) {
+      const docs = byCat.get(cat);
+      if (!docs.length) continue;
+      const header = document.createElement("div");
+      header.className = "analysis-cat-header";
+      header.innerHTML = `<span class="cat-name">${escapeHtml(cat)}</span><span class="cat-count">${docs.length}</span>`;
+      adocsEl.appendChild(header);
+      for (const d of docs) {
+        const div = document.createElement("div");
+        div.className = "analysis-doc";
+        div.dataset.category = cat;
+        const url = baseUrl + encodeURIComponent(d.filename);
+        div.innerHTML = `
+          <div class="title">
+            <a href="${url}" target="_blank" rel="noopener">${escapeHtml(d.title)}</a>
+            <span class="cat-pill">${escapeHtml(cat)}</span>
+          </div>
+          <div class="meta">${escapeHtml(d.filename)} · ${d.bytes.toLocaleString()} bytes</div>
+          ${d.summary ? `<div class="summary">${escapeHtml(d.summary)}</div>` : ""}
+        `;
+        adocsEl.appendChild(div);
+      }
+    }
+    setupAnalysisDocFilter("analysis-search", adocsEl);
   }
 
   // ---- Byte-pattern playground ----
@@ -2237,6 +2295,32 @@ function setupFilter(searchId, items) {
       item.style.display = (!q || item.textContent.toLowerCase().includes(q))
         ? "" : "none";
     }
+  });
+}
+
+// Like setupFilter but aware of category headers — hides a header
+// when no docs under it survive the filter.
+function setupAnalysisDocFilter(searchId, container) {
+  const inp = document.getElementById(searchId);
+  inp.addEventListener("input", () => {
+    const q = inp.value.toLowerCase();
+    let currentHeader = null;
+    let currentVisible = 0;
+    const flushHeader = () => {
+      if (currentHeader) currentHeader.style.display = currentVisible ? "" : "none";
+    };
+    for (const node of container.children) {
+      if (node.classList.contains("analysis-cat-header")) {
+        flushHeader();
+        currentHeader = node;
+        currentVisible = 0;
+        continue;
+      }
+      const match = !q || node.textContent.toLowerCase().includes(q);
+      node.style.display = match ? "" : "none";
+      if (match) currentVisible++;
+    }
+    flushHeader();
   });
 }
 
