@@ -27839,6 +27839,12 @@
       "test_count": 347,
       "commit": "99e7f7d",
       "subject": "site: second worked example on \"How it works\" \u2014 InitMessage18A6"
+    },
+    {
+      "wake": null,
+      "test_count": 347,
+      "commit": "0796bd2",
+      "subject": "site: sharable inspector deep-links via #msg=0xNN URL hash"
     }
   ],
   "wire_type_families": [
@@ -28121,6 +28127,12 @@
       "title": "PlayerManagerSelfIdentificationMsg \u2014 wire/struct layout (partial)",
       "summary": "The handler signature (Ghidra view):",
       "bytes": 6761
+    },
+    {
+      "filename": "session_retrospective_150.md",
+      "title": "150-wake autonomous session \u2014 milestones",
+      "summary": "150 wakes of a self-paced autonomous /loop session, all on `claude/vacation-2026-05-06`. This doc summarizes the major milestones for any future maintainer or contributor browsing the project history. Each wake is a s\u2026",
+      "bytes": 9620
     },
     {
       "filename": "state_10_unblock_synthesis.md",

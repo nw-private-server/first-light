@@ -11895,3 +11895,44 @@ naturally.
 Site rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 150 — 150-wake session retrospective
+
+**Goal**: 150-wake milestone. Write a single-page retrospective
+that summarizes the major phases of the autonomous session for
+any future maintainer / contributor browsing the project
+history.
+
+**Built**:
+
+- `analysis/session_retrospective_150.md` (~6 KB):
+  - **Snapshot** as of wake 149: 40/40 codecs covered, 346
+    tests, 175 of 177 captured messages round-trip clean,
+    100% decompile cross-link density, 32 analysis writeups.
+  - **9 phases** documented in order:
+    1. Codec scaffolding (wakes 1-50, pre-context)
+    2. Typename + identity-bundle work (60-90)
+    3. Codec gap-fill 35/40 → 40/40 (100-103)
+    4. Central dispatcher + wire-complete (104-109)
+    5. State-10 RE breakthrough (111-112)
+    6. Dashboard / live site arcs (98, 113, 117-120, 133-140)
+    7. Codec audit arcs (125-126, 135-136)
+    8. Decompile cross-link density (129-131)
+    9. Polish + ergonomics (140-149)
+  - **5 open items** for future maintainers (state-10 runtime
+    test, rep_responder dispatcher integration, inline live-
+    decoder, hash hunt extension, second-capture
+    comparison).
+  - **Working style notes**: 30-min wake cap; scaffold →
+    wedge → close pattern; parallel agents for independent
+    sub-tasks; dashboard always shippable via safeDraw.
+
+**Result**: a single 6 KB doc covers what the 11K-line worklog
+captures wake-by-wake. Future contributors can read this to get
+the lay of the land before opening any individual analysis
+file.
+
+**No code changes**, no test changes. Tests still 346 (+1
+skipped). Site rebuild trivial.
+
+**Blockers:** None.
