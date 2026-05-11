@@ -228,6 +228,23 @@ def test_parse_sections_populates_member_names():
             assert '"' not in n, f"member name {n!r} carries quote in {heading!r}"
 
 
+def test_parse_sections_covers_every_shipped_export():
+    """Stricter invariant (wake 166): every name in
+    `server.javelin.__all__` must surface in some section parsed
+    out of `__init__.py`. Catches a regression where a `# heading`
+    comment marker gets accidentally removed (the entries below it
+    would be silently dropped from the parsed output, and the
+    generated public_api.md would lose a whole section)."""
+    import server.javelin as javelin
+    sections = parse_sections()
+    parsed_names = {n for _, names in sections for n in names}
+    for export in javelin.__all__:
+        assert export in parsed_names, (
+            f"export {export!r} is in __all__ but missing from "
+            f"parse_sections() output — section marker likely dropped"
+        )
+
+
 # ---------------------------------------------------------------------------
 #  load_findings + FINDINGS_CATEGORY_ORDER (wake 163)
 # ---------------------------------------------------------------------------

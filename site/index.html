@@ -1121,7 +1121,7 @@ a:hover { text-decoration: underline; }
     </div>
     <div class="chart-card" style="grid-column: 1 / -1;">
       <h3>Test-suite growth over wakes</h3>
-      <div class="hint">Each commit that touched <code>site/data.json</code> records the test count at that point. Wake numbers come from commit messages.</div>
+      <div class="hint">Each commit that touched <code>site/data.json</code> records the test count at that point. Wake numbers come from commit messages. The jump at wake&nbsp;164 (347→410) reflects a scope change: the counter was originally only the codec suite, now covers all of <code>server/javelin/</code> including the wake-157 shadow-decode + wake-162 tooling tests.</div>
       <div class="chart-wrap"><canvas id="chart-test-history"></canvas></div>
     </div>
   </div>

@@ -12890,3 +12890,59 @@ a problem.
   tests on `parse_sections` continue to pass.
 
 **Blockers:** None.
+
+## Wake 166 — chart annotation + stricter parse_sections invariant
+
+**Goal**: two small companion items to the recent docs work.
+(1) Annotate the test-suite growth chart on the Overview tab
+so the wake-164 347→410 jump is self-documenting. (2) Tighten
+the wake-162 `parse_sections` test from "asserts 4 specific
+headings exist" to "every `__all__` export must surface in
+some parsed section" — catches a regression where a
+`# heading` comment marker gets dropped and a whole section
+of exports goes missing from `public_api.md`.
+
+**Built**:
+
+- **`site/index.html`**: the test-suite growth chart's
+  hint paragraph now includes a one-line annotation
+  explaining the wake-164 jump. New text:
+  > "The jump at wake 164 (347→410) reflects a scope change:
+  > the counter was originally only the codec suite, now
+  > covers all of `server/javelin/` including the wake-157
+  > shadow-decode + wake-162 tooling tests."
+  A visitor hitting the chart for the first time doesn't
+  have to dig through git history to understand the
+  discontinuity.
+
+- **`server/javelin/test_build_tools.py`** (+1 test):
+  `test_parse_sections_covers_every_shipped_export`.
+  Imports `server.javelin.__all__`, flattens all member
+  names from `parse_sections()`, asserts every export is in
+  the flattened set. The failure message names the missing
+  export so a future contributor sees exactly what got
+  dropped. The wake-162 weaker test (named headings exist
+  with at least one member each) stays — both invariants
+  complement each other.
+
+**Verified**:
+- All 50 currently-shipped exports surface in
+  `parse_sections()` output. Test passes.
+- Tests: 409 → **410 passing (+1 skipped)**.
+
+**Why this matters**: `tools/build_api_reference.py`'s
+correctness depends on `parse_sections` finding every export
+under some section. If a future contributor reformats the
+`__all__` block and accidentally removes a `# heading`
+comment, the previous test (heading-existence only) would
+still pass — but the new test catches the breakage at the
+unit level. The public-API doc has been a
+notable-recent-output for two wakes (161, 165); pinning the
+generator's input parser is the right level of investment.
+
+- **No `server/javelin/` codec changes**. No `tools/` code
+  changes (yet — the chart annotation is HTML/text only;
+  the test gain is +1 line of test code). Site rebuild
+  trivial.
+
+**Blockers:** None.
