@@ -1177,3 +1177,157 @@ of new prose. Single targeted commit. No code-
 behavior change.
 
 **Blockers:** None.
+
+
+## Wake 267 — DASHBOARD.md deprecation + CONTRIBUTING.md drift fixes
+
+**Goal**: the wake-267 forward menu listed
+"DASHBOARD.md / CONTRIBUTING.md drift scan —
+both touched at wake 262 but only the worklog-
+pointer line; quick read for anything else that
+aged out." The actual finding was much worse
+than a scan was sized for: DASHBOARD.md hasn't
+been substantively updated since wake 90
+(2026-05-09 stamp at top), and CONTRIBUTING.md
+had multiple severely stale "current blocker"
+sections describing closed work as still open.
+
+**Built**:
+
+**DASHBOARD.md** — added a **deprecation
+preamble** rather than refreshing the body. The
+wake-90 content (258 tests, 35/40 codecs, state-
+10 RE picture) is severely out of date, but the
+file isn't actually the canonical project status
+anymore — the auto-generated live dashboard at
+`nw-private-server.github.io/first-light` is.
+The preamble:
+- Warns the file is a wake-90 snapshot, no
+  longer maintained.
+- Points to the live dashboard as the
+  canonical surface for current numbers.
+- Points to the README "Recent milestones"
+  section + 4 retrospectives for narrative.
+- Notes the wake-252 state-machine progression
+  the wake-90 content predates.
+- Preserves the wake-90 body for historical
+  context (CRC32 finding + typeregistry mapping
+  are still substantive findings worth
+  preserving in their original framing).
+
+Rationale: refreshing DASHBOARD.md would
+duplicate effort with the live dashboard
+forever (every codec ship, every test count
+shift, every state-machine update). Deprecation
++ pointer is one-shot.
+
+**CONTRIBUTING.md** — 4 targeted prose fixes:
+
+1. **Line ~25 (Quick start test count)**:
+   "410+ passing" → "450+ passing". Added a
+   tip about why `pytest server/javelin/` not
+   bare `pytest` (the `server/test_client.py`
+   sys.exit-on-import issue we hit at wake
+   264).
+
+2. **Reference docs section (line ~43-45)**:
+   replaced the wake-150 retrospective pointer
+   with the wake-253 retrospective (newest is
+   more useful for return visitors per the
+   wake-264 ordering decision). Replaced the
+   stale `state_10_unblock_synthesis.md` pointer
+   with `state_machine_summary.md`, noting that
+   the state-10 work is now closed and the
+   active blocker is runtime-side.
+
+3. **Section "2. Reverse engineering" header +
+   intro (line ~74-82)**: rewrote the framing.
+   The old prose said "the current blocker is
+   understanding why the client retries V3 …
+   decompile FUN_14644a070" — that decompile
+   has been done. New framing notes all 4
+   post-V3 state-spawn transitions are now
+   RE'd at static level (cites wakes 111-112,
+   232/234, 247/249, 252), names the wake-252
+   indirect-vtable wall, and pivots to the
+   remaining static-RE worth pursuing
+   (`FUN_146b3c250 + 0x58f` destroy trigger;
+   NewProxy / GridMate replica identification).
+   Points to
+   `state_13_14_writer_investigation.md` for
+   the candidate-triage methodology.
+
+4. **Section "3. Python/server" rep_responder
+   bullet (line ~92)**: rewrote. The old prose
+   said "promote one wire-type at a time to
+   authoritative dispatcher consumption.
+   0x15d (heartbeat) is the obvious first
+   candidate" — wake 204 SHIPPED that. New
+   prose acknowledges wake 204's emission swap
+   + wake 208's counter-advance, notes both are
+   awaiting real-GPU validation, and renames
+   the open question to "Next wire-type
+   promotion candidate" with a concrete way to
+   find candidates (search `_shadow_decode_record`
+   callers in `test_shadow_decode.py`).
+
+**Verification**:
+
+- `.venv/bin/python3 tools/build_site.py` →
+  clean.
+- `pytest server/javelin -q` → **456 passing,
+  1 skipped** — unchanged.
+- Wake-225 cross-check (analysis-path
+  existence): all new
+  `analysis/state_machine_summary.md` and
+  `analysis/state_13_14_writer_investigation.md`
+  references resolve to actual files.
+- Wake-207 cross-check (retrospective README
+  link): unaffected, README links unchanged.
+- Wake-231 cross-check (decision-doc README
+  link): unaffected.
+
+**Pattern note**: this is the largest single-
+wake doc-freshness fix in the wake 235+ doc-
+freshness pass family. CONTRIBUTING.md drifted
+more than expected because it was last
+substantively edited at wake 167 (per `git log`)
+and the state-machine RE arc + dispatcher
+integration arc both happened *after* that
+edit. The "current blocker" framing was the
+most-misleading single piece of prose in the
+repo as of this wake's start.
+
+**Why DASHBOARD.md got deprecation instead of
+refresh**: the cost-benefit math. Refreshing
+would mean every codec ship, every state-
+machine update, every test-count shift needs a
+DASHBOARD.md edit *in addition to* the
+auto-regenerated live dashboard. That's
+duplicate maintenance with zero net visitor
+benefit (the live dashboard is what visitors
+actually consume). The deprecation preamble
+solves the drift permanently — future visitors
+land on a clearly-marked snapshot and are
+routed to the live source.
+
+**Generalizable principle (worth recording)**:
+when a manually-maintained doc is superseded
+by an auto-generated equivalent, *deprecate*
+the manual version with a pointer rather than
+refreshing it. The auto version will always
+win the freshness contest; trying to keep the
+manual version in sync forever is a
+maintenance trap. This is the same logic that
+drove the wake-261 worklog split (freeze the
+large file, fresh file for new work) but
+applied to a "is it the canonical source"
+distinction rather than a size distinction.
+
+**Cost summary**: 5 file edits across 2 files
+(1 DASHBOARD.md preamble, 4 CONTRIBUTING.md
+section rewrites). Largest doc-freshness wake
+in months; touched the two highest-leverage
+"first impression" docs after README.
+
+**Blockers:** None.

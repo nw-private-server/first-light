@@ -28764,6 +28764,12 @@
       "test_count": 457,
       "commit": "3dd5b53",
       "subject": "docs(site): wake-265 \u2014 wake-200 card cleanup, remove update-history meta-commentary"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "6b0e9e9",
+      "subject": "test(build): wake-266 \u2014 extend wake-225 docstring with Drift mode + Remediation labels"
     }
   ],
   "live_decoder_history": [
@@ -29368,6 +29374,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 267,
+      "title": "DASHBOARD.md deprecation + CONTRIBUTING.md drift fixes",
+      "line": 1182,
+      "category": "site"
+    },
+    {
       "wake": 266,
       "title": "wake-225 docstring extension",
       "line": 1091,
@@ -29395,12 +29407,6 @@
       "wake": 262,
       "title": "wake-261 deferred drift: batch fix worklog references",
       "line": 771,
-      "category": "docs"
-    },
-    {
-      "wake": 261,
-      "title": "worklog file split (wakes 1-253 archived)",
-      "line": 704,
       "category": "docs"
     }
   ],

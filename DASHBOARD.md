@@ -1,5 +1,24 @@
 # Project Dashboard
 
+> ⚠️ **This file is a wake-90 snapshot, no longer maintained.** For
+> current project status — live test count, codec coverage, captured-
+> traffic charts, state-machine diagram, decompile catalog — see the
+> auto-generated **live dashboard** at
+> [nw-private-server.github.io/first-light](https://nw-private-server.github.io/first-light/).
+> It rebuilds on every push and stays in sync with the codebase
+> automatically. Project-shape narrative is in the README's "Recent
+> milestones" section (newest first) and the four session
+> retrospectives ([wake 150](analysis/session_retrospective_150.md) /
+> [wake 196](analysis/session_retrospective_196.md) /
+> [wake 227](analysis/session_retrospective_227.md) /
+> [wake 253](analysis/session_retrospective_253.md)).
+>
+> The wake-90 content below is preserved for historical context —
+> notably the wake-90 CRC32 + typeregistry findings and the wake-90-era
+> state-10 RE picture. Be aware: the state-machine work has progressed
+> through wake 252 (states 11/12/13/14 all RE'd at static level); test
+> counts + codec coverage in the live dashboard are the current truth.
+
 > One-page status of the New World private-server RE work.
 > Optimized for mobile viewing on github.com. Last updated wake 90 (2026-05-09).
 
