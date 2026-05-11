@@ -14915,3 +14915,73 @@ and working-branch README badge (wake 195) continue to
 auto-update; only the main-branch README is fixed-in-time.
 
 **Blockers:** None.
+
+## Wake 197 — second-stretch retrospective (wakes 151-196)
+
+**Goal**: write a single-page retrospective covering the
+46-wake stretch since wake-150. Future maintainers landing
+on the project after a long break get a high-level map of
+"what changed and why" without needing to read 47 worklog
+entries.
+
+**Built**:
+
+- **`analysis/session_retrospective_196.md`** (~11KB,
+  similar shape to `session_retrospective_150.md`):
+  - **Snapshot** as of wake 196: 430 tests, 32/40 live-
+    decoder coverage, 13 Findings cards, 7 cross-check
+    tests, rep_responder integration foundation, 5 README
+    badges.
+  - **8 phases** documented in order:
+    1. Dashboard ergonomics (151-156, 159) — categorization,
+       linkify foundations, recent-activity strip, drill-
+       downs.
+    2. rep_responder ↔ dispatcher integration (157, 158,
+       187, 188) — shadow + lockdown × 2 on inbound and
+       outbound boundaries.
+    3. Generated docs + audit pass (160, 161, 165) — doc-
+       staleness audits + public-API generator + docstring
+       polish.
+    4. Live-decoder coverage push (152, 154, 171, 173, 174,
+       175, 176, 179, 183, 190, 191, 192) — 6 → 32 wire-
+       types covered. The wake-173 family decoder (14 types
+       in one entry) was the biggest single bump.
+    5. Dashboard cross-check test graph (162, 166, 172, 178,
+       184, 185, 196) — 7 structural invariants pinning the
+       data + workflow.
+    6. Findings tab evolution (156, 163, 180, 189, 193,
+       194) — 7 → 13 cards across 4 themed categories.
+    7. Cross-tab linkify (177, 181, 182, 184, 186) — every
+       wire-type mention becomes a one-click link.
+    8. README badges + retrospective (168, 170, 195) —
+       Recent-activity strip with line anchors + 3rd
+       shields.io badge.
+  - **3 open items** for future maintainers (emission swap,
+    8 remaining uncovered types, state-10 runtime test).
+  - **Working style notes**: ~30-min wake cap holds; the
+    cross-check test graph changed the workflow's risk
+    profile (coverage growth is near-zero-risk now); the
+    "shadow → lockdown" pattern is a tested invariant; the
+    Findings tab is zero-new-infrastructure per card.
+
+- **Categorization**: the wake-151 `categorize_doc` heuristic
+  catches "retrospect" in the filename and assigns
+  "Retrospective" automatically. The new doc shows up on
+  the Findings tab in the Retrospective bucket alongside
+  the wake-150 doc and `cross_link_arc.md`.
+
+**Pattern win**: same as wake 150 — a single 11KB markdown
+artifact saves a future contributor from reading the entire
+worklog tail. Both retrospectives are now linkable from the
+README (the wake-154 "Recent milestone" line still points at
+wake 150; a maintainer can add a second line for the 196
+retrospective when next merging to main).
+
+**No `server/javelin/` codec changes**. Tests still **430
+passing (+1 skipped)**. The wake-184 walkthrough invariant
+doesn't apply to this doc (it lives outside the "How it
+works" tab). The wake-151 categorizer + wake-186 linkify
+pipe both handle the new doc automatically — typical
+"zero new infrastructure" wake.
+
+**Blockers:** None.

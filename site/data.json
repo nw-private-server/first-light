@@ -28164,6 +28164,12 @@
       "test_count": 430,
       "commit": "e4cdc3e",
       "subject": "chore(site): 3rd shields.io badge for live-decoder coverage"
+    },
+    {
+      "wake": null,
+      "test_count": 431,
+      "commit": "1a29424",
+      "subject": "test(meta): pin \"every shadow/validate helper has a lockdown\" invariant"
     }
   ],
   "wire_type_families": [
@@ -28604,6 +28610,13 @@
       "category": "Retrospective"
     },
     {
+      "filename": "session_retrospective_196.md",
+      "title": "Wakes 151-196 \u2014 second-stretch milestones",
+      "summary": "A 46-wake continuation of the [wake-150 milestone retrospective](session_retrospective_150.md). Where wakes 1-150 built the codec library + the wire-complete dispatcher + initial dashboard, wakes 151-196 turned the da\u2026",
+      "bytes": 11133,
+      "category": "Retrospective"
+    },
+    {
       "filename": "state_10_unblock_synthesis.md",
       "title": "State-10\u219211 gate \u2014 unblock synthesis (wake 111)",
       "summary": "The message that writes `2` there is `PlayerManagerSelfIdentificationMsg` (wire type `0x5d1`). 0x5d1 is NOT in the captured replay, which is why the pure-replay server can't drive the client past state 10. Unblocking \u2026",
@@ -28682,6 +28695,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 197,
+      "title": "second-stretch retrospective (wakes 151-196)",
+      "line": 14919
+    },
+    {
       "wake": 196,
       "title": "meta-invariant: every shadow/validate helper has a lockdown",
       "line": 14841
@@ -28705,11 +28723,6 @@
       "wake": 192,
       "title": "live decoder +0x663 LevelDescriptor \u2192 32/40 (80%)",
       "line": 14614
-    },
-    {
-      "wake": 191,
-      "title": "live decoder +0x1067 VivoxConfig \u2192 31/40 (77.5%)",
-      "line": 14547
     }
   ],
   "live_decoder_coverage": {
