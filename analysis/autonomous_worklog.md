@@ -15543,3 +15543,88 @@ README discoverability of new retros.
 passing (+1 skipped)** — up from 437.
 
 **Blockers:** None.
+
+## Wake 208 — counter-advance enhancement (phase-2D follow-up)
+
+**Goal**: the wake-204 swap installed dispatcher-encoded
+heartbeats behind `heartbeat_use_dispatcher`, but the
+cached `_heartbeat_decoded` doesn't change between calls
+— so every emission produces the captured ping verbatim.
+Real servers slow-increment a counter and randomize a
+nonce per ping. Make the responder match that pattern
+behind a second feature flag, leaving the wake-204
+byte-equality contract intact for the default path.
+
+**Built**:
+
+- **`server/rep_responder.py`**:
+  - **Added** `import secrets`.
+  - **Two new constructor attributes**:
+    - `self.heartbeat_advance_counter = False` —
+      default off, preserves wake-204 byte-equality.
+    - `self._heartbeat_nonce_fn = lambda: secrets.randbits(32)` —
+      pluggable so tests can inject deterministic
+      values without monkeypatching the `secrets`
+      module globally.
+  - **`_send_dispatched_heartbeat`** gains a pre-encode
+    mutation block:
+    ```python
+    if self.heartbeat_advance_counter and self._heartbeat_decoded is not None:
+        self._heartbeat_decoded = _dc_replace(
+            self._heartbeat_decoded,
+            counter=(self._heartbeat_decoded.counter + 1) & 0xFFFFFFFF,
+            nonce=self._heartbeat_nonce_fn() & 0xFFFFFFFF,
+        )
+    ```
+    The mutation is persisted back to
+    `_heartbeat_decoded` so each call builds on the
+    previous (matching the real server's slow-increment
+    pattern). Counter is masked to u32 — wraps cleanly
+    at `0xFFFFFFFF + 1 → 0` rather than raising from
+    `HeartbeatPing15D.__post_init__`'s range check.
+  - **Docstring updated** to explain the new behavior
+    + when it kicks in.
+
+- **`server/javelin/test_heartbeat_encode_validate.py`**:
+  - **`_phase2d_stub()` helper** now defaults the two
+    new attributes so existing wake-204 tests keep
+    passing without modification.
+  - **3 new tests** (one per scenario):
+    - `test_phase2d_counter_advances_when_advance_flag_set`:
+      3 successive calls with a deterministic nonce
+      iterator; decodes each emitted body and asserts
+      counter incremented by 1 + nonce matches injected
+      sequence.
+    - `test_phase2d_counter_does_not_advance_by_default`:
+      pins the safe default — `bodies[0] == bodies[1] == CAPTURED_PING_BODY`.
+      Future-proofs against accidental flag flips.
+    - `test_phase2d_counter_wraps_at_u32_max`: forces
+      counter to `0xFFFFFFFF`, asserts next emission
+      decodes to counter=0 (no ValueError raised). At
+      1 Hz this would take ~136 years to hit naturally,
+      but the math should be correct anyway.
+
+**Test count**: **441 passing (+1 skipped)** — up from 438.
+3 new tests as planned.
+
+**Pattern note**: this is the **6th** phase-2 step
+(157, 158, 187, 188, 204, 208). The arc started as
+"shadow → lockdown → validate → lockdown → swap" and
+has grown into "shadow → lockdown → validate → lockdown
+→ swap → realism enhancement." Each step gated behind a
+feature flag with a tested default. The wake-204 closing
+note already anticipated this work — see the
+`_send_dispatched_heartbeat` docstring before this
+wake: "A future wake can mutate the decoded object's
+counter/nonce per-call to make the heartbeats actually
+advance." This wake IS that future wake.
+
+**Remaining for real-GPU validation**: with both flags
+flipped (`heartbeat_use_dispatcher=True` +
+`heartbeat_advance_counter=True`), the responder
+emits genuinely-advancing dispatcher-encoded heartbeats
+end-to-end. The captured replay default still works
+as a fallback if the real-GPU run uncovers anything
+surprising.
+
+**Blockers:** None.

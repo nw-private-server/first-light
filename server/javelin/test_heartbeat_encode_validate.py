@@ -208,6 +208,12 @@ def _phase2d_stub(captured_list=None, send_fail=False):
     PeerSession._validate_dispatcher_heartbeat_encode_matches(stub)
     stub.heartbeat_use_dispatcher = True
     stub._heartbeat_dispatched_count = 0
+    # Wake 207: default to "no counter advance" so wake-204 byte-equality
+    # tests still pass; tests that want the advance behavior flip the
+    # flag explicitly.
+    stub.heartbeat_advance_counter = False
+    import secrets as _secrets
+    stub._heartbeat_nonce_fn = lambda: _secrets.randbits(32)
     captured_list = captured_list if captured_list is not None else []
     def fake_send(msg, is_heartbeat=False):
         captured_list.append((msg.body, is_heartbeat))
@@ -269,6 +275,69 @@ def test_phase2d_dispatched_emission_falls_back_on_encode_failure():
         and "falling back to replay bytes" in m
         for m in warn
     )
+
+
+def test_phase2d_counter_advances_when_advance_flag_set():
+    """Wake 207: with `heartbeat_advance_counter=True`, each dispatched
+    heartbeat increments the counter by 1 and refreshes the nonce.
+    Confirms the mutation is persisted to `_heartbeat_decoded` so
+    successive calls build on each other (matching the real server's
+    slow-incrementing counter pattern)."""
+    from server.javelin.heartbeat_15d import decode_ping
+    stub = _phase2d_stub()
+    stub.heartbeat_advance_counter = True
+    # Deterministic nonce sequence — no flakiness from secrets.randbits.
+    nonces = iter([0x11111111, 0x22222222, 0x33333333])
+    stub._heartbeat_nonce_fn = lambda: next(nonces)
+    starting_counter = stub._heartbeat_decoded.counter
+    PeerSession._send_dispatched_heartbeat(stub)
+    PeerSession._send_dispatched_heartbeat(stub)
+    PeerSession._send_dispatched_heartbeat(stub)
+    assert len(stub._captured) == 3
+    msgs = [decode_ping(body) for body, _ in stub._captured]
+    # Counter incremented by 1 each call.
+    assert msgs[0].counter == starting_counter + 1
+    assert msgs[1].counter == starting_counter + 2
+    assert msgs[2].counter == starting_counter + 3
+    # Nonces follow our injected sequence.
+    assert msgs[0].nonce == 0x11111111
+    assert msgs[1].nonce == 0x22222222
+    assert msgs[2].nonce == 0x33333333
+
+
+def test_phase2d_counter_does_not_advance_by_default():
+    """The default `heartbeat_advance_counter=False` preserves the
+    wake-204 byte-equality contract: emitted body equals
+    CAPTURED_PING_BODY across multiple calls. Future-proofs the
+    safe default against an accidental flip."""
+    stub = _phase2d_stub()
+    # Default is False — explicit for clarity.
+    assert stub.heartbeat_advance_counter is False
+    PeerSession._send_dispatched_heartbeat(stub)
+    PeerSession._send_dispatched_heartbeat(stub)
+    bodies = [body for body, _ in stub._captured]
+    assert bodies[0] == CAPTURED_PING_BODY
+    assert bodies[1] == CAPTURED_PING_BODY
+
+
+def test_phase2d_counter_wraps_at_u32_max():
+    """Belt-and-suspenders: if `counter` hits u32 max, the next call
+    wraps to 0 — does NOT raise from the HeartbeatPing15D range check
+    in __post_init__. A long-lived session at ~1 Hz takes ~136 years
+    to wrap u32, but the math should be correct anyway."""
+    from server.javelin.heartbeat_15d import HeartbeatPing15D, decode_ping
+    stub = _phase2d_stub()
+    stub.heartbeat_advance_counter = True
+    stub._heartbeat_nonce_fn = lambda: 0  # deterministic
+    # Force the decoded counter to u32 max — next call should produce 0.
+    stub._heartbeat_decoded = HeartbeatPing15D(
+        counter=0xFFFFFFFF,
+        nonce=stub._heartbeat_decoded.nonce,
+    )
+    PeerSession._send_dispatched_heartbeat(stub)
+    msg = decode_ping(stub._captured[-1][0])
+    assert msg.counter == 0
+    assert msg.nonce == 0
 
 
 def test_probe_never_raises_across_corrupt_bodies():

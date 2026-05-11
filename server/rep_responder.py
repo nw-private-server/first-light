@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import secrets
 import socket
 import struct
 import sys
@@ -182,6 +183,16 @@ class PeerSession:
         self.heartbeat_use_dispatcher = False
         self._heartbeat_decoded: object | None = None
         self._heartbeat_dispatched_count: int = 0
+        # Wake 207: when True (and heartbeat_use_dispatcher is also True),
+        # each dispatched heartbeat increments `_heartbeat_decoded.counter`
+        # by 1 (mod u32) and refreshes `.nonce` via `_heartbeat_nonce_fn`.
+        # Default off — preserves wake-204 byte-equality to CAPTURED_PING.
+        # Real server behavior is to advance the counter; this flag lets
+        # a future real-GPU run flip it for genuine progress without
+        # changing the safe default. Nonce function is pluggable so tests
+        # can inject a deterministic sequence.
+        self.heartbeat_advance_counter = False
+        self._heartbeat_nonce_fn = lambda: secrets.randbits(32)
         self.handshake_done = False
         self.out_seq = 0  # outbound Carrier-envelope sequence number
         # Per-channel outbound sequence + reliable-sequence counters. GridMate
@@ -775,7 +786,22 @@ class PeerSession:
 
         The first invocation logs at INFO so an operator can see the
         path switched; subsequent invocations log at debug level only.
+
+        Wake 207: when `heartbeat_advance_counter` is True, the cached
+        decoded object is mutated before encoding — counter increments
+        by 1 (mod u32) and nonce is refreshed via `_heartbeat_nonce_fn`.
+        The mutation is persisted to `_heartbeat_decoded` so each call
+        builds on the previous, matching the real server's
+        slow-incrementing counter pattern.
         """
+        if (self.heartbeat_advance_counter
+                and self._heartbeat_decoded is not None):
+            from dataclasses import replace as _dc_replace
+            self._heartbeat_decoded = _dc_replace(
+                self._heartbeat_decoded,
+                counter=(self._heartbeat_decoded.counter + 1) & 0xFFFFFFFF,
+                nonce=self._heartbeat_nonce_fn() & 0xFFFFFFFF,
+            )
         try:
             fresh_body = _dispatch.encode_replay_message(
                 0x15d, self._heartbeat_decoded
