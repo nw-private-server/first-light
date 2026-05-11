@@ -1428,7 +1428,7 @@
       "title": "Post-V3 state-spawn ladder: 4 transitions mapped (1 writer still open)",
       "category": "RE breakthrough",
       "wake": 240,
-      "summary": "Static-RE has mapped the post-V3 state-spawn ladder end-to-end. States 10 \u2192 14 form the spawn sequence (10=WaitingForREPConnection, 11=WaitingForActorGameConnection, 12=WaitingForSpawnPoint, 13=WaitingForPlayerSpawn, 14=InGame \u2014 names recovered from the table at 0x1484f9ff0). Each transition reads a different field on the `GameConnectionWrapper` sub-object at `gc + 0x130`: **10\u219211** `*(int)(wrapper+0xa0) == 2`, written by `FUN_145a87010` (onConnectionSuccess) called from `FUN_146454c00` (PlayerManagerSelfIdentification handler); wire trigger 0x5d1 (wake 112). **11\u219212** `*(int)(wrapper+0xa0) != 0` \u2014 inverted check on the same field, auto-fires once 10\u219211 lands. **12\u219213** `*(u8)(wrapper+0xbc8) != 0` \u2014 primary path: LevelInfoChangedMsg's handler (`FUN_146446800`) directly forces state to 13; secondary path: `FUN_14645c660` (another ClientMessagesTrait dispatch entry, message TBD) sets the gate byte via `FUN_145a9fa00` (wake 232/234). **13\u219214** `*(u8)(wrapper+0x252) != 0` \u2014 **writer NOT yet identified**. Wake-13's FindOffsetWrites scan came up empty (3 hits, all unrelated). The real writer must use a register-based, memcpy, or OR-store pattern. This is the **last concrete static-RE step** to close the spawn ladder; once found, the post-V3 server-message sequence will be fully characterized end-to-end. See `analysis/state_machine_summary.md` \u00a7 1 for the predicate table and \u00a7 4\u00bd for the wake-232 12\u219213 writer details. The wake-112 + wake-232 individual cards capture the breakthroughs; this synthesis card surfaces the complete picture in one place."
+      "summary": "Static-RE has mapped the post-V3 state-spawn ladder end-to-end. States 10 \u2192 14 form the spawn sequence (10=WaitingForREPConnection, 11=WaitingForActorGameConnection, 12=WaitingForSpawnPoint, 13=WaitingForPlayerSpawn, 14=InGame \u2014 names recovered from the table at 0x1484f9ff0). Each transition reads a different field on the `GameConnectionWrapper` sub-object at `gc + 0x130`: **10\u219211** `*(int)(wrapper+0xa0) == 2`, written by `FUN_145a87010` (onConnectionSuccess) called from `FUN_146454c00` (PlayerManagerSelfIdentification handler); wire trigger 0x5d1 (wake 112). **11\u219212** `*(int)(wrapper+0xa0) != 0` \u2014 inverted check on the same field, auto-fires once 10\u219211 lands. **12\u219213** `*(u8)(wrapper+0xbc8) != 0` \u2014 primary path: LevelInfoChangedMsg's handler (`FUN_146446800`) directly forces state to 13; secondary path: `FUN_14645c660` (another ClientMessagesTrait dispatch entry, message TBD) sets the gate byte via `FUN_145a9fa00` (wake 232/234). **13\u219214** `*(u8)(wrapper+0x252) != 0` \u2014 **writer NOT yet identified statically**, but wake 241 surfaced a substantive **alternative hypothesis**: the gate may be set by a client-side actor-spawn-complete callback rather than a server message (the state name `WaitingForPlayerSpawn` is suggestive). If this hypothesis holds, **MVP server-side needs only SelfIdent + LevelInfoChanged** \u2014 state 13\u219214 fires from the client's actor system once the level data is loaded, no additional network message needed. The wake-241 investigation log captures candidate triage (top tier-A: `FUN_146c60830` at a message-handler-adjacent address takes a DIL bool param), the 0x145a-namespace scan that confirms the writer is NOT in the wrapper-setter family, and 5 concrete next-step Ghidra actions including a Frida-hook fallback. See `analysis/state_machine_summary.md` \u00a7 1 for the predicate table, \u00a7 4\u00bd for the wake-232 12\u219213 writer details, and `analysis/state_13_14_writer_investigation.md` for the wake-241 search log. The wake-112 + wake-232 individual cards capture the breakthroughs; this synthesis card surfaces the complete picture in one place."
     },
     {
       "title": "W-direction CRC32 confirmed",
@@ -28476,6 +28476,12 @@
       "test_count": 457,
       "commit": "36b15dc",
       "subject": "feat(site): Findings card synthesizing the post-V3 state-spawn ladder"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "8f931b4",
+      "subject": "docs(analysis): state-13 -> 14 writer investigation log (candidate triage)"
     }
   ],
   "live_decoder_history": [
@@ -29073,6 +29079,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 242,
+      "title": "wake-240 synthesis card: surface wake-241 alt hypothesis + investigation log",
+      "line": 18331,
+      "category": "other"
+    },
+    {
       "wake": 241,
       "title": "state-13 \u2192 14 writer investigation log (no finding, candidate triage shipped)",
       "line": 18218,
@@ -29100,12 +29112,6 @@
       "wake": 237,
       "title": "state_machine_summary cross-references",
       "line": 17872,
-      "category": "other"
-    },
-    {
-      "wake": 236,
-      "title": "ghidra_hunt_list.md targeted refresh (wake-109 \u2192 wake-236)",
-      "line": 17788,
       "category": "other"
     }
   ],

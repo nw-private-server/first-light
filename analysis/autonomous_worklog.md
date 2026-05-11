@@ -18327,3 +18327,71 @@ candidate triage + next-step plan.
 two cross-references.
 
 **Blockers:** None.
+
+## Wake 242 — wake-240 synthesis card: surface wake-241 alt hypothesis + investigation log
+
+**Goal**: the wake-240 synthesis card said state-13→14
+writer "remains TBD" without forward-pointer to the
+wake-241 investigation. Update both: (1) reference the
+wake-241 investigation log; (2) surface the substantive
+alt hypothesis ("MVP may only need 2 server messages")
+that the investigation produced.
+
+**Built**:
+
+- **`tools/build_site.py`** wake-240 synthesis card
+  13→14 paragraph rewritten:
+  - "writer NOT yet identified" → "writer NOT yet
+    identified statically, but wake 241 surfaced a
+    substantive **alternative hypothesis**" —
+    distinguishes "no static finding" from "no
+    finding."
+  - **Alt hypothesis** explicit: "the gate may be set
+    by a client-side actor-spawn-complete callback
+    rather than a server message (the state name
+    `WaitingForPlayerSpawn` is suggestive)."
+  - **MVP implication** explicit: "If this hypothesis
+    holds, **MVP server-side needs only SelfIdent +
+    LevelInfoChanged** — state 13→14 fires from the
+    client's actor system once the level data is
+    loaded, no additional network message needed."
+    This is a load-bearing claim about scope, worth
+    surfacing on the dashboard.
+  - **Wake-241 log cited** as
+    `analysis/state_13_14_writer_investigation.md` —
+    triggers wake-225 cross-check (path exists ✓).
+  - Original "last concrete static-RE step" framing
+    removed (it implied a finding would still be
+    needed; the alt hypothesis says it might not).
+
+**Why surface the alt hypothesis prominently**: a
+visitor evaluating "how close is this project to MVP?"
+needs to know whether the server-side message
+sequence is fully characterized. The wake-240 card
+previously suggested "one more step needed" (the
+13→14 writer). The wake-241 alt hypothesis says "maybe
+no more steps needed." That's a 50% reduction in
+remaining-RE-debt and worth being visible.
+
+**Verification**:
+- wake-225 (analysis-path existence): the new card
+  prose cites `state_13_14_writer_investigation.md`
+  AND `state_machine_summary.md` (both exist) ✓.
+- wake-209 (paired card consistency): wake-188 +
+  wake-204 pair untouched.
+- wake-218 (manifest citation): unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: this is the **3rd** Findings card
+this session that has been updated post-creation
+(wake-200 multiple refreshes, wake-192 refresh,
+now wake-240). Each update tightens prose with new
+context. The wake-209 paired-card test is the only
+invariant that constrains updates — wake-188 +
+wake-204 cards must stay in sync; other cards are
+freely updateable.
+
+**No new tests, no new code**. Single Findings
+card prose update.
+
+**Blockers:** None.
