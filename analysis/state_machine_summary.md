@@ -212,12 +212,16 @@ For MVP "enter a static world", only `PlayerManagerSelfIdentificationMsg`
 is required. `LevelInfoChanged` is required for richer post-spawn
 behavior; the other three are optional.
 
-## 4½. State 11 → 12 — same single-writer pattern, message TBD
+## 4½. State 12 → 13 — second writer path (LevelInfoChanged is the primary)
 
-A separate gate exists for the state 11 → 12 transition, found via
-the same `FindOffsetWrites` scan that nailed the state-10 gate. The
-state-12 gate field is **`wrapper[+0xbc8]`** (a u8 byte, distinct
-from the state-10 gate's `wrapper[+0xa0]` int).
+Per the § 1 predicate table, the state 12 → 13 transition is gated
+by `*(u8 *)(wrapper + 0xbc8) != 0`. The § 4 catalog notes
+LevelInfoChangedMsg's handler (`FUN_146446800`) **directly forces
+state to 13** — that's the primary path. A separate scan
+(`FindOffsetWrites 0xbc8 0x1`) found that there is **also a soft
+writer** of the gate byte, which sets `wrapper[+0xbc8] = 1` without
+force-advancing state. The state machine then advances 12 → 13 on
+its next tick via the normal `wrapper[+0xbc8] != 0` predicate.
 
 ```
 reader: FUN_145a905c0 — returns *(u8 *)(arg + 0xbc8)
@@ -227,7 +231,7 @@ writer: FUN_145a9fa00 — *(u8 *)(arg + 0xbc8) = 1
 The writer has exactly **one xref**: an unconditional call from
 `FUN_14645c660 @ 0x14645c660`. That bridge looks up the wrapper
 pointer from a global container and passes `wrapper + 0x130` to the
-state-12 gate writer:
+gate writer:
 
 ```c
 void FUN_14645c660(longlong param_1) {
@@ -250,22 +254,32 @@ table's metadata column for this row points into `0x140977xxxx`
 and there's no log-string or RTTI tag near the function entry.
 
 **Open question**: which one of the 5 catalogued ClientMessagesTrait
-classes is handled here? `PlayerManagerSelfIdentificationMsg` is
-known (10→11), `LevelInfoChangedMsg` is known (12→13). That leaves
+classes is handled here? `PlayerManagerSelfIdentificationMsg`
+(10→11), `LevelInfoChangedMsg` (12→13 force) and the assumed two
+post-registration messages (`RemoteConfigChangedMsg`,
+`DebugCommandResponseMsg`) are known by RTTI mangled-name fragments
+at `0x14a153xxx`. The remaining candidates are
 `PlayerManagerRejectedMsg`, `RemoteConfigChangedMsg`, and
-`DebugCommandResponseMsg` as candidates. None feels semantically
-right for the 11→12 step — needs a runtime trace (Frida hook on
-`FUN_14645c660` to log the incoming message body's RTTI tag) to
-identify definitively.
+`DebugCommandResponseMsg` — runtime Frida hook on `FUN_14645c660`
+to log the incoming message body's RTTI tag is the practical
+identifier.
 
-**Why this matters**: a complete state-advance chain past gate-2
-needs at least three server messages (`SelfIdent` →
-`unknown-11→12` → `LevelInfoChanged`), possibly four
-(`unknown-13→14` after `LevelInfoChanged` per the
-`state_machine_summary` §4 catalog noting "13 → 14 TBD"). The
-phase-2D + counter-advance infrastructure shipped at wakes 204/208
-gets the heartbeat path going; the next-step server-message
-sequence is what advances state past 11.
+**Why this matters**: server-side, this gives an alternative path
+to advance state past 12 without sending `LevelInfoChanged`. If
+the unknown trait message is small (e.g. a config-change broadcast)
+it may be cheaper to synthesize than `LevelInfoChanged`'s full
+level descriptor. The complete state-advance chain past gate-2
+needs `SelfIdent` (10→11→12, since 11→12 uses inverted substate
+predicate on the same `wrapper[+0xa0]` field that 10→11 already
+set to 2) and *some* 12→13 trigger (LevelInfoChanged direct-force,
+OR this soft-writer + a tick). State 13 → 14 (entering InGame) is
+still TBD — `wrapper[+0x252]` is its gate but the writer scan
+(`FindOffsetWrites 0x252 0x1`, see worklog A4.2) found no clean
+single-writer; that may be a register-based or memcpy write.
+
+The phase-2D + counter-advance infrastructure shipped at wakes
+204/208 gets the heartbeat path going; this next-step server-
+message sequence is what advances state past 12.
 
 ## 5. The destroy mechanism
 

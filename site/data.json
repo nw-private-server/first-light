@@ -1419,10 +1419,10 @@
       "summary": "The state-10 \u2192 11 transition is gated by *(int*)(wrapper+0xa0) == 2 (corrected from the earlier +0x130 hypothesis). The trigger is wire type 0x5d1 (PlayerManagerSelfIdentificationMsg) \u2014 not in the captured replay, so the server must synthesize it. Codec is wire-bound; ready for runtime testing."
     },
     {
-      "title": "State-11 \u2192 12 gate identified, message TBD",
+      "title": "State-12 \u2192 13 second writer identified (LevelInfoChanged is the primary)",
       "category": "RE breakthrough",
       "wake": 232,
-      "summary": "The state-11 \u2192 12 transition uses the same single-writer pattern as state-10: gate field is **wrapper[+0xbc8]** (a u8 byte, distinct from state-10's wrapper[+0xa0] int); reader is FUN_145a905c0 (returns the byte); writer is FUN_145a9fa00 (sets it to 1, exactly one xref). The single caller is FUN_14645c660 \u2014 itself a ClientMessagesTrait dispatch-table entry (at 0x14abcc45c, 0x300 bytes from PlayerManagerSelfIdentification's entry). So the 11 \u2192 12 step is gated by a **second trait message** \u2014 name not yet recoverable statically because that row's metadata column points into a different `.rdata` segment with no log-strings or RTTI tag near the function entry. Candidates are the 3 unmapped ClientMessagesTrait classes (PlayerManagerRejectedMsg, RemoteConfigChangedMsg, DebugCommandResponseMsg); definitive ID needs a runtime Frida trace hooking FUN_14645c660 to log the incoming RTTI tag. Finding originated at autonomous-loop wake 13 (2026-05-07) and was buried in the worklog until wake 232 surfaced it as `analysis/state_machine_summary.md` \u00a7 4\u00bd. Together with wake-112's state-10 finding, this completes the static-RE picture of the post-V3 server-message sequence: at least three messages (SelfIdent \u2192 unknown-11\u219212 \u2192 LevelInfoChanged), possibly four (the \u00a74 catalog still has '13\u219214 TBD')."
+      "summary": "The state 12 \u2192 13 transition is gated by **wrapper[+0xbc8] != 0** (per the state-machine summary predicate table). The primary path is **LevelInfoChangedMsg**'s handler (FUN_146446800) which **directly forces state to 13**. A separate scan (`FindOffsetWrites 0xbc8 0x1`) found that there is also a **soft writer** of the gate byte that sets wrapper[+0xbc8] = 1 without force-advancing: FUN_145a9fa00 (one-line setter, exactly one xref). The state machine then advances 12 \u2192 13 on its next tick via the normal predicate. The writer's single caller is FUN_14645c660 \u2014 itself a ClientMessagesTrait dispatch-table entry (at 0x14abcc45c, 0x300 bytes from PlayerManagerSelfIdentification's entry). So a **second trait message** (name TBD) provides an alternative path to advance state past 12 without sending the full LevelInfoChanged payload. Static-RE can't recover the message name because that dispatch row's metadata column points into a different `.rdata` segment with no log-strings or RTTI tag near the entry. Candidates are the 3 unmapped ClientMessagesTrait classes (PlayerManagerRejectedMsg, RemoteConfigChangedMsg, DebugCommandResponseMsg); definitive ID needs a runtime Frida trace hooking FUN_14645c660 to log the incoming RTTI tag. Finding originated at autonomous-loop wake 13 (2026-05-07) and was surfaced into `analysis/state_machine_summary.md` \u00a7 4\u00bd at wake 232 (with a wake-234 correction \u2014 the wake-232 prose mistakenly framed this as the 11\u219212 gate; 11\u219212 is actually a re-check on wrapper[+0xa0] that auto-fires once 10\u219211 lands). State 13 \u2192 14 (entering InGame) remains TBD \u2014 wrapper[+0x252] is its gate but no clean single-writer was found."
     },
     {
       "title": "W-direction CRC32 confirmed",
@@ -28422,6 +28422,12 @@
       "test_count": 457,
       "commit": "79b68e1",
       "subject": "docs(analysis): surface state-11 -> 12 gate finding in state_machine_summary"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "2907eb9",
+      "subject": "feat(site): Findings card for wake-232's state-11 -> 12 gate finding"
     }
   ],
   "live_decoder_history": [
@@ -28944,7 +28950,7 @@
       "filename": "state_machine_summary.md",
       "title": "GameConnection State Machine \u2014 Synthesis (2026-05-07)",
       "summary": "After the V3 RegistrationResponse is accepted (already working \u2014 prior project notes confirmed `rep.ready` flips 0\u21921), the client sits in",
-      "bytes": 18122,
+      "bytes": 18971,
       "category": "Overview"
     },
     {
@@ -29012,6 +29018,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 234,
+      "title": "state-numbering correction (wake-232 / wake-233 framing error)",
+      "line": 17597,
+      "category": "other"
+    },
+    {
       "wake": 233,
       "title": "Findings card for the wake-232 state-11\u219212 surfaced finding",
       "line": 17516,
@@ -29040,12 +29052,6 @@
       "title": "simplify wake-196 delta callout (now superseded by wake-227 retro)",
       "line": 17195,
       "category": "other"
-    },
-    {
-      "wake": 228,
-      "title": "third-stretch retrospective (wakes 197-227)",
-      "line": 17096,
-      "category": "docs"
     }
   ],
   "live_decoder_coverage": {

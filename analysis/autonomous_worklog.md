@@ -17593,3 +17593,101 @@ infrastructure" property holds — single dict entry,
 no new code paths.
 
 **Blockers:** None.
+
+## Wake 234 — state-numbering correction (wake-232 / wake-233 framing error)
+
+**Goal**: while mining the worklog for buried RE
+findings, discovered that my own wake-232 work
+mislabeled the surfaced finding. The `wrapper[+0xbc8]`
+gate is the **state-12 → 13 predicate** (per the
+existing § 1 predicate table at
+`state_machine_summary.md:91-95`), NOT the state-11
+→ 12 gate as the wake-232 § 4½ section and wake-233
+Findings card both claimed.
+
+The confusion: the wake-13 worklog called it the
+"state-12 gate" meaning "the gate field checked AT
+state 12, before advancing past 12" (i.e., 12 → 13).
+My wake-232 reading was "the gate that advances TO
+state 12" (i.e., 11 → 12). Different conventions.
+The state_machine_summary's table is the authoritative
+source.
+
+**Built**:
+
+- **`analysis/state_machine_summary.md`** § 4½
+  retitled: "State 11 → 12 — same single-writer
+  pattern, message TBD" → "**State 12 → 13 — second
+  writer path (LevelInfoChanged is the primary)**".
+  Body rewritten to:
+  - Frame the finding as a **second** (soft) writer
+    of the 12→13 gate, distinct from LevelInfoChanged's
+    direct force-advance.
+  - Explain that the soft writer sets the byte but
+    doesn't force the state advance; the state
+    machine ticks 12 → 13 on its next pass via the
+    normal `wrapper[+0xbc8] != 0` predicate.
+  - Add the 11 → 12 clarification: that transition
+    uses an inverted check on `wrapper[+0xa0]`
+    (the same field the 10 → 11 setter writes to 2),
+    so it auto-fires once 10 → 11 lands.
+  - Surface state 13 → 14 (`wrapper[+0x252]`) as the
+    actual remaining unknown gate (writer scan
+    found no clean single-writer, per worklog A4.2).
+  - "Why this matters" updated: server-side, the
+    second writer gives an alternative path to
+    advance past 12 without sending LevelInfoChanged.
+
+- **`tools/build_site.py`** wake-233 Findings card:
+  - Title: "State-11 → 12 gate identified, message
+    TBD" → "**State-12 → 13 second writer
+    identified (LevelInfoChanged is the primary)**".
+  - Summary rewritten consistent with the
+    state-machine summary update.
+  - Explicit correction note in the prose: "wake-234
+    correction — the wake-232 prose mistakenly
+    framed this as the 11→12 gate; 11→12 is
+    actually a re-check on wrapper[+0xa0] that
+    auto-fires once 10→11 lands."
+
+**Why this matters**: the wake-232/233 work was the
+first substantive RE consolidation in many wakes,
+and the framing error would propagate to anyone
+reading the surfaced finding. Worth correcting
+immediately rather than letting the wrong claim
+sit. The card's "wake-234 correction" note is
+visible to a reader who arrives at the card from
+the dashboard, so the history of the correction
+isn't hidden.
+
+**Cross-check verification**:
+- wake-225 (analysis-path existence): card still
+  cites `analysis/state_machine_summary.md` —
+  unchanged, exists ✓.
+- wake-209 (card pair consistency): wake-188 +
+  wake-204 pair untouched.
+- wake-227 (manifest-vs-tests): unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Source of the catch**: scanning the worklog with
+forward menu's option (a) — looking for OTHER buried
+findings — when I found the state-name table entry
+at worklog line 999-1017 and the § 1 predicate
+table at state_machine_summary.md:91-95. Comparing
+those against my wake-232 prose surfaced the
+inconsistency.
+
+**Pattern note**: this is the **second** mid-stretch
+course-correction this stretch (after wake 196's
+helper-lockdown rewrite and wake 209's paired-card
+scope decision). RE work has higher correction
+risk than infrastructure work — the state-machine
+domain has many adjacent fields and edge cases that
+look similar at a glance. Worth documenting these
+publicly so future contributors see corrections as
+normal, not as something to hide.
+
+**No new tests, no new code**. Pure correction +
+prose updates.
+
+**Blockers:** None.
