@@ -591,6 +591,68 @@ main { padding: 16px; max-width: 1100px; margin: 0 auto; }
   font-size: 12px;
   color: var(--text-dim);
   line-height: 1.4;
+  margin-top: 6px;
+}
+.fam-expand {
+  background: transparent;
+  border: 0;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 0;
+  margin: 4px 0 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.fam-expand:hover { color: var(--accent); }
+.fam-arrow {
+  display: inline-block;
+  width: 12px;
+  font-family: ui-monospace, monospace;
+}
+.fam-details {
+  background: rgba(0,0,0,0.18);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fam-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+}
+.fam-hex {
+  color: var(--accent);
+  font-weight: 600;
+  min-width: 64px;
+}
+.fam-dir {
+  background: var(--surface-2);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+  color: var(--text-dim);
+  min-width: 18px;
+  text-align: center;
+}
+.fam-cnt {
+  color: var(--text-dim);
+  min-width: 60px;
+}
+.fam-codec {
+  color: var(--text-dim);
+  font-size: 11px;
+  margin-left: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
 }
 
 /* FAQ */
@@ -1573,13 +1635,58 @@ async function load() {
     const types = fam.wire_types
       .map(t => `<span class="badge">${escapeHtml(t)}</span>`)
       .join("");
+
+    // Per-member details (collapsed by default). The wake-159 enrichment
+    // attaches name/count/directions/codec to each member; if they're
+    // absent (older data.json) we fall back to just the hex list.
+    let detailsHtml = "";
+    if (Array.isArray(fam.members) && fam.members.length > 0) {
+      const rows = fam.members.map(m => {
+        const dirBadge = m.directions
+          ? `<span class="fam-dir">${escapeHtml(m.directions)}</span>`
+          : "";
+        const codec = m.codec
+          ? `<span class="fam-codec">${escapeHtml(m.codec)}</span>`
+          : "";
+        const cnt = (m.count || 0).toLocaleString();
+        return `
+          <div class="fam-row">
+            <span class="fam-hex">${escapeHtml(m.hex)}</span>
+            ${dirBadge}
+            <span class="fam-cnt">${cnt} msg${m.count === 1 ? "" : "s"}</span>
+            ${codec}
+          </div>`;
+      }).join("");
+      detailsHtml = `
+        <button class="fam-expand" aria-expanded="false">
+          <span class="fam-arrow">▸</span>
+          Members (${fam.members.length})
+        </button>
+        <div class="fam-details" hidden>${rows}</div>`;
+    }
+
     div.innerHTML = `
       <div class="label">${escapeHtml(fam.label)}</div>
       <div class="ssid">sub_system_id ${escapeHtml(fam.sub_system_id)}</div>
       <div class="types">${types}</div>
+      ${detailsHtml}
       <div class="note">${escapeHtml(fam.note)}</div>
     `;
     famEl.appendChild(div);
+  }
+  // Wire up the expand buttons (delegated, single listener on the parent).
+  if (famEl) {
+    famEl.addEventListener("click", (ev) => {
+      const btn = ev.target.closest(".fam-expand");
+      if (!btn) return;
+      const panel = btn.nextElementSibling;
+      if (!panel || !panel.classList.contains("fam-details")) return;
+      const open = panel.hidden;
+      panel.hidden = !open;
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      const arrow = btn.querySelector(".fam-arrow");
+      if (arrow) arrow.textContent = open ? "▾" : "▸";
+    });
   }
 
   // ---- Timeline ----

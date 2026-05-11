@@ -27903,6 +27903,12 @@
       "test_count": 347,
       "commit": "909706b",
       "subject": "feat(rep_responder): parallel shadow-decode through central dispatcher"
+    },
+    {
+      "wake": null,
+      "test_count": 347,
+      "commit": "b34a1f7",
+      "subject": "test(rep_responder): 9 tests pin the wake-157 shadow-decode wiring"
     }
   ],
   "wire_type_families": [
@@ -27914,7 +27920,30 @@
         "0x192c"
       ],
       "label": "3-way correlation",
-      "note": "0x1033 is the wake-102 opaque blob (presumed encrypted). 0x102e and 0x192c are subkey-beacon family. Shared sub_system_id implies the opaque blob's bulk content is part of a session-state-bundle whose pieces are fragmented across three message types."
+      "note": "0x1033 is the wake-102 opaque blob (presumed encrypted). 0x102e and 0x192c are subkey-beacon family. Shared sub_system_id implies the opaque blob's bulk content is part of a session-state-bundle whose pieces are fragmented across three message types.",
+      "members": [
+        {
+          "hex": "0x102e",
+          "name": "(unclaimed)",
+          "count": 1,
+          "directions": "W",
+          "codec": "subkey_beacon.py (generic)"
+        },
+        {
+          "hex": "0x1033",
+          "name": "(unclaimed)",
+          "count": 1,
+          "directions": "R",
+          "codec": "opaque_blob_1033.py"
+        },
+        {
+          "hex": "0x192c",
+          "name": "(unclaimed)",
+          "count": 1,
+          "directions": "W",
+          "codec": "subkey_beacon.py (generic)"
+        }
+      ]
     },
     {
       "sub_system_id": "f8cbed57c68b18f4",
@@ -27923,7 +27952,23 @@
         "0x1a59"
       ],
       "label": "Counter-coupled init pair",
-      "note": "Init beacon \u2194 session subkey beacon. Validated by wake-78's counter-coupling finding (counter increments 0x02\u21920x03\u21920x04 across captured copies)."
+      "note": "Init beacon \u2194 session subkey beacon. Validated by wake-78's counter-coupling finding (counter increments 0x02\u21920x03\u21920x04 across captured copies).",
+      "members": [
+        {
+          "hex": "0x18a6",
+          "name": "(unclaimed)",
+          "count": 4,
+          "directions": "R",
+          "codec": "init_message_18a6.py"
+        },
+        {
+          "hex": "0x1a59",
+          "name": "(unclaimed)",
+          "count": 3,
+          "directions": "W",
+          "codec": "session_subkey_1a59.py"
+        }
+      ]
     },
     {
       "sub_system_id": "93a3e477cb5fd51e",
@@ -27932,7 +27977,23 @@
         "0x1097"
       ],
       "label": "Spawn-config + token",
-      "note": "Frame-config (durations, ratios) and the spawn-confirmation result token share a sub_system_id. New finding: wake-78's pair list didn't include this; the shared identity puts them together."
+      "note": "Frame-config (durations, ratios) and the spawn-confirmation result token share a sub_system_id. New finding: wake-78's pair list didn't include this; the shared identity puts them together.",
+      "members": [
+        {
+          "hex": "0x1096",
+          "name": "(unclaimed)",
+          "count": 1,
+          "directions": "R",
+          "codec": "frame_config_1096.py"
+        },
+        {
+          "hex": "0x1097",
+          "name": "(unclaimed)",
+          "count": 1,
+          "directions": "R",
+          "codec": "result_token_1097.py"
+        }
+      ]
     },
     {
       "sub_system_id": "4c0c0ed6478a69da",
@@ -27941,7 +28002,23 @@
         "0x9fc"
       ],
       "label": "Identity blob + receipt echo",
-      "note": "Already paired by 16-byte hash echo per wake 78; the shared sub_system_id confirms."
+      "note": "Already paired by 16-byte hash echo per wake 78; the shared sub_system_id confirms.",
+      "members": [
+        {
+          "hex": "0x8e6",
+          "name": "(unclaimed)",
+          "count": 1,
+          "directions": "R",
+          "codec": "identity_blob_8e6.py"
+        },
+        {
+          "hex": "0x9fc",
+          "name": "(unclaimed)",
+          "count": 1,
+          "directions": "W",
+          "codec": "receipt_handshake_9fc.py"
+        }
+      ]
     },
     {
       "sub_system_id": "180f8d4e573697c6",
@@ -27950,7 +28027,23 @@
         "0xa95"
       ],
       "label": "Fingerprint + permission",
-      "note": "Identity-fingerprint set + permission-bitmap. Both W-direction client\u2192server."
+      "note": "Identity-fingerprint set + permission-bitmap. Both W-direction client\u2192server.",
+      "members": [
+        {
+          "hex": "0x5b2",
+          "name": "(unclaimed)",
+          "count": 4,
+          "directions": "W",
+          "codec": "identity_fingerprint_5b2.py"
+        },
+        {
+          "hex": "0xa95",
+          "name": "(unclaimed)",
+          "count": 1,
+          "directions": "W",
+          "codec": "permission_bitmap_a95.py"
+        }
+      ]
     },
     {
       "sub_system_id": "16009918b041c1f9",
@@ -27959,7 +28052,23 @@
         "0x187f"
       ],
       "label": "Subkey-beacon variant pair",
-      "note": "Two subkey-beacon family entries with adjacent type-ids."
+      "note": "Two subkey-beacon family entries with adjacent type-ids.",
+      "members": [
+        {
+          "hex": "0x187c",
+          "name": "(unclaimed)",
+          "count": 1,
+          "directions": "W",
+          "codec": "subkey_beacon.py (generic)"
+        },
+        {
+          "hex": "0x187f",
+          "name": "(unclaimed)",
+          "count": 1,
+          "directions": "W",
+          "codec": "subkey_beacon.py (generic)"
+        }
+      ]
     },
     {
       "sub_system_id": "9e921a154971f6b7",
@@ -27968,7 +28077,23 @@
         "0x143d"
       ],
       "label": "Subkey-beacon variant pair",
-      "note": "Another subkey-beacon family pair, type-ids non-adjacent."
+      "note": "Another subkey-beacon family pair, type-ids non-adjacent.",
+      "members": [
+        {
+          "hex": "0xf7f",
+          "name": "(unclaimed)",
+          "count": 1,
+          "directions": "W",
+          "codec": "subkey_beacon.py (generic)"
+        },
+        {
+          "hex": "0x143d",
+          "name": "(unclaimed)",
+          "count": 1,
+          "directions": "W",
+          "codec": "subkey_beacon.py (generic)"
+        }
+      ]
     }
   ],
   "decompile_groups": [

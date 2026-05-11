@@ -12439,3 +12439,58 @@ behavior is what got tested; this wake added no new
 production code, only test coverage.
 
 **Blockers:** None.
+
+## Wake 159 — wire-type families drill-down on Overview tab
+
+**Goal**: wake-121 surfaced 7 sub-system families on the
+Overview tab (each card shows label + sub_system_id + wire-
+type badges + note), but a visitor wanting to know "what's
+in `0x18a6 + 0x1a59`" had to dig into the Wire Types tab to
+look up each one. Add an inline drill-down so each family
+card stand-alone explains its membership.
+
+**Built**:
+
+- **`tools/build_site.py`**:
+  - New `_enrich_families(families, captured_types)` helper.
+    For each `wire_types` hex entry in a family, looks up
+    the matching `captured_types` entry by `type_id_hex`
+    and attaches a `members` array with `[{hex, name,
+    count, directions, codec}]`. Members that don't match
+    keep just `hex` and zeros for the rest.
+  - `build_data()` calls the enricher right before the
+    return dict (post `captured_list` build, since that's
+    the source of truth for per-type metadata).
+
+- **`site/index.html`**:
+  - Each family card now renders a "▸ Members (N)" expand
+    button. Clicking reveals a `.fam-details` panel listing
+    every member with: hex, direction badge (R/W), capture
+    count, codec module name (truncated with ellipsis if
+    long). Closed by default; arrow flips ▸ → ▾ on open.
+  - Delegated single click-listener on the parent
+    `#families` container — one handler covers all 7 cards.
+  - 5 new CSS classes (`.fam-expand`, `.fam-arrow`,
+    `.fam-details`, `.fam-row`, `.fam-hex`, `.fam-dir`,
+    `.fam-cnt`, `.fam-codec`) with the existing
+    surface/border palette so the new section blends in.
+  - Backwards-compatible: if `data.json` lacks the
+    `members` array (older deploys), the front-end just
+    skips the expand button and shows the original
+    label/ssid/badges/note view.
+
+**Result**: each family card now drills down to a member
+table without leaving the Overview tab. For the
+`f8cbed57c68b18f4` counter-coupled init pair, the panel
+shows:
+- `0x18a6` · R · 4 msgs · init_message_18a6.py
+- `0x1a59` · W · 3 msgs · session_subkey_1a59.py
+
+For the 3-way `ce81136a2b7ad33e` correlation, all three
+wire-types and their codec modules are listed inline.
+
+**No test changes** (tests still 383 +1 skipped). Site rebuild
+trivial — `data.json` gained ~1.5KB from the per-member
+arrays.
+
+**Blockers:** None.
