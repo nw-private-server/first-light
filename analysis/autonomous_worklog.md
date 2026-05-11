@@ -1839,3 +1839,171 @@ wake 267 because the README is the
 first-impression surface.
 
 **Blockers:** None.
+
+
+## Wake 272 — parallel-staleness sweep (closes the wake-271 pattern)
+
+**Goal**: apply the wake-271 cross-doc grep
+principle to find sibling staleness across the
+repo. Wake 271 filed: drift fixes should be
+applied across all docs that share the framing.
+This wake executes the sweep on the two stale
+framings wake-271 caught:
+
+1. `FUN_14644a070` / `state-10→11` references
+   (the "decompile in Ghidra" framing).
+2. "Once RE identifies the post-V3 message
+   sequence" (the implementation-blocked-on-RE
+   framing).
+
+**Found**: 4 sibling drift sites:
+
+1. **`CONTRIBUTING.md:97`** — section intro
+   for "3. Python / server implementation":
+   "Once RE identifies the post-V3 message
+   sequence, someone needs to implement it
+   in `server/rep_responder.py`." Wake 267
+   fixed the BULLETS inside this section but
+   missed the section intro paragraph.
+
+2. **`tools/build_site.py:1669`** — live
+   dashboard's How-it-works state-machine
+   diagram, state 11 description: "Open
+   thread — the gate from 10 to 11 is the
+   current blocker." **This is visitor-
+   facing** — the live dashboard's How-it-
+   works tab renders this directly. Every
+   visitor reading the state-machine diagram
+   was being told state-10→11 is the current
+   blocker.
+
+3. **`tools/build_site.py:1689`** — live
+   dashboard's FAQ answer to "Can I play on
+   it?": "the connection state machine has
+   an open blocker at the 10→11 transition."
+   Also visitor-facing on the FAQ tab.
+
+4. **`analysis/wrapper_setter_decompiles.md:94`**
+   — "Used in the chain that fires when
+   state-10→11 doesn't advance within the
+   timeout window — the project's current
+   blocker." Analysis doc; less visitor-
+   facing but factually wrong.
+
+**Built**:
+
+**`CONTRIBUTING.md:97`** — rewrote the section
+intro to acknowledge the post-V3 sequence is
+substantially identified (3-message MVP
+estimate: SelfIdent + LevelInfoChanged +
+replica-creation, all named in
+state_machine_summary.md), names SelfIdent
+codec wired at wake 112, frames "the next
+implementation step is sending whatever the
+runtime trace reveals" as the open question.
+
+**`tools/build_site.py:1669`** — rewrote state
+11 description: "All 4 in-binary transitions
+(10→14) RE'd at static-RE level through wake
+252; runtime validation on a real-GPU host is
+the pending step to verify the messages drive
+them." Keeps BLOCKER_STATE = 11 (state 11 is
+still where progress is currently stuck — we
+know the mechanism but not yet the runtime
+trigger) but updates the comment to
+"static-RE closes at substate setup; runtime
+is the next leg."
+
+**`tools/build_site.py:1689`** — rewrote FAQ
+answer: now acknowledges codec library
+completeness + state-machine RE through state
+14 + phase-2D infrastructure wired, frames
+the runtime gap as awaiting validation on
+real-GPU Windows host with Frida.
+
+**`analysis/wrapper_setter_decompiles.md:94`**
+— rewrote: state-10→11 mechanism is RE'd
+(wake 111-112); the destroy trigger writer
+(`FUN_146b3c250 + 0x58f`) is the remaining
+open static-RE question on this chain.
+
+**Sweep methodology** (worth recording):
+
+- `grep -rln 'FUN_14644a070\|state-10→11\|
+  state-10->11'` returned 13 files.
+- Filtered out: archive (`autonomous_worklog_
+  through_253.md`), worklog (current
+  references in wake entries — historical),
+  maintainer working notes
+  (`docs/progress.md`, `docs/next-session.md`,
+  `docs/handoff_*` — per CONTRIBUTING "don't
+  worry about updating them"), code identifier
+  references (e.g. self_ident.py).
+- Read remaining files for context: caught
+  `tools/ghidra_scripts/README.md` (descriptive
+  uses, no drift),
+  `analysis/codec_library_overview.md`
+  (descriptive use, no drift),
+  `analysis/state_machine_summary.md` (RE
+  internals, no drift),
+  `analysis/state_10_unblock_synthesis.md`
+  (the actual wake-111/112 doc, by definition
+  describes that work, no drift).
+
+- A SECOND grep for "current blocker / active
+  blocker / top priority / main blocker"
+  surfaced the build_site.py + wrapper_setter
+  hits that the first grep missed.
+
+- A THIRD grep for "Once RE identifies" /
+  "the next step is" found CONTRIBUTING.md:97
+  + a few descriptive uses in
+  static_re_handshake_signing.md and
+  tools/dtls_probe.py (both fine — they're
+  about specific sub-tasks, not project-level
+  framing).
+
+**Verification**:
+
+- `.venv/bin/python3 tools/build_site.py` →
+  clean.
+- `pytest server/javelin -q` → **456 passing,
+  1 skipped** — unchanged.
+- All cross-checks unaffected.
+- Live dashboard will redeploy on push; the
+  How-it-works state-machine + FAQ updates
+  become visible to visitors automatically.
+
+**Pattern reinforced**: this is the 3rd wake
+in the wake-267 / wake-271 / wake-272
+parallel-staleness arc. Cross-doc greps caught
+4 additional sites that the earlier wakes
+missed. Two of them were visitor-facing on
+the live dashboard.
+
+**Generalizable principle now well-supported
+by 3 data points**: when fixing a stale
+framing, *always* run cross-doc greps on the
+specific strings being replaced before
+declaring done. Each wake of "incomplete
+sweep" carries forward the same stale framing
+to additional visitors until the next sweep
+catches it.
+
+**Filing for future hygiene** (now a hard
+rule, not just a heuristic): drift-fix wakes
+must include at least one cross-doc grep
+phase before commit. The wake-272 sweep took
+~10 minutes; finding the build_site.py
+visitor-facing drift before this wake would
+have meant visitors saw stale FAQ + state-
+diagram content for an unknown number of days.
+
+**Cost summary**: 4 file edits across 3 files
+(CONTRIBUTING.md section intro, build_site.py
+state-diagram + FAQ, wrapper_setter_decompiles
+chain description). Plus the sweep
+methodology itself, recorded in the worklog
+for future application.
+
+**Blockers:** None.

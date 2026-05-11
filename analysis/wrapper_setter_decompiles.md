@@ -90,8 +90,11 @@ The fail-path equivalent of `state11_dispatcher`. Routes to the
 right destroy handler when the connection's
 `destroy_flag_writer` fires (cross-linked from
 `state_machine_summary.md`). Used in the chain that fires when
-state-10→11 doesn't advance within the timeout window — the
-project's current blocker.
+the post-V3 state-machine doesn't advance within the timeout
+window. The state-10→11 mechanism itself is RE'd
+(wake 111-112) — the destroy trigger writer
+(`FUN_146b3c250 + 0x58f`) is the remaining open static-RE
+question on this chain (still finds what writes `[R13+0xfd]`).
 
 ## Response handlers (server → client)
 

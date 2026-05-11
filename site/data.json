@@ -1820,7 +1820,7 @@
     {
       "n": 11,
       "name": "Substate setup",
-      "desc": "Open thread \u2014 the gate from 10 to 11 is the current blocker."
+      "desc": "All 4 in-binary transitions (10\u219214) RE'd at static-RE level through wake 252; runtime validation on a real-GPU host is the pending step to verify the messages drive them."
     },
     {
       "n": 12,
@@ -1841,7 +1841,7 @@
     },
     {
       "q": "Can I play on it?",
-      "a": "Not yet. The codec library can read and re-emit every captured message byte-for-byte, but the runtime side (an actual server you'd point your game at) still needs significant work \u2014 at minimum, the connection state machine has an open blocker at the 10\u219211 transition."
+      "a": "Not yet. The codec library can read and re-emit every captured message byte-for-byte, and the post-V3 state-machine is RE'd at static level through state 14 (wake 252). The runtime side (an actual server you'd point your game at) still needs significant work \u2014 phase-2D dispatcher emission is wired but awaiting validation on a real-GPU Windows host with Frida, which is also where NewProxy/replica-creation wire-type ID becomes tractable."
     },
     {
       "q": "Why is it stuck on \"state 10\"?",
@@ -28794,6 +28794,12 @@
       "test_count": 457,
       "commit": "76b3b30",
       "subject": "docs(site): wake-270 \u2014 fix wake-228 broken cross-link to wall genre exemplar"
+    },
+    {
+      "wake": 267,
+      "test_count": 457,
+      "commit": "2ce1df4",
+      "subject": "docs(readme): wake-271 \u2014 \"What the project needs most\" rewrite, drift-fix carry-over from wake 267"
     }
   ],
   "live_decoder_history": [
@@ -29379,7 +29385,7 @@
       "filename": "wrapper_setter_decompiles.md",
       "title": "Wrapper-setter and dispatcher decompiles \u2014 overview",
       "summary": "Companion to `state_machine_summary.md` and `connection_lifecycle_decompiles.md`. Covers the remaining decompile files that didn't fit either of those writeups \u2014 mostly the per-substate wrapper writers, the response-s\u2026",
-      "bytes": 5248,
+      "bytes": 5436,
       "category": "Decompile"
     }
   ],
@@ -29397,6 +29403,12 @@
     "Architecture"
   ],
   "recent_wakes": [
+    {
+      "wake": 272,
+      "title": "parallel-staleness sweep (closes the wake-271 pattern)",
+      "line": 1844,
+      "category": "other"
+    },
     {
       "wake": 271,
       "title": "README \"What the project needs most right now\" rewrite",
@@ -29426,12 +29438,6 @@
       "title": "DASHBOARD.md deprecation + CONTRIBUTING.md drift fixes",
       "line": 1182,
       "category": "site"
-    },
-    {
-      "wake": 266,
-      "title": "wake-225 docstring extension",
-      "line": 1091,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {

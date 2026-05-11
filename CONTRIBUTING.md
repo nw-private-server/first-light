@@ -94,7 +94,7 @@ Tools already set up:
 
 ### 3. Python / server implementation
 
-Once RE identifies the post-V3 message sequence, someone needs to implement it in `server/rep_responder.py`. The file already handles the V3 registration exchange and replay of early captured messages — the next step is implementing whatever the client waits for after that.
+The post-V3 message sequence is substantially identified — the wake-252 analysis estimates the MVP server-side set as SelfIdent (`0x5d1`, codec wired at wake 112) + LevelInfoChanged + a replica-creation message (likely GridMate `NewProxy`). The third is the runtime-dependent open question (see [`state_machine_summary.md`](analysis/state_machine_summary.md)). `server/rep_responder.py` already handles V3 registration + captured-replay pumping; the next implementation step is sending whatever the runtime trace reveals.
 
 Other server work that doesn't require RE breakthroughs:
 - **rep_responder ↔ dispatcher integration phase-2.** The wake-157 shadow-decode scaffold routes every inbound record through `server/javelin/dispatch.py` at debug-log level; wake 204 promoted 0x15d (heartbeat) to authoritative dispatcher emission behind the `heartbeat_use_dispatcher` flag (default off, proven byte-equivalent to the captured replay path). Wake 208 added counter-advance under `heartbeat_advance_counter` so dispatched heartbeats progress like a real server. Both flags are awaiting real-GPU runtime validation to observe whether they affect the gate-2 retry loop. Next wire-type promotion candidate: any inbound type that lockdown tests already pin against the shadow-decode log (search `_shadow_decode_record` callers in `test_shadow_decode.py`).

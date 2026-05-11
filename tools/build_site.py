@@ -1666,11 +1666,11 @@ def build_data():
         {"n": 8, "name": "Identity beacons", "desc": "Sub-system identity fingerprints exchanged."},
         {"n": 9, "name": "Asset count + key tables", "desc": "Server tells the client what world data to expect."},
         {"n": 10, "name": "World data streaming", "desc": "Bulk world / level data over the chunked stream (0x08)."},
-        {"n": 11, "name": "Substate setup", "desc": "Open thread — the gate from 10 to 11 is the current blocker."},
+        {"n": 11, "name": "Substate setup", "desc": "All 4 in-binary transitions (10→14) RE'd at static-RE level through wake 252; runtime validation on a real-GPU host is the pending step to verify the messages drive them."},
         {"n": 12, "name": "World ready", "desc": "Game can render the world; player can move."},
         {"n": 13, "name": "Steady state", "desc": "Heartbeats + world updates only; normal play."},
     ]
-    BLOCKER_STATE = 11  # 10→11 transition is the current open thread
+    BLOCKER_STATE = 11  # static-RE closes at substate setup; runtime is the next leg
 
     # FAQ — plain-English answers
     faq = [
@@ -1684,9 +1684,12 @@ def build_data():
         {
             "q": "Can I play on it?",
             "a": "Not yet. The codec library can read and re-emit every captured message "
-                 "byte-for-byte, but the runtime side (an actual server you'd point your "
-                 "game at) still needs significant work — at minimum, the connection "
-                 "state machine has an open blocker at the 10→11 transition.",
+                 "byte-for-byte, and the post-V3 state-machine is RE'd at static level "
+                 "through state 14 (wake 252). The runtime side (an actual server you'd "
+                 "point your game at) still needs significant work — phase-2D dispatcher "
+                 "emission is wired but awaiting validation on a real-GPU Windows host "
+                 "with Frida, which is also where NewProxy/replica-creation wire-type ID "
+                 "becomes tractable.",
         },
         {
             "q": "Why is it stuck on \"state 10\"?",
