@@ -28962,6 +28962,12 @@
       "test_count": 457,
       "commit": "5c181ba",
       "subject": "re(static): wake-282 \u2014 DAT_147efa330 is start of a timer/delay float table; vtable+0x608 is \"schedule event in N seconds"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "53620ab",
+      "subject": "re(static): wake-283 \u2014 vtable+0x608 verification stalls (3rd indirect-vtable wall); card refresh"
     }
   ],
   "live_decoder_history": [
@@ -29566,6 +29572,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 284,
+      "title": "pause-reflection on the 17-wake arc 267-283",
+      "line": 3703,
+      "category": "other"
+    },
+    {
       "wake": 283,
       "title": "vtable+0x608 verification attempt + Findings card refresh",
       "line": 3558,
@@ -29593,12 +29605,6 @@
       "wake": 279,
       "title": "hit-site enumeration: 3 more dispatchers + 5-flag Carrier state map",
       "line": 2963,
-      "category": "other"
-    },
-    {
-      "wake": 278,
-      "title": "AZ::Name table hunt finds a sibling dispatcher (FUN_146b621c0)",
-      "line": 2785,
       "category": "other"
     }
   ],
