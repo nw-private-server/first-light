@@ -27984,6 +27984,12 @@
       "test_count": 413,
       "commit": "9045589",
       "subject": "docs: sync CONTRIBUTING.md with wake-167 dashboard cards"
+    },
+    {
+      "wake": null,
+      "test_count": 414,
+      "commit": "0702a92",
+      "subject": "feat(site): deep-link Recent-activity strip rows to worklog lines"
     }
   ],
   "wire_type_families": [
@@ -28502,6 +28508,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 171,
+      "title": "live-decoder gains SessionIdentityBeacon (0x1b88)",
+      "line": 13177
+    },
+    {
       "wake": 170,
       "title": "Recent-activity strip is now deep-linkable",
       "line": 13105
@@ -28525,11 +28536,6 @@
       "wake": 166,
       "title": "chart annotation + stricter parse_sections invariant",
       "line": 12894
-    },
-    {
-      "wake": 165,
-      "title": "public-API doc polish (4 classes get real docstrings)",
-      "line": 12833
     }
   ]
 }

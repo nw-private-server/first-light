@@ -1649,6 +1649,7 @@ a:hover { text-decoration: underline; }
         <option value="14f">0x14f — session_clock beacon (12 bytes)</option>
         <option value="651">0x651 — empty marker (4 bytes)</option>
         <option value="18a6">0x18a6 — InitMessage18A6 (40 bytes)</option>
+        <option value="1b88">0x1b88 — SessionIdentityBeacon (42 bytes)</option>
       </select>
       <button id="ld-decode" class="preset-btn ld-decode">Decode</button>
     </div>
@@ -1661,6 +1662,7 @@ a:hover { text-decoration: underline; }
       <button class="preset-btn" data-ldtype="14f" data-ldhex="00018f05 0b888d68 7b13001a">0x14f clock beacon</button>
       <button class="preset-btn" data-ldtype="651" data-ldhex="00019119">0x651 empty marker</button>
       <button class="preset-btn" data-ldtype="18a6" data-ldhex="0001a662 f8cbed57c68b18f4 bf85314bbc4a951a 01010000 9cfa58617814 69f2 65030000 000002 01">0x18a6 init beacon</button>
+      <button class="preset-btn" data-ldtype="1b88" data-ldhex="0001886e f8cbed57c68b18f4bf85314bbc4a951a 00000000000000000000000000000000000000000000">0x1b88 identity beacon</button>
     </div>
     <pre id="ld-result" class="ld-empty">(pick a preset or paste hex and press Decode)</pre>
   </div>
@@ -2222,6 +2224,24 @@ function setupLiveDecoder() {
           ["build_version       (u32 LE)", hex0x(u32le(buf, 32)) + "  (= " + u32le(buf, 32) + ")"],
           ["reserved            (3 bytes)", hexBytes(buf, 36, 3) + "  (✓ fixed)"],
           ["counter             (u8)", "0x" + buf[39].toString(16).padStart(2, "0") + "  (= " + buf[39] + ")"],
+        ];
+      },
+    },
+    "1b88": {
+      label: "SessionIdentityBeacon (type 0x1b88) — periodic session-identity broadcast",
+      header: [0x00, 0x01, 0x88, 0x6e],
+      size: 42,
+      decode(buf) {
+        // Validate the 22-byte zero padding at +0x14..+0x29.
+        for (let i = 20; i < 42; i++) {
+          if (buf[i] !== 0) {
+            throw new Error(`padding non-zero at offset 0x${i.toString(16)} (byte 0x${buf[i].toString(16)})`);
+          }
+        }
+        return [
+          ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x1b88)"],
+          ["session_uuid  (16 bytes)", hexBytes(buf, 4, 16)],
+          ["padding       (22 bytes)", "all zero  (✓)"],
         ];
       },
     },

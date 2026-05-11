@@ -13173,3 +13173,54 @@ is bulletproof and survives any future heading-text edits
 build_site re-run captures that automatically).
 
 **Blockers:** None.
+
+## Wake 171 — live-decoder gains SessionIdentityBeacon (0x1b88)
+
+**Goal**: the wake-152/154 live-decoder shipped 5 wire-
+types (0x15d R/W, 0x14f, 0x651, 0x18a6). Add a sixth:
+**SessionIdentityBeacon (0x1b88)** — the periodic "I'm
+still here" beacon with the 16-byte session UUID + 22-byte
+zero padding. Captured 23 times in the replay with
+byte-identical content, so it's a perfect demonstration of
+a "fixed except for one identity field" message shape.
+
+**Built**:
+
+- **`site/index.html`**:
+  - New `0x1b88 — SessionIdentityBeacon (42 bytes)` entry
+    in the type-id dropdown.
+  - Preset button populating with the canonical 42-byte
+    capture (`0001886e f8cbed57c68b18f4bf85314bbc4a951a` +
+    22 zeros). Hex generated via the Python codec to
+    guarantee byte-exact correctness.
+  - `DECODERS["1b88"]`: validates type header (`00 01 88 6e`),
+    then walks the 22-byte zero-padding region at
+    +0x14..+0x29 and surfaces any non-zero byte with a
+    precise offset+value error message. Renders 3 field
+    rows: TYPE_HEADER, session_uuid (16-byte hex),
+    padding status.
+
+- **Verified**: the preset hex round-trips through the
+  Python codec (smoke-tested before shipping), so the JS
+  decoder shows what visitors would see in the unit tests.
+
+**Live-decoder breadth so far** (6 wire-types):
+- `0x15d` R (12 bytes) — heartbeat ping
+- `0x15d` W (36 bytes) — heartbeat ack
+- `0x14f` (12 bytes) — session_clock beacon
+- `0x651` (4 bytes) — empty marker
+- `0x18a6` (40 bytes) — InitMessage18A6
+- `0x1b88` (42 bytes) — **SessionIdentityBeacon (new)**
+
+These cover the four most-common "shapes" a visitor will
+encounter when poking at the captured replay: zero-payload
+markers, structured fixed-size bodies, identity-bundle
+beacons, and pure-UUID periodic broadcasts. Subsequent
+extensions (the 12 subkey-beacon family members) would need
+inner type-header dropdowns — saved for a future wake when
+the UI complexity earns the click.
+
+**No `server/javelin/` codec changes**. No test changes
+(still 413 passing + 1 skipped). Site rebuild trivial.
+
+**Blockers:** None.
