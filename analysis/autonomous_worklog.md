@@ -15243,3 +15243,40 @@ it with minimal effort.
 trivial.
 
 **Blockers:** None.
+
+## Wake 203 — README refresh: add wake-197 retrospective link
+
+**Goal**: the README's "Recent milestone:" line was added
+wake-154 and only points at the wake-150 retrospective.
+Wake 197 shipped a second retrospective (151-196) but the
+README never picked it up — a visitor landing on the
+front door sees the older milestone only. Quick fix.
+
+**Built**:
+
+- **`README.md`** (working branch): "Recent milestone:"
+  becomes "Recent milestones:" with two bulleted entries:
+  1. The wake-150 retrospective (wakes 1-150) — same
+     summary text as before.
+  2. **New**: the wake-197 retrospective (wakes 151-196) —
+     summary calls out the rep_responder integration
+     foundation, 85% live-decoder coverage, and the
+     9-test cross-check graph.
+
+**Why this matters**: a visitor landing on the README and
+clicking "Recent milestone:" used to read only the older
+context. Now they see both retrospectives side by side,
+and the second one explicitly names the more-recent work
+(integration foundation, coverage push, structural test
+graph) that's most useful to a new contributor evaluating
+the project's current state.
+
+**Tests**: still **434 passing (+1 skipped)** — pure
+README edit, no code changes.
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial (the analysis docs were already auto-indexed on
+the Findings tab; this only surfaces them in the README
+top-of-file).
+
+**Blockers:** None.

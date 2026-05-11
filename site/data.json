@@ -28206,6 +28206,12 @@
       "test_count": 433,
       "commit": "071e48f",
       "subject": "test(site): pin badge-color invariant for live-decoder coverage"
+    },
+    {
+      "wake": null,
+      "test_count": 435,
+      "commit": "0908910",
+      "subject": "test(site): pin api-ref idempotency + on-disk consistency"
     }
   ],
   "wire_type_families": [
@@ -28731,6 +28737,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 203,
+      "title": "README refresh: add wake-197 retrospective link",
+      "line": 15247
+    },
+    {
       "wake": 202,
       "title": "api-ref idempotency invariant (2 new tests)",
       "line": 15201
@@ -28754,11 +28765,6 @@
       "wake": 198,
       "title": "live decoder +0x16a0 AssetBlob \u2192 33/40 (82.5%)",
       "line": 14989
-    },
-    {
-      "wake": 197,
-      "title": "second-stretch retrospective (wakes 151-196)",
-      "line": 14919
     }
   ],
   "live_decoder_coverage": {

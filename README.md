@@ -7,7 +7,9 @@ First Light is in reference to the territory "First Light" that was eventually r
 
 **Live dashboard:** [nw-private-server.github.io/first-light](https://nw-private-server.github.io/first-light/) — friendly project overview, captured-traffic charts, connection-state diagram, and the codec/decompile catalog. Mobile-friendly; auto-redeploys on push.
 
-**Recent milestone:** [150-wake session retrospective](analysis/session_retrospective_150.md) — single-page summary of the major phases (40/40 codec coverage, central dispatcher, state-10 RE breakthrough, audit arcs, 100% decompile cross-link density).
+**Recent milestones:**
+- [150-wake session retrospective](analysis/session_retrospective_150.md) — wakes 1-150: 40/40 codec coverage, central dispatcher, state-10 RE breakthrough, audit arcs, 100% decompile cross-link density.
+- [Second-stretch retrospective (wakes 151-196)](analysis/session_retrospective_196.md) — rep_responder ↔ dispatcher integration foundation, live-decoder coverage at 85% (34/40 captured wire-types decodable from the Explore tab), and a 9-test cross-check graph pinning dashboard data + workflow invariants.
 
 
 ---
