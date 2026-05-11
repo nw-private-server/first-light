@@ -1976,6 +1976,26 @@ async function load() {
     faqEl.appendChild(det);
   }
 
+  // ---- Type-id ↔ live-decoder map (used by Wire Types table + Findings
+  // linkify). Hoisted here (wake 181) so the Wire Types renderer below
+  // can consume it. For 0x15d we default to R direction; same wire-type,
+  // different shape. Stays in sync with `LDTYPE_TO_TYPE_IDS` in
+  // `tools/build_site.py` — wake-178 invariant test pins both directions.
+  const TYPE_ID_TO_LDTYPE = {
+    "0x15d": "15d_R", "0x14f": "14f", "0x651": "651",
+    "0x18a6": "18a6", "0x1b88": "1b88", "0x1097": "1097",
+    "0x136a": "136a", "0x1096": "1096", "0x5d1": "5d1",
+    "0x8e6": "8e6", "0x9fc": "9fc",
+    // Both 0x40a and 0x1be share the HandshakeBlob76 codec.
+    "0x40a": "76", "0x1be": "76",
+    // subkey_beacon family — all 14 share one ldtype
+    "0x66b": "subkey", "0x9d3": "subkey", "0xf7f": "subkey",
+    "0x101a": "subkey", "0x101d": "subkey", "0x102e": "subkey",
+    "0x102f": "subkey", "0x10b0": "subkey", "0x1098": "subkey",
+    "0x143d": "subkey", "0x187c": "subkey", "0x187f": "subkey",
+    "0x192c": "subkey", "0x1a59": "subkey",
+  };
+
   // ---- Wire Types table ----
   const typesBody = document.querySelector("#types-table tbody");
   for (const t of data.captured_types) {
@@ -1994,8 +2014,17 @@ async function load() {
     const cmd =
       `python3 tools/decode_message.py --type ${t.type_id_hex} ` +
       `--direction ${dir} --replay-index 0`;
+    // Wake 181: linkify the type_id_hex cell when a matching live-decoder
+    // entry exists. Normalize `0x0015d` → `0x15d` for the TYPE_ID_TO_LDTYPE
+    // lookup (the JS map keys drop leading zeros).
+    const tidNorm = "0x" + parseInt(t.type_id_hex, 16).toString(16);
+    const tidLdtype = TYPE_ID_TO_LDTYPE[tidNorm];
+    const tidCell = tidLdtype
+      ? `<a href="#" class="finding-typelink" data-ldtype="${tidLdtype}" ` +
+        `title="Open ${tidNorm} in live decoder">${escapeHtml(t.type_id_hex)}</a>`
+      : escapeHtml(t.type_id_hex);
     tr.innerHTML = `
-      <td class="mono">${t.type_id_hex}</td>
+      <td class="mono">${tidCell}</td>
       <td>${t.count}</td>
       <td class="mono">${t.directions}</td>
       <td class="mono">${t.sizes.slice(0, 3).join(",")}${t.sizes.length > 3 ? "..." : ""}</td>
@@ -2107,22 +2136,8 @@ async function load() {
   setupFilter("decomp-search", decompList.children);
 
   // ---- Findings (grouped by category, wake 163; type-id cross-links wake 177) ----
-  // Map type_id hex → live-decoder ldtype value (the dropdown option).
-  // For 0x15d we default to R direction; same wire-type, different shape.
-  const TYPE_ID_TO_LDTYPE = {
-    "0x15d": "15d_R", "0x14f": "14f", "0x651": "651",
-    "0x18a6": "18a6", "0x1b88": "1b88", "0x1097": "1097",
-    "0x136a": "136a", "0x1096": "1096", "0x5d1": "5d1",
-    "0x8e6": "8e6", "0x9fc": "9fc",
-    // Both 0x40a and 0x1be share the HandshakeBlob76 codec.
-    "0x40a": "76", "0x1be": "76",
-    // subkey_beacon family — all 14 share one ldtype
-    "0x66b": "subkey", "0x9d3": "subkey", "0xf7f": "subkey",
-    "0x101a": "subkey", "0x101d": "subkey", "0x102e": "subkey",
-    "0x102f": "subkey", "0x10b0": "subkey", "0x1098": "subkey",
-    "0x143d": "subkey", "0x187c": "subkey", "0x187f": "subkey",
-    "0x192c": "subkey", "0x1a59": "subkey",
-  };
+  // (TYPE_ID_TO_LDTYPE and linkifyTypeIds hoisted earlier in this scope so
+  // the Wire Types table renderer can also use them — see wake 181.)
 
   function linkifyTypeIds(text) {
     // Replace inline `0xNNN` references with clickable spans when the
@@ -2166,9 +2181,10 @@ async function load() {
       findingsList.appendChild(div);
     }
   }
-  // Wire up the type-id cross-links (delegated, single listener on the list).
-  if (findingsList) {
-    findingsList.addEventListener("click", (ev) => {
+  // Wire up the type-id cross-links (delegated, document-wide so it
+  // catches clicks from Findings cards, Wire Types table, and any
+  // other place a `.finding-typelink` lands).
+  document.addEventListener("click", (ev) => {
       const a = ev.target.closest(".finding-typelink");
       if (!a) return;
       ev.preventDefault();
@@ -2187,7 +2203,6 @@ async function load() {
         }
       }
     });
-  }
 
   // ---- Analysis docs index (grouped by category) ----
   const adocsEl = document.getElementById("analysis-docs");

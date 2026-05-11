@@ -13841,3 +13841,59 @@ moment a new finding wanted to ship.
 **No `server/javelin/` codec changes**. Site rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 181 — linkify Wire Types tab + document-wide click handler
+
+**Goal**: the wake-177 linkify was scoped to Findings cards.
+The Wire Types catalog lists all 40 captured types in a
+table; visitors browsing the catalog should be able to click
+any covered type-id and land in the live decoder. Extend
+the linkify pattern to the Wire Types tab and consolidate the
+click handler so future click sites get it for free.
+
+**Built**:
+
+- **`site/index.html`**:
+  - **Hoisted `TYPE_ID_TO_LDTYPE`** out of the Findings
+    render block. Now defined before the Wire Types table
+    render so both can consume it. Behavior unchanged for
+    Findings — same 25-entry map, same wake-178 sync test.
+  - **Wire Types table cell #1** now wraps `type_id_hex`
+    in a `<a class="finding-typelink" data-ldtype="...">`
+    anchor when the type-id maps to a covered ldtype.
+    Uses the normalization `parseInt(hex, 16) → 0x{n.hex}`
+    so the leading-zero captured form (`0x015d`) matches
+    the map keys (`0x15d`). Non-covered types stay plain.
+  - **Document-wide click handler** for
+    `.finding-typelink` (was previously bound to
+    `#findings-list` only). Catches clicks from Findings
+    cards, Wire Types table, and any future place a
+    `.finding-typelink` lands without further wiring.
+
+**Coverage**: 22 captured wire-types + 0x40a + 0x1be in the
+Wire Types catalog are now clickable to the live decoder
+(matches the wake-179 coverage). 18 still pass through as
+plain text (the uncovered set the wake-175 indicator
+surfaces below the live decoder).
+
+**Cross-table consistency**: visitors who land on the Wire
+Types tab and find a covered row no longer need to remember
+its type-id, switch to Explore, type it in. One click does
+both. The catalog now serves as a navigation index as well
+as a reference table.
+
+**No data.json changes** (TYPE_ID_TO_LDTYPE is JS-side).
+Tests still **419 passing (+1 skipped)**. The wake-178
+map-sync test continues to pin both maps; the wake-172
+preset cross-check stays clean.
+
+**Why document-wide instead of multi-listener**: a single
+delegated handler on `document` catches all clicks at the
+capture phase. The alternative (one listener per container
+that uses `.finding-typelink`) duplicates the same handler
+body. The document-wide approach is also forward-
+compatible: future renderers that surface a typelink (e.g.
+the wake-168 Recent-activity strip) get the click behavior
+for free.
+
+**Blockers:** None.
