@@ -1228,6 +1228,47 @@ def load_findings():
                        "wake-249 caller-analysis sections.",
         },
         {
+            "title": "Static-RE wall: indirect-vtable termination (NewProxy upstream case study)",
+            "category": "Research closure",
+            "wake": 252,
+            "summary": "Static-RE has natural termination points "
+                       "where further progress requires runtime data. "
+                       "The state-13 → 14 RE arc (closed wakes 247 + "
+                       "249) traced the writer + 5-caller trigger "
+                       "chain, but the **upstream** of the trigger "
+                       "chain hits a wall: the most-informative "
+                       "caller (`FUN_142ff8940`) has 0 unconditional "
+                       "call xrefs and 4 data references, all to a "
+                       "single vtable entry at `0x14816cec0`. The "
+                       "function is invoked indirectly through that "
+                       "vtable, so static-RE can't trace the caller "
+                       "chain further without finding what dispatches "
+                       "through the vtable — and that dispatcher is "
+                       "itself indirect, recursively. Identifying the "
+                       "specific server message that triggers the "
+                       "gate-set (likely GridMate `NewProxy` per "
+                       "`ghidra_hunt_list.md` § 2C) is now genuinely "
+                       "**runtime-dependent**. A Frida hook on any of "
+                       "the 5 callers catches the stack frame at "
+                       "call-time and resolves the question "
+                       "immediately. This is documented as the **4th "
+                       "RE artifact genre — \"wall\"** — distinct "
+                       "from finding (writer identified), decision "
+                       "(question closed with criteria, e.g. 0x065c "
+                       "at wake 221), and investigation (search log "
+                       "with candidate triage, e.g. wake 241). The "
+                       "4-genre typology is now established in the "
+                       "wake-228 skeleton card. Walls aren't "
+                       "failures — they're explicit handoff points "
+                       "to a different research method (here: "
+                       "runtime trace). Without a documented wall, "
+                       "future contributors might assume more "
+                       "static-RE could close the question; the "
+                       "wall card prevents wasted effort. See "
+                       "`analysis/state_13_14_writer_investigation.md` "
+                       "for the wake-252 wall section.",
+        },
+        {
             "title": "Server↔client counter pairs",
             "category": "Wire-level finding",
             "wake": 78,

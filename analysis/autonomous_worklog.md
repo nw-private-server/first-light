@@ -19738,3 +19738,104 @@ work is gated on runtime data (real-GPU host).
 card stability annotation.
 
 **Blockers:** None.
+
+## Wake 257 — Wall Findings card (22nd card, 4-genre typology completes)
+
+**Goal**: the wake-252 indirect-vtable wall is the
+4th-genre exemplar in the project's RE artifact
+typology (finding / decision / investigation /
+wall). The genre has been surfaced in:
+- wake-252 worklog (where the typology was
+  introduced)
+- wake-255 skeleton card (4-genre typology made
+  explicit)
+
+But there's no dedicated Findings card for the wall.
+The wake-251 methodology card sets precedent for
+"genre exemplar" cards; the wall genre now has
+enough grounding to merit its own card. Adding it
+completes the 4-genre coverage on the Findings tab:
+- Findings ⇄ result cards (e.g. wake-240 synthesis
+  for state-machine RE).
+- Decision ⇄ wake-200 update + the decision doc
+  (no dedicated card, but the wake-200 card
+  references it).
+- Investigation ⇄ wake-251 methodology card.
+- **Wall ⇄ this wake's card.**
+
+**Built**:
+
+- **`tools/build_site.py`** new Findings card
+  inserted after the wake-251 methodology card:
+  - **Title**: "Static-RE wall: indirect-vtable
+    termination (NewProxy upstream case study)".
+  - **Category**: Research closure (closes the
+    question "how does static-RE terminate when a
+    target isn't tractable?"). Not Architecture
+    (that's project-shape); not RE breakthrough
+    (no new finding). Research closure fits a
+    pattern-documentation card.
+  - **Wake**: 252.
+  - **Summary** (~370 words): narrates the
+    indirect-vtable termination at `0x14816cec0`,
+    explains why walls are valuable (handoff
+    points, not failures), explicitly establishes
+    "wall" as the 4th RE artifact genre, and
+    cross-references the wake-251 methodology
+    card + the wake-228 skeleton (4-genre
+    typology).
+  - **Framing rule** stated: "Walls aren't
+    failures — they're explicit handoff points
+    to a different research method (here:
+    runtime trace). Without a documented wall,
+    future contributors might assume more
+    static-RE could close the question; the
+    wall card prevents wasted effort."
+
+**Findings tab now**: **22 cards**:
+- Research closure: 11 (+1) — still the
+  dominant bucket.
+- Wire-level finding: 5.
+- RE breakthrough: 4.
+- Architecture: 2.
+
+**Verification**:
+- wake-225 (analysis-path existence in card
+  prose): cites
+  `analysis/state_13_14_writer_investigation.md`
+  + `ghidra_hunt_list.md` — both exist ✓.
+- wake-218 (citations): unaffected.
+- wake-227 (manifest-vs-tests): unaffected.
+- wake-209 (paired card): unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: 15th Findings card added since
+wake-163 categorization. The 4-genre exemplar
+strategy:
+- **Result cards** (RE breakthrough cluster):
+  capture concrete RE findings.
+- **Decision docs** (cross-referenced from
+  Research closure cards): close specific
+  questions with reversal criteria.
+- **Investigation logs** (cross-referenced from
+  Research closure methodology cards): document
+  search-in-progress.
+- **Wall cards** (Research closure): document
+  static-RE termination + handoff to runtime.
+
+Together the 4 genres cover the project's
+research-product taxonomy. Each has at least one
+exemplar Findings card on the dashboard now.
+
+**Discoverability cascade**: a visitor scanning
+Findings → Research closure now finds 11 cards
+covering hypothesis closures (wake 155),
+breakthrough surfacings (wake 192/200), pattern
+docs (wake 210 meta, wake 251 methodology), and
+the wake-257 wall card. The bucket is the most
+varied in genres of any.
+
+**No new tests, no new code**. Single Findings
+card addition + worklog entry.
+
+**Blockers:** None.

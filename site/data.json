@@ -1605,6 +1605,12 @@
       "summary": "The state-13 \u2192 14 writer question was deferred for ~10 wakes after the wake-13 FindOffsetWrites scan came up empty. Wake 241 broke the deferral cycle by **shipping a candidate-triage investigation log** instead of trying to find the writer in one wake \u2014 the log enumerated all 18+ candidates from the offset-scan, ranked them into 4 tiers, named the most-likely (`FUN_146c60830` as tier-A), and listed 5 concrete next-step Ghidra actions. **Wake 247 Ghidra session** decompiled both top candidates: tier-A turned out to be a false-positive constructor (zeros the byte, doesn't set it), but tier-B `FUN_142ffbc50` was the writer. **Wake 249 Ghidra session** decompiled all 5 caller xrefs and identified the trigger chain: local replica-system handlers fire when an upstream container at `param_2[+0x7d0]` changes; they copy 0x70-stride entries into the wrapper and re-evaluate the predicate. Reusable pattern: when static-RE on a specific question keeps deferring across wakes, **ship the candidate-triage log first** \u2014 it converts \"I keep deferring this\" into \"the next person with Ghidra access has a 30-minute path to a finding\". Tier-A being a false-positive doesn't invalidate the pattern; it validates triaging multiple candidates rather than betting on one. The wake-241 \u2192 247 \u2192 249 arc spans 3 wakes and produced one writer + one trigger chain \u2014 a rate the deferral-cycle had been blocking. See `analysis/state_13_14_writer_investigation.md` for the full log preserving the wake-241 investigation, wake-247 writer-found, and wake-249 caller-analysis sections."
     },
     {
+      "title": "Static-RE wall: indirect-vtable termination (NewProxy upstream case study)",
+      "category": "Research closure",
+      "wake": 252,
+      "summary": "Static-RE has natural termination points where further progress requires runtime data. The state-13 \u2192 14 RE arc (closed wakes 247 + 249) traced the writer + 5-caller trigger chain, but the **upstream** of the trigger chain hits a wall: the most-informative caller (`FUN_142ff8940`) has 0 unconditional call xrefs and 4 data references, all to a single vtable entry at `0x14816cec0`. The function is invoked indirectly through that vtable, so static-RE can't trace the caller chain further without finding what dispatches through the vtable \u2014 and that dispatcher is itself indirect, recursively. Identifying the specific server message that triggers the gate-set (likely GridMate `NewProxy` per `ghidra_hunt_list.md` \u00a7 2C) is now genuinely **runtime-dependent**. A Frida hook on any of the 5 callers catches the stack frame at call-time and resolves the question immediately. This is documented as the **4th RE artifact genre \u2014 \"wall\"** \u2014 distinct from finding (writer identified), decision (question closed with criteria, e.g. 0x065c at wake 221), and investigation (search log with candidate triage, e.g. wake 241). The 4-genre typology is now established in the wake-228 skeleton card. Walls aren't failures \u2014 they're explicit handoff points to a different research method (here: runtime trace). Without a documented wall, future contributors might assume more static-RE could close the question; the wall card prevents wasted effort. See `analysis/state_13_14_writer_investigation.md` for the wake-252 wall section."
+    },
+    {
       "title": "Server\u2194client counter pairs",
       "category": "Wire-level finding",
       "wake": 78,
@@ -28698,6 +28704,12 @@
       "test_count": 457,
       "commit": "c89d3ed",
       "subject": "docs(site): wake-228 skeleton card \u2014 3 retros -> 4 retros drift correction"
+    },
+    {
+      "wake": 231,
+      "test_count": 457,
+      "commit": "36e32dd",
+      "subject": "docs(site): wake-210 meta-card \u2014 \"Stable at 19 since wake 231\" annotation"
     }
   ],
   "live_decoder_history": [
@@ -29302,6 +29314,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 257,
+      "title": "Wall Findings card (22nd card, 4-genre typology completes)",
+      "line": 19742,
+      "category": "site"
+    },
+    {
       "wake": 256,
       "title": "wake-211 meta-card: \"Stable at 19\" annotation",
       "line": 19677,
@@ -29330,12 +29348,6 @@
       "title": "NewProxy upstream hits indirect-vtable limit (boundary documented)",
       "line": 19265,
       "category": "other"
-    },
-    {
-      "wake": 251,
-      "title": "Findings card: candidate-triage pattern proven (21st card)",
-      "line": 19168,
-      "category": "site"
     }
   ],
   "live_decoder_coverage": {
