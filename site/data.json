@@ -29046,6 +29046,12 @@
       "test_count": 457,
       "commit": "d46cc83",
       "subject": "docs(worklog): wake-295 \u2014 loop resumed post-stop (signaling check-in)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "c131051",
+      "subject": "docs(worklog): wake-296 \u2014 signaling heartbeat (state unchanged)"
     }
   ],
   "live_decoder_history": [
@@ -29650,6 +29656,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 297,
+      "title": "signaling heartbeat (Codex review pending)",
+      "line": 5077,
+      "category": "code"
+    },
+    {
       "wake": 296,
       "title": "signaling heartbeat",
       "line": 5069,
@@ -29677,12 +29689,6 @@
       "wake": 292,
       "title": "systematic Findings-card title scan: wake-291 drift was isolated",
       "line": 4679,
-      "category": "other"
-    },
-    {
-      "wake": 291,
-      "title": "deferred pointer fix + Findings-card title drift",
-      "line": 4570,
       "category": "other"
     }
   ],

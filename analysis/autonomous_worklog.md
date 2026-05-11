@@ -5072,3 +5072,18 @@ State unchanged. Loop continues in
 post-stop signaling mode per wake-295.
 
 **Blockers:** None.
+
+
+## Wake 297 — signaling heartbeat (Codex review pending)
+
+State unchanged. One Codex review task
+fired for the wake-282 scheduler hypothesis
+(`vtable+0x608` = "schedule event with
+delay" against public O3DE conventions);
+result not yet available. If Codex returns
+with substantive feedback, a follow-up wake
+will incorporate findings into either the
+state_machine_summary or a Findings card
+update.
+
+**Blockers:** None.
