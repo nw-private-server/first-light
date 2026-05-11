@@ -1333,9 +1333,11 @@ def load_findings():
                        "(`analysis/session_retrospective_227.md`) — "
                        "live decoder push to 90.0% (with the wake-221 "
                        "floor decision), phase-2 emission swap + "
-                       "counter-advance realism extension, "
-                       "cross-check graph grown from 9 to 18 with "
-                       "five self-referential pins. Each doc is a "
+                       "counter-advance realism extension, and the "
+                       "cross-check graph (which the wake-227 retro "
+                       "captured at 18 invariants; the graph has since "
+                       "grown to 19 with five self-referential pins on "
+                       "the meta-pattern card itself). Each doc is a "
                        "frozen snapshot of its arc + a forward "
                        "pointer to the next; the wake-196 doc's "
                        "post-snapshot deltas callout was trimmed at "
@@ -1344,10 +1346,14 @@ def load_findings():
                        "superseded it. The wake-207 cross-check "
                        "pins each doc to a README link; the wake-225 "
                        "cross-check pins each path cited in this "
-                       "card to actually exist. Future arcs follow "
-                       "the same pattern: ~30-50 wakes per "
-                       "retrospective, snapshot + 3-5 phases + "
-                       "open-items + forward pointer.",
+                       "card to actually exist; wake 231 added an "
+                       "analogous pin for decision-doc README links. "
+                       "Future arcs follow the same pattern: ~30-50 "
+                       "wakes per retrospective, snapshot + 3-5 phases "
+                       "+ open-items + forward pointer. Investigation "
+                       "logs (introduced wake 241) are a related but "
+                       "distinct artifact — search-in-progress with "
+                       "candidate triage, not a closure.",
         },
         {
             "title": "VM-on-Apple-Silicon ruled out for runtime testing",

@@ -18475,3 +18475,76 @@ surface, not just buried in `analysis/`.
 freshness pass.
 
 **Blockers:** None.
+
+## Wake 244 — wake-228 skeleton card prose drift correction
+
+**Goal**: the wake-228 Architecture Findings card
+(three-retrospective session-arc skeleton) said
+"cross-check graph grown from 9 to 18". The graph
+is now at 19 (wake 231 added the 19th — decision-
+doc README link). Off-by-one drift to fix. Also a
+chance to surface the wake-241 investigation log
+pattern as a related-but-distinct artifact.
+
+**Built**:
+
+- **`tools/build_site.py`** wake-228 skeleton card
+  prose:
+  - **Count fix**: "cross-check graph grown from 9
+    to 18" → "**the cross-check graph (which the
+    wake-227 retro captured at 18 invariants; the
+    graph has since grown to 19** with five self-
+    referential pins on the meta-pattern card
+    itself)". Framing: "what the wake-227 retro
+    captured" + "what it has since become". Avoids
+    re-incrementing this number every time the graph
+    grows — instead, the prose tells visitors
+    where to look for the current count (the wake-
+    210 card).
+  - **Added wake-231 cross-check pin**: the prose
+    mentioned wake-207 + wake-225 (file ↔ mention
+    pair); now also mentions wake-231's analogous
+    pin for decision-doc README links.
+  - **New closing sentence** on investigation logs:
+    "Investigation logs (introduced wake 241) are
+    a related but distinct artifact — search-in-
+    progress with candidate triage, not a closure."
+    Surfaces the new genre alongside retrospectives
+    + decision docs in the project's analysis-doc
+    typology.
+
+**Drift-correction style**: this is the **second**
+time I've taken the "describe by-wake-N state + the
+since-then delta" approach for a number that
+naturally grows (the first was wake-235's queued_work
+"Major progress since wake 83" section). The
+pattern: avoid pegging the prose to a specific count
+that requires updating with every increment;
+instead, frame as "what wake X saw + what's changed
+since". Lets the prose age more gracefully.
+
+**Verification**:
+- wake-225 (analysis-path existence): all 3
+  retrospective paths still cited and exist ✓.
+- wake-209 (paired card consistency): unaffected.
+- wake-218 (manifest citation): unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: this is the 13th Findings card
+edit since the cards were first introduced. Most
+updates have been prose-only (no card-key change,
+no category change). The wake-209 paired-card test
+is the only invariant that constrains updates; all
+other cards are freely updateable in place.
+
+**Carry-over**: state 13 → 14 writer investigation
+still open. The wake-241 investigation log is now
+referenced from the README, Findings tab (wake-240
+synthesis card), state_machine_summary § 1,
+ghidra_hunt_list, and (after this wake) the wake-
+228 skeleton card. 5-surface visibility complete.
+
+**No new tests, no new code**. Single Findings
+card prose tightening.
+
+**Blockers:** None.
