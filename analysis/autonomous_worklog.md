@@ -13224,3 +13224,62 @@ the UI complexity earns the click.
 (still 413 passing + 1 skipped). Site rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 172 — pin "live-decoder presets round-trip through Python" invariant
+
+**Goal**: every wake that adds a live-decoder preset (so far
+wakes 152, 154, 171) has had to manually verify the hex
+round-trips through the Python codec before shipping. That's
+error-prone — a future hand-typed hex with a single byte
+swap would silently pass HTML validation but fail at runtime
+when a visitor clicked the preset. Automate the check.
+
+**Built**:
+
+- **`server/javelin/test_live_decoder_presets.py`** (~95
+  LOC, 3 tests):
+  - `PYTHON_DECODERS`: dict mapping each `data-ldtype` key to
+    the Python decoder callable. Mirrors the JS DECODERS in
+    `site/index.html`. New live-decoder additions need to
+    update both sides.
+  - `_load_presets()`: regex-scans `site/index.html` for
+    `data-ldtype="..." data-ldhex="..."` pairs, strips
+    whitespace from each hex string, and returns
+    `[(ldtype, raw_bytes), ...]`.
+  - **Test 1**: at least 6 presets ship in `site/index.html`.
+    If a future edit accidentally drops one, this catches
+    it immediately.
+  - **Test 2**: every preset's `data-ldtype` has a matching
+    entry in `PYTHON_DECODERS`. A new live-decoder type
+    forgotten in the mapping fails here.
+  - **Test 3** (the actual cross-check): every preset's hex
+    decodes through its matching Python codec without
+    raising. A single-byte typo in any preset hex is
+    caught — the failure message names the preset and the
+    full hex string for fast diagnosis.
+
+- **All 3 tests pass** against current presets (0x15d
+  ping/ack, 0x14f, 0x651, 0x18a6, 0x1b88) → tests
+  **413 → 416 passing (+1 skipped)**.
+
+**Why this matters**: this is the third "tests catch a class
+of regression that's plausibly real" wake in a row (wake
+166's `parse_sections` invariant, wake 168's recent-wakes
+ordering, wake 170's line-number monotonicity). The pattern:
+hand-written data that gets surfaced on the dashboard
+should be cross-checked against the source-of-truth Python
+behavior — JS DECODERS port Python DECODERS, preset hex is
+hand-curated to demonstrate Python codecs, recent-wakes
+strip mines the worklog. The tests pin those crosses.
+
+**Workflow implication**: a future contributor adding a 7th
+preset now needs to (1) add the JS DECODERS entry, (2) add
+the HTML preset button with valid hex, (3) extend
+`PYTHON_DECODERS` in the test, (4) run pytest. Step 4 will
+fail loudly if step 2's hex was typo'd. The test failure
+message includes the bad hex, so the fix is immediate.
+
+**No `server/javelin/` codec changes**. No `tools/` code
+changes. Site rebuild trivial.
+
+**Blockers:** None.
