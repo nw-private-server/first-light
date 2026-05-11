@@ -530,6 +530,52 @@ main { padding: 16px; max-width: 1100px; margin: 0 auto; }
 #ld-result.ld-empty { color: var(--text-dim); font-style: italic; }
 #ld-result.ld-ok { color: var(--green); }
 #ld-result.ld-err { color: #f85149; }
+
+/* Live-decoder coverage indicator (wake 175) */
+.ld-coverage {
+  margin: 10px 0 18px;
+}
+.ld-coverage-bar {
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.ld-coverage-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.ld-coverage-text {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.ld-coverage-details {
+  margin-top: 4px;
+}
+.ld-coverage-details summary {
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  user-select: none;
+}
+.ld-coverage-uncovered {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ld-coverage-uncovered .badge {
+  background: rgba(248,81,73,0.15);
+  color: #f85149;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+}
 .kbd {
   font-family: ui-monospace, monospace;
   background: var(--surface-2);
@@ -1676,6 +1722,17 @@ a:hover { text-decoration: underline; }
     <pre id="ld-result" class="ld-empty">(pick a preset or paste hex and press Decode)</pre>
   </div>
 
+  <div class="ld-coverage" id="ld-coverage" hidden>
+    <div class="ld-coverage-bar">
+      <div class="ld-coverage-fill" id="ld-coverage-fill"></div>
+    </div>
+    <div class="ld-coverage-text" id="ld-coverage-text"></div>
+    <details class="ld-coverage-details">
+      <summary>Show wire-types not yet in the live decoder</summary>
+      <div id="ld-coverage-uncovered" class="ld-coverage-uncovered"></div>
+    </details>
+  </div>
+
   <details class="faq" open style="margin-top: 28px;">
     <summary>Byte-pattern search</summary>
     <div class="a">
@@ -2099,6 +2156,25 @@ async function load() {
   // ---- Byte-pattern playground ----
   setupBytePatternSearch(data);
   setupLiveDecoder();
+
+  // ---- Live-decoder coverage indicator (wake 175) ----
+  const cov = data.live_decoder_coverage;
+  if (cov && typeof cov.covered === "number") {
+    const wrap = document.getElementById("ld-coverage");
+    const fill = document.getElementById("ld-coverage-fill");
+    const txt = document.getElementById("ld-coverage-text");
+    const unc = document.getElementById("ld-coverage-uncovered");
+    if (wrap && fill && txt) {
+      wrap.hidden = false;
+      fill.style.width = cov.percent.toFixed(1) + "%";
+      txt.textContent = `${cov.covered} / ${cov.total} captured wire-types decodable here (${cov.percent.toFixed(0)}%)`;
+      if (unc && Array.isArray(cov.uncovered)) {
+        unc.innerHTML = cov.uncovered
+          .map(t => `<span class="badge">${escapeHtml(t)}</span>`)
+          .join(" ");
+      }
+    }
+  }
 }
 
 // ---- Live decoder (Explore tab) ----

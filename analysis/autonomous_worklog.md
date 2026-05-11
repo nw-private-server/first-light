@@ -13427,3 +13427,70 @@ workflow for adding a future decoder is now:
 trivial.
 
 **Blockers:** None.
+
+## Wake 175 — live-decoder coverage indicator (22/40 = 55%)
+
+**Goal**: with 22 of 40 captured wire-types now addressable
+from the live decoder, visitors should see at a glance how
+much of the captured set is hands-on inspectable — and
+which type-ids aren't yet. Add a progress bar + uncovered
+list below the live decoder.
+
+**Built**:
+
+- **`tools/build_site.py`**:
+  - New `load_live_decoder_coverage(captured_types)` helper.
+    Parses `<select id="ld-type">` options in
+    `site/index.html`, maps each `data-ldtype` value via a
+    `LDTYPE_TO_TYPE_IDS` table (mirroring the JS
+    DECODERS), joins against the captured set, and
+    returns `{covered, total, percent, uncovered}`. The
+    `subkey` ldtype expands to its 14 family members.
+  - Wired into `build_data()`'s return dict as
+    `live_decoder_coverage`.
+
+- **`site/index.html`**:
+  - New `.ld-coverage` block directly below the live
+    decoder showing:
+    - A horizontal progress bar (green fill at
+      `percent%` width).
+    - A "22 / 40 captured wire-types decodable here (55%)"
+      label.
+    - A `<details>` expandable section listing the 18
+      uncovered type-ids as red-tinted badges.
+  - CSS uses the existing surface/accent/green palette.
+
+- **`server/javelin/test_build_tools.py`** (+2 tests):
+  - `test_live_decoder_coverage_shape_and_growth`: with a
+    synthetic 5-type captured list, asserts the
+    `{covered, total, percent, uncovered}` shape and that
+    a specific in-family type (0x1a59) resolves as
+    covered while an unknown type (0x0003) resolves as
+    uncovered.
+  - `test_live_decoder_coverage_against_real_data`: reads
+    the real captured-types from `site/data.json` and
+    asserts (1) total is 40 and (2) covered is ≥ 20.
+    Doesn't hard-code an exact number — the threshold
+    grows naturally with future coverage pushes, and the
+    test only fails if a future change *removes* coverage
+    by accident.
+
+**Verified**:
+- Coverage computes to **22 / 40 = 55.0%** as of this wake.
+- 18 uncovered types displayed: 0x0003, 0x0008, 0x0013,
+  0x00a4, 0x01be, 0x040a, 0x05b2, 0x0635, 0x065c, 0x0663,
+  0x08e6, 0x09fc, 0x0a95, 0x0ca4, 0x1033, 0x1067, 0x12f6,
+  0x16a0.
+- Tests: 416 → **418 passing (+1 skipped)**.
+
+**Note on counting**: the wake-174 worklog optimistically
+said 23/40; the accurate figure is 22 because 0x15d R + W
+resolve to the same wire-type 0x15d. The coverage
+indicator is authoritative going forward — it joins against
+distinct captured `type_id_hex` values, not against the JS
+dropdown option count.
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.

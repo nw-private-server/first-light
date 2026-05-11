@@ -20,6 +20,7 @@ from tools.build_site import (  # noqa: E402
     _enrich_families,
     load_findings,
     load_recent_wakes,
+    load_live_decoder_coverage,
     CATEGORY_ORDER,
     FINDINGS_CATEGORY_ORDER,
 )
@@ -302,6 +303,47 @@ def test_load_recent_wakes_includes_stable_line_numbers():
 def test_load_recent_wakes_respects_limit():
     assert len(load_recent_wakes(limit=1)) == 1
     assert len(load_recent_wakes(limit=3)) == 3
+
+
+def test_live_decoder_coverage_shape_and_growth():
+    """Wake 175 added the live-decoder coverage indicator. Pin
+    invariants: covered ≤ total, percent in [0,100], uncovered is a
+    list of hex strings, covered + len(uncovered) == total."""
+    captured = [
+        {"type_id_hex": "0x0003"},
+        {"type_id_hex": "0x015d"},
+        {"type_id_hex": "0x014f"},
+        {"type_id_hex": "0x0651"},
+        {"type_id_hex": "0x1a59"},  # in subkey family
+    ]
+    cov = load_live_decoder_coverage(captured)
+    assert cov["total"] == 5
+    assert 0 <= cov["covered"] <= cov["total"]
+    assert 0.0 <= cov["percent"] <= 100.0
+    assert isinstance(cov["uncovered"], list)
+    assert cov["covered"] + len(cov["uncovered"]) == cov["total"]
+    # 0x015d/0x014f/0x0651/0x1a59 should resolve as covered; 0x0003 not.
+    assert "0x0003" in cov["uncovered"]
+    assert "0x015d" not in cov["uncovered"]
+    assert "0x014f" not in cov["uncovered"]
+    assert "0x1a59" not in cov["uncovered"]
+
+
+def test_live_decoder_coverage_against_real_data():
+    """Smoke test: the actual computed coverage against the captured
+    set is non-trivial. Avoids hard-coding an exact number (which
+    would force test updates whenever the coverage grows), but
+    asserts at least half is covered as of wake 175."""
+    # Read the captured types from data.json (already built).
+    import json
+    repo = Path(__file__).resolve().parents[2]
+    with (repo / "site" / "data.json").open() as f:
+        data = json.load(f)
+    cov = load_live_decoder_coverage(data["captured_types"])
+    assert cov["total"] == 40, f"expected 40 captured types; got {cov['total']}"
+    assert cov["covered"] >= 20, (
+        f"expected at least 20 covered as of wake 175; got {cov['covered']}"
+    )
 
 
 def test_every_finding_has_required_render_fields():
