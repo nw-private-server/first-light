@@ -14157,3 +14157,68 @@ by the failure messages.
 features. Site rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 186 — linkify the four remaining dashboard surfaces
+
+**Goal**: complete the linkify audit. Four JS-rendered
+surfaces with prose still passed `0xNNN` mentions through
+as plain text: wire-type family notes (Overview),
+analysis-doc summaries (Findings tab), decompile
+signatures (Decompiles tab), FAQ question/answer (Explore
+tab). Pipe each through `linkifyTypeIds`.
+
+**Built**:
+
+- **`site/index.html`**: four one-line edits, each wrapping
+  an existing `escapeHtml(...)` in `linkifyTypeIds(...)`:
+  1. **`.family .note`** (Overview wire-type families)
+  2. **`.analysis-doc .summary`** (Findings tab doc index)
+  3. **`.decomp-row .sig`** (Decompiles signature line)
+  4. **FAQ summary + answer** (Explore tab FAQ entries)
+
+  Each surface is JS-rendered with the existing
+  `escapeHtml` already in place; the change is purely
+  `escapeHtml(x)` → `linkifyTypeIds(escapeHtml(x))`. No
+  HTML structural changes, no new event listeners (wake-181
+  document-wide click handler catches everything).
+
+**What actually linkifies after this wake** (real type-id
+mentions discovered in the data):
+- **`3-way correlation` family note**: `0x1033`, `0x102e`,
+  `0x192c` (mirrors the wake-180 Findings card linkify —
+  the same correlation now clickable from both the
+  Overview-tab family card and the Findings card).
+- **`state_10_unblock_synthesis.md` analysis summary**:
+  `0x5d1` (twice). State-10 unblock trigger now clickable
+  from the Findings tab's doc index too.
+- **`wire_type_0x1033.md` summary**: `0x1033`. Same
+  one-click path to the wake-183 opaque-blob decoder.
+- **FAQ "Why are some messages opaque but others fully
+  decoded"**: `0x1033`, `0x08`. 0x1033 linkifies (covered);
+  0x08 (chunked_stream — not yet in live decoder) passes
+  through as plain text.
+
+**Cross-tab consistency**: the same 0x1033 mention now
+becomes a clickable typelink in four different places: the
+Findings card (wake 177), the Wire Types table (wake 181),
+the analysis-doc summary (this wake), and the wire-type
+family note (this wake). A visitor poking at any of those
+landing points reaches the live decoder in one click.
+
+**Tests**: still **421 passing (+1 skipped)** — the wake-178
+map-sync test catches new mismatches; the wake-184 invariant
+test handles static-HTML mentions. Both stay green.
+
+**Where linkify still doesn't apply** (deliberately):
+- Doc title anchors (already inside `<a href="...">`).
+- Decompile related-link labels (already inside `<a>`).
+- Wire-type table copy-button data attributes (encoded
+  CLI commands, not user-facing prose).
+These cases would create HTML-invalid nested anchors. The
+wake-181 audit caught this pattern; subsequent wakes (and
+this one) preserve it.
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.

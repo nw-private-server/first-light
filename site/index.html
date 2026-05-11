@@ -2039,7 +2039,7 @@ async function load() {
       <div class="ssid">sub_system_id ${escapeHtml(fam.sub_system_id)}</div>
       <div class="types">${types}</div>
       ${detailsHtml}
-      <div class="note">${escapeHtml(fam.note)}</div>
+      <div class="note">${linkifyTypeIds(escapeHtml(fam.note))}</div>
     `;
     famEl.appendChild(div);
   }
@@ -2076,8 +2076,8 @@ async function load() {
   for (const f of data.faq) {
     const det = document.createElement("details");
     det.innerHTML = `
-      <summary>${escapeHtml(f.q)}</summary>
-      <div class="a">${escapeHtml(f.a)}</div>
+      <summary>${linkifyTypeIds(escapeHtml(f.q))}</summary>
+      <div class="a">${linkifyTypeIds(escapeHtml(f.a))}</div>
     `;
     faqEl.appendChild(det);
   }
@@ -2214,7 +2214,7 @@ async function load() {
     div.innerHTML = `
       <div class="name"><a href="decomp/${escapeHtml(d.stem)}.txt">${escapeHtml(d.name)}</a></div>
       <div class="meta">addr=0x${d.addr || "?"} · ${d.lines} lines · ${d.size_bytes} bytes</div>
-      ${d.signature ? `<div class="sig">${escapeHtml(d.signature)}</div>` : ""}
+      ${d.signature ? `<div class="sig">${linkifyTypeIds(escapeHtml(d.signature))}</div>` : ""}
       ${relatedLinks ? `<div class="related">${relatedLinks}</div>` : ""}
     `;
     decompList.appendChild(div);
@@ -2306,7 +2306,7 @@ async function load() {
             <span class="cat-pill">${escapeHtml(cat)}</span>
           </div>
           <div class="meta">${escapeHtml(d.filename)} · ${d.bytes.toLocaleString()} bytes</div>
-          ${d.summary ? `<div class="summary">${escapeHtml(d.summary)}</div>` : ""}
+          ${d.summary ? `<div class="summary">${linkifyTypeIds(escapeHtml(d.summary))}</div>` : ""}
         `;
         adocsEl.appendChild(div);
       }
