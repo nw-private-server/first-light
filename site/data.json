@@ -28230,6 +28230,12 @@
       "test_count": 438,
       "commit": "402bd62",
       "subject": "feat(rep_responder): phase-2D actual heartbeat emission swap (flagged off)"
+    },
+    {
+      "wake": null,
+      "test_count": 438,
+      "commit": "e21cd29",
+      "subject": "feat(site): Findings card for the wake-204 phase-2D swap"
     }
   ],
   "wire_type_families": [
@@ -28673,7 +28679,7 @@
       "filename": "session_retrospective_196.md",
       "title": "Wakes 151-196 \u2014 second-stretch milestones",
       "summary": "A 46-wake continuation of the [wake-150 milestone retrospective](session_retrospective_150.md). Where wakes 1-150 built the codec library + the wire-complete dispatcher + initial dashboard, wakes 151-196 turned the da\u2026",
-      "bytes": 11133,
+      "bytes": 12618,
       "category": "Retrospective"
     },
     {
@@ -28755,6 +28761,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 206,
+      "title": "update wake-197 retrospective with wake-204 swap + post-196 deltas",
+      "line": 15431
+    },
+    {
       "wake": 205,
       "title": "Findings card for the phase-2D swap",
       "line": 15374
@@ -28778,11 +28789,6 @@
       "wake": 201,
       "title": "badge-color invariant (2 new tests)",
       "line": 15159
-    },
-    {
-      "wake": 200,
-      "title": "Findings card: structural reasons for the 6 uncovered",
-      "line": 15100
     }
   ],
   "live_decoder_coverage": {

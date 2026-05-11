@@ -15427,3 +15427,52 @@ new infrastructure" property holds across all seven.
 Tests still **437 passing (+1 skipped)**.
 
 **Blockers:** None.
+
+## Wake 206 — update wake-197 retrospective with wake-204 swap + post-196 deltas
+
+**Goal**: the wake-197 retrospective doc captured the state
+at wake 196. Wakes 198-205 added meaningful work: live-
+decoder push to 85%, two new cross-check tests (201/202),
+and most importantly the phase-2D swap (wake 204) closing
+the rep_responder integration arc. The retro's phase-2
+description ends at wake 188 ("a future wake can flip the
+switch") — wake 204 IS that future wake. Update the doc to
+reflect the closure.
+
+**Built**:
+
+- **`analysis/session_retrospective_196.md`**:
+  - **Phase 2 heading**: changed from "wakes 157, 158,
+    187, 188" to "wakes 157, 158, 187, 188, 204".
+  - **Phase 2 table**: added a **bold** wake-204 row
+    describing the actual emission swap behind
+    `heartbeat_use_dispatcher` (default off), the three
+    lockdown tests, and the runtime-failure fallback.
+  - **Phase 2 prose**: updated the "future wake can swap"
+    paragraph to "captured-replay remains the safe
+    default. Flipping the flag activates the dispatcher
+    path." Added an inline note about the future
+    counter-advance enhancement (wake 204 worklog's open
+    item).
+  - **Snapshot block-quote header**: added a
+    "Post-wake-196 deltas (as of wake 206)" callout
+    listing the major deltas: 437 tests, 85% live-decoder
+    coverage, 15 Findings cards, 9 cross-check tests,
+    phase-2 arc complete. The original snapshot stays as
+    a frozen wake-196 record below; the delta callout
+    bridges to the current state.
+
+**Why a delta callout rather than rewriting the snapshot**:
+the wake-197 doc has a specific scope (wakes 151-196). A
+visitor reading it should get the wake-196 state by
+default; the post-196 deltas are framed as an "edit
+addendum" so the historical record stays intact. Future
+retrospectives (wake 250?) can fold the deltas in as a
+new snapshot section.
+
+**No `server/javelin/` codec changes**. Tests still **437
+passing (+1 skipped)**. Site rebuild trivial — the wake-151
+categorizer auto-picks up the doc's updated content on
+next build.
+
+**Blockers:** None.

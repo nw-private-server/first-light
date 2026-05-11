@@ -13,6 +13,20 @@ Each wake is a single commit; the per-wake trail lives in
 
 ## Snapshot (as of wake 196)
 
+> **Post-wake-196 deltas (as of wake 206)**: this doc was
+> written at wake 197 and reflects the state at wake 196.
+> The autonomous session continued past it; key deltas:
+> tests **437** (+phase-2D swap lockdown), live decoder
+> coverage **85% (34/40)** with the wake-200 explainer
+> card surfacing why the remaining 6 stay uncovered,
+> Findings tab **15 cards** (7 Research closures — the
+> dominant bucket now), **9 cross-check tests**
+> (+wake-201 badge-color thresholds, +wake-202 api-ref
+> idempotency), and **phase-2 arc complete**: wake 204
+> shipped the actual heartbeat emission swap behind
+> `heartbeat_use_dispatcher` (default off). The Phase 2
+> table below has been extended to include wake 204.
+
 - **430 tests passing** (+1 skipped), up from 346 at wake
   149. The growth is mostly cross-check + lockdown tests,
   not new codec tests — the 40/40 captured-wire-types
@@ -62,13 +76,14 @@ wake-122 "negative but not definitive" into a definitive
 ruled-out hypothesis across 13 hash families × 2 byte
 orderings × 9,470 byte-inputs.
 
-## Phase 2: rep_responder ↔ dispatcher integration (wakes 157, 158, 187, 188)
+## Phase 2: rep_responder ↔ dispatcher integration (wakes 157, 158, 187, 188, 204)
 
 Two-step "shadow → lockdown" pairs on both directions of the
-responder ↔ dispatcher boundary. The conservative pattern is
+responder ↔ dispatcher boundary, followed by the actual swap
+behind a feature flag. The conservative pattern is
 deliberate: the responder's behavior matters for a real
-client, so each integration step ships logging-only and gets
-pinned by ≥6 tests before any flip.
+client, so each integration step ships logging-only or
+default-off and gets pinned by ≥6 tests before any flip.
 
 | Wake | Commit | Step |
 |---|---|---|
@@ -76,16 +91,19 @@ pinned by ≥6 tests before any flip.
 | 158 | `b34a1f7` | 9 lockdown tests for the inbound shadow path. Covers round-trip, silent-skip (3 shapes), unsupported-type-id, codec-failure-without-propagation. |
 | 187 | `3bf8ec6` | Outbound encode-validation probe: at startup, decode + re-encode the cached 0x15d heartbeat through the dispatcher, assert byte-equality. Logs INFO when safe. |
 | 188 | `c04054a` | 8 lockdown tests for the encode validation. Same shape as wake 158. |
+| **204** | `402bd62` | **Actual emission swap behind `heartbeat_use_dispatcher` (default off)**. When the flag is on, `_send_dispatched_heartbeat()` re-encodes the cached decoded heartbeat via `dispatch.encode_replay_message` and routes through the existing `_send_replay_message` plumbing. First emission logs at INFO, subsequent at DEBUG. Runtime-failure fallback keeps the heartbeat stream alive if the dispatcher raises. 3 lockdown tests: byte-equality against captured replay, log-level progression, fallback safety net. |
 
-A future wake can swap `_send_replay_message(_heartbeat_msg)`
-to `dispatch.encode_replay_message(0x15d, decoded)` with
-confidence — the wake-188 tests catch any regression in the
-encode round-trip.
+The captured-replay path remains the safe default. Flipping
+`heartbeat_use_dispatcher=True` activates the dispatcher
+path; the operator-visible signal is the `[phase-2D] first
+dispatcher-encoded heartbeat sent` INFO line. A future wake
+can mutate `decoded.counter`/`nonce` between sends to make
+heartbeats actually advance (closer to real server behavior).
 
-The wake-196 meta-invariant test ensures this pattern stays
-mandatory: any future `_shadow_*` or `_validate_*` helper in
-`rep_responder.py` must have a ≥6-test lockdown file, or the
-build fails.
+The wake-196 meta-invariant test ensures the shadow→lockdown
+pattern stays mandatory: any future `_shadow_*` or
+`_validate_*` helper in `rep_responder.py` must have a
+≥6-test lockdown file, or the build fails.
 
 ## Phase 3: Generated docs + audit pass (wakes 160, 161, 165)
 
