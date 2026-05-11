@@ -13283,3 +13283,82 @@ message includes the bad hex, so the fix is immediate.
 changes. Site rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 173 — live-decoder gains the subkey_beacon family (14 wire-types)
+
+**Goal**: the live decoder so far covered 6 wire-types,
+each with a fixed body shape. The subkey_beacon family
+covers **14 more** (0x066b, 0x102f, 0x1098 trailer-0;
+0x0f7f, 0x101a, 0x101d, 0x10b0, 0x143d, 0x187c, 0x187f,
+0x1a59 trailer-1; 0x102e trailer-2; 0x09d3 trailer-4;
+0x192c trailer-10) with a single shared wire shape. Add
+one decoder that handles all 14 — the visitor pastes the
+hex and the decoder figures out which family member it is.
+
+**Built**:
+
+- **`site/index.html`**:
+  - New dropdown option: `subkey_beacon family — 14
+    wire-types (44+T bytes)`.
+  - Two preset buttons demonstrating different trailer
+    sizes:
+    - `subkey 0x1a59 (trailer-1)` — 45 bytes total
+    - `subkey 0x066b (trailer-0)` — 44 bytes total
+    Both preset hex strings generated via the Python
+    codec to guarantee byte-exact correctness.
+  - `DECODERS["subkey"]` is the first **variable-size**
+    entry. Wire shape: `client_hash(4) + remaining_len(4)
+    + session_uuid(16) + inner_type_header(4) + subkey(16)
+    + trailer(0/1/2/4/10)`. Decoder:
+    1. Validates `remaining_len == body.length - 8`.
+    2. Decodes the inner type_header at +0x18 → recovers
+       the `type_id` (using the standard
+       `(byte2 & 0x3f) | (byte3 << 6)` rule).
+    3. Looks up the recovered type_id in a JS-side
+       `KNOWN_FAMILY` map (mirrors the Python wake-121
+       table) to validate trailer size against the
+       expected family-canonical value.
+    4. Renders 7 field rows (client_hash, remaining_len,
+       session_uuid, inner TYPE_HEADER + decoded type_id,
+       subkey, trailer hex, family-check status).
+  - **New `run()` size-check logic**: handles both
+    `size` (exact match required) and `minSize`
+    (at-least required) decoder spec keys. The
+    pre-wake-173 decoders all used `size`; the new
+    subkey decoder uses `minSize: 44`. Backwards-
+    compatible — existing decoders unaffected.
+
+- **`server/javelin/test_live_decoder_presets.py`**:
+  - Added `"subkey": subkey_beacon.decode` to
+    `PYTHON_DECODERS`. The wake-172 cross-check test
+    automatically picks up both new preset hex strings
+    and verifies they round-trip through
+    `subkey_beacon.decode()`.
+
+- **Verified**: both new presets pass the wake-172
+  cross-check unchanged. Tests still **416 passing (+1
+  skipped)** — the test count didn't grow because the
+  cross-check tests are data-driven, but their coverage
+  effectively grew from 6 → 8 preset hex strings.
+
+**Live-decoder coverage after wake 173**:
+- 6 simple wire-types: 0x15d R/W, 0x14f, 0x651, 0x18a6, 0x1b88
+- 1 family decoder covering 14 wire-types: 0x066b, 0x09d3,
+  0x0f7f, 0x101a, 0x101d, 0x102e, 0x102f, 0x10b0, 0x1098,
+  0x143d, 0x187c, 0x187f, 0x192c, 0x1a59
+- **Total: 20 of 40 captured wire-types** addressable from
+  the dashboard's Explore tab.
+
+**Why the inner-dropdown idea was scrapped**: the wake-171
+prompt suggested adding an inner type-header dropdown for
+the family members, but the actual decoder can just *read*
+the type_id from the body — no dropdown needed. Visitors
+who paste a captured family member's hex see "type 0x1a59"
+populated in the field rows automatically. Simpler UI,
+fewer clicks, more robust.
+
+**No `server/javelin/` codec changes**. No new test files
+created — the wake-172 cross-check infrastructure absorbed
+the new presets transparently. Site rebuild trivial.
+
+**Blockers:** None.

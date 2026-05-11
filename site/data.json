@@ -27996,6 +27996,12 @@
       "test_count": 414,
       "commit": "eb8ef4f",
       "subject": "feat(site): live decoder gains SessionIdentityBeacon (0x1b88)"
+    },
+    {
+      "wake": null,
+      "test_count": 417,
+      "commit": "7db272a",
+      "subject": "test(site): pin \"live-decoder presets round-trip through Python\" invariant"
     }
   ],
   "wire_type_families": [
@@ -28514,6 +28520,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 173,
+      "title": "live-decoder gains the subkey_beacon family (14 wire-types)",
+      "line": 13287
+    },
+    {
       "wake": 172,
       "title": "pin \"live-decoder presets round-trip through Python\" invariant",
       "line": 13228
@@ -28537,11 +28548,6 @@
       "wake": 168,
       "title": "\"Recent activity\" strip on Overview",
       "line": 13004
-    },
-    {
-      "wake": 167,
-      "title": "contributor ramp-up walkthrough on \"How it works\"",
-      "line": 12950
     }
   ]
 }

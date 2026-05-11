@@ -1650,6 +1650,7 @@ a:hover { text-decoration: underline; }
         <option value="651">0x651 — empty marker (4 bytes)</option>
         <option value="18a6">0x18a6 — InitMessage18A6 (40 bytes)</option>
         <option value="1b88">0x1b88 — SessionIdentityBeacon (42 bytes)</option>
+        <option value="subkey">subkey_beacon family — 14 wire-types (44+T bytes)</option>
       </select>
       <button id="ld-decode" class="preset-btn ld-decode">Decode</button>
     </div>
@@ -1663,6 +1664,8 @@ a:hover { text-decoration: underline; }
       <button class="preset-btn" data-ldtype="651" data-ldhex="00019119">0x651 empty marker</button>
       <button class="preset-btn" data-ldtype="18a6" data-ldhex="0001a662 f8cbed57c68b18f4 bf85314bbc4a951a 01010000 9cfa58617814 69f2 65030000 000002 01">0x18a6 init beacon</button>
       <button class="preset-btn" data-ldtype="1b88" data-ldhex="0001886e f8cbed57c68b18f4bf85314bbc4a951a 00000000000000000000000000000000000000000000">0x1b88 identity beacon</button>
+      <button class="preset-btn" data-ldtype="subkey" data-ldhex="aabbccdd 00000025 f8cbed57c68b18f4bf85314bbc4a951a 00019969 00112233445566778899aabbccddeeff 42">subkey 0x1a59 (trailer-1)</button>
+      <button class="preset-btn" data-ldtype="subkey" data-ldhex="11223344 00000024 f8cbed57c68b18f4bf85314bbc4a951a 0001ab19 ffeeddccbbaa99887766554433221100">subkey 0x066b (trailer-0)</button>
     </div>
     <pre id="ld-result" class="ld-empty">(pick a preset or paste hex and press Decode)</pre>
   </div>
@@ -2245,6 +2248,56 @@ function setupLiveDecoder() {
         ];
       },
     },
+    "subkey": {
+      // 14 W-direction wire-types share this body shape. The type_id
+      // lives INSIDE the body at +0x18 (not at offset 0), so this
+      // decoder has no leading `header` constant. Size is variable —
+      // 44 bytes base + trailer of 0/1/2/4/10 bytes per family member.
+      label: "SubkeyBeacon (generic, 14 family members)",
+      minSize: 44,
+      decode(buf) {
+        const remainingLen = u32be(buf, 4);
+        const expectedRemaining = buf.length - 8;
+        if (remainingLen !== expectedRemaining) {
+          throw new Error(
+            `remaining_len mismatch: header says ${hex0x(remainingLen)} ` +
+            `(${remainingLen}), actual body-minus-8 is ${expectedRemaining}`
+          );
+        }
+        // Decode the inner type_header at +0x18 (4 bytes) to recover type_id.
+        const tHdr = buf.slice(24, 28);
+        if (tHdr[0] !== 0x00 || tHdr[1] !== 0x01) {
+          throw new Error(`inner type_header marker mismatch at +0x18: ${hexBytes(buf, 24, 4)}`);
+        }
+        if ((tHdr[2] & 0x80) === 0) {
+          throw new Error(`inner type_header byte 2 high bit unset at +0x18: 0x${tHdr[2].toString(16)}`);
+        }
+        const typeId = (tHdr[2] & 0x3f) | (tHdr[3] << 6);
+        // Family members + their canonical trailer sizes (wake 121).
+        const KNOWN_FAMILY = {
+          0x066b: 0, 0x102f: 0, 0x1098: 0,
+          0x0f7f: 1, 0x101a: 1, 0x101d: 1, 0x10b0: 1, 0x143d: 1,
+          0x187c: 1, 0x187f: 1, 0x1a59: 1,
+          0x102e: 2,
+          0x09d3: 4,
+          0x192c: 10,
+        };
+        const familyHint = KNOWN_FAMILY[typeId];
+        const trailer = buf.slice(44);
+        const familyNote = (familyHint !== undefined)
+          ? `(known family — expected trailer ${familyHint} bytes; got ${trailer.length})`
+          : `(NOT in KNOWN_FAMILY map)`;
+        return [
+          ["client_hash      (4 bytes)", hexBytes(buf, 0, 4)],
+          ["remaining_len    (u32 BE)", hex0x(remainingLen) + "  (= body - 8)"],
+          ["session_uuid     (16 bytes)", hexBytes(buf, 8, 16)],
+          ["inner TYPE_HEADER", "0x" + hexBytes(buf, 24, 4) + `  (type 0x${typeId.toString(16)})`],
+          ["subkey           (16 bytes)", hexBytes(buf, 28, 16)],
+          [`trailer          (${trailer.length} bytes)`, trailer.length ? Array.from(trailer).map(b => b.toString(16).padStart(2, "0")).join("") : "(empty)"],
+          ["family check", familyNote],
+        ];
+      },
+    },
   };
 
   function run() {
@@ -2269,8 +2322,11 @@ function setupLiveDecoder() {
       return;
     }
     try {
-      if (buf.length !== dec.size) {
+      if (dec.size !== undefined && buf.length !== dec.size) {
         throw new Error(`expected exactly ${dec.size} bytes; got ${buf.length}`);
+      }
+      if (dec.minSize !== undefined && buf.length < dec.minSize) {
+        throw new Error(`expected at least ${dec.minSize} bytes; got ${buf.length}`);
       }
       if (dec.header) {
         for (let i = 0; i < 4; i++) {
