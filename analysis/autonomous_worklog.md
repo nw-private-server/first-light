@@ -1331,3 +1331,133 @@ in months; touched the two highest-leverage
 "first impression" docs after README.
 
 **Blockers:** None.
+
+
+## Wake 268 — Findings-card prose-tail scan (wake-265 hygiene heuristic applied)
+
+**Goal**: follow the wake-265 hygiene principle
+("visitor-facing prose describes what is true,
+not how the truth was established") across the
+remaining Findings cards. The wake-265 cleanup
+caught the wake-200 card; this wake checks
+whether the same pattern recurs elsewhere.
+
+**Found**: 2 cards with prose-tail accumulation
++ 1 card with stale count drift (caught by the
+scan but not the cross-check graph because it
+was a parenthetical, not a primary claim):
+
+1. **Wake-192 card** ("Live decoder addresses
+   90%..."): closed with
+   "Updated wake 219 after wake-217's 90.0%
+   crossing; the original wake-192 snapshot was
+   80% (32/40)." — update-trail meta-commentary.
+   Also contained
+   "(now 14 tests after wakes 207/209/210/214/218)"
+   referring to the cross-check graph — actual
+   manifest now at **19 tests**, not 14. Stale
+   parenthetical not caught by wake-214 (which
+   pins the wake-210 card, not other cards'
+   references to the same count).
+
+2. **Wake-228 card** ("Four-retrospective
+   session-arc skeleton"): contained
+   "(which the wake-227 retro captured at 18
+   invariants; the graph has since grown to 19
+   with five self-referential pins on the meta-
+   pattern card itself)" — same drift mode as
+   above. Also contained
+   "the wake-196 doc's post-snapshot deltas
+   callout was trimmed at wake 229 from a
+   verbose state-mirror to a one-line pointer
+   once the wake-227 doc superseded it" — pure
+   process-narration; the trimmed result is
+   what visitors see today, the trim event is
+   irrelevant.
+
+**Built**:
+
+**`tools/build_site.py`** — three prose edits:
+
+- **Wake-192 card**:
+  - Removed "Wake-192-era additions render..."
+    → "Captured-string rendering surfaces..."
+    (the wake-192 era specificity wasn't doing
+    work; the *what* is what matters).
+  - Replaced "(now 14 tests after wakes
+    207/209/210/214/218)" with "(see the
+    wake-210 cross-check meta-pattern card for
+    the full graph)" — indirects the count
+    through the wake-214-pinned card so it
+    stays current automatically.
+  - Removed the "Updated wake 219..." tail
+    entirely — terminal sentence ("upper-end
+    complexity shapes covered to date") now
+    leads into the cross-check parenthetical
+    cleanly.
+
+- **Wake-228 card** (cross-check parenthetical):
+  - Replaced "(which the wake-227 retro
+    captured at 18 invariants; the graph has
+    since grown to 19 with five self-
+    referential pins on the meta-pattern card
+    itself)" with "(see the wake-210
+    meta-pattern card for current count, with
+    five self-referential pins on the meta-
+    card itself)".
+
+- **Wake-228 card** (wake-229 trimming
+  narration):
+  - Removed "the wake-196 doc's post-snapshot
+    deltas callout was trimmed at wake 229
+    from a verbose state-mirror to a one-line
+    pointer once the wake-227 doc superseded
+    it." Sentence boundary now connects "...
+    forward pointer to the next." directly to
+    "The wake-207 cross-check pins each doc..."
+
+**Verification**:
+
+- `.venv/bin/python3 tools/build_site.py` →
+  clean.
+- `pytest server/javelin -q` → **456 passing,
+  1 skipped** — unchanged.
+- Wake-214 cross-check (wake-210 card count
+  matches manifest): not touched, still
+  satisfied.
+- Wake-218 cross-check (wake-210 card cites
+  every manifest wake): not touched, still
+  satisfied.
+- Wake-225 cross-check (analysis paths exist):
+  no analysis-path edits, no impact.
+
+**Pattern reinforced**: the wake-265 hygiene
+heuristic is now demonstrably useful. Three
+cards (200/192/228) had the same accumulation
+pattern; the heuristic produced cleaner prose
+in all three with no information loss. Filing
+the heuristic into the Findings-card writing
+convention by reference rather than as a new
+test (over-pinning concern from wake-227's
+"graph is essentially complete" note).
+
+**Second-order observation**: cards that
+reference *other* cards' numeric claims should
+indirect through the canonical card rather
+than restating the number. The wake-214 cross-
+check protects the wake-210 card's count; any
+card that *cites* the count without going
+through wake-210 becomes a drift target
+unprotected by the cross-check graph. The
+indirection pattern ("see the wake-210
+meta-pattern card") solves this without adding
+another cross-check (which would itself need
+maintenance).
+
+**Cost summary**: 3 prose edits in one file
+(`tools/build_site.py`). Modest change but
+applies the wake-265 principle systematically.
+Two cards now tighter + one parenthetical
+drift fixed.
+
+**Blockers:** None.

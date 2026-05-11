@@ -1638,7 +1638,7 @@
       "title": "Live decoder addresses 90% of captured wire-types",
       "category": "Research closure",
       "wake": 192,
-      "summary": "36 of 40 captured wire-types (90.0%) are now decodable directly from the dashboard's Explore tab \u2014 no clone, no CLI, no Python required. The visitor pastes a hex body, picks the type, and sees field-aligned output. Wake-192-era additions render captured strings inline: 0x1067 VivoxConfig surfaces the production Vivox API URL + realm + issuer; 0x663 LevelDescriptor shows the level name and path (e.g. \"NewWorld_VitaeEterna\"). Wake 213's 0x0635 ActionHistory introduced the variable-length-record decoder pattern (15-byte history records); wake 217's 0x12f6 KeybindingConfig extended it with u8-prefixed UTF-8 string walks. The wake-172/178/185 cross-check graph (now 14 tests after wakes 207/209/210/214/218) means a typo in any preset hex or a drift between the JS and Python type-id maps fails loudly at pytest with a precise pointer at the broken row. Updated wake 219 after wake-217's 90.0% crossing; the original wake-192 snapshot was 80% (32/40)."
+      "summary": "36 of 40 captured wire-types (90.0%) are now decodable directly from the dashboard's Explore tab \u2014 no clone, no CLI, no Python required. The visitor pastes a hex body, picks the type, and sees field-aligned output. Captured-string rendering surfaces production identifiers inline: 0x1067 VivoxConfig exposes the production Vivox API URL + realm + issuer; 0x663 LevelDescriptor shows the level name and path (e.g. \"NewWorld_VitaeEterna\"). Wake 213's 0x0635 ActionHistory introduced the variable-length-record decoder pattern (15-byte history records); wake 217's 0x12f6 KeybindingConfig extended it with u8-prefixed UTF-8 string walks \u2014 those mark the upper-end complexity shapes covered to date. A typo in any preset hex or a drift between the JS and Python type-id maps fails loudly at pytest with a precise pointer at the broken row (see the wake-210 cross-check meta-pattern card for the full graph)."
     },
     {
       "title": "Codec audit arcs both closed at 0 gaps",
@@ -1650,7 +1650,7 @@
       "title": "Four-retrospective session-arc skeleton",
       "category": "Architecture",
       "wake": 228,
-      "summary": "The autonomous-session work is now narrated across four frozen retrospective documents, each covering a coherent multi-wake arc: wakes 1-150 (`analysis/session_retrospective_150.md`) \u2014 codec library + dispatcher + initial dashboard, ending at 40/40 captured-codec coverage and the wake-112 state-10 RE breakthrough; wakes 151-196 (`analysis/session_retrospective_196.md`) \u2014 navigable dashboard, live decoder at 80%, rep_responder \u2194 dispatcher integration foundation; wakes 197-227 (`analysis/session_retrospective_227.md`) \u2014 live decoder push to 90.0% (with the wake-221 floor decision), phase-2 emission swap + counter-advance realism extension, and the cross-check graph (which the wake-227 retro captured at 18 invariants; the graph has since grown to 19 with five self-referential pins on the meta-pattern card itself); **wakes 228-253 (`analysis/session_retrospective_253.md`) \u2014 state-machine RE closure arc, all 4 post-V3 state-spawn transitions now have writers + trigger chains identified at static-RE level, with the wake-252 indirect-vtable wall marking the static-RE limit (further progress on NewProxy wire-type ID is runtime-dependent)**. Each doc is a frozen snapshot of its arc + a forward pointer to the next; the wake-196 doc's post-snapshot deltas callout was trimmed at wake 229 from a verbose state-mirror to a one-line pointer once the wake-227 doc superseded it. The wake-207 cross-check pins each doc to a README link; the wake-225 cross-check pins each path cited in this card to actually exist; wake 231 added an analogous pin for decision-doc README links. Future arcs follow the same pattern: ~25-50 wakes per retrospective, snapshot + 3-5 phases + open-items + forward pointer. The wake-253 retro covers 26 wakes \u2014 slightly below the previous-arc range, but the state-machine closure provided a natural narrative anchor. Four artifact genres now coexist on the Findings tab: **retrospectives** (frozen snapshots \u2014 4 docs, this is their card); **decision docs** (closed questions with reversal criteria \u2014 wake 221's 0x065c, cited from the wake-200 Findings card); **investigation logs** (search-in-progress with candidate triage \u2014 wake 241's state-13\u219214 search, surfaced via the wake-251 methodology card); **walls** (documented static-RE limit, runtime handoff necessary \u2014 wake 252's indirect-vtable termination, surfaced via the wake-257 wall card). Each genre has at least one exemplar Findings card on the dashboard, completing the 4-genre coverage as of wake 257."
+      "summary": "The autonomous-session work is now narrated across four frozen retrospective documents, each covering a coherent multi-wake arc: wakes 1-150 (`analysis/session_retrospective_150.md`) \u2014 codec library + dispatcher + initial dashboard, ending at 40/40 captured-codec coverage and the wake-112 state-10 RE breakthrough; wakes 151-196 (`analysis/session_retrospective_196.md`) \u2014 navigable dashboard, live decoder at 80%, rep_responder \u2194 dispatcher integration foundation; wakes 197-227 (`analysis/session_retrospective_227.md`) \u2014 live decoder push to 90.0% (with the wake-221 floor decision), phase-2 emission swap + counter-advance realism extension, and the cross-check graph (see the wake-210 meta-pattern card for current count, with five self-referential pins on the meta-card itself); **wakes 228-253 (`analysis/session_retrospective_253.md`) \u2014 state-machine RE closure arc, all 4 post-V3 state-spawn transitions now have writers + trigger chains identified at static-RE level, with the wake-252 indirect-vtable wall marking the static-RE limit (further progress on NewProxy wire-type ID is runtime-dependent)**. Each doc is a frozen snapshot of its arc + a forward pointer to the next. The wake-207 cross-check pins each doc to a README link; the wake-225 cross-check pins each path cited in this card to actually exist; wake 231 added an analogous pin for decision-doc README links. Future arcs follow the same pattern: ~25-50 wakes per retrospective, snapshot + 3-5 phases + open-items + forward pointer. The wake-253 retro covers 26 wakes \u2014 slightly below the previous-arc range, but the state-machine closure provided a natural narrative anchor. Four artifact genres now coexist on the Findings tab: **retrospectives** (frozen snapshots \u2014 4 docs, this is their card); **decision docs** (closed questions with reversal criteria \u2014 wake 221's 0x065c, cited from the wake-200 Findings card); **investigation logs** (search-in-progress with candidate triage \u2014 wake 241's state-13\u219214 search, surfaced via the wake-251 methodology card); **walls** (documented static-RE limit, runtime handoff necessary \u2014 wake 252's indirect-vtable termination, surfaced via the wake-257 wall card). Each genre has at least one exemplar Findings card on the dashboard, completing the 4-genre coverage as of wake 257."
     },
     {
       "title": "VM-on-Apple-Silicon ruled out for runtime testing",
@@ -28770,6 +28770,12 @@
       "test_count": 457,
       "commit": "6b0e9e9",
       "subject": "test(build): wake-266 \u2014 extend wake-225 docstring with Drift mode + Remediation labels"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "72344ce",
+      "subject": "docs: wake-267 \u2014 DASHBOARD.md deprecation + CONTRIBUTING.md drift fixes"
     }
   ],
   "live_decoder_history": [
@@ -29374,6 +29380,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 268,
+      "title": "Findings-card prose-tail scan (wake-265 hygiene heuristic applied)",
+      "line": 1336,
+      "category": "other"
+    },
+    {
       "wake": 267,
       "title": "DASHBOARD.md deprecation + CONTRIBUTING.md drift fixes",
       "line": 1182,
@@ -29402,12 +29414,6 @@
       "title": "archive header preamble (wake-261 follow-up)",
       "line": 849,
       "category": "other"
-    },
-    {
-      "wake": 262,
-      "title": "wake-261 deferred drift: batch fix worklog references",
-      "line": 771,
-      "category": "docs"
     }
   ],
   "live_decoder_coverage": {
