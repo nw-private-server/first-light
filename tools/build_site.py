@@ -1211,6 +1211,42 @@ def load_findings():
                        "both arcs in 2-3 wakes each.",
         },
         {
+            "title": "Three-retrospective session-arc skeleton",
+            "category": "Architecture",
+            "wake": 228,
+            "summary": "The autonomous-session work is now narrated "
+                       "across three frozen retrospective documents, "
+                       "each covering a coherent multi-wake arc: "
+                       "wakes 1-150 "
+                       "(`analysis/session_retrospective_150.md`) — "
+                       "codec library + dispatcher + initial "
+                       "dashboard, ending at 40/40 captured-codec "
+                       "coverage and the wake-112 state-10 RE "
+                       "breakthrough; wakes 151-196 "
+                       "(`analysis/session_retrospective_196.md`) — "
+                       "navigable dashboard, live decoder at 80%, "
+                       "rep_responder ↔ dispatcher integration "
+                       "foundation; wakes 197-227 "
+                       "(`analysis/session_retrospective_227.md`) — "
+                       "live decoder push to 90.0% (with the wake-221 "
+                       "floor decision), phase-2 emission swap + "
+                       "counter-advance realism extension, "
+                       "cross-check graph grown from 9 to 18 with "
+                       "five self-referential pins. Each doc is a "
+                       "frozen snapshot of its arc + a forward "
+                       "pointer to the next; the wake-196 doc's "
+                       "post-snapshot deltas callout was trimmed at "
+                       "wake 229 from a verbose state-mirror to a "
+                       "one-line pointer once the wake-227 doc "
+                       "superseded it. The wake-207 cross-check "
+                       "pins each doc to a README link; the wake-225 "
+                       "cross-check pins each path cited in this "
+                       "card to actually exist. Future arcs follow "
+                       "the same pattern: ~30-50 wakes per "
+                       "retrospective, snapshot + 3-5 phases + "
+                       "open-items + forward pointer.",
+        },
+        {
             "title": "VM-on-Apple-Silicon ruled out for runtime testing",
             "category": "Architecture",
             "wake": 70,

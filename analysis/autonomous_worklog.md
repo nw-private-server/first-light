@@ -17252,3 +17252,77 @@ in sync.
 simplification.
 
 **Blockers:** None.
+
+## Wake 230 — Findings card: three-retrospective session-arc skeleton
+
+**Goal**: three retrospective docs now narrate the
+session as a sequence of coherent arcs (1-150,
+151-196, 197-227). The dashboard's Findings tab
+indexes them automatically via `categorize_doc` →
+"Retrospective", but the **project-shape claim**
+("we have a session-arc skeleton that scales") isn't
+surfaced anywhere. Add an Architecture-bucket
+Findings card so the pattern is discoverable to
+visitors who want to understand how the autonomous
+session organizes work.
+
+**Built**:
+
+- **`tools/build_site.py`** new Findings card:
+  - **Title**: "Three-retrospective session-arc
+    skeleton".
+  - **Category**: Architecture (2nd card in that
+    bucket — joins the wake-70 VM-on-Apple-Silicon
+    ruling as a project-shape claim). Not Research
+    closure since it's not closing a research
+    question; it's documenting a structural pattern.
+  - **Wake**: 228 (the wake that shipped the
+    third-stretch retrospective + made the three-
+    doc pattern visible).
+  - **Summary**: one-paragraph narrative covering
+    all three docs with their wake ranges, the
+    "frozen snapshot + forward pointer" idiom, and
+    the wake-229 deltacallout simplification. Calls
+    out the wake-207 (file ↔ README link) + wake-225
+    (mention → file) cross-checks that protect this
+    structure. Ends with the extensibility claim:
+    "Future arcs follow the same pattern: ~30-50
+    wakes per retrospective, snapshot + 3-5 phases +
+    open-items + forward pointer."
+
+**Cross-check coverage**:
+- wake-225 (analysis-doc path existence): cites
+  three paths (`session_retrospective_150.md`,
+  `_196.md`, `_227.md`); all three exist ✓.
+- wake-207 (retrospective ↔ README): all three docs
+  linked from README ✓.
+- wake-218 (manifest citation): unaffected (no
+  manifest changes).
+- wake-227 (manifest-vs-tests): unaffected.
+
+**Why Architecture, not Research closure?** The
+existing 9-card Research closure cluster covers
+specific question-closures (hash ruled out, audit
+gaps, coverage decisions, etc.). The 3-retrospective
+pattern isn't closing a research question — it's
+**describing how the project organizes its history**.
+That's a structural / architectural claim. Adding
+to Architecture keeps the bucket semantics clean.
+
+**Findings tab now**: **18 cards**:
+- Research closure: 9 (unchanged)
+- Wire-level finding: 5 (unchanged)
+- RE breakthrough: 2 (unchanged)
+- **Architecture: 2** (+1)
+
+**Pattern note**: this is the **10th** Findings card
+added since wake-163 categorization (wake 156, 180,
+189, 193, 194, 200, 205, 211, 212, 228, 230 — wait
+that's 11; let me recount). The "zero new
+infrastructure" property holds — single dict entry,
+no new code paths.
+
+**No code changes, no test changes**. Tests **455
+passing (+1 skipped)** — unchanged.
+
+**Blockers:** None.
