@@ -29034,6 +29034,12 @@
       "test_count": 457,
       "commit": "b53f61f",
       "subject": "docs(worklog): wake-293 \u2014 cross-check graph audit (second clean negative)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "dbbcac0",
+      "subject": "docs(worklog): wake-294 \u2014 loop stop (final entry)"
     }
   ],
   "live_decoder_history": [
@@ -29638,6 +29644,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 295,
+      "title": "loop resumed post-stop (signaling check-in)",
+      "line": 5026,
+      "category": "other"
+    },
+    {
       "wake": 294,
       "title": "loop stop (final entry)",
       "line": 4917,
@@ -29665,12 +29677,6 @@
       "wake": 290,
       "title": "wider drift sweep: 3 more worklog-pointer drifts caught",
       "line": 4458,
-      "category": "docs"
-    },
-    {
-      "wake": 289,
-      "title": "retrospective re-read drift sweep (caught 2 See-also pointer drifts)",
-      "line": 4357,
       "category": "docs"
     }
   ],

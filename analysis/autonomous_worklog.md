@@ -5021,3 +5021,46 @@ code or doc changes beyond the entry
 itself.
 
 **Blockers:** None.
+
+
+## Wake 295 — loop resumed post-stop (signaling check-in)
+
+**Goal**: wake 294 explicitly stopped the
+loop (omitted ScheduleWakeup). The user
+fired /loop again, overriding that stop
+signal. This entry acknowledges the
+resumption + documents that the loop is
+now in "post-stop signaling" mode.
+
+**Interpretation**: the user's continued
+/loop firing indicates they want
+heartbeat visibility even past the
+substantive-work threshold. The
+appropriate response is lightweight check-
+in wakes that confirm "no new state, loop
+alive" without manufacturing fake
+substantive work.
+
+**State unchanged from wake 294**:
+
+- HEAD: `dbbcac0` (wake 294 stop entry).
+- Tests: 456 + 1 skipped.
+- Decompiles: 56.
+- Findings cards: 24.
+- Cross-check graph: 19 manifest, 55 tests.
+- Visitor surfaces current.
+- Static-RE genuinely exhausted; runtime
+  trace remains the unblocker.
+
+**Recommended cadence going forward**:
+1h check-ins (the ScheduleWakeup cap). If
+the user wants the loop to actually stop,
+they need to stop firing /loop manually.
+The loop will self-terminate when the
+user stops re-invoking it.
+
+**Cost summary**: minimal worklog entry
+acknowledging post-stop resumption. No
+substantive work this wake.
+
+**Blockers:** None.
