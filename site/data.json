@@ -28110,6 +28110,12 @@
       "test_count": 430,
       "commit": "c04054a",
       "subject": "test(rep_responder): phase-2C lockdown \u2014 8 tests pin wake-187 encode validation"
+    },
+    {
+      "wake": null,
+      "test_count": 430,
+      "commit": "67e9b23",
+      "subject": "feat(site): Findings card for the wake-126 + wake-136 audit closures"
     }
   ],
   "wire_type_families": [
@@ -28628,6 +28634,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 190,
+      "title": "live decoder +2 W-direction codecs \u2192 30/40 (75%)",
+      "line": 14465
+    },
+    {
       "wake": 189,
       "title": "Findings card: codec audit arcs both closed at 0 gaps",
       "line": 14404
@@ -28651,26 +28662,19 @@
       "wake": 185,
       "title": "preset-coverage invariant (every ldtype has a preset)",
       "line": 14099
-    },
-    {
-      "wake": 184,
-      "title": "linkify \"How it works\" walkthrough prose",
-      "line": 14031
     }
   ],
   "live_decoder_coverage": {
-    "covered": 28,
+    "covered": 30,
     "total": 40,
-    "percent": 70.0,
+    "percent": 75.0,
     "uncovered": [
       "0x0003",
       "0x0008",
       "0x0013",
-      "0x05b2",
       "0x0635",
       "0x065c",
       "0x0663",
-      "0x0a95",
       "0x0ca4",
       "0x1067",
       "0x12f6",

@@ -1719,6 +1719,8 @@ a:hover { text-decoration: underline; }
         <option value="9fc">0x9fc — ReceiptHandshake echo (102 bytes)</option>
         <option value="a4">0xa4 — SessionMessage small (20 bytes)</option>
         <option value="1033">0x1033 — OpaqueBlob (variable, 20+ bytes)</option>
+        <option value="5b2">0x5b2 W — IdentityFingerprintSet (45+ bytes)</option>
+        <option value="a95">0xa95 W — PermissionBitmap (45+ bytes)</option>
         <option value="5d1">0x5d1 — PlayerManagerSelfIdent (state-10 trigger, 4 or 25+ bytes)</option>
         <option value="subkey">subkey_beacon family — 14 wire-types (44+T bytes)</option>
       </select>
@@ -1746,6 +1748,8 @@ a:hover { text-decoration: underline; }
       <button class="preset-btn" data-ldtype="9fc" data-ldhex="aabbccdd 0000005e f8cbed57c68b18f4bf85314bbc4a951a 0001bc27 4c0c0ed6478a69dabf85314bbc4a951a f8cbed57c68b18f4bf85314bbc4a951a 0000000000000001000000010000000000a01000000010100009 e16343700e7b4d06a72fd9df005cd942">0x9fc receipt echo</button>
       <button class="preset-btn" data-ldtype="a4" data-ldhex="0001a402 f8cbed57c68b18f4bf85314bbc4a951a">0xa4 session msg</button>
       <button class="preset-btn" data-ldtype="1033" data-ldhex="0001b340 ce81136a2b7ad33e bf85314bbc4a951a deadbeefcafe1234">0x1033 opaque blob (demo)</button>
+      <button class="preset-btn" data-ldtype="5b2" data-ldhex="f9b3ea55 00000025 f8cbed57c68b18f4bf85314bbc4a951a 0001b216 180f8d4e573697c6 bf85314bbc4a951a 00">0x5b2 fingerprints (count=0)</button>
+      <button class="preset-btn" data-ldtype="a95" data-ldhex="11223344 00000049 f8cbed57c68b18f4bf85314bbc4a951a 0001952a 180f8d4e573697c6bf85314bbc4a951a 24 010101010101000101010101010101010101010101010101010101010101010101010101">0xa95 permissions (36 flags)</button>
     </div>
     <pre id="ld-result" class="ld-empty">(pick a preset or paste hex and press Decode)</pre>
   </div>
@@ -1812,6 +1816,7 @@ const TYPE_ID_TO_LDTYPE = {
   "0x136a": "136a", "0x1096": "1096", "0x5d1": "5d1",
   "0x8e6": "8e6", "0x9fc": "9fc",
   "0xa4": "a4", "0x1033": "1033",
+  "0x5b2": "5b2", "0xa95": "a95",
   // Both 0x40a and 0x1be share the HandshakeBlob76 codec.
   "0x40a": "76", "0x1be": "76",
   // subkey_beacon family — all 14 share one ldtype
@@ -2682,6 +2687,82 @@ function setupLiveDecoder() {
           ["state_block            (26 bytes)", hexBytes(buf, 60, 26)],
           ["echoed_blob            (16 bytes)", hexBytes(buf, 86, 16) +
             "  (must match 0x8e6 opaque_blob)"],
+        ];
+      },
+    },
+    "5b2": {
+      // W-direction, inner type_header at +0x18 (subkey-shape).
+      // Variable size: 45 (count=0) to N (count=count_field).
+      label: "IdentityFingerprintSet5B2 (type 0x5b2, W direction) — fingerprint set",
+      minSize: 45,
+      decode(buf) {
+        const remaining = u32be(buf, 4);
+        if (remaining !== buf.length - 8) {
+          throw new Error(`remaining_len mismatch: ${hex0x(remaining)} != body-8 (${buf.length - 8})`);
+        }
+        const innerHdr = hexBytes(buf, 24, 4);
+        if (innerHdr !== "0001b216") {
+          throw new Error(`inner type_header at +0x18 must be 0001b216; got ${innerHdr}`);
+        }
+        const count = buf[44];
+        const expectedSize = 45 + 8 * count;
+        if (buf.length !== expectedSize) {
+          throw new Error(`size mismatch: count=${count} declares ${expectedSize} bytes; got ${buf.length}`);
+        }
+        const fps = [];
+        for (let i = 0; i < count; i++) {
+          fps.push(hexBytes(buf, 45 + i * 8, 8));
+        }
+        return [
+          ["client_hash         (4 bytes)", hexBytes(buf, 0, 4)],
+          ["remaining_len       (u32 BE)", hex0x(remaining) + "  (✓)"],
+          ["session_uuid        (16 bytes)", hexBytes(buf, 8, 16)],
+          ["inner TYPE_HEADER", "0x" + hexBytes(buf, 24, 4) + "  (type 0x5b2)"],
+          ["second_id           (8 bytes)", hexBytes(buf, 28, 8)],
+          ["session_uuid_lower  (8 bytes)", hexBytes(buf, 36, 8)],
+          [`count               (u8)`, count.toString()],
+          [`fingerprints (${count} × 8)`,
+            fps.length ? fps.join("  ") : "(none)"],
+        ];
+      },
+    },
+    "a95": {
+      // W-direction, inner type_header at +0x18. Variable size:
+      // 45 (count=0) to 45+count bytes.
+      label: "PermissionBitmapA95 (type 0xa95, W direction) — permission flags",
+      minSize: 45,
+      decode(buf) {
+        const remaining = u32be(buf, 4);
+        if (remaining !== buf.length - 8) {
+          throw new Error(`remaining_len mismatch: ${hex0x(remaining)} != body-8 (${buf.length - 8})`);
+        }
+        const innerHdr = hexBytes(buf, 24, 4);
+        if (innerHdr !== "0001952a") {
+          throw new Error(`inner type_header at +0x18 must be 0001952a; got ${innerHdr}`);
+        }
+        const count = buf[44];
+        const expectedSize = 45 + count;
+        if (buf.length !== expectedSize) {
+          throw new Error(`size mismatch: count=${count} declares ${expectedSize} bytes; got ${buf.length}`);
+        }
+        // Render flags compactly: count of 1s, count of 0s, and a short
+        // preview of the first ~24 bytes.
+        let ones = 0, zeros = 0;
+        for (let i = 0; i < count; i++) {
+          if (buf[45 + i] === 1) ones++;
+          else if (buf[45 + i] === 0) zeros++;
+        }
+        const preview = hexBytes(buf, 45, Math.min(count, 24));
+        return [
+          ["client_hash      (4 bytes)", hexBytes(buf, 0, 4)],
+          ["remaining_len    (u32 BE)", hex0x(remaining) + "  (✓)"],
+          ["session_uuid     (16 bytes)", hexBytes(buf, 8, 16)],
+          ["inner TYPE_HEADER", "0x" + hexBytes(buf, 24, 4) + "  (type 0xa95)"],
+          ["subkey           (16 bytes)", hexBytes(buf, 28, 16)],
+          [`flag_count       (u8)`, count.toString()],
+          [`flags            (${count} bytes)`,
+            preview + (count > 24 ? "…" : "") +
+            `  (${ones} ones, ${zeros} zeros, ${count - ones - zeros} other)`],
         ];
       },
     },

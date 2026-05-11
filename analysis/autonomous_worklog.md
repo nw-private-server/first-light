@@ -14461,3 +14461,85 @@ maintenance.
 trivial.
 
 **Blockers:** None.
+
+## Wake 190 — live decoder +2 W-direction codecs → 30/40 (75%)
+
+**Goal**: live-decoder coverage push targeting the 30/40
+milestone (≤10 uncovered). Add the simpler 2 of the 4
+listed uncovered W-direction codecs — `identity_fingerprint_5b2`
++ `permission_bitmap_a95`, both with the inner-type-header-
+at-+0x18 shape (like wake-179's `9fc`).
+
+**Built**:
+
+- **`site/index.html`** — two new DECODERS entries:
+  - **`0x5b2` IdentityFingerprintSet** (45+8N bytes, W
+    direction): W-shape with `client_hash` + `remaining_len`
+    + `session_uuid` + inner TYPE_HEADER `00 01 b2 16` at
+    +0x18, then `second_id` + lower-uuid + `count` (u8) +
+    `count`×8-byte fingerprints. Decoder validates
+    remaining_len, inner header, size against declared
+    count. Renders 8 field rows including the full
+    fingerprint list when count > 0.
+  - **`0xa95` PermissionBitmap** (45+N bytes, W
+    direction): same wire-shape pattern with inner
+    TYPE_HEADER `00 01 95 2a`, plus a `subkey` (16) and
+    `flag_count` (u8) + `count`×1-byte flags. Decoder
+    summarizes flags as `{ones, zeros, other}` counts +
+    a 24-byte hex preview so a 36-flag bitmap doesn't
+    dominate the rendered output.
+
+- Two new preset buttons (one each), hex generated via
+  the Python codecs:
+  - `0x5b2` count=0 (45 bytes) — the "no fingerprints to
+    report" small-variant captured 3× in the replay.
+  - `0xa95` 36 flags (81 bytes) — the captured singleton
+    with one zero at index 6.
+
+- **Both maps + cross-check test updated in lockstep**:
+  `LDTYPE_TO_TYPE_IDS` (build_site.py), `TYPE_ID_TO_LDTYPE`
+  (index.html), `PYTHON_DECODERS` (test_live_decoder_presets.py).
+  The wake-178 sync test catches drift; the wake-172 preset
+  cross-check validates both new hex strings; the wake-185
+  "every ldtype has a preset" test catches missing presets
+  — all three pass on first run.
+
+**Coverage growth**:
+- Before wake 190: **28/40 = 70.0%**, 12 uncovered.
+- After wake 190: **30/40 = 75.0%**, 10 uncovered.
+- Reached the wake-181 ≤10-uncovered milestone target.
+- Uncovered now: `0x0003`, `0x0008`, `0x0013`, `0x0635`,
+  `0x065c`, `0x0663`, `0x0ca4`, `0x1067`, `0x12f6`,
+  `0x16a0` (10 captured wire-types).
+
+**Live-decoder shape catalog now**:
+- Header at +0 (most simple decoders).
+- Inner type_header at +0x18 (subkey + 0x9fc + **new
+  0x5b2** + **new 0xa95**).
+- Generic family decoder (subkey, 14 wire-types).
+- Multi-type shared shape (handshake_blob_76).
+- Variable size (subkey, 0x5d1, 0x1033, **new 0x5b2**,
+  **new 0xa95**).
+- Mixed BE/LE field decoders (1096, 136a, 0x5d1).
+- u64 via BigInt halves (136a, 0x5d1).
+
+**Pattern observation**: this wake's two-decoder push
+needed *zero* new test infrastructure. The 6-test
+cross-check graph (wakes 162/166/172/178/184/185) handled
+every validation automatically: maps in sync, preset hex
+round-trips, every ldtype has a preset. The contributor
+workflow is now:
+1. Add JS DECODERS entry.
+2. Add preset button with codec-generated hex.
+3. Update `LDTYPE_TO_TYPE_IDS` + `TYPE_ID_TO_LDTYPE` +
+   `PYTHON_DECODERS`.
+4. `pytest`.
+A typo anywhere fails loudly with a precise pointer.
+
+**Tests**: still **429 passing (+1 skipped)** — the preset
+cross-check now validates 18 hex strings (was 16).
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.

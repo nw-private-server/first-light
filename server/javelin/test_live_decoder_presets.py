@@ -32,6 +32,8 @@ from server.javelin import (
     receipt_handshake_9fc,
     session_message_a4,
     opaque_blob_1033,
+    identity_fingerprint_5b2,
+    permission_bitmap_a95,
 )
 
 
@@ -74,6 +76,8 @@ PYTHON_DECODERS = {
     "9fc":   receipt_handshake_9fc.decode,
     "a4":    session_message_a4.decode,
     "1033":  opaque_blob_1033.decode,
+    "5b2":   identity_fingerprint_5b2.decode,
+    "a95":   permission_bitmap_a95.decode,
 }
 
 
