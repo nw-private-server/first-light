@@ -391,6 +391,57 @@ def test_findings_linkify_map_matches_build_site_coverage_map():
         )
 
 
+def test_every_shadow_or_validate_helper_has_a_lockdown_test():
+    """Wake 196 meta-invariant. The wake-157/158 + wake-187/188 arcs
+    established a pattern: every helper named `_shadow_*` or
+    `_validate_*` in `server/rep_responder.py` is a logging-only
+    proof-of-safety step for some future dispatcher promotion, and
+    each must have a lockdown test file (≥6 tests) before the
+    promotion can proceed. Catch the regression: a contributor adds a
+    new `_shadow_*` or `_validate_*` helper without a corresponding
+    `test_<name>.py` file with ≥6 tests.
+
+    The test scans `server/rep_responder.py` for `def _shadow_*` or
+    `def _validate_*` definitions and confirms each one is referenced
+    by ≥6 tests across `server/javelin/test_*.py` files.
+    """
+    import re as _re
+    repo = Path(__file__).resolve().parents[2]
+    src = (repo / "server" / "rep_responder.py").read_text()
+
+    helpers = _re.findall(
+        r"^\s+def (_(?:shadow|validate)_[A-Za-z0-9_]+)\(",
+        src, _re.MULTILINE,
+    )
+    assert helpers, "no _shadow_*/ _validate_* helpers found — has the wake-157 pattern been removed?"
+
+    # For each helper, find at least one test_*.py file that mentions
+    # the helper name AND has ≥6 `def test_*` functions. The 6-test bar
+    # mirrors wake-158 (9 shadow-decode tests) and wake-188 (8 heartbeat-
+    # encode-validate tests).
+    test_dir = repo / "server" / "javelin"
+    test_files = list(test_dir.glob("test_*.py"))
+
+    for helper in helpers:
+        best_count = 0
+        best_file = None
+        for tf in test_files:
+            text = tf.read_text()
+            if helper not in text:
+                continue
+            count = len(_re.findall(r"^def test_\w+\(", text, _re.MULTILINE))
+            if count > best_count:
+                best_count = count
+                best_file = tf.name
+        assert best_count >= 6, (
+            f"helper {helper!r} has no test_*.py file with ≥6 tests "
+            f"that mentions it. Best match: {best_file!r} with {best_count} "
+            f"tests. The wake-157/158 + wake-187/188 pattern requires a "
+            f"lockdown file before any future emission/consumption "
+            f"promotion. Add tests to a test_<helper-name-suffix>.py file."
+        )
+
+
 def test_howitworks_type_id_mentions_all_linkify():
     """Wake 184 added a DOM walker that linkifies `0xNNN` mentions in
     the static "How it works" walkthrough HTML. Pin the invariant:

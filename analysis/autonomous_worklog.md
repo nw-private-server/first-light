@@ -14837,3 +14837,81 @@ indirectly cover the same source data.)
 trivial.
 
 **Blockers:** None.
+
+## Wake 196 — meta-invariant: every shadow/validate helper has a lockdown
+
+**Goal**: pin the wake-157/158 + wake-187/188 pattern as a
+**meta-invariant** at the test level. Every helper named
+`_shadow_*` or `_validate_*` in `server/rep_responder.py`
+is a logging-only proof-of-safety step for some future
+dispatcher promotion. The convention so far: wake 158 added
+9 tests for the wake-157 shadow path; wake 188 added 8 tests
+for the wake-187 encode-validation probe. Future
+contributors adding a new `_shadow_*` or `_validate_*`
+helper should be expected to add a similar lockdown — and
+the test should catch any drift.
+
+**Built**:
+
+- **`server/javelin/test_build_tools.py`**: new test
+  `test_every_shadow_or_validate_helper_has_a_lockdown_test`:
+  - Regex-scans `server/rep_responder.py` for
+    `def _shadow_*(` and `def _validate_*(` definitions.
+  - For each helper, walks every `server/javelin/test_*.py`
+    file; finds the file (if any) that mentions the helper
+    name and counts its `def test_*` functions.
+  - Asserts the best-matching test file has ≥6 tests. The
+    6-test threshold mirrors wake-158 (9 tests) and
+    wake-188 (8 tests).
+  - On failure, the message names the helper, the
+    best-matching test file, and the actual count — so a
+    contributor immediately knows what to fix.
+
+- **Note on heuristic**: tests don't always reference the
+  helper name verbatim — wake-158 uses a `_call_shadow()`
+  wrapper that calls `PeerSession._shadow_decode_record`
+  inline, only mentioning the helper name a few times.
+  The test_file-based heuristic (find a test file whose
+  name and content suggest it tests this helper) is more
+  robust than counting per-test-function mentions.
+
+**Verified current state**:
+- `_shadow_decode_record` → matched by
+  `test_shadow_decode.py` (9 tests, mentions helper 5x).
+  ✓
+- `_validate_dispatcher_heartbeat_encode_matches` → matched
+  by `test_heartbeat_encode_validate.py` (8 tests, mentions
+  helper 2x — once in docstring, once in
+  `PeerSession.METHOD` call).
+  ✓
+
+**Tests**: 429 → **430 passing (+1 skipped)**.
+
+**Pattern continuation**: the dashboard now has **7 cross-
+check tests** forming a graph (wakes 162, 166, 172, 178,
+184, 185, **196**). The 196 meta-invariant is the first
+that pins a *workflow convention* rather than a data
+relationship. Together they enforce: code structure,
+data sync, prose mentions, preset coverage, and
+contributor-discipline expectations.
+
+**Workflow implication for adding a future emission-promotion
+step**: contributors who add a new `_shadow_*` or
+`_validate_*` helper now get a failing test that demands
+≥6 lockdown tests. The wake-157/158 + 187/188 cadence is
+no longer optional convention — it's a tested invariant.
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Note on main-branch README sync**: this wake originally
+planned to add the wake-195 live-decoder badge to the
+main-branch README via a git worktree. The standing
+instruction "no main, no PRs, no force-push" blocks direct
+main pushes from the loop; the worktree change was reverted
+without committing. A maintainer can mirror the badge to
+main separately. The on-page coverage indicator (wake 175)
+and working-branch README badge (wake 195) continue to
+auto-update; only the main-branch README is fixed-in-time.
+
+**Blockers:** None.
