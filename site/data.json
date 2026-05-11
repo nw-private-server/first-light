@@ -28374,6 +28374,12 @@
       "test_count": 455,
       "commit": "470d293",
       "subject": "docs(readme): refresh \"Current status\" date + gate-2 infrastructure note"
+    },
+    {
+      "wake": null,
+      "test_count": 456,
+      "commit": "6407823",
+      "subject": "test(site): 18th cross-check \u2014 every manifest wake has a referencing test"
     }
   ],
   "live_decoder_history": [
@@ -28879,6 +28885,13 @@
       "category": "Retrospective"
     },
     {
+      "filename": "session_retrospective_227.md",
+      "title": "Wakes 197-227 \u2014 third-stretch milestones",
+      "summary": "A 31-wake continuation of the [wake-150 retrospective](session_retrospective_150.md) and the [wake-196 retrospective](session_retrospective_196.md). Where wakes 1-150 built the codec library + dispatcher + initial das\u2026",
+      "bytes": 10666,
+      "category": "Retrospective"
+    },
+    {
       "filename": "state_10_unblock_synthesis.md",
       "title": "State-10\u219211 gate \u2014 unblock synthesis (wake 111)",
       "summary": "The message that writes `2` there is `PlayerManagerSelfIdentificationMsg` (wire type `0x5d1`). 0x5d1 is NOT in the captured replay, which is why the pure-replay server can't drive the client past state 10. Unblocking \u2026",
@@ -28957,6 +28970,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 228,
+      "title": "third-stretch retrospective (wakes 197-227)",
+      "line": 17096,
+      "category": "docs"
+    },
+    {
       "wake": 227,
       "title": "18th cross-check: every manifest wake has a referencing test",
       "line": 17005,
@@ -28985,12 +29004,6 @@
       "title": "live-decoder coverage chart on the dashboard",
       "line": 16688,
       "category": "site"
-    },
-    {
-      "wake": 222,
-      "title": "15th cross-check: manifest wake-numbers unique across buckets",
-      "line": 16598,
-      "category": "test"
     }
   ],
   "live_decoder_coverage": {

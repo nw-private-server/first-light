@@ -17092,3 +17092,102 @@ Doc/navigation drift 6.
 from 454 (wake 226). +1 new test as planned.
 
 **Blockers:** None.
+
+## Wake 228 — third-stretch retrospective (wakes 197-227)
+
+**Goal**: the wake-196 retrospective is now frozen
+through wake 196 with a delta callout extending
+through wake 219. Wakes 197-227 form a coherent
+31-wake arc with clear themes (coverage push,
+phase-2 closure, cross-check graph growth). Write a
+proper third-stretch retrospective as a frozen
+artifact, freeing the wake-196 doc from being
+"current" — and giving a future fourth-stretch
+retrospective a clean starting point.
+
+**Built**:
+
+- **New file
+  `analysis/session_retrospective_227.md`** (~210
+  lines):
+  - **Title**: "Wakes 197-227 — third-stretch
+    milestones".
+  - **Intro**: continuation pointer to wake-150 +
+    wake-196 retrospectives; one-paragraph summary
+    of the arc.
+  - **Snapshot (as of wake 227)**: 6 bullets
+    covering tests, coverage, Findings cards,
+    cross-check graph, phase-2 state, dashboard.
+  - **Phase A — Live-decoder push to 90% + floor
+    decision** (wakes 198, 199, 213, 217, 221, 223):
+    full table with wake/commit/description; ends
+    on "90.0% is the floor by design."
+  - **Phase B — rep_responder phase-2 arc closure**
+    (wakes 204, 208): emission swap + counter-
+    advance realism extension framed as wake-204
+    being the "future wake" the wake-196 doc
+    anticipated.
+  - **Phase C — Cross-check graph growth (9→18)**:
+    table for the 11 new cross-check tests added
+    in this stretch, labels each by bucket, marks
+    the 5 self-referential pins with "(self-
+    referential N/5)" notation.
+  - **Phase D — Dashboard surface polish** (wakes
+    200, 205, 210, 211, 212, 215, 219): Findings
+    cards + category-pill UI.
+  - **Phase E — Documentation freshness pass**
+    (wakes 203, 206, 216, 220, 226): drift-
+    correction cascade.
+  - **Open items**: real-GPU validation, 0x065c
+    deferral status, self-referential cluster
+    being structurally complete.
+  - **Mid-stretch course-corrections**: 3 specific
+    decisions (wake 196 helper-lockdown rewrite,
+    wake 209 paired-card scope, wake 221
+    decision-doc framing).
+  - **See also** links to wake-150, wake-196,
+    decision doc, and worklog.
+
+- **`README.md` line 12 split**: the second-
+  stretch retrospective line now describes the
+  frozen wake-196 state (80%, 7-test cross-check
+  graph). The third-stretch retrospective gets its
+  own line referencing the current state (90%
+  with the floor decision, 18-test cross-check
+  graph with five self-referential pins).
+
+**Verification**:
+- `categorize_doc('session_retrospective_227.md')`
+  returns "Retrospective" — auto-indexes on the
+  Findings tab.
+- wake-207 test passes: both retrospective files
+  have README link entries.
+- wake-225 test passes: no new analysis paths
+  cited from cards.
+- Tests **455 (+1 skipped)** — unchanged.
+
+**Why a fresh doc rather than updating wake-196's
+delta callout?** The delta callout in
+session_retrospective_196.md has been refreshed
+twice already (wake 206 and wake 220) and was
+straining at 23 wake-deltas. A fresh
+retrospective:
+1. Frees the wake-196 doc to be a genuine
+   frozen snapshot.
+2. Gives the cross-check graph + 90% floor
+   narrative proper structure (table per phase
+   rather than a paragraph squish).
+3. Creates a starting point for a future
+   fourth-stretch retrospective.
+
+**Scope justification**: 30 wakes is a lot for a
+30-min cap, but the per-phase tables are tight
+(wake|commit|description rows) and the
+"highlights" sections are 2-3 sentences each.
+The structure mirrors wake-196 retrospective's
+Phase 1/Phase 2 organization. ~210 lines total.
+
+**No code changes, no test changes**. Pure
+documentation artifact.
+
+**Blockers:** None.

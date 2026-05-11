@@ -9,7 +9,8 @@ First Light is in reference to the territory "First Light" that was eventually r
 
 **Recent milestones:**
 - [150-wake session retrospective](analysis/session_retrospective_150.md) — wakes 1-150: 40/40 codec coverage, central dispatcher, state-10 RE breakthrough, audit arcs, 100% decompile cross-link density.
-- [Second-stretch retrospective (wakes 151-196)](analysis/session_retrospective_196.md) — rep_responder ↔ dispatcher integration foundation; post-snapshot deltas through wake 219 surface phase-2D shipped, live-decoder coverage now at 90% (36/40 captured wire-types decodable from the Explore tab), and a 14-test cross-check graph pinning dashboard data + workflow invariants.
+- [Second-stretch retrospective (wakes 151-196)](analysis/session_retrospective_196.md) — rep_responder ↔ dispatcher integration foundation, live-decoder coverage at 80% (32/40 captured wire-types decodable from the Explore tab), 7-test cross-check graph. Frozen wake-196 snapshot.
+- [Third-stretch retrospective (wakes 197-227)](analysis/session_retrospective_227.md) — live-decoder coverage push to 90.0% (36/40) with the wake-221 floor decision, phase-2 emission swap + counter-advance extension, and the cross-check graph grown from 9 to 18 with five self-referential pins.
 
 
 ---
