@@ -11,7 +11,9 @@
 > **Status note (wake 160):** this is the wake-`<early>` first-session
 > writeup, frozen as a snapshot. Subsequent Ghidra work (Ghidra static-RE
 > on the EAC-wrapped binary, succeeded 2026-05-06; the wakes-90-onward
-> entries in [`autonomous_worklog.md`](autonomous_worklog.md); the
+> entries in [`autonomous_worklog_through_253.md`](autonomous_worklog_through_253.md)
+> (wake-261 archive split; wakes 254+ in active
+> [`autonomous_worklog.md`](autonomous_worklog.md)); the
 > wake-112 state-10 RE breakthrough; the connection-lifecycle +
 > wrapper-setter decompile overviews at
 > [`connection_lifecycle_decompiles.md`](connection_lifecycle_decompiles.md)

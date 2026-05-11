@@ -86,8 +86,8 @@ The correlation_uuid is **not** echoed at the framing layer.
 envelope need to include the correlation_uuid in one of its fields
 (e.g. the 8-byte "mystery" field at offset +8 of the V3
 RegistrationResponse body) to satisfy the client's request-response
-matching? See `analysis/autonomous_worklog.md` wake 27 for the
-reasoning.
+matching? See `analysis/autonomous_worklog_through_253.md` wake 27
+(in the wake-261 archive) for the reasoning.
 
 ## The 22 phases
 
@@ -274,7 +274,8 @@ In our binary's analysis:
 
 ## What this project is currently missing
 
-Per `analysis/autonomous_worklog.md` end-of-day-1 summary:
+Per `analysis/autonomous_worklog_through_253.md` end-of-day-1 summary
+(in the wake-261 archive):
 
 - **The replay path covers seq 0x2..0x24** — that's roughly Phase
   1 through partway into Phase 11. Phases 12–22 are not in the

@@ -29004,6 +29004,12 @@
       "test_count": 457,
       "commit": "835abb0",
       "subject": "re(static): wake-288 \u2014 AZ::Name table angle confirmed exhausted (data-segment search, 0 hits)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "8f865d9",
+      "subject": "docs(analysis): wake-289 \u2014 retro re-read sweep catches 2 See-also pointer drifts"
     }
   ],
   "live_decoder_history": [
@@ -29421,7 +29427,7 @@
       "filename": "ghidra_findings.md",
       "title": "Ghidra MCP Findings \u2014 Live Javelin Binary Analysis",
       "summary": "The `SecureSocketDriver::Initialize` equivalent. Single xref \u2014 called from one call site inside module init. Struct layout discovered:",
-      "bytes": 25295,
+      "bytes": 25419,
       "category": "Decompile"
     },
     {
@@ -29608,6 +29614,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 290,
+      "title": "wider drift sweep: 3 more worklog-pointer drifts caught",
+      "line": 4458,
+      "category": "docs"
+    },
+    {
       "wake": 289,
       "title": "retrospective re-read drift sweep (caught 2 See-also pointer drifts)",
       "line": 4357,
@@ -29636,12 +29648,6 @@
       "title": "Findings card for the indirect-vtable wall pattern (3 instances)",
       "line": 3969,
       "category": "site"
-    },
-    {
-      "wake": 284,
-      "title": "pause-reflection on the 17-wake arc 267-283",
-      "line": 3703,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {

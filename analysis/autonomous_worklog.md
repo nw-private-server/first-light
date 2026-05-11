@@ -4453,3 +4453,115 @@ footer text didn't match the same regex
 shape as the body-level pointer.
 
 **Blockers:** None.
+
+
+## Wake 290 — wider drift sweep: 3 more worklog-pointer drifts caught
+
+**Goal**: cadence-shifted wake. Wake 289's
+retrospective sweep caught 2 See-also footer
+drifts that wake-262's batch fix had missed.
+This wake extends the sweep: grep ALL `.md`
+files for worklog pointers and check whether
+they appropriately reference the wake-261
+archive split.
+
+**Method**: `grep -rn "autonomous_worklog\.md"
+--include="*.md" .` returned ~25 references.
+Filtered to those that:
+- Point at the active worklog without
+  mentioning the archive AND
+- Reference content (specific wakes,
+  historical narrative) that lives in the
+  archive (wakes 1-253).
+
+**Drifts found + fixed (3)**:
+
+1. **`analysis/ghidra_findings.md:14`** —
+   "the wakes-90-onward entries in
+   `autonomous_worklog.md`". Wakes 90+ are
+   in the wake-261 archive, not the active
+   worklog. Updated to point at the archive
+   first + mention the active worklog for
+   wakes 254+.
+
+2. **`docs/post-v3-sequence.md:89`** —
+   "See `analysis/autonomous_worklog.md`
+   wake 27 for the reasoning". Wake 27 is
+   archive-era. Updated to point at the
+   archive + note the split.
+
+3. **`docs/post-v3-sequence.md:277`** —
+   "Per `analysis/autonomous_worklog.md`
+   end-of-day-1 summary". End-of-day-1 is
+   archive-era (wakes 1-10ish). Updated to
+   point at the archive.
+
+4. **`docs/protocol-overview.md:285`** —
+   pointed at `autonomous_worklog.md` as
+   "chronological narrative of an
+   autonomous static-RE session" without
+   mentioning the split. Updated to point
+   at both files with clear split context.
+
+**Drifts NOT fixed**:
+
+- **`analysis/clientmessagestrait_wire_formats.md:275`**
+  — "search 'param_1 offset' in
+  `autonomous_worklog.md`". Ambiguous — the
+  outer-struct map might be in either file
+  depending on when it was created. Skipped
+  to avoid introducing wrong pointers
+  without verification. Filing as a future
+  audit item.
+
+- **MORNING_BRIEF.md** — its preamble
+  already marks it as a wake-70 frozen
+  snapshot. References inside it are
+  historical and correctly point at the
+  worklog as-of-then.
+
+**Verification**:
+
+- `.venv/bin/python3 tools/build_site.py` →
+  clean.
+- `pytest server/javelin -q` → **456
+  passing, 1 skipped** — unchanged.
+- Wake-225 cross-check (analysis-path
+  existence): new pointer targets all
+  exist.
+
+**Pattern note**: this is now the **third**
+drift-sweep wake catching wake-262 batch-
+fix leftovers (wake 274 found CONTRIBUTING
+state-10 framing missed; wake 289 found
+retros' See-also footers; wake 290 found 4
+more across analysis + docs). The wake-262
+batch fix was extensive but it operated on
+a single pattern shape. The lesson is now
+strongly empirical:
+
+**Generalizable rule (3 data points now)**:
+batch fixes catch the dominant pattern.
+Followup audits catch variant phrasings of
+the same drift. A single doc-freshness arc
+needs **at least** wake-N (the batch fix)
++ wake-N+M (the audit sweep) before
+declaring the drift truly closed.
+
+**The wake-262 → wake-274 → wake-289 → wake-
+290 chain** is now four wakes spread over
+~28 wakes, each catching one wave of
+post-batch-fix leftovers. The wake-272
+methodology principle ("cross-doc grep
+before declaring drift-fix done") is
+reinforced again.
+
+**Cost summary**: 4 file edits (one in
+ghidra_findings.md, two in
+docs/post-v3-sequence.md, one in
+docs/protocol-overview.md), each 2-5 lines
+of new prose. Caught 4 instances of the
+"points at active worklog for archive-era
+content" pattern.
+
+**Blockers:** None.

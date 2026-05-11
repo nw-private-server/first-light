@@ -282,9 +282,12 @@ backend-agnostic.
 - [`analysis/ghidra_findings.md`](../analysis/ghidra_findings.md)
   — earlier Ghidra session structural findings (DTLS init, V3
   vtable shape, etc.)
-- [`analysis/autonomous_worklog.md`](../analysis/autonomous_worklog.md)
-  — chronological narrative of an autonomous static-RE session
-  (multiple wakes; useful for "how did we get here" questions)
+- [`analysis/autonomous_worklog_through_253.md`](../analysis/autonomous_worklog_through_253.md)
+  + [`analysis/autonomous_worklog.md`](../analysis/autonomous_worklog.md)
+  — chronological narrative of the autonomous static-RE session
+  (multiple wakes; useful for "how did we get here" questions). The
+  archive holds wakes 1-253; the active worklog holds wakes 254+.
+  Split happened at wake 261.
 
 ### Tools
 
