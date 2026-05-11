@@ -19921,3 +19921,80 @@ from any node.
 doc forward-pointer additions.
 
 **Blockers:** None.
+
+## Wake 259 — wake-228 skeleton card: explicit cross-links to genre exemplars
+
+**Goal**: the wake-228 skeleton card mentions the
+4-genre artifact typology (retrospective /
+decision / investigation / wall) but doesn't
+explicitly link to which Findings card surfaces
+each genre. With the wake-257 wall card now
+shipped, the 4-genre coverage is complete on the
+Findings tab — but a visitor reading the skeleton
+card has to discover the exemplars manually.
+
+**Built**:
+
+- **`tools/build_site.py`** wake-228 skeleton card
+  closing paragraph rewritten to make genre →
+  exemplar links explicit:
+  - **Retrospectives**: "4 docs, this is their
+    card".
+  - **Decision docs**: "wake 221's 0x065c, cited
+    from the wake-200 Findings card".
+  - **Investigation logs**: "wake 241's
+    state-13→14 search, surfaced via the wake-251
+    methodology card".
+  - **Walls**: "wake 252's indirect-vtable
+    termination, surfaced via the wake-257 wall
+    card".
+  - Closing claim: "Each genre has at least one
+    exemplar Findings card on the dashboard,
+    completing the 4-genre coverage as of wake
+    257."
+  - "Three artifact genres now coexist" → "Four
+    artifact genres now coexist on the Findings
+    tab" — fixed the count (previously named 4
+    genres but said "Three"; minor drift).
+
+**Why this matters**: a visitor scanning the
+dashboard sees Findings tab cards but has no
+top-down map of "which Findings card represents
+which artifact-genre". The skeleton card now
+serves as that map. Each link is a wake-number
+reference visitors can find via the Findings tab's
+wake-number index.
+
+**Verification**:
+- wake-218 (wake-numbers cited in cross-check
+  manifest card): unaffected; skeleton card isn't
+  the meta-card.
+- wake-225 (analysis-path existence): card prose
+  still cites only the 4 retro paths (which
+  exist); doesn't add new path references.
+- wake-209 (paired card consistency): unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: this is the **3rd update** to
+the wake-228 skeleton card (wake-244 cross-check-
+count drift fix, wake-255 4-retro update, this
+wake's cross-links). The card serves as the
+"project-shape map" — its prose evolves as the
+project grows.
+
+**Drift surface evaluation**: this update relies
+on the linked wake numbers (221, 200, 241, 251,
+252, 257) being correct. If any of those cards
+gets renamed/renumbered, this prose would drift.
+The wake-218 + wake-225 cross-checks pin the
+LATTICE of wake-numbers-in-card-prose for the
+wake-210 meta-card; no analogous pin exists for
+the wake-228 skeleton card. Adding one would be
+a 20th cross-check (Doc/navigation drift bucket),
+but feels premature with one card in this
+specific class.
+
+**No new tests, no new code**. Single Findings
+card prose extension.
+
+**Blockers:** None.

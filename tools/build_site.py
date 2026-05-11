@@ -1467,13 +1467,23 @@ def load_findings():
                        "retro covers 26 wakes — slightly below the "
                        "previous-arc range, but the state-machine "
                        "closure provided a natural narrative anchor. "
-                       "Three artifact genres now coexist: "
-                       "retrospectives (frozen snapshots), decision "
-                       "docs (closed questions, wake 221), and "
-                       "investigation logs (search-in-progress with "
-                       "candidate triage, wake 241). Wake 252 added "
-                       "a 4th genre: \"wall\" — documented static-RE "
-                       "limit, runtime handoff necessary.",
+                       "Four artifact genres now coexist on the "
+                       "Findings tab: **retrospectives** (frozen "
+                       "snapshots — 4 docs, this is their card); "
+                       "**decision docs** (closed questions with "
+                       "reversal criteria — wake 221's 0x065c, cited "
+                       "from the wake-200 Findings card); "
+                       "**investigation logs** (search-in-progress "
+                       "with candidate triage — wake 241's "
+                       "state-13→14 search, surfaced via the "
+                       "wake-251 methodology card); **walls** "
+                       "(documented static-RE limit, runtime handoff "
+                       "necessary — wake 252's indirect-vtable "
+                       "termination, surfaced via the wake-257 "
+                       "wall card). Each genre has at least one "
+                       "exemplar Findings card on the dashboard, "
+                       "completing the 4-genre coverage as of wake "
+                       "257.",
         },
         {
             "title": "VM-on-Apple-Silicon ruled out for runtime testing",
