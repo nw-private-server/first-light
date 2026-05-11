@@ -16,6 +16,15 @@ self-referential pins that bottom out cleanly). Each
 wake is a single commit; the per-wake trail lives in
 [`autonomous_worklog.md`](autonomous_worklog.md).
 
+> **Continued in the [fourth-stretch retrospective
+> (wakes 228-253)](session_retrospective_253.md)** — this
+> doc is a frozen wake-197-to-227 snapshot. The fourth-
+> stretch retro covers the state-machine RE closure arc:
+> all 4 post-V3 state-spawn transitions (10→11, 11→12,
+> 12→13, 13→14) gained writers + trigger chains at
+> static-RE level, with the wake-252 indirect-vtable
+> wall marking the static-RE limit.
+
 ## Snapshot (as of wake 227)
 
 - **455 tests passing** (+1 skipped), up from 430 at
@@ -194,8 +203,12 @@ current state as numbers shifted.
 - [`analysis/session_retrospective_150.md`](session_retrospective_150.md)
   — original first-stretch retrospective.
 - [`analysis/session_retrospective_196.md`](session_retrospective_196.md)
-  — second-stretch retrospective (wakes 151-196) with
-  post-wake-196 deltas callout updated through wake 219.
+  — second-stretch retrospective (wakes 151-196), now
+  a frozen wake-196 snapshot pointing forward.
+- [`analysis/session_retrospective_253.md`](session_retrospective_253.md)
+  — fourth-stretch retrospective (wakes 228-253), the
+  current-state-of-the-art retro covering the state-
+  machine RE closure arc.
 - [`analysis/decision_0x065c_live_decoder.md`](decision_0x065c_live_decoder.md)
   — wake-221 design decision for the live-decoder
   90% floor.

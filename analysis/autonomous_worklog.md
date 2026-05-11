@@ -19839,3 +19839,85 @@ varied in genres of any.
 card addition + worklog entry.
 
 **Blockers:** None.
+
+## Wake 258 — retrospective chain forward-pointers (wake-150, wake-227)
+
+**Goal**: with 4 retrospectives in place (wake-150
+/ 196 / 227 / 253), the wake-229 pattern of adding
+"Continued in ..." pointers should extend to all
+earlier retros. Wake-196 already has one (added at
+wake 229 when wake-227 superseded its "current
+state" framing). Wake-150 and wake-227 are missing.
+
+A visitor landing on wake-150 currently has no
+indication that 3 more retros exist downstream.
+Same for wake-227 (the 4th retro at wake-253 isn't
+mentioned in its "See also"). Drift correction.
+
+**Built**:
+
+- **`analysis/session_retrospective_150.md`** —
+  "Continued in" pointer added after the
+  introductory paragraph:
+  - Mirrors the wake-196 pattern: callout block
+    pointing to the IMMEDIATE next retro
+    (wake-196) + naming the FULL chain
+    (wake-150 → 196 → 227 → 253) + offering a
+    direct jump to the latest (wake-253).
+  - The wake-150 retro is the earliest; visitor
+    landing there likely wants to fast-forward.
+    Direct-jump option respects that.
+
+- **`analysis/session_retrospective_227.md`** —
+  "Continued in" pointer added after the
+  introductory paragraph (above the snapshot
+  block):
+  - Mirrors the wake-196 pattern exactly: callout
+    block pointing to wake-253 with a one-
+    sentence summary (state-machine RE closure +
+    wake-252 wall).
+  - **"See also" section also updated**: dropped
+    the wake-219 deltas-callout note for wake-196
+    (it's now collapsed to a pointer per wake
+    229) and added wake-253 as "the current-
+    state-of-the-art retro".
+
+**Chain consistency now**:
+- **wake-150** → wake-196 (this wake's addition)
+- **wake-196** → wake-227 (added wake 229)
+- **wake-227** → wake-253 (this wake's addition)
+- **wake-253** has no forward pointer (latest)
+
+Visitor landing on any retro can follow the chain
+forward, or jump to wake-253 directly from
+wake-150's callout.
+
+**Verification**:
+- wake-207 (retrospective ↔ README link): all 4
+  retros still linked from README ✓.
+- wake-225 (analysis-path existence): the
+  wake-150 callout cites
+  `session_retrospective_196.md` and
+  `session_retrospective_253.md`; the wake-227
+  callout cites `session_retrospective_253.md`.
+  All exist ✓.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: 4th iteration of the
+"forward-pointer footer" pattern (others:
+state_10_unblock_synthesis at wake 245,
+selfident_wire_format + sub_system_id_hash_search
+at wake 246). The pattern now covers BOTH
+snapshot deep-dive docs AND chained retrospective
+docs.
+
+**Cross-card maintenance**: this completes the
+forward-pointer cascade started at wake 229 (the
+wake-196 retro's pointer-collapse). The
+retrospective chain is now uniformly navigable
+from any node.
+
+**No new tests, no new code**. Two retrospective-
+doc forward-pointer additions.
+
+**Blockers:** None.

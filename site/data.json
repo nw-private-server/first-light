@@ -28710,6 +28710,12 @@
       "test_count": 457,
       "commit": "36e32dd",
       "subject": "docs(site): wake-210 meta-card \u2014 \"Stable at 19 since wake 231\" annotation"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "2e5e46d",
+      "subject": "feat(site): wall Findings card #22 \u2014 4-genre typology completes on dashboard"
     }
   ],
   "live_decoder_history": [
@@ -29204,7 +29210,7 @@
       "filename": "session_retrospective_150.md",
       "title": "150-wake autonomous session \u2014 milestones",
       "summary": "150 wakes of a self-paced autonomous /loop session, all on `claude/vacation-2026-05-06`. This doc summarizes the major milestones for any future maintainer or contributor browsing the project history. Each wake is a s\u2026",
-      "bytes": 9620,
+      "bytes": 10082,
       "category": "Retrospective"
     },
     {
@@ -29218,7 +29224,7 @@
       "filename": "session_retrospective_227.md",
       "title": "Wakes 197-227 \u2014 third-stretch milestones",
       "summary": "A 31-wake continuation of the [wake-150 retrospective](session_retrospective_150.md) and the [wake-196 retrospective](session_retrospective_196.md). Where wakes 1-150 built the codec library + dispatcher + initial das\u2026",
-      "bytes": 10666,
+      "bytes": 11281,
       "category": "Retrospective"
     },
     {
@@ -29314,6 +29320,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 258,
+      "title": "retrospective chain forward-pointers (wake-150, wake-227)",
+      "line": 19843,
+      "category": "docs"
+    },
+    {
       "wake": 257,
       "title": "Wall Findings card (22nd card, 4-genre typology completes)",
       "line": 19742,
@@ -29342,12 +29354,6 @@
       "title": "README Gate-2 row: surface wake-252 static-RE-exhausted state",
       "line": 19380,
       "category": "docs"
-    },
-    {
-      "wake": 252,
-      "title": "NewProxy upstream hits indirect-vtable limit (boundary documented)",
-      "line": 19265,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {

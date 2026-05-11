@@ -6,6 +6,16 @@ milestones for any future maintainer or contributor browsing
 the project history. Each wake is a single commit; the worklog
 (`autonomous_worklog.md`) has the full per-wake trail.
 
+> **Continued in the [second-stretch retrospective
+> (wakes 151-196)](session_retrospective_196.md)** — this doc
+> is a frozen wake-1-to-150 snapshot. The session-arc chain is
+> wake-150 → wake-196 → wake-227 → wake-253; follow the
+> forward pointers to reach current state, or jump directly to
+> the [fourth-stretch retrospective
+> (wakes 228-253)](session_retrospective_253.md) for the most
+> recent milestone (state-machine RE closure at static-RE
+> level).
+
 For the **pattern** behind multi-wake arcs (scaffold → wedge →
 close), see [`cross_link_arc.md`](cross_link_arc.md).
 
