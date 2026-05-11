@@ -904,6 +904,35 @@ def load_findings():
                        "baseline), 0x8e6↔0x9fc (16-byte hash echo).",
         },
         {
+            "title": "Phase-2D shipped: heartbeat emission swap behind a feature flag",
+            "category": "Research closure",
+            "wake": 204,
+            "summary": "The 5-step rep_responder ↔ dispatcher "
+                       "integration arc is complete: wake 157 inbound "
+                       "shadow decode, wake 158 9-test lockdown, "
+                       "wake 187 outbound encode-validation probe, "
+                       "wake 188 8-test lockdown, **wake 204 actual "
+                       "emission swap behind `heartbeat_use_dispatcher` "
+                       "(default off)**. Flipping the flag routes "
+                       "outbound 0x15d heartbeats through "
+                       "`dispatch.encode_replay_message` instead of "
+                       "captured replay bytes; the wake-187 startup "
+                       "probe + wake-188 lockdown prove byte-equality, "
+                       "and a runtime-failure fallback in the "
+                       "dispatched path keeps the heartbeat stream "
+                       "alive even if the dispatcher raises. Three "
+                       "additional lockdown tests pin the dispatched "
+                       "path (byte-identical to replay, log-level "
+                       "progression, fallback safety net). The "
+                       "captured-replay path remains the safe default "
+                       "until a real-GPU host validates the swap end-"
+                       "to-end. Pattern is now reusable: any future "
+                       "dispatcher-emission promotion follows shadow → "
+                       "lockdown → validate → lockdown → swap, with "
+                       "each step staying logging-only or feature-"
+                       "flagged-off until the next gets ≥6 tests.",
+        },
+        {
             "title": "rep_responder ↔ dispatcher integration foundation proven safe",
             "category": "Research closure",
             "wake": 188,

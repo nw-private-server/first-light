@@ -1455,6 +1455,12 @@
       "summary": "Four R/W-coupled message pairs documented: 0x18a6\u21940x1a59 (counter-coupled 1\u21922\u21923\u21924), 0x15d ping\u2194ack (verbatim echo), 0x14f R (clock baseline), 0x8e6\u21940x9fc (16-byte hash echo)."
     },
     {
+      "title": "Phase-2D shipped: heartbeat emission swap behind a feature flag",
+      "category": "Research closure",
+      "wake": 204,
+      "summary": "The 5-step rep_responder \u2194 dispatcher integration arc is complete: wake 157 inbound shadow decode, wake 158 9-test lockdown, wake 187 outbound encode-validation probe, wake 188 8-test lockdown, **wake 204 actual emission swap behind `heartbeat_use_dispatcher` (default off)**. Flipping the flag routes outbound 0x15d heartbeats through `dispatch.encode_replay_message` instead of captured replay bytes; the wake-187 startup probe + wake-188 lockdown prove byte-equality, and a runtime-failure fallback in the dispatched path keeps the heartbeat stream alive even if the dispatcher raises. Three additional lockdown tests pin the dispatched path (byte-identical to replay, log-level progression, fallback safety net). The captured-replay path remains the safe default until a real-GPU host validates the swap end-to-end. Pattern is now reusable: any future dispatcher-emission promotion follows shadow \u2192 lockdown \u2192 validate \u2192 lockdown \u2192 swap, with each step staying logging-only or feature-flagged-off until the next gets \u22656 tests."
+    },
+    {
       "title": "rep_responder \u2194 dispatcher integration foundation proven safe",
       "category": "Research closure",
       "wake": 188,
@@ -28218,6 +28224,12 @@
       "test_count": 435,
       "commit": "4cf2c70",
       "subject": "docs(readme): add wake-197 retrospective link alongside wake-150"
+    },
+    {
+      "wake": null,
+      "test_count": 438,
+      "commit": "402bd62",
+      "subject": "feat(rep_responder): phase-2D actual heartbeat emission swap (flagged off)"
     }
   ],
   "wire_type_families": [
@@ -28743,6 +28755,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 205,
+      "title": "Findings card for the phase-2D swap",
+      "line": 15374
+    },
+    {
       "wake": 204,
       "title": "phase-2D: actual heartbeat emission swap (feature-flagged off)",
       "line": 15284
@@ -28766,11 +28783,6 @@
       "wake": 200,
       "title": "Findings card: structural reasons for the 6 uncovered",
       "line": 15100
-    },
-    {
-      "wake": 199,
-      "title": "live decoder +0xca4 AssetCountTable \u2192 34/40 (85%)",
-      "line": 15051
     }
   ],
   "live_decoder_coverage": {

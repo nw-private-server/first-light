@@ -15370,3 +15370,60 @@ override; the operator-visible signal is the
 INFO line.
 
 **Blockers:** None.
+
+## Wake 205 — Findings card for the phase-2D swap
+
+**Goal**: the wake-204 swap closes the 5-step rep_responder
+integration arc; the wake-194 Findings card narrated the
+foundation (steps 1-4) but didn't include the actual swap.
+Add a new card surfacing the full 5-step progression with
+the swap as the closing step.
+
+**Built**:
+
+- **`tools/build_site.py`**: new Findings card under
+  "Research closure" (the 7th in that bucket — now the
+  largest category by a wide margin):
+  - **Title**: "Phase-2D shipped: heartbeat emission swap
+    behind a feature flag" (wake 204)
+  - **Summary** walks the 5 steps (wake 157 inbound shadow,
+    158 inbound lockdown, 187 outbound probe, 188 outbound
+    lockdown, **204 emission swap**). Calls out the
+    `heartbeat_use_dispatcher` flag (default off), the
+    runtime-failure fallback, and the 3 new lockdown tests.
+    Notes the captured-replay default until a real-GPU
+    host validates the swap. Ends with the reusable
+    pattern claim: "any future dispatcher-emission
+    promotion follows shadow → lockdown → validate →
+    lockdown → swap."
+
+**Findings tab now**: **15 cards** across 4 categories:
+- **Research closure: 7** (now the largest bucket): hash
+  hypothesis ruled out, type-id catalog false lead, audit
+  arcs closed, 80% live-decoder coverage, rep_responder
+  foundation, remaining-6-uncovered explainer, **NEW:
+  phase-2D swap shipped**.
+- Wire-level finding: 5
+- RE breakthrough: 2
+- Architecture: 1
+
+**Note on duplication with wake-194 card**: the wake-194
+"integration foundation proven safe" card narrates steps
+1-4 with the closing claim "a future wake can flip the
+switch with confidence." The wake-205 card narrates all 5
+steps and treats the swap as the closure. They're
+complementary — the wake-194 card captures the
+"foundation is in place" state; the wake-205 card captures
+the "and we've now actually used it" state. Future
+contributors reading both get the full arc with no missing
+context.
+
+**Pattern note**: this is the **7th** Findings card added
+since the wake-163 categorization shipped (wake 156, 180,
+189, 193, 194, 200, 205). All single dict entries; "zero
+new infrastructure" property holds across all seven.
+
+**No `server/javelin/` codec changes**. No code changes.
+Tests still **437 passing (+1 skipped)**.
+
+**Blockers:** None.
