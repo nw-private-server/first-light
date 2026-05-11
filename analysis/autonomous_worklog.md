@@ -2958,3 +2958,175 @@ premature (other hit sites have richer
 structure).
 
 **Blockers:** None.
+
+
+## Wake 279 — hit-site enumeration: 3 more dispatchers + 5-flag Carrier state map
+
+**Goal**: extend wake-278's enumeration of
+0xFE476177 hit sites. Wake 278 examined 1 of
+the 28 unexamined sites (FUN_146b621c0) and
+found a new dispatcher. This wake samples 3
+more diverse sites to characterize how widely
+the event-handler pattern repeats.
+
+**Sites examined**:
+
+1. **FUN_140fb84b0** (sibling of the wake-8
+   destroy writer FUN_140fb3560):
+   - Conditional handler reading `[+0xfc]` —
+     **another Carrier state flag** in the
+     same byte-range as `[+0xfd]`.
+   - Path A (failure): uses hash `0xc739f1c5`
+     in AZ::Name construction.
+   - Path B (success after `vtable+0xc18`
+     query): uses `0xFE476177` + new hash
+     `0xe9e5887`, calls `vtable+0x608` with
+     `DAT_147efa330` (float constant pool
+     entry — same pattern wake 9 documented).
+   - **New flag offset**: `[+0xfc]` is
+     read+cleared at entry, separate from
+     `[+0xfd]` destroy flag.
+
+2. **FUN_1461361f0** (the dual-hit function,
+   sites 17+18):
+   - Multi-event dispatcher with 6+ branches.
+   - Branch `0x400b5e61` uses 0xFE476177 as
+     a sub-name (not the outer event id) —
+     `local_28 = 0xFE476177` then call to
+     `vtable+0x608` with `DAT_147f400f4`
+     (another float constant).
+   - Branch `0xFE476177` itself: calls
+     `vtable+0xb18` (different slot than
+     others).
+   - **8 new event hashes**: 0x3c337259,
+     0x700ecf92, 0x6d65d99b, 0x400b5e61,
+     0xbd1ed24d (=`-0x42e12db3`),
+     0x931f6da6, 0xd8bbfb1b, 0x79f85ed7,
+     0x309c0901.
+
+3. **FUN_1471f15d0** (high-address-range
+   dispatcher):
+   - 10+ event branches handling diverse
+     events.
+   - Branch for 0xFE476177 writes
+     `[+0xcd] = 1` — **third distinct Carrier
+     flag offset set by the same event**.
+   - **13+ new event hashes**: 0x3b8c658a,
+     0x68163e0e, 0xefb0f54d (=-0x104f0ab3),
+     0xa5dc2231, 0xab331fa6, 0x4eeb9932,
+     0x323a4e1c, 0xd0191b5f, 0x03d5c4b4,
+     0x453d7e8a, 0x82b91ef0,
+     0xcf228906 (=-0x30dd76fa),
+     0xbb3d64d8 (=-0x44c29b28),
+     0xe8a73f5c (=-0x1758c0a4).
+
+**The "Carrier state flag map" surfaces in
+full** — Carrier maintains at least **5
+related lifecycle flags** in the `[+0xcd]` →
+`[+0xfd]` byte-range:
+
+| Offset | Writer | Event id |
+|---|---|---|
+| `[+0xcd]` | FUN_1471f15d0 | 0xFE476177 |
+| `[+0xd9]` | FUN_146b621c0 | 0xAD273586 |
+| `[+0xda]` | FUN_146b621c0 | 0xFE476177 |
+| `[+0xfc]` | FUN_140fb84b0 (read+clear) | (event-conditional) |
+| `[+0xfd]` | FUN_140fb3560:452 | 0xFE476177 |
+
+**Critical observation**: event 0xFE476177
+**triggers writes to THREE distinct Carrier
+flags** (`[+0xcd]`, `[+0xda]`, `[+0xfd]`)
+across THREE distinct handler functions. This
+is a strong indicator that 0xFE476177 is a
+high-impact lifecycle event (likely something
+like "OnDisconnect" / "ConnectionLost" /
+"PreShutdown") that multiple Carrier
+subsystems care about and each needs to clean
+up state for. **The event isn't a destroy-
+trigger directly — it's a broadcast lifecycle
+event whose third-tick consequence is the
+[+0xfd]-driven destroy.**
+
+This is **a fundamentally clearer model of
+what 0xFE476177 is**, even without resolving
+its string name:
+- It's a Lumberyard EBus / event-handler
+  broadcast event.
+- 3+ Carrier subsystems subscribe to it.
+- Setting `[+0xfd]` to 1 is the destroy-loop
+  trigger, but the broadcast event itself is
+  what FIRES the loop.
+- Identifying it = identifying the broadcast
+  that initiates Carrier teardown.
+
+**Target hash family expanded again**: was 19
+hashes (wake 278), now **~50 hashes**. Updated
+the brute-force script with the new set.
+
+**Built**:
+
+- `analysis/decomp_FUN_140fb84b0_destroy_sibling.txt`
+  (208 lines)
+- `analysis/decomp_FUN_1461361f0_dual_hit.txt`
+  (143 lines)
+- `analysis/decomp_FUN_1471f15d0_high_range.txt`
+  (294 lines)
+
+**Verification**:
+
+- `pytest server/javelin -q` → not re-run
+  (analysis-only).
+- `tools/build_site.py` → will run
+  pre-commit. Decompiles 48 → 51.
+
+**Pattern note**: wake-278's finding that
+"wake-9's dead end was premature because the
+tool bug prevented site enumeration" is
+**reinforced by 3 more data points**. Each of
+3 sampled sites yielded structurally
+distinct, substantive content. The
+remaining 24 unexamined sites likely contain
+similar value.
+
+**Forward implication**: a future wake could
+do a sweep of all remaining sites in parallel
+(via 3-4 Agent subagents, one per site
+batch). Each finds new flag offsets, new
+event hashes, new dispatcher structure.
+
+**Pivot opportunity for the wordlist hunt**:
+the broad "broadcast lifecycle event"
+hypothesis suggests trying specific O3DE
+event names like:
+
+- `OnDisconnect` (already tried)
+- `OnConnectionLost` (already tried)
+- `OnPreDisconnect` (already tried)
+- `OnDisconnectionDone` (NEW)
+- `OnConnectionStateChanged` (already tried)
+- `CarrierEventBus` event names from public
+  O3DE GridMate source
+
+But without external corpus access, this
+remains the same dead-end the wake-9 + 277 +
+278 wordlists hit.
+
+**Substantive negative outcome with strong
+positive direction**: the static-RE picture
+of the destroy mechanism is now ~5x richer
+than at wake start. The bottleneck remains
+the same (runtime trace or O3DE corpus
+grep), but a future contributor accessing
+either path now has 50 hashes to query
+instead of 1.
+
+**Cost summary**: 3 sequential Ghidra
+decompiles + analysis. **Continues the most
+productive static-RE thread in months** —
+wake-278 + 279 together expanded the
+destroy-event picture from "one writer, one
+hash, dead end" (wake-9 conclusion) to "5
+flags, 4 handlers, ~50 related hashes, 3-
+subscriber broadcast event pattern".
+
+**Blockers:** None.

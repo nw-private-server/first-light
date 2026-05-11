@@ -1,0 +1,294 @@
+// FUN_1471f15d0 @ 1471f15d0
+
+void FUN_1471f15d0(undefined8 param_1,undefined8 param_2,longlong *param_3,longlong param_4,
+                  longlong param_5)
+
+{
+  int iVar1;
+  char cVar2;
+  longlong lVar3;
+  undefined **local_68;
+  undefined4 local_60;
+  undefined8 local_5c;
+  undefined2 local_54;
+  undefined1 local_52;
+  undefined **local_50;
+  undefined4 uStack_48;
+  undefined4 uStack_44;
+  undefined4 uStack_40;
+  undefined2 uStack_3c;
+  undefined1 uStack_3a;
+  undefined1 uStack_39;
+  char *local_38;
+  undefined **local_30;
+  int iStack_28;
+  undefined4 uStack_24;
+  undefined4 uStack_20;
+  undefined2 uStack_1c;
+  undefined1 uStack_1a;
+  undefined1 uStack_19;
+  char *local_18;
+  
+  iVar1 = *(int *)(param_5 + 0x28);
+  if (iVar1 == 0x3b8c658a) {
+    uStack_20 = 0;
+    uStack_1c = 0;
+    uStack_1a = 0;
+    uStack_19 = 0;
+    local_5c = 0;
+    local_54 = 0;
+    local_52 = 0;
+    local_18 = "AZStd::allocator";
+    local_30 = (undefined **)0x0;
+    iStack_28 = 0;
+    uStack_24 = 0;
+    local_68 = &PTR_LAB_147ef8d50;
+    local_60 = 0xa5dc2231;
+    (**(code **)(*param_3 + 0x3b8))(param_3,&local_68,0,0,&local_30,0);
+    local_60 = 0xab331fa6;
+  }
+  else if (iVar1 == 0x68163e0e) {
+    uStack_20 = 0;
+    uStack_1c = 0;
+    uStack_1a = 0;
+    uStack_19 = 0;
+    local_5c = 0;
+    local_54 = 0;
+    local_52 = 0;
+    local_18 = "AZStd::allocator";
+    local_30 = (undefined **)0x0;
+    iStack_28 = 0;
+    uStack_24 = 0;
+    local_68 = &PTR_LAB_147ef8d50;
+    local_60 = 0x4eeb9932;
+    (**(code **)(*param_3 + 0x3b8))(param_3,&local_68,0,0,&local_30,0);
+    local_60 = 0x323a4e1c;
+  }
+  else if (iVar1 == -0x104f0ab3) {
+    uStack_20 = 0;
+    uStack_1c = 0;
+    uStack_1a = 0;
+    uStack_19 = 0;
+    local_5c = 0;
+    local_54 = 0;
+    local_52 = 0;
+    local_18 = "AZStd::allocator";
+    local_30 = (undefined **)0x0;
+    iStack_28 = 0;
+    uStack_24 = 0;
+    local_68 = &PTR_LAB_147ef8d50;
+    local_60 = 0xd0191b5f;
+    (**(code **)(*param_3 + 0x3b8))(param_3,&local_68,0,0,&local_30,0);
+    local_68 = &PTR_LAB_147ef8d50;
+    local_5c = 0;
+    local_54 = 0;
+    local_52 = 0;
+    local_60 = 0x3d5c4b4;
+    (**(code **)(*param_3 + 0x3c8))(param_3,&local_68);
+    local_60 = 0x453d7e8a;
+  }
+  else {
+    uStack_24 = 0;
+    uStack_20 = 0;
+    uStack_1c = 0;
+    uStack_1a = 0;
+    if (iVar1 != -0x30dd76fa) {
+      if (iVar1 == -0x44c29b28) {
+        local_60 = 0x82b91ef0;
+      }
+      else {
+        if (iVar1 != -0x1758c0a4) {
+          uStack_24 = 0;
+          uStack_20 = 0;
+          uStack_1c = 0;
+          uStack_1a = 0;
+          if (iVar1 == -0x2ccc753a) {
+            local_5c = 0;
+            local_54 = 0;
+            local_52 = 0;
+            uStack_44 = 0;
+            uStack_40 = 0;
+            uStack_3c = 0;
+            uStack_3a = 0;
+            local_68 = &PTR_LAB_147ef8d50;
+            local_60 = 0x7fabbde8;
+            local_50 = &PTR_LAB_147ef8d50;
+            uStack_48 = 0xbf83fb18;
+            local_30 = &PTR_LAB_147ef8d50;
+            iStack_28 = 0xb69cd6c7;
+            (**(code **)(*param_3 + 0x360))(param_3,&local_30,&local_50,&local_68);
+            local_30 = &PTR_LAB_147ef8d50;
+            uStack_24 = 0;
+            uStack_20 = 0;
+            uStack_1c = 0;
+            uStack_1a = 0;
+            iStack_28 = 0x9f373150;
+            cVar2 = (**(code **)(*param_3 + 0x3d0))(param_3,&local_30);
+            if (cVar2 != '\0') {
+              return;
+            }
+            iStack_28 = 0x9f373150;
+LAB_1471f199a:
+            uStack_24 = 0;
+            uStack_20 = 0;
+            uStack_1c = 0;
+            uStack_1a = 0;
+            local_30 = &PTR_LAB_147ef8d50;
+            local_38 = "AZStd::allocator";
+            uStack_40 = 0;
+            uStack_3c = 0;
+            uStack_3a = 0;
+            uStack_39 = 0;
+            local_50 = (undefined **)0x0;
+            uStack_48 = 0;
+            uStack_44 = 0;
+            (**(code **)(*param_3 + 0x3b8))(param_3,&local_30,0,0,&local_50,0);
+            return;
+          }
+          uStack_24 = 0;
+          uStack_20 = 0;
+          uStack_1c = 0;
+          uStack_1a = 0;
+          if (iVar1 == -0x1485f50e) {
+            uStack_44 = 0;
+            uStack_40 = 0;
+            uStack_3c = 0;
+            uStack_3a = 0;
+            local_5c = 0;
+            local_54 = 0;
+            local_52 = 0;
+            local_30 = &PTR_LAB_147ef8d50;
+            iStack_28 = 0x7fabbde8;
+            local_50 = &PTR_LAB_147ef8d50;
+            uStack_48 = 0xbf83fb18;
+            local_68 = &PTR_LAB_147ef8d50;
+            local_60 = 0xc19be651;
+            (**(code **)(*param_3 + 0x360))(param_3,&local_68,&local_50,&local_30);
+            local_30 = &PTR_LAB_147ef8d50;
+            uStack_24 = 0;
+            uStack_20 = 0;
+            uStack_1c = 0;
+            uStack_1a = 0;
+            iStack_28 = 0x34086658;
+            cVar2 = (**(code **)(*param_3 + 0x3d0))(param_3,&local_30);
+            if (cVar2 != '\0') {
+              return;
+            }
+            iStack_28 = 0x34086658;
+            goto LAB_1471f199a;
+          }
+          uStack_24 = 0;
+          uStack_20 = 0;
+          uStack_1c = 0;
+          uStack_1a = 0;
+          if (iVar1 == 0x6f211343) {
+            local_30 = &PTR_LAB_147ef8d50;
+            iStack_28 = 0xd0191b5f;
+            (**(code **)(*param_3 + 0x3c8))(param_3,&local_30);
+            local_30 = &PTR_LAB_147ef8d50;
+            uStack_24 = 0;
+            uStack_20 = 0;
+            uStack_1c = 0;
+            uStack_1a = 0;
+            iStack_28 = 0x79c2ce77;
+            (**(code **)(*param_3 + 0x3c8))(param_3,&local_30);
+            return;
+          }
+          if (iVar1 == -0x52d8ca7a) {
+            *(undefined1 *)(param_4 + 0xcc) = 1;
+          }
+          else {
+            uStack_24 = 0;
+            uStack_20 = 0;
+            uStack_1c = 0;
+            uStack_1a = 0;
+            if (iVar1 == -0xd2f448c) {
+              uStack_40 = 0;
+              uStack_3c = 0;
+              uStack_3a = 0;
+              uStack_39 = 0;
+              local_38 = "AZStd::allocator";
+              local_30 = &PTR_LAB_147ef8d50;
+              iStack_28 = 0x3f9603e0;
+              local_50 = (undefined **)0x0;
+              uStack_48 = 0;
+              uStack_44 = 0;
+              (**(code **)(*param_3 + 0x3b8))(param_3,&local_30,0,0,&local_50,0);
+              uStack_24 = 0;
+              uStack_20 = 0;
+              uStack_1c = 0;
+              uStack_1a = 0;
+              uStack_40 = 0;
+              uStack_3c = 0;
+              uStack_3a = 0;
+              uStack_39 = 0;
+              local_50 = (undefined **)0x0;
+              uStack_48 = 0;
+              uStack_44 = 0;
+              local_38 = "AZStd::allocator";
+              local_30 = &PTR_LAB_147ef8d50;
+              iStack_28 = 0x93f272aa;
+              (**(code **)(*param_3 + 0x3b8))(param_3,&local_30,0,0,&local_50,0);
+              param_5._0_4_ = 1;
+              uStack_24 = 0;
+              uStack_20 = 0;
+              uStack_1c = 0;
+              uStack_1a = 0;
+              local_30 = &PTR_LAB_147ef8d50;
+              iStack_28 = 0xb3ce3f9c;
+              (**(code **)(*param_3 + 0x398))(param_3,&local_30,&param_5,0,1);
+              param_5._0_4_ = 1;
+              uStack_24 = 0;
+              uStack_20 = 0;
+              uStack_1c = 0;
+              uStack_1a = 0;
+              local_30 = &PTR_LAB_147ef8d50;
+              iStack_28 = 0x975d16d1;
+              (**(code **)(*param_3 + 0x398))(param_3,&local_30,&param_5,0,1);
+              iStack_28 = -0xd2f448c;
+              lVar3 = *param_3;
+              goto LAB_1471f1bdf;
+            }
+            if (iVar1 != -0x1b89e89) {
+              return;
+            }
+            *(undefined1 *)(param_4 + 0xcd) = 1;
+          }
+          lVar3 = *param_3;
+          iStack_28 = iVar1;
+LAB_1471f1bdf:
+          uStack_20 = 0;
+          uStack_24 = 0;
+          uStack_1a = 0;
+          uStack_1c = 0;
+          local_30 = &PTR_LAB_147ef8d50;
+          (**(code **)(lVar3 + 0x628))(param_3,&local_30);
+          return;
+        }
+        local_60 = 0xe6d87339;
+      }
+      uStack_1a = 0;
+      uStack_1c = 0;
+      uStack_20 = 0;
+      uStack_24 = 0;
+      lVar3 = *param_3;
+      goto LAB_1471f182c;
+    }
+    local_5c = 0;
+    local_54 = 0;
+    local_52 = 0;
+    local_68 = &PTR_LAB_147ef8d50;
+    local_60 = 0xac4f3676;
+    (**(code **)(*param_3 + 0x3c8))(param_3,&local_68);
+    local_60 = 0x95c20ab3;
+  }
+  lVar3 = *param_3;
+LAB_1471f182c:
+  local_52 = 0;
+  local_54 = 0;
+  local_5c = 0;
+  local_68 = &PTR_LAB_147ef8d50;
+  (**(code **)(lVar3 + 0x3c8))(param_3,&local_68);
+  return;
+}
+
