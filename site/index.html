@@ -312,6 +312,51 @@ main { padding: 16px; max-width: 1100px; margin: 0 auto; }
   margin-bottom: 4px;
 }
 
+/* Recent activity strip (wake 168) */
+.recent-activity {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin: 14px 0 22px;
+}
+.recent-h {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.recent-activity ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.recent-activity li {
+  font-size: 13px;
+  color: var(--text);
+  padding: 3px 0;
+  line-height: 1.5;
+}
+.recent-wake-n {
+  display: inline-block;
+  min-width: 64px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border-radius: 3px;
+  padding: 1px 6px;
+  margin-right: 8px;
+}
+.recent-more {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--accent);
+}
+
 /* Contributor ramp-up cards (wake 167) */
 .contrib-paths {
   display: grid;
@@ -1109,6 +1154,14 @@ a:hover { text-decoration: underline; }
     </p>
   </div>
 
+  <div class="recent-activity">
+    <div class="recent-h">Recent activity</div>
+    <ul id="recent-wakes"></ul>
+    <a class="recent-more"
+       href="https://github.com/nw-private-server/first-light/blob/claude/vacation-2026-05-06/analysis/autonomous_worklog.md"
+       target="_blank" rel="noopener">Full worklog →</a>
+  </div>
+
   <div class="section-h">By the numbers</div>
   <div class="stats" id="stats"></div>
 
@@ -1717,6 +1770,18 @@ async function load() {
     safeDraw("volume-coverage", drawVolumeCoverageChart);
     safeDraw("replay-timeline", drawReplayTimeline);
     safeDraw("test-history", drawTestHistory);
+  }
+
+  // ---- Recent activity (wake 168) ----
+  const recentEl = document.getElementById("recent-wakes");
+  if (recentEl && Array.isArray(data.recent_wakes)) {
+    for (const w of data.recent_wakes) {
+      const li = document.createElement("li");
+      li.innerHTML =
+        `<span class="recent-wake-n">wake ${w.wake}</span> ` +
+        escapeHtml(w.title);
+      recentEl.appendChild(li);
+    }
   }
 
   // ---- Wire-type families ----

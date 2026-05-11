@@ -297,6 +297,34 @@ def load_test_count():
     return int(m.group(1)) if m else 0
 
 
+def load_recent_wakes(limit: int = 6):
+    """Tail the autonomous worklog and return the most recent N wake
+    headlines as a list of `{wake, title}` dicts (newest first).
+
+    Wake-167's "Recent activity" strip on the Overview tab consumes
+    this. Re-runs cheaply (regex over the worklog, no git calls), and
+    stays in sync automatically — every commit that appends a new
+    wake entry refreshes this list on the next build_site run.
+    """
+    worklog = REPO / "analysis" / "autonomous_worklog.md"
+    try:
+        text = worklog.read_text(errors="replace")
+    except OSError:
+        return []
+    # Match: `## Wake 167 — title goes here`
+    headers = re.findall(
+        r"^##\s+Wake\s+(\d+)\s+[—-]\s+(.+?)\s*$",
+        text,
+        flags=re.MULTILINE,
+    )
+    if not headers:
+        return []
+    # Newest-first means *last in the file*. Take the tail.
+    tail = headers[-limit:]
+    tail.reverse()
+    return [{"wake": int(n), "title": t} for n, t in tail]
+
+
 def load_test_count_history():
     """Mine git log for the test_count history of site/data.json.
 
@@ -1068,6 +1096,7 @@ def build_data():
         "analysis_docs": analysis_docs,
         "analysis_doc_categories": CATEGORY_ORDER,
         "findings_categories": FINDINGS_CATEGORY_ORDER,
+        "recent_wakes": load_recent_wakes(limit=6),
     }
 
 

@@ -13000,3 +13000,54 @@ to its own tab; right now it doesn't justify the click.
 410 passing + 1 skipped). Site rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 168 — "Recent activity" strip on Overview
+
+**Goal**: a returning visitor lands on the dashboard and
+wants to see *what's changed since last time*. The full
+worklog is 12K+ lines deep; the dashboard's existing
+chart-and-findings layout shows aggregate progress but not
+recent momentum. Add a compact "Recent activity" strip on
+the Overview tab showing the last 6 wake-headline titles.
+
+**Built**:
+
+- **`tools/build_site.py`**: new `load_recent_wakes(limit=6)`
+  helper. Regex-scans `analysis/autonomous_worklog.md` for
+  `## Wake N — Title` headers, returns the last N as
+  `{wake, title}` dicts in newest-first order. Pure
+  function, no git calls, no IO beyond the worklog read —
+  cheap to re-run on every build_site invocation.
+- **`data.json`**: new `recent_wakes` field with the 6
+  most-recent entries.
+- **`site/index.html`**: new `.recent-activity` block right
+  under the hero on Overview. Renders as a tight list (no
+  bullet points, ~13px text) with each entry showing a
+  monospace `wake N` badge alongside the headline. Bottom
+  has a "Full worklog →" link straight to the worklog file
+  on GitHub. CSS uses the existing surface/border/accent
+  palette so it blends with the other Overview cards.
+- **`server/javelin/test_build_tools.py`** (+2 tests):
+  - `test_load_recent_wakes_returns_newest_first` — pins
+    the descending-wake-number contract that the Recent
+    Activity render depends on. Asserts entries' `wake`
+    integers sort descending; asserts `title` is non-empty
+    on every entry.
+  - `test_load_recent_wakes_respects_limit` — sanity that
+    `limit=1` returns 1 entry, `limit=3` returns 3.
+
+**Result**: a returning visitor sees the last 6 wake
+headlines without leaving the Overview tab — the strip
+currently shows wakes 162–167 (the "past 400 tests",
+"Findings tab auto-categorized", "badge transparency",
+"public-API doc polish", "chart annotation + stricter
+parse_sections invariant", "contributor ramp-up
+walkthrough"). The strip auto-refreshes every build, so
+visitors always see the *actual* most-recent activity.
+
+**Tests**: 410 → **412 passing (+1 skipped)**.
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.

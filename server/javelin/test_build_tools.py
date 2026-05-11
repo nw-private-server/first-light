@@ -19,6 +19,7 @@ from tools.build_site import (  # noqa: E402
     categorize_doc,
     _enrich_families,
     load_findings,
+    load_recent_wakes,
     CATEGORY_ORDER,
     FINDINGS_CATEGORY_ORDER,
 )
@@ -260,6 +261,29 @@ def test_every_finding_has_a_known_category():
         assert f["category"] in FINDINGS_CATEGORY_ORDER, (
             f"finding {f['title']!r} has unknown category {f['category']!r}"
         )
+
+
+def test_load_recent_wakes_returns_newest_first():
+    """The Recent-activity strip on the Overview tab depends on
+    `load_recent_wakes()` returning the latest worklog entries with
+    wake number descending. Pin that contract."""
+    entries = load_recent_wakes(limit=6)
+    assert len(entries) <= 6
+    assert len(entries) > 0, "worklog should have at least one wake entry"
+    wakes = [e["wake"] for e in entries]
+    assert wakes == sorted(wakes, reverse=True), (
+        f"recent wakes must be newest-first; got {wakes}"
+    )
+    for e in entries:
+        assert "wake" in e and isinstance(e["wake"], int)
+        assert "title" in e and e["title"], (
+            f"wake {e.get('wake')} has empty title"
+        )
+
+
+def test_load_recent_wakes_respects_limit():
+    assert len(load_recent_wakes(limit=1)) == 1
+    assert len(load_recent_wakes(limit=3)) == 3
 
 
 def test_every_finding_has_required_render_fields():
