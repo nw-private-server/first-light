@@ -7,6 +7,20 @@
 > made here persist in the Ghidra project only — save the project in
 > Ghidra to keep them. This file captures the structural findings so
 > they survive outside Ghidra.
+>
+> **Status note (wake 160):** this is the wake-`<early>` first-session
+> writeup, frozen as a snapshot. Subsequent Ghidra work (Ghidra static-RE
+> on the EAC-wrapped binary, succeeded 2026-05-06; the wakes-90-onward
+> entries in [`autonomous_worklog.md`](autonomous_worklog.md); the
+> wake-112 state-10 RE breakthrough; the connection-lifecycle +
+> wrapper-setter decompile overviews at
+> [`connection_lifecycle_decompiles.md`](connection_lifecycle_decompiles.md)
+> and [`wrapper_setter_decompiles.md`](wrapper_setter_decompiles.md))
+> has resolved several "Still to map" items below. Treat the section
+> headings as a *roadmap of historical interest* rather than open
+> work — for the current state of any specific function, search the
+> codebase for its name (Ghidra renames have propagated into the
+> codec library and decompile overviews).
 
 ---
 

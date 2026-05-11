@@ -5,7 +5,14 @@
 > for the retail build at `<archive-game-exe>`.
 >
 > PE image base: `0x0000000140000000`
-> Last updated: 2026-04-17
+> Last updated: 2026-04-17 (initial scan). Ghidra static-RE on the
+> EAC-wrapped binary succeeded 2026-05-06 — for current findings see
+> [`ghidra_findings.md`](ghidra_findings.md) and the wakes-90-onward
+> entries in [`autonomous_worklog.md`](autonomous_worklog.md). Many of
+> the targets below have since been classified by name (see the
+> `name`/`uuid` columns in `info/typeregistry.json`) or wired up in
+> `server/javelin/` codecs — 40 / 40 captured wire-types now have
+> codec coverage as of wake 109.
 
 ---
 

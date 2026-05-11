@@ -27909,6 +27909,12 @@
       "test_count": 347,
       "commit": "b34a1f7",
       "subject": "test(rep_responder): 9 tests pin the wake-157 shadow-decode wiring"
+    },
+    {
+      "wake": null,
+      "test_count": 347,
+      "commit": "1108930",
+      "subject": "feat(site): wire-type families drill-down on Overview tab"
     }
   ],
   "wire_type_families": [
@@ -28268,14 +28274,14 @@
       "filename": "ghidra_findings.md",
       "title": "Ghidra MCP Findings \u2014 Live Javelin Binary Analysis",
       "summary": "The `SecureSocketDriver::Initialize` equivalent. Single xref \u2014 called from one call site inside module init. Struct layout discovered:",
-      "bytes": 24449,
+      "bytes": 25295,
       "category": "Decompile"
     },
     {
       "filename": "ghidra_hunt_list.md",
       "title": "Ghidra Hunt List \u2014 Javelin / GridMate fingerprints in NewWorld.exe",
       "summary": "These are confirmed present in the binary. Cross-referencing each string gives the function(s) that use it; from there we demangle and map back to GridMate.",
-      "bytes": 7474,
+      "bytes": 7954,
       "category": "Audit"
     },
     {

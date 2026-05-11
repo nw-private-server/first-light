@@ -12494,3 +12494,81 @@ trivial — `data.json` gained ~1.5KB from the per-member
 arrays.
 
 **Blockers:** None.
+
+## Wake 160 — staleness audit round 2 (Ghidra snapshot docs flagged)
+
+**Goal**: extend the wake-153 audit to the 8 docs that hadn't
+been covered: `community_archives_survey.md`,
+`replay_chunking_design.md`, `replay_substitution_design.md`,
+`ctd_correlations.md`, `ctd_investigation.md`,
+`frida_hook_audit.md`, `ghidra_hunt_list.md`,
+`ghidra_findings.md`. Same parallel-agent pattern; 4 docs per
+agent.
+
+**Built**:
+
+- **Two parallel `Explore` subagents** audited 8 docs against
+  the ground-truth state (40/40 codecs, 383 tests, dispatcher
+  live, state-10 predicate at `+0xa0`, sub_system_id hash
+  hypothesis ruled out, rep_responder shadow-decode scaffold
+  landed).
+
+- **Findings**:
+  - `community_archives_survey.md`, `ctd_correlations.md`,
+    `ctd_investigation.md` — fully current. ✓
+  - `ghidra_hunt_list.md` — "Last updated: 2026-04-17" line
+    is genuinely stale (23 days old). Many targets in the
+    hunt list have since been classified by name or wired
+    up in codecs.
+  - `ghidra_findings.md` — same date stamp ("Date: 2026-04-17");
+    the doc is a snapshot of the first GhidraMCP session, and
+    several "Still to map" items have been resolved by
+    subsequent decompile-overview work.
+
+- **Fixes applied** (2 files, conservative):
+  - `ghidra_hunt_list.md`: appended a status note to the
+    front-matter blockquote pointing to `ghidra_findings.md`
+    and the wakes-90-onward worklog for current state. Notes
+    that 40 / 40 captured wire-types now have codec coverage,
+    so many of the hunt-list targets are no longer "guaranteed
+    hits" that need a fresh scan — they're already classified.
+  - `ghidra_findings.md`: added a "Status note (wake 160)" in
+    the front-matter pointing to:
+    - The 2026-05-06 EAC-wrapped binary RE success
+    - The wake-112 state-10 breakthrough
+    - The `connection_lifecycle_decompiles.md` +
+      `wrapper_setter_decompiles.md` overviews
+    Doc remains historically interesting as the first-session
+    structural map but is no longer the right source of truth
+    for "is this function decompiled yet?" questions.
+
+- **Found-but-no-fix** (agent hallucinated specific quotes
+  that don't match the actual file contents; flagging for
+  honesty):
+  - `replay_chunking_design.md`: agent claimed a "35
+    unclaimed wire-types" line that does not exist in the
+    file. Skipped.
+  - `replay_substitution_design.md`: agent claimed line 302
+    references a resolved blocker; the actual line content
+    doesn't match. Skipped pending manual verification.
+  - `frida_hook_audit.md`: agent claimed CTDs are resolved
+    post-wake-158 — not in my ground truth. Skipped (no
+    evidence the responder-side scaffold work has anything
+    to do with the Frida hook CTDs in question).
+
+**Result**: 2 Ghidra-snapshot docs now correctly point at the
+current sources of truth. Visitors hitting the hunt list or
+the first-session findings learn within the first paragraph
+that newer work has progressed beyond the snapshot.
+
+**Working note on parallel-agent audits**: this is the second
+audit-round where agent reports cite specific line numbers /
+quotes that don't match the file. The conservative
+applied-fix pattern (verify each quote before editing) is the
+right approach — agent reports are useful as a starting
+hypothesis, not as a ready-to-apply diff.
+
+**No code changes**, no test changes (383 +1 skipped). Site
+rebuild trivial.
+
+**Blockers:** None.
