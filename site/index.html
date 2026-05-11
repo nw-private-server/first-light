@@ -356,14 +356,17 @@ main { padding: 16px; max-width: 1100px; margin: 0 auto; }
   font-size: 12px;
   color: var(--accent);
 }
-.recent-link {
+.recent-title {
   color: var(--text);
+}
+.recent-link {
+  color: var(--text-dim);
   text-decoration: none;
-  border-bottom: 1px dotted transparent;
+  font-size: 11px;
+  margin-left: 4px;
 }
 .recent-link:hover {
   color: var(--accent);
-  border-bottom-color: var(--accent);
 }
 
 /* Contributor ramp-up cards (wake 167) */
@@ -1794,6 +1797,40 @@ const COLORS = {
   surface2: "#21262d",
 };
 
+// Map type_id hex → live-decoder ldtype (the dropdown option). For
+// 0x15d we default to R direction; same wire-type, different shape.
+// Stays in sync with `LDTYPE_TO_TYPE_IDS` in `tools/build_site.py` —
+// the wake-178 invariant test pins both directions. Hoisted to module
+// scope (wake 182) so any render path can call `linkifyTypeIds`.
+const TYPE_ID_TO_LDTYPE = {
+  "0x15d": "15d_R", "0x14f": "14f", "0x651": "651",
+  "0x18a6": "18a6", "0x1b88": "1b88", "0x1097": "1097",
+  "0x136a": "136a", "0x1096": "1096", "0x5d1": "5d1",
+  "0x8e6": "8e6", "0x9fc": "9fc",
+  // Both 0x40a and 0x1be share the HandshakeBlob76 codec.
+  "0x40a": "76", "0x1be": "76",
+  // subkey_beacon family — all 14 share one ldtype
+  "0x66b": "subkey", "0x9d3": "subkey", "0xf7f": "subkey",
+  "0x101a": "subkey", "0x101d": "subkey", "0x102e": "subkey",
+  "0x102f": "subkey", "0x10b0": "subkey", "0x1098": "subkey",
+  "0x143d": "subkey", "0x187c": "subkey", "0x187f": "subkey",
+  "0x192c": "subkey", "0x1a59": "subkey",
+};
+
+function linkifyTypeIds(text) {
+  // Replace inline `0xNNN` references with clickable spans when the
+  // type-id maps to a live-decoder option. Other 0xNNN (e.g. CRC
+  // values, byte counts written in hex) pass through unchanged.
+  return text.replace(/\b0x[0-9a-fA-F]{2,4}\b/g, (m) => {
+    const norm = "0x" + m.slice(2).toLowerCase();
+    const ldtype = TYPE_ID_TO_LDTYPE[norm];
+    if (!ldtype) return m;
+    return `<a href="#" class="finding-typelink" ` +
+           `data-ldtype="${ldtype}" ` +
+           `title="Open ${norm} in live decoder">${m}</a>`;
+  });
+}
+
 async function load() {
   const data = await fetch("data.json").then(r => r.json());
   document.getElementById("generated").textContent =
@@ -1883,9 +1920,17 @@ async function load() {
       const url = w.line
         ? `${baseUrl}?plain=1#L${w.line}`
         : baseUrl;
+      // Wake 182: linkify type-id mentions in the title (any `0xNNN`
+      // that maps to a covered ldtype). The worklog-line link is now
+      // a small "↗" icon next to the title rather than wrapping it —
+      // HTML doesn't allow nested anchors and the wake-170 wrapper
+      // would close at the first typelink otherwise.
+      const linkedTitle = linkifyTypeIds(escapeHtml(w.title));
       li.innerHTML =
         `<span class="recent-wake-n">wake ${w.wake}</span> ` +
-        `<a href="${url}" target="_blank" rel="noopener" class="recent-link">${escapeHtml(w.title)}</a>`;
+        `<span class="recent-title">${linkedTitle}</span> ` +
+        `<a href="${url}" target="_blank" rel="noopener" class="recent-link" ` +
+        `title="Open in worklog (line ${w.line || '?'})">↗</a>`;
       recentEl.appendChild(li);
     }
   }
@@ -1975,26 +2020,6 @@ async function load() {
     `;
     faqEl.appendChild(det);
   }
-
-  // ---- Type-id ↔ live-decoder map (used by Wire Types table + Findings
-  // linkify). Hoisted here (wake 181) so the Wire Types renderer below
-  // can consume it. For 0x15d we default to R direction; same wire-type,
-  // different shape. Stays in sync with `LDTYPE_TO_TYPE_IDS` in
-  // `tools/build_site.py` — wake-178 invariant test pins both directions.
-  const TYPE_ID_TO_LDTYPE = {
-    "0x15d": "15d_R", "0x14f": "14f", "0x651": "651",
-    "0x18a6": "18a6", "0x1b88": "1b88", "0x1097": "1097",
-    "0x136a": "136a", "0x1096": "1096", "0x5d1": "5d1",
-    "0x8e6": "8e6", "0x9fc": "9fc",
-    // Both 0x40a and 0x1be share the HandshakeBlob76 codec.
-    "0x40a": "76", "0x1be": "76",
-    // subkey_beacon family — all 14 share one ldtype
-    "0x66b": "subkey", "0x9d3": "subkey", "0xf7f": "subkey",
-    "0x101a": "subkey", "0x101d": "subkey", "0x102e": "subkey",
-    "0x102f": "subkey", "0x10b0": "subkey", "0x1098": "subkey",
-    "0x143d": "subkey", "0x187c": "subkey", "0x187f": "subkey",
-    "0x192c": "subkey", "0x1a59": "subkey",
-  };
 
   // ---- Wire Types table ----
   const typesBody = document.querySelector("#types-table tbody");
@@ -2136,22 +2161,8 @@ async function load() {
   setupFilter("decomp-search", decompList.children);
 
   // ---- Findings (grouped by category, wake 163; type-id cross-links wake 177) ----
-  // (TYPE_ID_TO_LDTYPE and linkifyTypeIds hoisted earlier in this scope so
-  // the Wire Types table renderer can also use them — see wake 181.)
-
-  function linkifyTypeIds(text) {
-    // Replace inline `0xNNN` references with clickable spans when the
-    // type-id maps to a live-decoder option. Other 0xNNN (e.g. CRC
-    // values, byte counts written in hex) pass through unchanged.
-    return text.replace(/\b0x[0-9a-fA-F]{2,4}\b/g, (m) => {
-      const norm = "0x" + m.slice(2).toLowerCase();
-      const ldtype = TYPE_ID_TO_LDTYPE[norm];
-      if (!ldtype) return m;
-      return `<a href="#" class="finding-typelink" ` +
-             `data-ldtype="${ldtype}" ` +
-             `title="Open ${norm} in live decoder">${m}</a>`;
-    });
-  }
+  // (TYPE_ID_TO_LDTYPE and linkifyTypeIds hoisted to module scope wake
+  // 182 so any renderer in this file can use them.)
 
   const findingsList = document.getElementById("findings-list");
   const findingsOrder = data.findings_categories || [

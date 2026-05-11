@@ -13897,3 +13897,68 @@ the wake-168 Recent-activity strip) get the click behavior
 for free.
 
 **Blockers:** None.
+
+## Wake 182 — linkify Recent-activity titles (forward-compatible payoff)
+
+**Goal**: claim the wake-181 "future renderers get click
+behavior for free" prediction. Linkify the Recent-activity
+strip's wake titles so any 0xNNN mentions in headlines
+become clickable into the live decoder.
+
+**Built**:
+
+- **`site/index.html`**:
+  - **Hoisted `TYPE_ID_TO_LDTYPE` and `linkifyTypeIds()`**
+    out of `load()` into module scope. Reason: the
+    Recent-activity render runs early (line ~1873), and
+    the previous wake-181 hoist only moved the map above
+    the Wire Types render at line ~1979 — still too late.
+    Module-scope makes both available to every render
+    path without ordering worries.
+  - **Recent-activity render** now wraps the title in
+    `<span class="recent-title">linkifyTypeIds(title)</span>`.
+    A small "↗" icon link next to the title carries the
+    worklog-line anchor (wake 170). The previous outer
+    `<a>` wrapping the whole title is gone — HTML doesn't
+    allow nested anchors, and the outer wrapper would
+    silently close at the first typelink, leaving suffix
+    text orphaned. Two side-by-side affordances is
+    clearer anyway: click the title to inspect a wire-
+    type, click the ↗ to read the worklog entry.
+
+- **CSS**: new `.recent-title` rule (uses `var(--text)`),
+  tightened `.recent-link` to a small dim-color icon
+  hover-promoting to accent.
+
+**What gets linkified in the current strip**:
+- **wake 176** (live decoder gains 0x5d1 PlayerManagerSelfIdent):
+  `0x5d1` becomes a typelink straight to the wake-176
+  decoder.
+- Wakes 177 / 178 / 179 / 180 / 181 have no `0xNNN`
+  mentions in their headline; they pass through as plain
+  text. The strip auto-picks up future wake headlines
+  with type-id mentions.
+
+**Pattern claim verified**: wake-181 added the document-wide
+click handler and predicted "future renderers get the click
+behavior for free." Wake-182 needed only:
+- 1-line hoist of the map + function to module scope.
+- 1 wrapping call to `linkifyTypeIds(escapeHtml(w.title))`
+  in the existing render loop.
+- 3-line restructure of the row's anchors to avoid the
+  HTML-invalid nesting.
+
+No new event handlers. No data.json schema changes. No
+test changes (still **419 passing + 1 skipped**). The
+wake-178 map-sync invariant continues to validate that
+the (now module-scope) `TYPE_ID_TO_LDTYPE` agrees with
+`tools/build_site.py`'s `LDTYPE_TO_TYPE_IDS`.
+
+**Where this works next without further code**:
+- Decompile cross-link panels (wake 129) — already render
+  HTML strings; just need to pipe titles/summaries
+  through `linkifyTypeIds`.
+- Analysis-docs index (wake 151) — same; the doc titles
+  can mention type-ids that auto-link.
+
+**Blockers:** None.

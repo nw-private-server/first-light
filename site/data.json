@@ -28056,6 +28056,12 @@
       "test_count": 420,
       "commit": "8b4bf01",
       "subject": "feat(site): Findings card for wake-121 sub-system families"
+    },
+    {
+      "wake": null,
+      "test_count": 420,
+      "commit": "a5db193",
+      "subject": "feat(site): linkify Wire Types tab + document-wide typelink handler"
     }
   ],
   "wire_type_families": [
@@ -28574,6 +28580,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 182,
+      "title": "linkify Recent-activity titles (forward-compatible payoff)",
+      "line": 13901
+    },
+    {
       "wake": 181,
       "title": "linkify Wire Types tab + document-wide click handler",
       "line": 13845
@@ -28597,11 +28608,6 @@
       "wake": 177,
       "title": "Findings cards cross-link to the live decoder",
       "line": 13560
-    },
-    {
-      "wake": 176,
-      "title": "live decoder gains 0x5d1 PlayerManagerSelfIdent",
-      "line": 13498
     }
   ],
   "live_decoder_coverage": {
