@@ -978,16 +978,29 @@ def test_findings_meta_card_cites_every_manifest_wake():
 
 def test_findings_card_analysis_doc_references_exist():
     """17th cross-check (wake 225) — bidirectional pin between
-    Findings-card prose and `analysis/*.md` files. The wake-221
-    pattern of citing decision docs from card summaries (`see
-    analysis/decision_*.md for ...`) is useful but creates a
-    new drift mode: if the doc is renamed or deleted, the card
-    prose has a dead link that nothing else catches.
+    Findings-card prose and `analysis/*.md` files.
 
-    Scans every Findings card's summary for paths of the form
-    `analysis/<filename>.md` (or `analysis/<filename>` without
-    the suffix, with the .md inferred), and asserts each such
-    path resolves to an actual file in the repo.
+    Drift mode: someone renames an analysis doc (e.g. wake 221's
+    `decision_0x065c_live_decoder.md` → a shorter
+    `decision_0x065c.md`) and updates the README + dashboard
+    index links, but the wake-200 Findings card's summary also
+    embeds the old path as a `see analysis/decision_*.md for ...`
+    reference. The dashboard generation succeeds, the doc still
+    exists under its new name, but a visitor clicking through
+    the card hits a 404. The wake-221 pattern of citing analysis
+    docs from card summaries is useful but creates this new
+    drift mode: a card-prose dead link nothing else catches.
+
+    Asserts: scans every Findings card's summary for paths of
+    the form `analysis/<filename>.md` (regex requires the .md
+    suffix — paths cited without it are deliberately not pinned,
+    since they're ambiguous between file and directory
+    references) and asserts each resolves to an actual file in
+    the repo.
+
+    Remediation on failure: either restore the missing file at
+    its referenced path, or update the card prose in
+    `tools/build_site.py` to reference the new name.
 
     Symmetric to wake-207's "every retrospective has a README
     link" — that one pins file → mention; this pins mention →

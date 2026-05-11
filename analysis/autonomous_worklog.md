@@ -1086,3 +1086,94 @@ preserved; only the meta-commentary was
 removed.
 
 **Blockers:** None.
+
+
+## Wake 266 — wake-225 docstring extension
+
+**Goal**: bring the wake-225 cross-check test's
+docstring up to the "**Drift mode:** … /
+**Remediation:** …" convention already
+established by wake-218 (concrete drift example
+with named files) and wake-231 (explicit
+labeled sections). The wake-225 test had a
+reasonable docstring but lacked both a concrete
+drift example and an explicit Remediation line.
+
+**Built**:
+
+- **`server/javelin/test_build_tools.py:979`**
+  — rewrote
+  `test_findings_card_analysis_doc_references_exist`
+  docstring (~16 lines → ~28 lines):
+  - **Added concrete drift example** in the
+    "Drift mode:" paragraph: hypothetical
+    rename of
+    `decision_0x065c_live_decoder.md` →
+    `decision_0x065c.md`, illustrating exactly
+    how the wake-200 card prose would silently
+    desync from the file system.
+  - **Added explicit Remediation paragraph**
+    naming `tools/build_site.py` as the card-
+    prose location (so a failing test points
+    the reader at the right file to edit).
+  - **Clarified scope of the regex**: the
+    original docstring claimed paths without
+    the `.md` suffix were also matched
+    ("with the .md inferred") — the regex
+    `r"analysis/[A-Za-z0-9_./-]+\.md"` actually
+    requires the suffix. Replaced the inaccurate
+    parenthetical with a correct one explaining
+    the deliberate scope choice (suffix-less
+    references would be ambiguous between file
+    and directory paths).
+  - **Preserved** the symmetric-counterpart
+    framing (wake-207 pins file → mention;
+    wake-225 pins mention → file).
+
+**Verification**:
+
+- `pytest server/javelin/test_build_tools.py::
+  test_findings_card_analysis_doc_references_exist`
+  → 1 passed.
+- `pytest server/javelin -q` → **456 passing,
+  1 skipped** — unchanged.
+- No `build_site.py` impact (docstring-only
+  edit, no code path change).
+
+**Pattern note**: this completes the docstring-
+convention parity across the three "self-
+referential" cross-check tests in the
+Doc/navigation bucket (218 / 225 / 231). All
+three now have:
+1. A `wake N` opening identifier.
+2. A "Drift mode:" paragraph with a concrete
+   named-example.
+3. A description of the assertion mechanism.
+4. An explicit "Remediation:" paragraph (or
+   embedded remediation in the assertion
+   message — 218/225 now both; 231 has it
+   embedded only).
+
+A future drift mode worth pinning would be
+"every cross-check test has a 'Drift mode:'
+labeled paragraph", but with only 18-19 tests
+in CROSS_CHECK_MANIFEST this is overengineering
+— spot-check by convention rather than test
+enforcement. Filing the heuristic only.
+
+**Why this matters less than it sounds**: the
+wake-225 test was already passing and protecting
+against the drift. The change is purely
+documentation — a future maintainer reading the
+docstring at the moment of failure now gets a
+concrete mental model of the drift in 3 seconds
+instead of having to reconstruct it from the
+assertion message + minimal context. Net cost
+~10 minutes of docstring work; net benefit
+distributed across every future test failure.
+
+**Cost summary**: 1 docstring rewrite, ~28 lines
+of new prose. Single targeted commit. No code-
+behavior change.
+
+**Blockers:** None.

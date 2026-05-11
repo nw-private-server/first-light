@@ -28758,6 +28758,12 @@
       "test_count": 457,
       "commit": "87ae1b3",
       "subject": "docs(readme): wake-264 \u2014 reorder Recent milestones newest-first"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "3dd5b53",
+      "subject": "docs(site): wake-265 \u2014 wake-200 card cleanup, remove update-history meta-commentary"
     }
   ],
   "live_decoder_history": [
@@ -29362,6 +29368,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 266,
+      "title": "wake-225 docstring extension",
+      "line": 1091,
+      "category": "other"
+    },
+    {
       "wake": 265,
       "title": "wake-200 Findings card cleanup",
       "line": 1005,
@@ -29390,12 +29402,6 @@
       "title": "worklog file split (wakes 1-253 archived)",
       "line": 704,
       "category": "docs"
-    },
-    {
-      "wake": 260,
-      "title": "pause-reflection: what's left after 259 wakes",
-      "line": 549,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {
