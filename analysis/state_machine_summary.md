@@ -91,7 +91,7 @@ at `gc + 0x130`:
 | 10 → 11 (`WaitingForREPConnection` → `WaitingForActorGameConnection`) | `FUN_145a92370(wrapper)` | `*(int *)(wrapper + 0xa0) == 2` | `PlayerManagerSelfIdentificationMsg` (§ 3) |
 | 11 → 12 (`WaitingForActorGameConnection` → `WaitingForSpawnPoint`) | `FUN_145a92380(wrapper)` (inverted) | `*(int *)(wrapper + 0xa0) != 0` | auto-fires once 10 → 11 lands |
 | 12 → 13 (`WaitingForSpawnPoint` → `WaitingForPlayerSpawn`) | `FUN_145a905c0(wrapper)` | `*(u8 *)(wrapper + 0xbc8) != 0` | **primary**: `LevelInfoChangedMsg` direct force (§ 4); **secondary**: `FUN_14645c660` soft writer (§ 4½) |
-| 13 → 14 (`WaitingForPlayerSpawn` → `InGame`) | `FUN_145a923c0(wrapper)` | `*(u8 *)(wrapper + 0x252) != 0` | **writer not yet identified** — see [`ghidra_hunt_list.md`](ghidra_hunt_list.md) carry-over |
+| 13 → 14 (`WaitingForPlayerSpawn` → `InGame`) | `FUN_145a923c0(wrapper)` | `*(u8 *)(wrapper + 0x252) != 0` | **writer not yet identified** — wake-241 investigation log + candidate triage: [`state_13_14_writer_investigation.md`](state_13_14_writer_investigation.md) |
 | any → 0 (`Disconnected`) | direct call from `FUN_14642d2d0` | helper that resets state to 0 | teardown helper |
 
 The `+0xa0` int on the wrapper is a substate field with three known

@@ -18214,3 +18214,116 @@ single open thread — visible from every surface.
 artifact + dict-only Findings card.
 
 **Blockers:** None.
+
+## Wake 241 — state-13 → 14 writer investigation log (no finding, candidate triage shipped)
+
+**Goal**: stop deferring the state-13 → 14 writer
+investigation. Spent 10+ wakes deferring as "risky
+for 30 min". Even without finding the writer,
+documenting the search-space, ruling out the
+0x145a namespace, identifying the most promising
+remaining candidates, and writing a concrete Ghidra
+next-step plan is substantive RE work that breaks
+the deferral cycle.
+
+**Built**:
+
+- **New file
+  `analysis/state_13_14_writer_investigation.md`**
+  (~220 lines):
+  - **Question framing**: the wrapper[+0x252] gate
+    has a known reader (FUN_145a923c0); who writes?
+  - **What's been tried** (3 sub-sections):
+    1. Wake-13 immediate-1 scan (3 hits, dismissed).
+    2. The full 45-hit scan in
+       `find_offset_252_all.txt` (surfacing what
+       was already in the repo).
+    3. The 0x145a-prefix filter in
+       `find_offset_252_wrapper_only.txt` —
+       reader-only, **confirms the writer is NOT
+       in the wrapper-setter namespace**.
+  - **Candidate triage** (4 tiers, ~10 functions
+    ranked by likelihood):
+    - Tier A: `FUN_146c60830` — adjacent to
+      message-handler namespace, takes `DIL` (bool
+      param register). Top candidate.
+    - Tier B: `FUN_142ffbc50` — CMP + MOV R15B +
+      LEA-into-R8 pattern, setter-like.
+    - Tier C: 3 single-byte writers in adjacent
+      namespaces.
+    - Tier D: struct-copy patterns (less likely
+      to be NEW sets).
+  - **Alternative hypothesis**: state 13 → 14
+    might not need a server message at all. The
+    state name `WaitingForPlayerSpawn` suggests a
+    LOCAL actor-spawn-complete event. If the gate
+    is set by client-side actor-system code (not
+    a network message), MVP server only needs
+    SelfIdent + LevelInfoChanged. This is the
+    **most likely** outcome given the negative
+    namespace scan.
+  - **5 concrete next-step Ghidra actions**:
+    decomp FUN_146c60830, decomp FUN_142ffbc50,
+    grep for spawn-complete strings, cross-ref
+    LevelInfoChanged handler's call graph, Frida
+    hook on the reader (runtime equivalent).
+  - **Cost-of-not-resolving** explicit: until 13 →
+    14 writer is identified, MVP server can't be
+    **certain** it has all required messages — but
+    plausibly only SelfIdent + LevelInfoChanged
+    are needed per the alt hypothesis.
+
+- **`state_machine_summary.md`** § 1 predicate
+  table: 13 → 14 row "Trigger / writer" column
+  updated from `ghidra_hunt_list.md` carry-over
+  pointer to the new investigation doc.
+
+- **`ghidra_hunt_list.md`**: state 13 → 14 bullet
+  extended to reference the investigation log +
+  surface the alt hypothesis + the Frida-fallback
+  step.
+
+**Why a log doc rather than a finding?** The 30-min
+cap doesn't accommodate running Ghidra (multi-minute
+auto-analysis + decomp time). A documented
+investigation lets a future Ghidra session
+(autonomous or maintainer) skip the dead-ends
+already ruled out and start from the top candidate.
+
+**Verification**:
+- wake-225 (analysis-path existence in card prose):
+  unaffected — the new doc isn't cited from a
+  Findings card yet (could be added later if it
+  yields a finding).
+- wake-207 (retrospective ↔ README link): the new
+  doc is a "decision_*"-adjacent investigation,
+  not a retrospective; doesn't trigger wake-207.
+- wake-231 (decision doc README link): the new
+  doc isn't a decision doc (no decision made yet).
+  Wake-231 not triggered.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: this is the **second**
+investigation-log artifact under `analysis/`
+(first was `decision_0x065c_live_decoder.md` at
+wake 221, but that was a closure not an open
+investigation). The investigation-log genre is
+distinct from decision docs and retrospectives —
+it captures a **search-in-progress** with
+candidate triage + next-step plan.
+
+**Carry-over for future wakes**:
+- State 13 → 14 writer is still open, but now
+  with a structured search plan rather than just
+  the deferred question.
+- A future autonomous wake with GhidraMCP could
+  attack one of the 5 concrete Ghidra actions
+  (most efficient: Frida hook fallback).
+- A future maintainer Ghidra session could decomp
+  `FUN_146c60830` and confirm/refute the alt
+  hypothesis in minutes.
+
+**No new tests, no new code**. Investigation log +
+two cross-references.
+
+**Blockers:** None.

@@ -43,8 +43,14 @@ predicate table at § 1):
   yet identified** — wake-13's `FindOffsetWrites 0x252 0x1`
   found 3 hits, all in unrelated classes (UI text helper, Wwise
   audio plugin, JSON helper). The real writer must use a
-  register-based / memcpy / OR-store pattern. **Still open**:
-  next static-RE step beyond what this hunt list documents.
+  register-based / memcpy / OR-store pattern. Wake 241 added
+  a full investigation log:
+  [`state_13_14_writer_investigation.md`](state_13_14_writer_investigation.md)
+  with candidate triage (`FUN_146c60830` is the top tier-A
+  candidate), an alternative hypothesis (the gate may be set by
+  actor-spawn-complete callback rather than a server message),
+  and concrete next-step Ghidra actions including a Frida-hook
+  fallback that bypasses all the namespace heuristics.
 
 Other consolidated findings (see
 [`ghidra_findings.md`](ghidra_findings.md) for full detail):

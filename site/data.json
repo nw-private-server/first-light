@@ -28470,6 +28470,12 @@
       "test_count": 457,
       "commit": "e010bcb",
       "subject": "docs(analysis): integration_status.md phase-2D update (wake 153 -> 239)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "36b15dc",
+      "subject": "feat(site): Findings card synthesizing the post-V3 state-spawn ladder"
     }
   ],
   "live_decoder_history": [
@@ -28894,7 +28900,7 @@
       "filename": "ghidra_hunt_list.md",
       "title": "Ghidra Hunt List \u2014 Javelin / GridMate fingerprints in NewWorld.exe",
       "summary": "State-machine gates (see [`state_machine_summary.md`](state_machine_summary.md) for the predicate table at \u00a7 1):",
-      "bytes": 10989,
+      "bytes": 11339,
       "category": "Audit"
     },
     {
@@ -28989,10 +28995,17 @@
       "category": "RE Finding"
     },
     {
+      "filename": "state_13_14_writer_investigation.md",
+      "title": "State 13 \u2192 14 writer \u2014 investigation log",
+      "summary": "The state 13 \u2192 14 transition (`WaitingForPlayerSpawn` \u2192 `InGame`, the MVP target) is gated by `*(u8 *)(wrapper + 0x252) != 0` per the state-machine summary \u00a7 1 predicate table. Reader is `FUN_145a923c0` (returns the b\u2026",
+      "bytes": 9230,
+      "category": "RE Finding"
+    },
+    {
       "filename": "state_machine_summary.md",
       "title": "GameConnection State Machine \u2014 Synthesis (2026-05-07)",
       "summary": "After the V3 RegistrationResponse is accepted (already working \u2014 prior project notes confirmed `rep.ready` flips 0\u21921), the client sits in",
-      "bytes": 19902,
+      "bytes": 19966,
       "category": "Overview"
     },
     {
@@ -29060,6 +29073,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 241,
+      "title": "state-13 \u2192 14 writer investigation log (no finding, candidate triage shipped)",
+      "line": 18218,
+      "category": "other"
+    },
+    {
       "wake": 240,
       "title": "Findings card: post-V3 state-spawn ladder synthesis",
       "line": 18133,
@@ -29087,12 +29106,6 @@
       "wake": 236,
       "title": "ghidra_hunt_list.md targeted refresh (wake-109 \u2192 wake-236)",
       "line": 17788,
-      "category": "other"
-    },
-    {
-      "wake": 235,
-      "title": "queued_work.md targeted refresh (wake-83 \u2192 wake-235)",
-      "line": 17695,
       "category": "other"
     }
   ],
