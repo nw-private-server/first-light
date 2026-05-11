@@ -29058,6 +29058,12 @@
       "test_count": 457,
       "commit": "93ee1d0",
       "subject": "docs(worklog): wake-297 \u2014 signaling heartbeat (Codex review pending)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "890dd42",
+      "subject": "docs(worklog): wake-298 \u2014 signaling heartbeat (Codex still pending)"
     }
   ],
   "live_decoder_history": [
@@ -29662,6 +29668,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 299,
+      "title": "signaling heartbeat",
+      "line": 5104,
+      "category": "code"
+    },
+    {
       "wake": 298,
       "title": "signaling heartbeat (Codex still pending)",
       "line": 5092,
@@ -29690,12 +29702,6 @@
       "title": "loop stop (final entry)",
       "line": 4917,
       "category": "other"
-    },
-    {
-      "wake": 293,
-      "title": "cross-check graph audit (second clean negative in a row)",
-      "line": 4793,
-      "category": "test"
     }
   ],
   "live_decoder_coverage": {
