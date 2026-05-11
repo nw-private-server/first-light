@@ -40,9 +40,10 @@ For background, the running session log is in [docs/progress.md](docs/progress.m
 
 ## What the project needs most right now
 
-1. **Reverse engineering — top priority.** `FUN_14644a070` (`gameconn_state`, RVA `0x0644a070`) drives the state-10→11 transition. Decompile it and find what condition advances state past 10 after the V3 response is accepted. Sibling target: `FUN_146b3c250 + 0x58f` — find what writes to `[R13+0xfd]`, the byte that fires the destroy loop.
+1. **Real-GPU Windows host with Frida — the single highest-leverage unblocker.** The Gate-2 row above explains why: static-RE on the state-spawn ladder is exhausted (all 4 transition writers + trigger chains are RE'd; the wake-252 indirect-vtable wall is the limit). Two open questions both need runtime traces on a real-GPU host — (a) does the wake-204/208 phase-2D dispatcher emission affect the retry loop? (b) which specific wire-type carries the NewProxy/replica-creation message that fires state-13→14? AWS `g4dn.xlarge` is the recommended path (Tesla T4, Windows Server license, ~$0.75/hr); a physical Windows host works equally well.
 2. **Captures with in-world traffic.** Our existing capture goes through `state=53` (past `WaitingForPlayerSpawn`) but stops before extended in-world activity. A session that loads into a running world AND captures movement/combat/zone-transition messages is the single most useful new capture. See [docs/capture-guide.md](docs/capture-guide.md) for the priority list.
-3. **Python/server contributors.** Once RE identifies the post-V3 message sequence, `server/rep_responder.py` needs to send it. Independent of that: multi-peer support (currently single-peer), and a Carrier-level reliable ACK on the V3 request itself (a 5-line experiment that may be the entire fix).
+3. **Remaining static-RE worth pursuing.** `FUN_146b3c250 + 0x58f` — find what writes to `[R13+0xfd]`, the byte that fires the destroy loop. This may be the V3-retry root cause and is independent of the state-spawn ladder.
+4. **Python/server contributors.** SelfIdent codec wired at wake 112; phase-2D dispatcher emission shipped behind `heartbeat_use_dispatcher` (wake 204) + `heartbeat_advance_counter` (wake 208) flags awaiting real-GPU validation. Remaining: multi-peer support in `server/rep_responder.py` (currently single-peer); Carrier-level reliable ACK on the V3 request itself (a 5-line experiment that may be the entire fix); next wire-type promotion candidate beyond heartbeat (search `_shadow_decode_record` callers in `test_shadow_decode.py`).
 
 ---
 

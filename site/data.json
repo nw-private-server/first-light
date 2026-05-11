@@ -28788,6 +28788,12 @@
       "test_count": 457,
       "commit": "08b542b",
       "subject": "test(build): wake-269 \u2014 wake-218 + wake-231 docstring symmetry with wake-225 convention"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "76b3b30",
+      "subject": "docs(site): wake-270 \u2014 fix wake-228 broken cross-link to wall genre exemplar"
     }
   ],
   "live_decoder_history": [
@@ -29392,6 +29398,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 271,
+      "title": "README \"What the project needs most right now\" rewrite",
+      "line": 1702,
+      "category": "docs"
+    },
+    {
       "wake": 270,
       "title": "4-genre Findings card audit (caught wake-228 broken cross-link)",
       "line": 1578,
@@ -29420,12 +29432,6 @@
       "title": "wake-225 docstring extension",
       "line": 1091,
       "category": "other"
-    },
-    {
-      "wake": 265,
-      "title": "wake-200 Findings card cleanup",
-      "line": 1005,
-      "category": "site"
     }
   ],
   "live_decoder_coverage": {

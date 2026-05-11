@@ -1697,3 +1697,145 @@ the wake-228 card). Audit-driven fix; the
 audit itself was the higher-cost work.
 
 **Blockers:** None.
+
+
+## Wake 271 — README "What the project needs most right now" rewrite
+
+**Goal**: wake-271 menu offered a README
+"Current status" Gate-2 row scan. Reading the
+Gate-2 row showed it was actually accurate
+(state-machine picture labeled "wake 252
+update" — stable since wake 252's static-RE
+exhaustion). But scanning the **adjacent
+"What the project needs most right now"
+section** surfaced severe drift identical to
+what CONTRIBUTING.md had pre-wake-267:
+
+**"Reverse engineering — top priority":**
+"`FUN_14644a070` drives the state-10→11
+transition. Decompile it and find what
+condition advances state past 10 after the V3
+response is accepted." This decompile was done
+at wake 111-112. The state-10→11 work has been
+closed for 158+ wakes.
+
+**"Python/server contributors":** "Once RE
+identifies the post-V3 message sequence,
+`server/rep_responder.py` needs to send it."
+The post-V3 sequence was substantially
+identified at wake 252 (3-message MVP
+estimate: SelfIdent + LevelInfoChanged +
+NewProxy replica-creation). SelfIdent codec
+wired at wake 112. Phase-2D dispatcher
+emission shipped at wake 204/208.
+
+Wake-267 fixed this drift in CONTRIBUTING.md
+but missed the parallel section in README.md.
+Drift-fix incompleteness — exactly the kind
+of issue the wake-270 audit pattern is meant
+to catch.
+
+**Built**:
+
+**`README.md`** — rewrote "What the project
+needs most right now" section (3 items → 4
+items, complete reframe):
+
+1. **Was**: "Reverse engineering — top
+   priority. FUN_14644a070 drives state-10→11.
+   Decompile it..."
+   **Now**: "Real-GPU Windows host with Frida
+   — the single highest-leverage unblocker."
+   Cites the Gate-2 row above for context,
+   explains both phase-2D validation and
+   NewProxy ID need runtime traces, names
+   AWS g4dn.xlarge as the recommended path.
+
+2. **Captures with in-world traffic** —
+   unchanged. Still valid open ask.
+
+3. **Was**: implicit in item 1's "sibling
+   target FUN_146b3c250 + 0x58f"
+   **Now**: separate item 3 — "Remaining
+   static-RE worth pursuing":
+   `FUN_146b3c250 + 0x58f` destroy trigger.
+   Preserved the V3-retry-root-cause framing.
+
+4. **Was**: "Python/server contributors. Once
+   RE identifies the post-V3 message
+   sequence..."
+   **Now**: lists SelfIdent already wired,
+   wake-204/208 flags awaiting validation,
+   names the remaining server work
+   (multi-peer, carrier-level ACK,
+   next-wire-type promotion candidate with a
+   concrete way to find candidates).
+
+**Verification**:
+
+- `.venv/bin/python3 tools/build_site.py` →
+  clean.
+- `pytest server/javelin -q` → **456 passing,
+  1 skipped** — unchanged.
+- Wake-225 cross-check (analysis-path
+  existence): no new analysis paths in the
+  edit, no impact.
+- Wake-207 cross-check (retrospective ↔
+  README link): unaffected.
+- Wake-231 cross-check (decision-doc README
+  link): unaffected.
+
+**Pattern note (drift-fix incompleteness)**:
+this is the second time a stale-blocker
+framing was caught in a doc *after* the
+parallel framing was fixed in the sibling
+doc. Wake 267 fixed CONTRIBUTING.md's "current
+blocker = decompile state-10" framing but
+missed the README's identical text. The
+**audit pattern**: when fixing a stale-framing
+issue in one doc, grep for the same framing
+across the repo to catch parallel staleness in
+sibling docs. The shared pattern this time
+was the "current blocker = decompile
+FUN_14644a070" wording; a `grep -r
+'FUN_14644a070' --include='*.md'` after the
+wake-267 fix would have caught the README
+parallel.
+
+**Generalizable principle**: drift fixes
+should be applied *across all docs that share
+the framing*, not just the doc that surfaced
+the drift. The cost of a quick grep is
+minutes; the cost of the second-doc miss is
+the second visitor reading stale prose and
+losing trust in the project status reporting.
+
+**Discrepancy between Gate-2 row and "What
+the project needs"**: prior to this wake, the
+Gate-2 row described the state-machine work
+as substantially complete (wake-252 update)
+while the immediately-adjacent "What the
+project needs most right now" #1 framed
+state-10 decompile as the top priority. A
+visitor reading top-to-bottom would
+encounter the contradiction within a single
+screen. Internal-consistency drift is more
+embarrassing than absolute staleness because
+it's clearly self-contradictory rather than
+"hasn't been touched in a while".
+
+**Filing for future hygiene**: when updating
+one doc, *always* grep for the specific
+strings being replaced (function names, RVAs,
+state numbers) across the repo. The local
+edit may be correct in isolation; the global
+state may still drift.
+
+**Cost summary**: 1 large prose rewrite in
+README.md (~3 lines → ~4 paragraphs, dense
+information). Single targeted commit.
+Highest-leverage doc-freshness fix since
+wake 267 because the README is the
+first-impression surface.
+
+**Blockers:** None.
