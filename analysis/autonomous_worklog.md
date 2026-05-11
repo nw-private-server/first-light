@@ -4257,3 +4257,98 @@ entry. No code change, no doc change, no
 test impact.
 
 **Blockers:** None.
+
+
+## Wake 288 — AZ::Name table angle: byte-pattern search confirms no data-segment match
+
+**Goal**: cadence-shifted wake. Tried the
+remaining static thread from the wake-285
+menu's option (c) — AzCore RTTI string
+table / AZ::Name NameDictionary angle. If
+the binary preserves a `hash → string`
+lookup table for the AZ::Name system,
+`0xFE476177` might appear as a data-segment
+key with the source string nearby.
+
+**Method**: searched the binary for the
+4-byte LE pattern `77 61 47 fe` across ALL
+initialized memory segments using
+`BulkBytesSearch.py` (which scans memory
+directly, distinct from wake-9's
+`FindConstant.py` which finds instruction
+operands).
+
+**Result**: **5 hits, all in `.text`**
+(code segment). Zero hits in `.rdata`,
+`.data`, or any other section. The byte
+pattern appears only as an instruction
+operand inside MOV/CMP instructions — never
+as a stand-alone data-segment table entry.
+
+**Cross-check with wake-9 finding**: wake 9
+documented 29 hits via FindConstant
+(instruction-operand search) all in code.
+This wake's data-segment-aware search
+caps at the same conclusion: the constant
+doesn't exist in any data table.
+
+**Implication (final)**: the AzCore
+NameDictionary / hash → string lookup table
+for 0xFE476177 is **not preserved** in this
+binary. The release build strips the hash
+as a static-table key in addition to
+stripping the source string at the call
+site. Both ends of the AZ::Name lifecycle
+are gone.
+
+This **closes the last remaining static-RE
+thread** on the destroy-event family. The
+genuine paths to `0xFE476177` resolution
+are:
+1. O3DE corpus brute-force (external repo
+   access required).
+2. Runtime Frida trace (real-GPU host
+   required).
+
+Both remain outside the loop's scope.
+
+**Built**:
+
+- `analysis/bulk_search_FE476177_all_segments.txt`
+  — confirms 0 data-segment hits.
+
+**Verification**:
+
+- `pytest server/javelin -q` → not re-run
+  (no code change).
+- `tools/build_site.py` → will run
+  pre-commit.
+
+**Pattern note**: this is a **clean
+negative-result wake** — the AZ::Name table
+angle had been hypothesized at wake 278 +
+flagged in the wake-284 forward menu as one
+of the remaining static threads. This wake
+definitively closes it. The 5
+methodological filings from the arc remain
+the most valuable carryover.
+
+**Forward implications**: with the AZ::Name
+table angle now closed, the static-RE
+toolkit on the destroy-event question is
+**genuinely exhausted from every angle the
+loop has access to**. The next wake should
+either:
+- Continue lightweight check-ins (the
+  pattern set at wake 287).
+- Stop the loop entirely — the maintainer
+  has a stable handoff at wake 284's
+  reflection + wake 285's wall-pattern
+  card + wake 286's README bullet.
+
+**Cost summary**: 1 Ghidra bulk-bytes
+search + 1 worklog entry. Final
+negative-result on the destroy-event
+static-RE thread.
+
+**Blockers:** None.

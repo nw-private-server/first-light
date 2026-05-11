@@ -28992,6 +28992,12 @@
       "test_count": 457,
       "commit": "8fba5e8",
       "subject": "docs(readme): wake-286 \u2014 surface destroy-event sub-arc as 5th Recent-milestones bullet"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "b894947",
+      "subject": "docs(worklog): wake-287 \u2014 pause check-in (cadence-shifted heartbeat)"
     }
   ],
   "live_decoder_history": [
@@ -29596,6 +29602,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 288,
+      "title": "AZ::Name table angle: byte-pattern search confirms no data-segment match",
+      "line": 4262,
+      "category": "other"
+    },
+    {
       "wake": 287,
       "title": "pause check-in (cadence-shifted)",
       "line": 4190,
@@ -29624,12 +29636,6 @@
       "title": "vtable+0x608 verification attempt + Findings card refresh",
       "line": 3558,
       "category": "site"
-    },
-    {
-      "wake": 282,
-      "title": "DAT_147efa330 sibling hunt: timer/delay parameter tables identified",
-      "line": 3417,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {
