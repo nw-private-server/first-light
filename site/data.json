@@ -28722,6 +28722,12 @@
       "test_count": 457,
       "commit": "8b6623b",
       "subject": "docs(analysis): retrospective chain forward-pointers (wake-150, wake-227)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "2a45dc0",
+      "subject": "docs(site): wake-228 skeleton card \u2014 explicit cross-links to genre exemplars"
     }
   ],
   "live_decoder_history": [
@@ -29326,6 +29332,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 260,
+      "title": "pause-reflection: what's left after 259 wakes",
+      "line": 20002,
+      "category": "other"
+    },
+    {
       "wake": 259,
       "title": "wake-228 skeleton card: explicit cross-links to genre exemplars",
       "line": 19925,
@@ -29354,12 +29366,6 @@
       "title": "wake-228 skeleton card: 3-retro \u2192 4-retro drift",
       "line": 19595,
       "category": "other"
-    },
-    {
-      "wake": 254,
-      "title": "fourth-stretch retrospective (wakes 228-253)",
-      "line": 19478,
-      "category": "docs"
     }
   ],
   "live_decoder_coverage": {

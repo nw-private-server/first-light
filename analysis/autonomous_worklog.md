@@ -19998,3 +19998,158 @@ specific class.
 card prose extension.
 
 **Blockers:** None.
+
+## Wake 260 — pause-reflection: what's left after 259 wakes
+
+**Goal**: long-deferred pause-reflection wake. 259
+wakes deep, the static-RE arc closed at wake 252
+(documented wall), dashboard 4-genre typology
+completed at wake 257, retrospective chain
+uniformly navigable at wake 258, skeleton card a
+project-shape map at wake 259. The recent pattern
+has been small drift-correction wakes — each useful
+but with diminishing marginal value. This wake
+acknowledges the plateau and documents what
+remains.
+
+This entry is **a worklog reflection, not a code
+change**. The loop's design accommodates this —
+some wakes are stocktaking, not shipping. The
+intention is to capture "where we are" so future
+contributors (and future me) have a clear handoff
+when runtime work resumes.
+
+### Where we are
+
+**The static-RE leg is genuinely complete.**
+
+- **All 4 post-V3 state-spawn transitions** have
+  writers + predicates + trigger chains:
+  - 10 → 11: wake 112 (PlayerManagerSelfIdentificationMsg)
+  - 11 → 12: auto-fires
+  - 12 → 13: wake 232 (LevelInfoChangedMsg or
+    second writer FUN_14645c660)
+  - 13 → 14: wake 247 writer + wake 249 trigger
+    chain + wake 252 wall.
+- **40/40 captured wire-types** have Python
+  codecs. 36/40 have JS live-decoder coverage
+  (90.0% by design, per the wake-221 decision).
+- **456 tests passing**, **19 cross-checks**
+  organized into a 3-bucket manifest with 5
+  self-referential pins on the wake-210
+  meta-card.
+- **Phase-2D infrastructure** (heartbeat emission
+  swap behind 2 feature flags, both default off,
+  proven byte-equivalent) ready for real-GPU
+  flip.
+- **22 Findings cards** across 4 categories
+  covering all 4 RE artifact genres (finding /
+  decision / investigation / wall).
+- **4 retrospectives** chained forward
+  (150 → 196 → 227 → 253).
+
+### Where we're blocked
+
+**One unblocker, two outcomes**: a real-GPU
+Windows host running Frida traces would:
+1. Flip the phase-2D feature flags and observe
+   the gate-2 retry loop end-to-end (confirms or
+   refutes the byte-equivalent-emission claim's
+   runtime behavior).
+2. Hook FUN_142ffbc50 or any of its 5 callers and
+   catch the stack frame at call-time —
+   identifies the specific replica-creation
+   server message (the wake-252 wall's
+   handoff-point).
+
+These are NOT two separate unblockers — they're
+the same Frida session producing both observables.
+The convergence claim (wake 252/253) holds.
+
+### What's left at static-RE
+
+Almost nothing. Small follow-ups that don't
+require runtime data:
+
+1. **0x065c decision** (closed at wake 221) —
+   could be revisited if a second capture lands,
+   but that's a runtime artifact.
+2. **Second-capture comparison** for
+   identity-bundle persistence (called out in
+   sub_system_id_hash_search) — also a runtime
+   artifact.
+3. **Cross-check graph** additions if a new
+   structural drift mode emerges — the graph is
+   marked stable at 19 since wake 231 per the
+   wake-210 card's wake-256 annotation.
+
+### What "completion" looks like
+
+A natural stopping criterion for the static-RE
+phase: **no concrete next-step questions a
+contributor without runtime access could
+productively investigate**. The wake-252 wall +
+wake-258 chain + wake-259 skeleton-map signal
+this state on the dashboard.
+
+If a maintainer were resuming the project, the
+clear next action is:
+- Real-GPU Windows host or equivalent
+  (Bootcamp / AWS Windows-Gaming / spare hardware
+  per the wake-70 / wake-238 historical context).
+- Frida session per `analysis/state_13_14_writer_investigation.md`
+  wake-252 section ("A Frida hook on any of the
+  5 callers catches the stack frame at call-time
+  and resolves the question immediately").
+- Flip `heartbeat_use_dispatcher = True` + observe
+  the gate-2 retry loop.
+
+### Reflections on the loop
+
+- **Static-RE deferral cycles can be broken
+  cheaply** via candidate-triage logs (wake 241
+  → 247 → 249 pattern, surfaced as the wake-251
+  methodology card). Worth shipping the log
+  early when a question keeps deferring.
+- **Dashboard surfaces compound** — by wake 253,
+  6 surfaces consistently narrate the same
+  state-machine claim. Each surface serves a
+  different visitor lens (first-touch / Findings
+  scan / deep-dive / chronological).
+- **The 4-genre RE artifact typology** (finding
+  / decision / investigation / wall) emerged
+  bottom-up from the work, not top-down from
+  planning. Wake 252 introduced "wall" because
+  the wake-247/249 arc terminated in a way that
+  didn't fit existing genres. Future wakes
+  shouldn't pre-define genres; let them emerge.
+- **Drift corrections compound favorably** in
+  small wakes. The wake-258/259 retro-chain +
+  cross-link work alone took ~2 wakes but
+  produced a navigable structure. Spread over
+  time, each step felt small.
+
+### Forward-looking
+
+If the loop continues past wake 260, the highest-
+value targets are likely:
+1. **Worklog file split** (deferred ~15 times)
+   — the file is now ~1800+ lines. Splitting at
+   wake 254 or wake 260 would mirror the
+   retrospective-split pattern.
+2. **Frame-budget for "no concrete drift to
+   correct" wakes** — a soft policy like "if no
+   substantive task fits the 30-min cap, write
+   a reflection like this one instead of forcing
+   small drift fixes" might be worth a Findings
+   card.
+
+But neither is urgent. The natural cadence may
+shift toward longer wake intervals once the
+loop's productive density drops.
+
+**No code changes, no test changes, no doc
+updates outside this worklog entry.** Pure
+reflection. Tests **456 (+1 skipped)** unchanged.
+
+**Blockers:** None.
