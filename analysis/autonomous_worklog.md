@@ -4788,3 +4788,127 @@ and bounds it as isolated rather than
 systemic.
 
 **Blockers:** None.
+
+
+## Wake 293 — cross-check graph audit (second clean negative in a row)
+
+**Goal**: per wake-292's recommendation +
+wake-293 menu option (c), audit the
+`CROSS_CHECK_MANIFEST` integrity. 19 manifest
+wakes across 3 buckets; verify all the
+self-referential pins still hold + each
+manifest wake has a corresponding test
+function.
+
+**Method**:
+
+1. Confirm pytest passes on
+   `test_build_tools.py` → **55/55 passing**.
+2. Run a programmatic audit comparing
+   manifest wakes vs wakes referenced in test
+   docstrings.
+3. Spot-check that the wake-227 cross-check
+   (every manifest wake has a referencing
+   test) is doing what its docstring claims.
+
+**Findings**:
+
+1. **All 5 self-referential cross-checks
+   pass** (wakes 214 / 218 / 222 / 224 / 225 /
+   227 — the 6 mentioned in the retro chain,
+   with 227 being the 5/5 closer per
+   wake-227 retro's wake-numbering). The
+   manifest is internally consistent.
+2. **Initial concern**: my audit script
+   reported wakes 172 + 185 as "not referenced
+   in any test docstring". Investigated:
+   they're in `test_live_decoder_presets.py`
+   (not `test_build_tools.py` which I'd
+   scanned first). The wake-227 cross-check
+   correctly scans **all** `test_*.py` files
+   in `server/javelin/`, so it catches both.
+   My audit script was scoped too narrow;
+   the actual pin is healthy.
+3. **Wakes referenced in test docstrings but
+   not in the manifest** (13 in the 100-300
+   range): inspected — these are
+   informational references (e.g. "wake 188
+   built the foundation for wake 222"),
+   not orphaned cross-checks. Not drift.
+
+**Result**: **clean negative — manifest
+integrity is intact**. 55/55 cross-check
+tests pass. All 19 manifest wakes have
+referencing tests. No orphaned or
+contradictory entries.
+
+**Self-correction note**: my initial audit
+flagged a false-positive (172/185 missing
+from test references). The wake-227
+cross-check's broader scope caught what my
+narrower scope missed. **This is itself
+useful evidence that the cross-check graph's
+design (scanning all test files, not just
+one) is more robust than ad-hoc audits**.
+Filing: when verifying cross-check
+integrity, trust the test scope over a
+narrow grep.
+
+**Verification**:
+
+- `pytest server/javelin/test_build_tools.py
+  -q` → **55 passing** (the cross-check
+  graph subset).
+- `pytest server/javelin -q` → would be
+  **456 passing, 1 skipped** unchanged
+  (not re-run; identical to prior wakes).
+- No code or doc changes this wake.
+
+**Two consecutive clean negatives now**
+(wakes 292 + 293) — strong signal the
+audit-mode plateau has reached genuine
+exhaustion. The drift-sweep arc closes
+with:
+
+| Wake | Result |
+|---|---|
+| 274 | 1 drift caught |
+| 289 | 2 drifts caught |
+| 290 | 4 drifts caught |
+| 291 | 2 drifts caught (1 title + 1 pointer) |
+| 292 | Clean negative (title scan) |
+| 293 | Clean negative (cross-check audit) |
+
+**Total**: 9 real drifts across 6 wakes,
+followed by 2 clean negatives at the end.
+The Bayesian update is clear: the
+accessible-drift surface is now exhausted.
+
+**Forward implications**:
+
+The two-consecutive-clean-negatives pattern
+is a textbook stopping signal. The arc's
+forward menu has only marginal-value
+options remaining:
+- Another sweep variant (likely produces
+  another clean negative).
+- 5th-stretch retrospective seed (genuine
+  work but premature — wake-253 retro is
+  only 40 wakes back, below the typical
+  50-wake span).
+- Stop the loop.
+
+**Recommendation**: stop the loop after
+this wake, or extend to a much longer
+cadence (4h+) if the maintainer wants
+heartbeat visibility. The substantive arc
+ended at wake 288; the audit-sweep arc
+ended at wake 292. Continuing produces
+diminishing value per wake.
+
+**Cost summary**: pure analytical wake.
+Confirms cross-check graph integrity is
+intact + manifest is healthy. Second
+consecutive clean negative.
+
+**Blockers:** None.

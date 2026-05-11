@@ -29022,6 +29022,12 @@
       "test_count": 457,
       "commit": "179820d",
       "subject": "docs: wake-291 \u2014 deferred pointer fix + Findings-card title drift"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "d94797f",
+      "subject": "docs(worklog): wake-292 \u2014 systematic title scan, wake-291 drift was isolated (clean negative)"
     }
   ],
   "live_decoder_history": [
@@ -29626,6 +29632,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 293,
+      "title": "cross-check graph audit (second clean negative in a row)",
+      "line": 4793,
+      "category": "test"
+    },
+    {
       "wake": 292,
       "title": "systematic Findings-card title scan: wake-291 drift was isolated",
       "line": 4679,
@@ -29653,12 +29665,6 @@
       "wake": 288,
       "title": "AZ::Name table angle: byte-pattern search confirms no data-segment match",
       "line": 4262,
-      "category": "other"
-    },
-    {
-      "wake": 287,
-      "title": "pause check-in (cadence-shifted)",
-      "line": 4190,
       "category": "other"
     }
   ],
