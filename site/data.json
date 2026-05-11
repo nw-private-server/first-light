@@ -28326,6 +28326,12 @@
       "test_count": 452,
       "commit": "b686851",
       "subject": "test(site): 14th cross-check \u2014 card cites every manifest wake"
+    },
+    {
+      "wake": null,
+      "test_count": 452,
+      "commit": "96e786b",
+      "subject": "docs(site): refresh wake-192 milestone card after 90.0% crossing"
     }
   ],
   "wire_type_families": [
@@ -28769,7 +28775,7 @@
       "filename": "session_retrospective_196.md",
       "title": "Wakes 151-196 \u2014 second-stretch milestones",
       "summary": "A 46-wake continuation of the [wake-150 milestone retrospective](session_retrospective_150.md). Where wakes 1-150 built the codec library + the wire-complete dispatcher + initial dashboard, wakes 151-196 turned the da\u2026",
-      "bytes": 12618,
+      "bytes": 13197,
       "category": "Retrospective"
     },
     {
@@ -28851,6 +28857,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 220,
+      "title": "README retrospective summary + retrospective doc deltas refresh",
+      "line": 16427,
+      "category": "docs"
+    },
+    {
       "wake": 219,
       "title": "refresh wake-192 milestone card after 90% crossing",
       "line": 16367,
@@ -28879,12 +28891,6 @@
       "title": "recent-activity pill legend",
       "line": 16093,
       "category": "other"
-    },
-    {
-      "wake": 214,
-      "title": "13th cross-check: self-referential card-count \u2194 manifest consistency",
-      "line": 16004,
-      "category": "test"
     }
   ],
   "live_decoder_coverage": {

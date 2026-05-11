@@ -13,19 +13,30 @@ Each wake is a single commit; the per-wake trail lives in
 
 ## Snapshot (as of wake 196)
 
-> **Post-wake-196 deltas (as of wake 206)**: this doc was
+> **Post-wake-196 deltas (as of wake 219)**: this doc was
 > written at wake 197 and reflects the state at wake 196.
 > The autonomous session continued past it; key deltas:
-> tests **437** (+phase-2D swap lockdown), live decoder
-> coverage **85% (34/40)** with the wake-200 explainer
-> card surfacing why the remaining 6 stay uncovered,
-> Findings tab **15 cards** (7 Research closures — the
-> dominant bucket now), **9 cross-check tests**
-> (+wake-201 badge-color thresholds, +wake-202 api-ref
-> idempotency), and **phase-2 arc complete**: wake 204
-> shipped the actual heartbeat emission swap behind
-> `heartbeat_use_dispatcher` (default off). The Phase 2
-> table below has been extended to include wake 204.
+> tests **451** (+phase-2D swap lockdown + counter-advance
+> realism extension + multiple cross-check pins), live
+> decoder coverage **90.0% (36/40)** — first 90% crossing
+> at wake 217 — with only 0x065c left as a future
+> candidate (other 3 uncovered are structurally
+> untestable), Findings tab **17 cards** (9 Research
+> closures — still the dominant bucket), **14 cross-check
+> tests** organized into a 3-bucket manifest with two
+> self-referential pins (wake 214 count, wake 218
+> citations), and **phase-2 arc + extension complete**:
+> wake 204 shipped the heartbeat emission swap behind
+> `heartbeat_use_dispatcher` (default off); wake 208
+> added counter-advance under a second flag so dispatched
+> heartbeats actually progress like a real server (also
+> default off). The Phase 2 table below has been extended
+> to include wake 204; wake 208 is treated as a separate
+> "realism extension" so the wake-209 paired-card
+> invariant stays scoped to the wake-188/wake-204 pair.
+> Live-decoder progression: wake 152 6/40 → wake 192 32/40
+> → wake 199 34/40 → wake 213 35/40 (+0x635) → wake 217
+> 36/40 (+0x12f6).
 
 - **430 tests passing** (+1 skipped), up from 346 at wake
   149. The growth is mostly cross-check + lockdown tests,

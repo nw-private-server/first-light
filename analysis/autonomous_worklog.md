@@ -16423,3 +16423,76 @@ crossings) from their respective angles.
 **451 passing (+1 skipped)**.
 
 **Blockers:** None.
+
+## Wake 220 — README retrospective summary + retrospective doc deltas refresh
+
+**Goal**: working-branch README line 12 surfaces the
+second-stretch retrospective with a one-line summary
+including specific numbers ("85% (34/40)", "9-test
+cross-check graph"). After wake 217's 0x12f6 ship +
+wake 218's 14th cross-check, both numbers are stale.
+The retrospective doc itself has a "Post-wake-196
+deltas (as of wake 206)" callout that's also stale.
+Refresh both atomically so the README's claim
+matches what visitors actually find when they click.
+
+**Built**:
+
+- **`README.md` line 12**:
+  - "live-decoder coverage at 85% (34/40 captured
+    wire-types decodable from the Explore tab), and
+    a 9-test cross-check graph" →
+    "**post-snapshot deltas through wake 219**
+    surface phase-2D shipped, live-decoder coverage
+    now at **90% (36/40 captured wire-types
+    decodable from the Explore tab)**, and a
+    **14-test cross-check graph**".
+  - The "post-snapshot deltas through wake 219"
+    phrasing primes the visitor that the linked doc
+    has a delta callout, not just a frozen wake-196
+    snapshot.
+
+- **`analysis/session_retrospective_196.md`** delta
+  callout updated from "(as of wake 206)" to
+  "**(as of wake 219)**":
+  - **Tests**: 437 → 451.
+  - **Live decoder**: 85% (34/40) → 90% (36/40),
+    with first-90% crossing at wake 217 explicit.
+  - **Findings tab**: 15 cards → 17 cards (9
+    Research closures vs 7).
+  - **Cross-check tests**: 9 → 14, with the 3-bucket
+    manifest organization explicit + the two self-
+    referential pins (wake 214 count, wake 218
+    citations).
+  - **Phase 2 arc + extension**: wake 204 (swap) +
+    wake 208 (counter-advance). Frames wake 208 as
+    separate "realism extension" — consistent with
+    the wake-212 framing decision that preserves the
+    wake-209 paired-card invariant scope.
+  - **Live-decoder progression timeline** added as a
+    one-liner: wake 152 6/40 → 192 32/40 → 199 34/40
+    → 213 35/40 (+0x635) → 217 36/40 (+0x12f6).
+
+**Why update the doc deltas rather than write a
+new retrospective?** The doc's purpose is a wakes-
+151-196 retrospective; the delta callout is an
+acknowledged "this is what shipped after." Bumping
+the as-of date is the right idiom. A future
+"third-stretch retrospective" doc would be the
+natural place to record the wakes-197-N arc when N
+is large enough to merit one (currently at wake
+220, would aim for ~wake-300 or a natural arc
+boundary).
+
+**Verification**:
+- wake-207 cross-check (every retrospective ↔
+  README link) still passes — the link target is
+  unchanged.
+- wake-214/wake-218 self-referential tests still
+  pass — the wake-210 card is untouched.
+- Full suite green at **451 (+1 skipped)**.
+
+**No code changes, no test changes**. Pure prose
+drift correction across 2 files.
+
+**Blockers:** None.
