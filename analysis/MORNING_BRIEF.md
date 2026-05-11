@@ -4,6 +4,19 @@
 > `claude/vacation-2026-05-06`. Read this first; everything else
 > linked from here.
 
+> **Historical-snapshot note (added wake 238)**: this doc was a
+> one-shot briefing from wake 70 (2026-05-08) asking the
+> maintainer to pick a runtime path after Parallels Desktop
+> failed the same way UTM did. The decision was implicitly made
+> by the loop continuing on the static-RE path; runtime testing
+> remains blocked on a real-GPU Windows host. The codec/test
+> counts cited below are wake-70-era and now far out of date
+> (current state: 40/40 captured-codec coverage, 456 tests, see
+> the [wake-227 third-stretch retrospective](session_retrospective_227.md)).
+> Keeping this doc frozen as the wake-70 snapshot rather than
+> refreshing in place — its purpose was point-in-time decision
+> support, not a rolling status page.
+
 ## TL;DR (updated 2026-05-08)
 
 - **Parallels Desktop test = failed.** Set up end-to-end while you

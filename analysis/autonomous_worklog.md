@@ -17964,3 +17964,89 @@ OR-store).
 summary now self-navigating.
 
 **Blockers:** None.
+
+## Wake 238 — MORNING_BRIEF.md historical-snapshot header
+
+**Goal**: 4th doc-freshness wake in this run. The
+`MORNING_BRIEF.md` doc was a one-shot briefing
+from wake 70 (2026-05-08) asking the maintainer to
+choose a runtime path. The decision was implicitly
+made by the loop continuing on static-RE — runtime
+testing stays blocked on a real-GPU host. The
+doc's contents (182 tests / 8 codecs / "decision
+needed") have been stale for ~160 wakes.
+
+**Built**:
+
+- **`analysis/MORNING_BRIEF.md`** — historical-
+  snapshot header callout inserted above the
+  "TL;DR (updated 2026-05-08)" line:
+  - States the doc is a wake-70 one-shot briefing.
+  - Points forward to the wake-227 third-stretch
+    retrospective for current state (40/40 codec
+    coverage, 456 tests, etc.).
+  - Explicit reasoning: "Keeping this doc frozen
+    as the wake-70 snapshot rather than refreshing
+    in place — its purpose was point-in-time
+    decision support, not a rolling status page."
+  - Body of the doc unchanged below the callout —
+    visitors who want the wake-70 context still see
+    it intact.
+
+**Why frozen rather than refreshed?** Two
+considerations:
+1. The doc's purpose was a decision prompt
+   ("morning brief" framing implies a single
+   reading session, not a rolling page). Refreshing
+   in place would change the genre.
+2. The retrospectives are the rolling status pages.
+   The wake-227 third-stretch retro covers the
+   post-wake-70 arc completely.
+
+**Pattern note**: this is the **third** doc this
+stretch where I chose **freeze rather than
+refresh** (others: wake-196 retrospective —
+collapsed delta callout to a pointer at wake 229;
+the original docs from wake-150 era like
+`docs/session-roadmap.md` which are point-in-time
+plans). The reciprocal pattern (refresh in place)
+applies to:
+- Findings cards (wake-200 / wake-192 cards in
+  the Research closure cluster were refreshed
+  multiple times — these are rolling claims).
+- `queued_work.md` + `ghidra_hunt_list.md` —
+  refreshed with strike-through closures + "Major
+  progress" sections at wakes 235/236.
+
+The decision criterion: does the doc represent a
+point-in-time artifact (snapshot) or a current-
+state claim (rolling)? Snapshots stay frozen;
+rolling claims get refreshed.
+
+**Verification**:
+- wake-225 (analysis-path existence): card prose
+  unchanged.
+- wake-207 (retrospective ↔ README): unaffected.
+- The new historical-snapshot callout cites the
+  `session_retrospective_227.md` path — exists ✓.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Doc-freshness pass status** (wakes 235-238):
+- 235 (queued_work.md): refreshed with closures +
+  "Major progress" section.
+- 236 (ghidra_hunt_list.md): same pattern.
+- 237 (state_machine_summary.md): added cross-
+  references between §§ 1, 4, 4½.
+- 238 (MORNING_BRIEF.md): historical-snapshot
+  header.
+
+After this wake, the project's main analysis docs
+either reflect current state OR are explicitly
+marked as historical snapshots with forward
+pointers. The doc layer is settled for now.
+
+**Next-step candidate** for substantive work:
+state 13 → 14 writer (`wrapper[+0x252]`) — still
+the only concrete open static-RE step.
+
+**Blockers:** None.

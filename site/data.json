@@ -28446,6 +28446,12 @@
       "test_count": 457,
       "commit": "9e9664c",
       "subject": "docs(analysis): ghidra_hunt_list.md targeted refresh (wake 109 -> 236)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "205c69e",
+      "subject": "docs(analysis): state_machine_summary cross-references between \u00a7\u00a7 1, 4, 4\u00bd"
     }
   ],
   "live_decoder_history": [
@@ -28765,7 +28771,7 @@
       "filename": "MORNING_BRIEF.md",
       "title": "Morning brief \u2014 autonomous overnight session 2026-05-07/08",
       "summary": "slept (Windows 11 ARM64 VM, Steam, Python x64, Frida, repo, certs, hosts redirects, portproxy, full 71 GB game push, VC++ + DirectX runtimes). Smoke test reached the same exit cascade as UTM: AZoth \"Unsupported video \u2026",
-      "bytes": 5547,
+      "bytes": 6283,
       "category": "Retrospective"
     },
     {
@@ -29036,6 +29042,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 238,
+      "title": "MORNING_BRIEF.md historical-snapshot header",
+      "line": 17968,
+      "category": "other"
+    },
+    {
       "wake": 237,
       "title": "state_machine_summary cross-references",
       "line": 17872,
@@ -29064,12 +29076,6 @@
       "title": "Findings card for the wake-232 state-11\u219212 surfaced finding",
       "line": 17516,
       "category": "site"
-    },
-    {
-      "wake": 232,
-      "title": "surface buried state-11 \u2192 12 finding in state_machine_summary",
-      "line": 17419,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {
