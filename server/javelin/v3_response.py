@@ -99,6 +99,14 @@ DEFAULT_TRAILER = bytes.fromhex("01000001")  # 01 00 00 01
 
 @dataclass
 class V3RegistrationResponse:
+    """Server's V3 RegistrationResponse — the reply to the client's
+    `parse_v3_request` body. 88 bytes total on the wire: a 32-byte
+    session_token, a 35-char server_version string, an error_code,
+    an 8-byte mystery8 (first 4 bytes are the session_clock that
+    0x14f also carries), and a 4-byte trailer. Encoded by
+    `v3_response.encode()` and consumed by the client to flip the
+    rep.ready bit 0 → 1.
+    """
     # The 32-byte session token at offset 0x10. Mixed Nuts redacted his —
     # default to a deterministic stub. Caller can supply real bytes once
     # we wire up a session-allocator.

@@ -51,6 +51,15 @@ MIN_WIRE_SIZE = 4 + 4 + 16 + 8 + 4 + 4 + 8
 
 @dataclass
 class LevelInfoChangedMsg:
+    """AzCore-style typed message: signals a level / map transition.
+
+    Encoded server → client when the world the player is loading
+    changes. Carries the level name, a paired secondary name, a
+    geometry quadruple, a level-loading flag, and an in-game-
+    transition flag. The handler in the client uses these to
+    advance the state machine past state 12 (WaitingForSpawnPoint),
+    so server emission of this message is one path past that gate.
+    """
     # m_levelName at struct +0x00. The level identifier the client uses
     # to locate config / asset bundles.
     level_name: str = ""

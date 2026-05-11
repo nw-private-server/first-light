@@ -23,7 +23,7 @@ The dispatcher in `server.javelin.dispatch` provides type-id-indexed encode/deco
 - **`BitStreamWriter`** (`class`)  ⟨`bitstream`⟩ — Grow-able bit-level writer. Mirrors the virtual WriteBits method called from Javelin_Carrier_WriteMessages and WriteSystemMessage.
 - **`MessageFlags`** (`class`)  ⟨`frame`⟩ — Support for integer-based Flags
 - **`MessageRecord`** (`class`)  ⟨`frame`⟩ — One parsed/marshaled message record. Mirrors the 0x38-byte in-memory struct the binary uses inside Carrier::Parse/WriteMessages.
-- **`ParseResult`** (`class`)  ⟨`frame`⟩ — ParseResult(messages: 'List[MessageRecord]' = <factory>, error: 'Optional[str]' = None, trailing_bits: 'int' = 0)
+- **`ParseResult`** (`class`)  ⟨`frame`⟩ — Outcome of parsing a Javelin datagram body.
 - **`SystemMessageId`** (`class`)  ⟨`frame`⟩ — Enum where members are also (and must be) ints
 - **`iter_system_messages`** (`function`)  ⟨`frame`⟩ — Yield (msg_id, record) pairs for system-channel messages.
 - **`marshal_datagram`** (`function`)  ⟨`frame`⟩ — Marshal a list of MessageRecords into a single datagram payload.
@@ -73,7 +73,7 @@ The dispatcher in `server.javelin.dispatch` provides type-id-indexed encode/deco
 - **`make_handshake_blob_76`** (`function`)  ⟨`handshake_blob_76`⟩ — Build a `HandshakeBlob76` for the given type-id (0x40a or 0x1be).
 - **`WorldDataBlob65C`** (`class`)  ⟨`world_data_blob_65c`⟩ — R-direction 0x065c WORLD DATA blob (variable size, structural).
 - **`WorldDataRecord`** (`class`)  ⟨`world_data_blob_65c`⟩ — One record in the variable-size records section: a data span followed by `ff_padding_size` trailing 0xFF bytes.
-- **`V3RegistrationResponse`** (`class`)  ⟨`v3_response`⟩ — V3RegistrationResponse(session_token: 'bytes' = b'NWP-stub-session-token-3232bytes', server_version: 'str' = '[RETAIL].Javelin.1.365.6031.6006993', error_code: 'int' = 0, mystery8: 'bytes' = b'\x0b\x88\x8dhplA[', trailer: 'bytes' = b'\x01\x00\x00\x01')
+- **`V3RegistrationResponse`** (`class`)  ⟨`v3_response`⟩ — Server's V3 RegistrationResponse — the reply to the client's `parse_v3_request` body. 88 bytes total on the wire: a 32-byte session_token, a 35-char server_version string, an error_code, an 8-byte mystery8 (first 4 bytes are the session_clock that 0x14f also carries), and a 4-byte trailer. Encoded by `v3_response.encode()` and consumed by the client to flip the rep.ready bit 0 → 1.
 
 ## W-direction codecs
 
@@ -86,8 +86,8 @@ The dispatcher in `server.javelin.dispatch` provides type-id-indexed encode/deco
 
 ## AzCore-style codecs
 
-- **`LevelInfoChangedMsg`** (`class`)  ⟨`level_info_changed`⟩ — LevelInfoChangedMsg(level_name: 'str' = '', other_name: 'str' = '', quad: 'tuple[int, int, int, int]' = (0, 0, 0, 0), field_60: 'int' = 0, extended_count: 'int' = 0, field_a0: 'int' = 0, level_is_loading: 'int' = 1, is_in_game_transition: 'int' = 1, field_a3: 'int' = 0, client_context_instance_id: 'int' = 0)
-- **`PlayerManagerSelfIdentificationMsg`** (`class`)  ⟨`self_ident`⟩ — PlayerManagerSelfIdentificationMsg(field_0: 'int' = 0, field_08: 'tuple[int, ...]' = (), debug_flag: 'int' = 0, field_2c: 'int' = 0, field_34: 'int' = 0)
+- **`LevelInfoChangedMsg`** (`class`)  ⟨`level_info_changed`⟩ — AzCore-style typed message: signals a level / map transition.
+- **`PlayerManagerSelfIdentificationMsg`** (`class`)  ⟨`self_ident`⟩ — Wire type 0x5d1 — the state-10 → 11 unblock trigger.
 
 ## Session-state scaffolding
 

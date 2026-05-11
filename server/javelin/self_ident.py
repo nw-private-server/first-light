@@ -106,6 +106,17 @@ MIN_WIRE_SIZE = 4 + 4 + 1 + 8 + 4  # 21
 
 @dataclass
 class PlayerManagerSelfIdentificationMsg:
+    """Wire type 0x5d1 — the state-10 → 11 unblock trigger.
+
+    Identified by wake-111 RE: this is the message the server must
+    synthesize (it's not in the captured replay) to flip
+    `*(int*)(wrapper+0xa0)` from its current value to 2, which
+    advances the connection state past WaitingForREPConnection.
+    Production servers must set `debug_flag = 0` (the value 1
+    triggers a debug-only CVar-reading branch). Field layout
+    matches the in-memory struct at MSVC RTTI
+    `Javelin::ClientMessagesTrait::PlayerManagerSelfIdentificationMsg`.
+    """
     # u32 at struct +0x00. Purpose unconfirmed.
     field_0: int = 0
 

@@ -12829,3 +12829,64 @@ line of code, one immediately-visible payoff, two
 documented side effects.
 
 **Blockers:** None.
+
+## Wake 165 — public-API doc polish (4 classes get real docstrings)
+
+**Goal**: the wake-161 generated `analysis/public_api.md` is
+faithful to source — which means classes without explicit
+docstrings get the dataclass auto-repr or `IntEnum`'s base
+docstring rendered as their "summary." Four entries were
+unhelpful:
+
+- `ParseResult` → "ParseResult(messages: 'List[MessageRecord]' = …, …)"
+- `V3RegistrationResponse` → "V3RegistrationResponse(session_token: 'bytes' = …, …)"
+- `LevelInfoChangedMsg` → "LevelInfoChangedMsg(level_name: 'str' = …, …)"
+- `PlayerManagerSelfIdentificationMsg` → "PlayerManagerSelfIdentificationMsg(field_0: 'int' = …, …)"
+
+Patch the class-level docstrings; let the wake-161 generator
+pick them up on regen.
+
+**Built**:
+
+- **`server/javelin/frame.py`** — `ParseResult` gets a 4-line
+  docstring explaining `messages` (decoded records),
+  `error` (None on success, short string on failure), and
+  `trailing_bits` (0 on a healthy datagram).
+- **`server/javelin/v3_response.py`** — `V3RegistrationResponse`
+  gets a 5-line docstring covering its role (the reply to
+  the client's parse_v3_request), wire size (88 bytes), the
+  notable `mystery8[:4]` = session_clock shared with `0x14f`,
+  and that it's the body that flips `rep.ready` 0 → 1.
+- **`server/javelin/level_info_changed.py`** —
+  `LevelInfoChangedMsg` gets a 4-line docstring covering its
+  AzCore-style typed-message kind and its role advancing
+  past state 12 (WaitingForSpawnPoint).
+- **`server/javelin/self_ident.py`** —
+  `PlayerManagerSelfIdentificationMsg` gets the most useful
+  docstring of the four: explicit identification as wire
+  type **0x5d1**, the state-10 → 11 unblock trigger, the
+  `*(int*)(wrapper+0xa0) == 2` predicate, the
+  `debug_flag = 0` production constraint, and the RTTI
+  string mapping.
+
+- **`analysis/public_api.md`** regenerated via
+  `tools/build_api_reference.py`. All four entries now show
+  meaningful one-paragraph summaries; file shrank slightly
+  (9590 → 9303 bytes) because the auto-repr dumps were
+  longer than the new prose. The PlayerManager entry is the
+  highest-leverage win — visitors landing on the API doc
+  searching for "state 10" or "0x5d1" now hit a clear
+  description in the lead sentence.
+
+**Why these specific four**: each was rendering the dataclass
+field-repr instead of a docstring. The other dataclasses
+either already have a docstring (most codec modules opened
+with a `Type 0xNN — …` one-liner) or carry per-field
+comments dense enough that the missing class-docstring isn't
+a problem.
+
+- **No `__all__` / re-export changes**. No test changes
+  (still 409 passing + 1 skipped). The wake-162 invariant
+  tests on `parse_sections` continue to pass.
+
+**Blockers:** None.
