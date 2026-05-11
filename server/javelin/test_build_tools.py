@@ -23,6 +23,7 @@ from tools.build_site import (  # noqa: E402
     load_live_decoder_coverage,
     CATEGORY_ORDER,
     FINDINGS_CATEGORY_ORDER,
+    LDTYPE_TO_TYPE_IDS,
 )
 from tools.build_api_reference import (  # noqa: E402
     parse_sections,
@@ -327,6 +328,67 @@ def test_live_decoder_coverage_shape_and_growth():
     assert "0x015d" not in cov["uncovered"]
     assert "0x014f" not in cov["uncovered"]
     assert "0x1a59" not in cov["uncovered"]
+
+
+def test_findings_linkify_map_matches_build_site_coverage_map():
+    """The JS-side `TYPE_ID_TO_LDTYPE` in `site/index.html` (wake 177,
+    used to linkify wire-type mentions in Findings cards) and the
+    Python-side `LDTYPE_TO_TYPE_IDS` in `tools/build_site.py` (wake
+    178 promoted it to a module-level constant) encode the *same*
+    relationship from opposite directions. If they drift — e.g. a
+    new decoder is added to one map but not the other — the Findings
+    linkify would point at the wrong decoder or fail to surface a
+    link the coverage indicator counts as covered.
+
+    Pin both directions:
+      - Every (type_id → ldtype) entry in the JS map must have
+        `type_id` in the Python map's value-set for that ldtype.
+      - Every type_id in the Python map's union of values must
+        have an entry in the JS map.
+    """
+    import re as _re
+    repo = Path(__file__).resolve().parents[2]
+    index_html = (repo / "site" / "index.html").read_text()
+
+    # Parse the JS map block. Pattern: "0xNN": "ldtype",
+    m = _re.search(
+        r"const TYPE_ID_TO_LDTYPE\s*=\s*\{(.*?)\};",
+        index_html,
+        _re.DOTALL,
+    )
+    assert m, "couldn't locate TYPE_ID_TO_LDTYPE in site/index.html"
+    js_map: dict[int, str] = {}
+    for pair in _re.finditer(
+        r'"0x([0-9a-fA-F]+)"\s*:\s*"([^"]+)"', m.group(1)
+    ):
+        js_map[int(pair.group(1), 16)] = pair.group(2)
+    assert js_map, "TYPE_ID_TO_LDTYPE parsed empty"
+
+    # Direction 1: every JS entry must have the type_id in the Python
+    # map's value-set for that ldtype.
+    for type_id, ldtype in js_map.items():
+        assert ldtype in LDTYPE_TO_TYPE_IDS, (
+            f"JS map references unknown ldtype {ldtype!r} for "
+            f"type_id 0x{type_id:x}"
+        )
+        assert type_id in LDTYPE_TO_TYPE_IDS[ldtype], (
+            f"JS map says 0x{type_id:x} → {ldtype!r}, but Python "
+            f"map's {ldtype!r} set is {LDTYPE_TO_TYPE_IDS[ldtype]} "
+            f"(missing 0x{type_id:x})"
+        )
+
+    # Direction 2: every type_id in the Python map's union must have
+    # a JS entry. We tolerate ldtypes that don't appear in the JS map
+    # (e.g. 15d_W's 0x15d is already covered by 15d_R's entry).
+    py_union: set[int] = set()
+    for ids in LDTYPE_TO_TYPE_IDS.values():
+        py_union |= ids
+    for type_id in py_union:
+        assert type_id in js_map, (
+            f"type_id 0x{type_id:x} in Python LDTYPE_TO_TYPE_IDS has no "
+            f"entry in JS TYPE_ID_TO_LDTYPE — the Findings linkify will "
+            f"silently skip this type"
+        )
 
 
 def test_live_decoder_coverage_against_real_data():

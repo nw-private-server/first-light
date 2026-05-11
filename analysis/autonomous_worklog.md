@@ -13628,3 +13628,66 @@ convention (no test pins them together yet — possible
 future invariant).
 
 **Blockers:** None.
+
+## Wake 178 — pin "JS ↔ Python type-id map sync" invariant
+
+**Goal**: wake 177's note flagged that the JS `TYPE_ID_TO_LDTYPE`
+(used to linkify Findings cards) and the Python `LDTYPE_TO_TYPE_IDS`
+(used by the coverage indicator) encode the same relationship
+from opposite directions, but no test pinned them together.
+Pin it.
+
+**Built**:
+
+- **`tools/build_site.py`**: promoted `LDTYPE_TO_TYPE_IDS`
+  from a local-inside-`load_live_decoder_coverage()` to a
+  **module-level constant**. The function body shrank by ~25
+  lines; behavior unchanged because Python's lookup
+  semantics are the same. The constant is now importable
+  from tests.
+
+- **`server/javelin/test_build_tools.py`**: new test
+  `test_findings_linkify_map_matches_build_site_coverage_map`.
+  - Parses the JS-side `TYPE_ID_TO_LDTYPE` from
+    `site/index.html` via a tight `"0xNN": "ldtype"`
+    regex.
+  - Imports the Python-side `LDTYPE_TO_TYPE_IDS` directly
+    (no parsing — the module-level promotion enables this).
+  - **Direction 1**: every JS entry `0xN → ldtype` must
+    have `0xN` in the Python `ldtype` value-set. Catches
+    "added an entry to JS, forgot to update Python".
+  - **Direction 2**: every type_id in the Python union of
+    values must have an entry in the JS map. Catches
+    "added a decoder to the live decoder, updated coverage,
+    forgot to update the Findings linkify".
+  - Failure messages quote the exact missing entry so the
+    fix is one line.
+
+**Verified**: both directions pass against the current state
+(23 JS entries — 9 simple + 0x5d1 + 13 subkey family members
++ 0x15d shared — matching 12 ldtypes in Python map with
+0x5d1 + 0x15d shared count). Tests: 418 → **419 passing
+(+1 skipped)**.
+
+**Pattern win**: this is the second time (after wake 172's
+preset cross-check) where a small refactor enabled a strong
+invariant test. The pattern: when two pieces of code on
+different sides (Python ↔ JS, source-of-truth ↔ generated
+doc, codec ↔ preset) encode the same relationship, promote
+both to importable forms and pin them with a single test
+that asserts they agree.
+
+**What this catches** (concrete examples):
+- A future contributor adds `0x635 → "action_history"` to
+  JS but forgets to mirror it in Python — direction 1 fails.
+- A future contributor adds a `"v3_response": {0x13}`
+  Python entry but forgets to add `"0x13": "v3_response"` to
+  JS — direction 2 fails.
+- A typo (`0x15de` instead of `0x15d`) in either map — the
+  per-entry comparison surfaces the mismatch with both
+  values quoted.
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.

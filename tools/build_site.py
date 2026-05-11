@@ -297,6 +297,39 @@ def load_test_count():
     return int(m.group(1)) if m else 0
 
 
+# Maps each live-decoder `data-ldtype` value to the set of wire-type
+# ids it can decode. Family decoders (currently just `subkey`) cover
+# multiple type ids — those mirror `KNOWN_FAMILY` in
+# `server/javelin/subkey_beacon.py`. Future family decoders need a
+# one-line update here. The wake-178 test pins this against the JS-
+# side `TYPE_ID_TO_LDTYPE` in `site/index.html`.
+LDTYPE_TO_TYPE_IDS: dict[str, set[int]] = {
+    "15d_R": {0x15d},
+    "15d_W": {0x15d},     # same wire-type, different direction
+    "14f":   {0x14f},
+    "651":   {0x651},
+    "18a6":  {0x18a6},
+    "1b88":  {0x1b88},
+    "1097":  {0x1097},
+    "136a":  {0x136a},
+    "1096":  {0x1096},
+    # 0x5d1 is NOT in the captured replay (server synthesizes it for
+    # the state-10 → 11 transition). Included here for completeness
+    # — the coverage join against captured_types naturally drops it.
+    "5d1":   {0x5d1},
+    # The subkey family decoder covers 14 wire-types — mirrors
+    # KNOWN_FAMILY in server/javelin/subkey_beacon.py.
+    "subkey": {
+        0x066b, 0x102f, 0x1098,
+        0x0f7f, 0x101a, 0x101d, 0x10b0, 0x143d,
+        0x187c, 0x187f, 0x1a59,
+        0x102e,
+        0x09d3,
+        0x192c,
+    },
+}
+
+
 def load_live_decoder_coverage(captured_types: list) -> dict:
     """Compute live-decoder coverage against the captured set.
 
@@ -325,33 +358,6 @@ def load_live_decoder_coverage(captured_types: list) -> dict:
     if not m:
         return {"covered": 0, "total": len(captured_types), "percent": 0.0, "uncovered": []}
     ldtypes = _re.findall(r'<option value="([^"]+)"', m.group(1))
-
-    # Map each ldtype to the set of captured type_ids it covers.
-    LDTYPE_TO_TYPE_IDS = {
-        "15d_R": {0x15d},
-        "15d_W": {0x15d},     # same wire-type, different direction
-        "14f":   {0x14f},
-        "651":   {0x651},
-        "18a6":  {0x18a6},
-        "1b88":  {0x1b88},
-        "1097":  {0x1097},
-        "136a":  {0x136a},
-        "1096":  {0x1096},
-        # 0x5d1 is NOT in the captured replay (server synthesizes it for
-        # the state-10 → 11 transition). Included here for completeness
-        # — the coverage join against captured_types naturally drops it.
-        "5d1":   {0x5d1},
-        # The subkey family decoder covers 14 wire-types — mirrors
-        # KNOWN_FAMILY in server/javelin/subkey_beacon.py.
-        "subkey": {
-            0x066b, 0x102f, 0x1098,
-            0x0f7f, 0x101a, 0x101d, 0x10b0, 0x143d,
-            0x187c, 0x187f, 0x1a59,
-            0x102e,
-            0x09d3,
-            0x192c,
-        },
-    }
 
     covered_ids: set[int] = set()
     for ld in ldtypes:
