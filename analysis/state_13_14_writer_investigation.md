@@ -1,6 +1,95 @@
 # State 13 → 14 writer — investigation log
 
-**Wake**: 241  |  **Type**: investigation, not a finding (yet)
+**Wake**: 241 (initial); **247** (writer identified via Ghidra)
+&nbsp;|&nbsp; **Type**: investigation → partial finding
+
+## Wake-247 update — writer identified: `FUN_142ffbc50`
+
+A Ghidra session at wake 247 decompiled the top-2 candidates
+from the wake-241 triage and found:
+
+- **`FUN_146c60830` is NOT the writer** (was wake-241 tier A).
+  Decompile (`decomp_FUN_146c60830.txt`) shows it's a 2680-byte-
+  struct constructor that **zeros** `[+0x252]` along with hundreds
+  of other fields. The struct contains `"AZStd::allocator"` string
+  pointers and animation-shaped float defaults (1.0f, 2.0f) —
+  it's some game-object (Actor / Player?) initializer, not the
+  connection-wrapper writer. The wake-13 scan's 0x252-offset
+  collision was a false positive: a different struct that
+  coincidentally has a byte field at the same offset.
+
+- **`FUN_142ffbc50` IS the writer** (was wake-241 tier B). The
+  decompile (`decomp_FUN_142ffbc50.txt`) reveals the structure:
+
+```c
+void FUN_142ffbc50(longlong param_1, undefined8 param_2) {
+    // ... cleanup ...
+    cVar8 = '\0';  // gate value default
+    // ... loop checking some state ...
+    // walk a list at [param_1+0x1b8..param_1+0x1c0] in 0x70-byte strides
+    for (lVar7 = *(param_1+0x1b8); lVar7 != *(param_1+0x1c0); lVar7 += 0x70) {
+        if (FUN_1434b0940(lVar6) && FUN_1434985c0(lVar6, param_2)) {
+            cVar8 = '\x01';  // match found
+            break;
+        }
+    }
+    if (cVar8 != *(char *)(param_1 + 0x252)) {
+        *(char *)(param_1 + 0x252) = cVar8;  // <-- WRITE STATE-13 GATE
+        // emit notification via FUN_142759320 with callback FUN_140571474
+        ...
+    }
+}
+```
+
+**What the writer does**: walks a collection at
+`wrapper[+0x1b8..+0x1c0]` (linked list / vector of 0x70-byte
+entries), tests each entry against `param_2` via two predicates
+(`FUN_1434b0940` then `FUN_1434985c0`). If any entry matches:
+set `wrapper[+0x252] = 1`. If the value changes, emit a
+notification callback.
+
+**Xrefs**: 8 references total (3 data, **5 unconditional calls**
+from sibling functions in the 0x142ff8-0x142ffc range —
+`FUN_142ff8940`, `FUN_142ffb2f0`, `FUN_142ffb340`,
+`FUN_142ffb880`, `FUN_142ffc0b0`). The 5-caller pattern
+suggests this is a **recompute / observer-notify function**
+called whenever one of several state-mutation events fires.
+
+## What this means for the alt hypothesis
+
+The wake-241 alt hypothesis ("MVP may only need SelfIdent +
+LevelInfoChanged; state 13 → 14 is set by client-side actor-
+spawn-complete callback") needs **refinement**, not closure:
+
+- The writer is **in the wrapper / connection-system namespace**
+  (0x142ff range, adjacent to other GameConnection code), not
+  in actor-spawn-system code. That's a partial counter to the
+  alt hypothesis — the writer is closer to network-state-machine
+  code than to a pure actor callback.
+- But `param_2` is passed in by the callers; the callers are
+  what determine whether this is server-driven or local. The
+  function itself reacts to whatever event the caller dispatches.
+- The **list-walk + predicate-match** pattern strongly suggests
+  this is checking "is the player's actor present and ready in
+  some replica collection?" The collection at `wrapper[+0x1b8]`
+  is replica/actor-shaped (0x70 stride = ~112 bytes per entry,
+  consistent with a replica descriptor).
+
+**Updated hypothesis** (wake 247): state 13 → 14 fires when a
+specific actor/replica satisfies a predicate in a per-connection
+collection. The trigger could be EITHER:
+1. A replica-creation message from the server (extends the
+   collection at +0x1b8; the writer fires; the predicate
+   matches; gate opens).
+2. A local event (e.g. animation-init or asset-load completes
+   on an existing entry; the writer fires; predicate now
+   matches; gate opens).
+
+To definitively distinguish: decompile the **5 callers** and
+see what kind of events trigger them. This is the next
+concrete static-RE step.
+
+## Wake-241 original investigation (preserved below)
 
 ## Question
 

@@ -18716,3 +18716,123 @@ remains the single open static-RE thread.
 **No new tests, no new code**. Two footer additions.
 
 **Blockers:** None.
+
+## Wake 247 — Ghidra session: state-13 → 14 WRITER IDENTIFIED
+
+**Goal**: take the wake-241 candidate-triage as input,
+run actual Ghidra decomps on the top candidates. The
+`ghidra` CLI is on PATH per user-memory; the
+NewWorld.exe project is already analyzed.
+
+**Built / found** (substantive RE finding!):
+
+- **`analysis/decomp_FUN_146c60830.txt`** —
+  decompiled the **wake-241 tier-A** candidate.
+  **NOT the writer**: it's a 2680-byte struct
+  constructor that **zeros** `[+0x252]` along with
+  hundreds of other fields. Contains `"AZStd::
+  allocator"` string pointers and animation-shape
+  float defaults (1.0f, 2.0f) — some game-object
+  (Actor / Player?) initializer. The wake-13 scan
+  flagged this because it has a `MOV byte ptr
+  [RBX + 0x252], DIL` instruction, but DIL was
+  effectively 0 — the wake-241 triage's
+  "DIL = bool param" inference was wrong, and the
+  function is a constructor in an unrelated struct
+  that just happens to also have a byte at +0x252.
+
+- **`analysis/decomp_FUN_142ffbc50.txt`** —
+  decompiled the **wake-241 tier-B** candidate.
+  **THIS IS THE STATE-13 GATE WRITER**:
+  ```c
+  void FUN_142ffbc50(longlong param_1, undefined8 param_2) {
+      cVar8 = '\0';
+      // walk list at [param_1+0x1b8..param_1+0x1c0],
+      // 0x70-byte strides
+      for (...) {
+          if (FUN_1434b0940(item) && FUN_1434985c0(item, param_2)) {
+              cVar8 = '\x01';
+              break;
+          }
+      }
+      if (cVar8 != *(char *)(param_1 + 0x252)) {
+          *(char *)(param_1 + 0x252) = cVar8;  // <-- WRITE
+          // emit callback notification
+      }
+  }
+  ```
+
+- **`analysis/xrefs_FUN_142ffbc50.txt`** — 8
+  references total: 3 data (vtable entries), 5
+  unconditional calls from sibling functions in
+  the 0x142ff8-0x142ffc range. The 5-caller pattern
+  suggests this is an observer-notify function
+  fired by several state-mutation events.
+
+**Canonical doc updates**:
+
+- **`state_machine_summary.md`** § 1 predicate
+  table row for 13 → 14: writer column updated
+  from "not yet identified — see wake-241 log" to
+  "writer identified wake 247: FUN_142ffbc50 walks
+  a 0x70-stride collection..."
+- **`state_13_14_writer_investigation.md`** — new
+  wake-247 update section at the top, narrating
+  the finding + the refined hypothesis. The
+  wake-241 candidate-triage stays below as
+  history.
+
+**Refined hypothesis** (wake 247): the writer fires
+when a specific replica/actor satisfies a predicate
+in a per-connection collection (`wrapper[+0x1b8]`,
+0x70-byte stride suggests replica descriptors).
+The wake-241 alt hypothesis ("MVP may only need 2
+server messages") is **partially weakened** — the
+writer is in connection-namespace code, not pure-
+local actor code. But the trigger context (what
+calls the 5 callers) is still TBD; the trigger
+could be server-driven (extends the collection)
+OR local (an existing entry's predicate now
+matches).
+
+**Verification**:
+- wake-225 (analysis-path existence): the
+  state_machine_summary now cites
+  `state_13_14_writer_investigation.md` which
+  exists ✓.
+- wake-209 (paired card): unaffected.
+- wake-227 (manifest-vs-tests): unaffected.
+- Tests **456 (+1 skipped)** — unchanged. No code
+  changes; pure decompile + doc consolidation.
+
+**Why this matters**: state-machine has 4
+transitions; we now have writer/handler/predicate
+for ALL FOUR (10→11 wake 112, 11→12 auto-fire,
+12→13 wake 232 + LevelInfoChanged, **13→14 wake
+247 + FUN_142ffbc50**). The post-V3 picture is
+substantially closed — only the trigger context
+of FUN_142ffbc50 remains.
+
+**Next concrete static-RE step** (handoff for the
+next wake): decompile the 5 callers of
+FUN_142ffbc50. Each will reveal what kind of event
+drives the gate-set: if they're called from
+message handlers → server-driven; from
+animation/asset callbacks → local. Together they
+should resolve the trigger question definitively.
+
+**Pattern note**: this is the **2nd substantive
+RE finding** in this stretch (wake-232/234 state-
+12→13 surfacing was the first). The wake-241
+"candidate triage" doc format proved its value:
+it preserved the search-space so a future Ghidra
+session could pick the high-probability targets
+and skip the dead-ends. The tier-A target turned
+out to be a false positive; tier-B was the
+answer. Pattern: when static-RE deferral cycles,
+**ship the candidate triage doc** — it converts
+"I keep deferring this" into "the next person
+with Ghidra access has a 30-minute path to a
+finding".
+
+**Blockers:** None.

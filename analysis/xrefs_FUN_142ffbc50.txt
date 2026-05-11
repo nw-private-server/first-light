@@ -1,0 +1,11 @@
+# xrefs to FUN_142ffbc50 @ 142ffbc50
+total references: 8
+## DATA (3)
+  from 1499d2d24 in ? @ ?
+## UNCONDITIONAL_CALL (5)
+  from 142ff8abb in FUN_142ff8940 @ 142ff8940
+  from 142ffb327 in FUN_142ffb2f0 @ 142ffb2f0
+  from 142ffb398 in FUN_142ffb340 @ 142ffb340
+  from 142ffb8ba in FUN_142ffb880 @ 142ffb880
+  from 142ffc1d2 in FUN_142ffc0b0 @ 142ffc0b0
+# end

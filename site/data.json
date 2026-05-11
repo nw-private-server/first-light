@@ -5,7 +5,7 @@
     "codec_module_count": 36,
     "captured_type_count": 40,
     "registry_entry_count": 3487,
-    "decompile_count": 39,
+    "decompile_count": 41,
     "named_captured_types": 5
   },
   "captured_types": [
@@ -807,6 +807,24 @@
   ],
   "decompiles": [
     {
+      "name": "FUN_142ffbc50",
+      "addr": "142ffbc50",
+      "stem": "decomp_FUN_142ffbc50",
+      "lines": 90,
+      "size_bytes": 2319,
+      "signature": "void FUN_142ffbc50(longlong param_1,undefined8 param_2)",
+      "related": [
+        {
+          "filename": "state_13_14_writer_investigation.md",
+          "label": "state 13 14 writer investigation"
+        },
+        {
+          "filename": "state_machine_summary.md",
+          "label": "state machine summary"
+        }
+      ]
+    },
+    {
       "name": "FUN_146240d70",
       "addr": "146240d70",
       "stem": "decomp_FUN_146240d70",
@@ -845,6 +863,24 @@
         {
           "filename": "wrapper_setter_decompiles.md",
           "label": "wrapper setter decompiles"
+        }
+      ]
+    },
+    {
+      "name": "FUN_146c60830",
+      "addr": "146c60830",
+      "stem": "decomp_FUN_146c60830",
+      "lines": 408,
+      "size_bytes": 12811,
+      "signature": "longlong * FUN_146c60830(longlong *param_1)",
+      "related": [
+        {
+          "filename": "ghidra_hunt_list.md",
+          "label": "ghidra hunt list"
+        },
+        {
+          "filename": "state_13_14_writer_investigation.md",
+          "label": "state 13 14 writer investigation"
         }
       ]
     },
@@ -28506,6 +28542,12 @@
       "test_count": 457,
       "commit": "9b3aaff",
       "subject": "docs(analysis): state_10_unblock_synthesis.md forward references footer"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "8c50620",
+      "subject": "docs(analysis): forward-references footers for selfident + hash-search"
     }
   ],
   "live_decoder_history": [
@@ -29027,15 +29069,15 @@
     {
       "filename": "state_13_14_writer_investigation.md",
       "title": "State 13 \u2192 14 writer \u2014 investigation log",
-      "summary": "The state 13 \u2192 14 transition (`WaitingForPlayerSpawn` \u2192 `InGame`, the MVP target) is gated by `*(u8 *)(wrapper + 0x252) != 0` per the state-machine summary \u00a7 1 predicate table. Reader is `FUN_145a923c0` (returns the b\u2026",
-      "bytes": 9230,
+      "summary": "&nbsp;|&nbsp; **Type**: investigation \u2192 partial finding",
+      "bytes": 13135,
       "category": "RE Finding"
     },
     {
       "filename": "state_machine_summary.md",
       "title": "GameConnection State Machine \u2014 Synthesis (2026-05-07)",
       "summary": "After the V3 RegistrationResponse is accepted (already working \u2014 prior project notes confirmed `rep.ready` flips 0\u21921), the client sits in",
-      "bytes": 19966,
+      "bytes": 20229,
       "category": "Overview"
     },
     {
@@ -29103,6 +29145,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 247,
+      "title": "Ghidra session: state-13 \u2192 14 WRITER IDENTIFIED",
+      "line": 18720,
+      "category": "other"
+    },
+    {
       "wake": 246,
       "title": "two more snapshot-doc forward-references footers (selfident, hash-search)",
       "line": 18634,
@@ -29130,12 +29178,6 @@
       "wake": 242,
       "title": "wake-240 synthesis card: surface wake-241 alt hypothesis + investigation log",
       "line": 18331,
-      "category": "other"
-    },
-    {
-      "wake": 241,
-      "title": "state-13 \u2192 14 writer investigation log (no finding, candidate triage shipped)",
-      "line": 18218,
       "category": "other"
     }
   ],
