@@ -3130,3 +3130,177 @@ flags, 4 handlers, ~50 related hashes, 3-
 subscriber broadcast event pattern".
 
 **Blockers:** None.
+
+
+## Wake 280 — emitter / subscriber split surfaces (4 more dispatchers examined)
+
+**Goal**: continue the hit-site enumeration
+that wake-278 + 279 started. Sample 4 more
+diverse 0xFE476177 hit sites and see if a
+larger structural pattern surfaces.
+
+**Sites examined**:
+
+1. **FUN_1402a6310** (low-address range,
+   584-line function — possibly base
+   AzNetworking code):
+   - Subscriber.
+   - Branch `0xFE476177` writes `[+0x179] = 1`
+     — **a far-away flag offset** (vs the
+     0xcd-0xfd cluster).
+   - Related event: 0xf09023c in adjacent
+     branch.
+
+2. **FUN_146074880** (REPClient range):
+   - Subscriber.
+   - Branch `0xFE476177` writes `[+0xcf] = 1`
+     — a 5th distinct Carrier state flag.
+
+3. **FUN_146b64550** (sibling of wake-278
+   FUN_146b621c0):
+   - **Emitter**, NOT a subscriber.
+   - Uses pattern: `local=0xFE476177;
+     vtable+0x608(arg, DAT_147efa330)`.
+     Identical to FUN_140fb84b0 (wake 279)
+     and FUN_1402af830 (wake 9).
+
+4. **FUN_1471f4260** (sibling of wake-279
+   FUN_1471f15d0):
+   - **Emitter**, NOT a subscriber.
+   - Same emitter pattern as #3.
+
+**Major structural finding**: the hit sites
+fall into **two clearly distinct buckets**:
+
+**Bucket A — Emitters** (4 found so far,
+likely more in the 17 unexamined sites). All
+use identical pattern:
+```c
+local_NN = 0xFE476177;
+(**(code **)(*vt + 0x608))(vt, &local, DAT_147efa330, 0);
+```
+DAT_147efa330 is the float constant pool entry
+verified at wake 9 (1.5f, 2.0f) — likely an
+EBus priority/weight argument.
+
+| Function | Address range | Context |
+|---|---|---|
+| FUN_1402af830 | 0x140 | base AzCore (wake 9 known) |
+| FUN_140fb84b0 | 0x140 | base AzNetworking |
+| FUN_146b64550 | 0x146 | REPClient |
+| FUN_1471f4260 | 0x147 | high range |
+
+**Bucket B — Subscribers** (5 found so far,
+each writes a distinct Carrier-state flag for
+event 0xFE476177):
+
+| Function | Flag offset | Address range |
+|---|---|---|
+| FUN_140fb3560:452 (wake 8) | `[+0xfd]` | 0x140 |
+| FUN_1471f15d0 (wake 279) | `[+0xcd]` | 0x147 |
+| FUN_146b621c0 (wake 278) | `[+0xda]` | 0x146 |
+| FUN_146074880 (this wake) | `[+0xcf]` | 0x146 |
+| FUN_1402a6310 (this wake) | `[+0x179]` | 0x140 |
+
+**Carrier state flag map now spans 7 known
+offsets** in the 0xcd → 0x179 range. Multiple
+subscribers respond to the SAME event by
+writing DIFFERENT state bytes, suggesting each
+flag represents a distinct subsystem's
+"acknowledged-disconnect" or "in-cleanup"
+marker. The destroy flag at `[+0xfd]` is one
+of these — not the primary purpose of the
+event, just one subsystem's response.
+
+**Critical implication for the question**:
+this is a **general-purpose broadcast
+lifecycle event**, fired from multiple emit
+sites scattered across AzCore + AzNetworking +
+REPClient code, received by multiple
+subsystems. Strongly consistent with
+"OnDisconnect", "OnConnectionLost",
+"OnConnectionDestroying", or similar
+fundamental Carrier event.
+
+The wake-9 hand-curated wordlist tried many
+candidates in this space ("OnDisconnect",
+"OnConnectionLost", "Carrier::ConnectionLost",
+etc.) and none matched. The string is
+probably either:
+- Internally-namespaced (e.g.
+  `GridMate::CarrierConnection::OnDisconnect`)
+- A specific event name we haven't tried
+  (e.g. `OnLink Lost`, `ConnDestroying`)
+- An AZ::Name custom event that O3DE source
+  contains but isn't in our hand-curated set
+
+Updated state_machine_summary.md § A3.1 row
+with the emitter/subscriber split + 7-flag
+list. Future contributor running the brute-
+force script against O3DE corpus has the
+complete target set now.
+
+**Built**:
+
+- `analysis/decomp_FUN_1402a6310_lowrange.txt`
+  (584 lines — large multi-event handler)
+- `analysis/decomp_FUN_146074880_repclient.txt`
+  (214 lines)
+- `analysis/decomp_FUN_146b64550_ebus_sibling.txt`
+  (215 lines — emitter)
+- `analysis/decomp_FUN_1471f4260_highrange.txt`
+  (202 lines — emitter)
+
+**Verification**:
+
+- `pytest server/javelin -q` → not re-run.
+- `tools/build_site.py` → will run pre-commit.
+  Decompiles 51 → 55.
+
+**Pattern note**: wakes 278-280 form a coherent
+3-wake sub-arc that **fundamentally reshapes
+our understanding of the destroy chain**:
+- Before (wakes 8-9): "one writer (`FUN_140fb3560`)
+  sets the destroy flag when event 0xFE476177
+  fires; the event id can't be reversed
+  statically; dead end."
+- After (wakes 278-280): "0xFE476177 is a
+  general-purpose lifecycle broadcast event
+  fired from 4+ emitter sites, received by 5+
+  subscribers each setting their own Carrier
+  state flag (one of which is the destroy
+  trigger); ~50 related hashes form the EBus's
+  event family; runtime trace OR O3DE corpus
+  grep would resolve the family."
+
+**Forward implications**:
+
+1. **A future parallel sweep** of the 17
+   remaining unexamined sites (likely more
+   emitters and subscribers) would complete
+   the picture but is now low marginal value —
+   the structural pattern is established.
+2. **O3DE corpus brute-force** against the
+   ~50-hash family is now a multi-prize hunt
+   — any one match identifies the EBus and
+   constrains the other 49.
+3. **Runtime trace** would resolve 0xFE476177
+   directly + log all related event names.
+
+**Recommendation for next wake**: SURFACE
+these findings to README + visitor docs (the
+Gate-2 row mentions "30s destroy timer fires
+0xFE476177" — that's now revealed to be more
+nuanced). Or pause-reflection on the 14-wake
+arc.
+
+**Cost summary**: 4 Ghidra decompiles + 1 doc
+update. **Closes the most productive static-
+RE arc since wake 252** with a clean
+structural model of the destroy-event family.
+The 17 remaining unexamined sites are
+predictable now (more emitters or
+subscribers); the surface area for
+mechanical enumeration is exhausted.
+
+**Blockers:** None.

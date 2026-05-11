@@ -5,7 +5,7 @@
     "codec_module_count": 36,
     "captured_type_count": 40,
     "registry_entry_count": 3487,
-    "decompile_count": 51,
+    "decompile_count": 55,
     "named_captured_types": 5
   },
   "captured_types": [
@@ -807,6 +807,15 @@
   ],
   "decompiles": [
     {
+      "name": "FUN_1402a6310",
+      "addr": "1402a6310",
+      "stem": "decomp_FUN_1402a6310_lowrange",
+      "lines": 584,
+      "size_bytes": 18173,
+      "signature": "void FUN_1402a6310(undefined8 param_1,undefined8 param_2,longlong *param_3,longlong param_4,",
+      "related": []
+    },
+    {
       "name": "FUN_140fb84b0",
       "addr": "140fb84b0",
       "stem": "decomp_FUN_140fb84b0_destroy_sibling",
@@ -924,6 +933,15 @@
       ]
     },
     {
+      "name": "FUN_146074880",
+      "addr": "146074880",
+      "stem": "decomp_FUN_146074880_repclient",
+      "lines": 214,
+      "size_bytes": 5593,
+      "signature": "void FUN_146074880(undefined8 param_1,undefined8 param_2,longlong *param_3,longlong param_4,",
+      "related": []
+    },
+    {
       "name": "FUN_1461361f0",
       "addr": "1461361f0",
       "stem": "decomp_FUN_1461361f0_dual_hit",
@@ -993,6 +1011,15 @@
       "related": []
     },
     {
+      "name": "FUN_146b64550",
+      "addr": "146b64550",
+      "stem": "decomp_FUN_146b64550_ebus_sibling",
+      "lines": 215,
+      "size_bytes": 6751,
+      "signature": "void FUN_146b64550(undefined8 param_1,ulonglong param_2,undefined8 param_3,longlong *param_4,",
+      "related": []
+    },
+    {
       "name": "FUN_146c60830",
       "addr": "146c60830",
       "stem": "decomp_FUN_146c60830",
@@ -1017,6 +1044,15 @@
       "lines": 294,
       "size_bytes": 8562,
       "signature": "void FUN_1471f15d0(undefined8 param_1,undefined8 param_2,longlong *param_3,longlong param_4,",
+      "related": []
+    },
+    {
+      "name": "FUN_1471f4260",
+      "addr": "1471f4260",
+      "stem": "decomp_FUN_1471f4260_highrange",
+      "lines": 202,
+      "size_bytes": 6405,
+      "signature": "void FUN_1471f4260(undefined8 param_1,ulonglong param_2,undefined8 param_3,longlong *param_4,",
       "related": []
     },
     {
@@ -28887,6 +28923,12 @@
       "test_count": 457,
       "commit": "68b5e9b",
       "subject": "re(static): wake-278 \u2014 sibling event dispatcher found, expands target set 1->19 hashes"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "e0d87a4",
+      "subject": "re(static): wake-279 \u2014 3 more dispatchers found, Carrier-state flag map surfaces"
     }
   ],
   "live_decoder_history": [
@@ -29423,7 +29465,7 @@
       "filename": "state_machine_summary.md",
       "title": "GameConnection State Machine \u2014 Synthesis (2026-05-07)",
       "summary": "After the V3 RegistrationResponse is accepted (already working \u2014 prior project notes confirmed `rep.ready` flips 0\u21921), the client sits in",
-      "bytes": 21429,
+      "bytes": 22120,
       "category": "Overview"
     },
     {
@@ -29491,6 +29533,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 280,
+      "title": "emitter / subscriber split surfaces (4 more dispatchers examined)",
+      "line": 3135,
+      "category": "other"
+    },
+    {
       "wake": 279,
       "title": "hit-site enumeration: 3 more dispatchers + 5-flag Carrier state map",
       "line": 2963,
@@ -29518,12 +29566,6 @@
       "wake": 275,
       "title": "archive audit pass (catches state-13\u219214 drift in state_machine_summary)",
       "line": 2329,
-      "category": "other"
-    },
-    {
-      "wake": 274,
-      "title": "destroy-trigger framing fix (catches wake-271/272 self-introduced drift)",
-      "line": 2155,
       "category": "other"
     }
   ],
