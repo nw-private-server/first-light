@@ -932,3 +932,71 @@ mode continues).
 prose. Single targeted commit.
 
 **Blockers:** None.
+
+
+## Wake 264 — README "Recent milestones" reorder (newest-first)
+
+**Goal**: the README's "Recent milestones" list
+had been chronological (wakes 1-150 first, 228-
+253 last) since the first retrospective shipped.
+For a return visitor — the dominant audience for
+this section, since first-time readers go to
+"Current status" or the live dashboard — the
+most recent achievement is the most useful
+"where are we now" signal. Long-deferred minor
+drift fix, finally landing.
+
+**Built**:
+
+- **`README.md`** — reversed the 4-bullet
+  Recent milestones list:
+  - **Now first**: Fourth-stretch retro (228-
+    253) — state-machine closure.
+  - **Then**: Third-stretch (197-227) — 90%
+    live-decoder + cross-check graph.
+  - **Then**: Second-stretch (151-196) —
+    dispatcher integration foundation.
+  - **Last**: 150-wake retro (1-150) — codec
+    coverage + dispatcher build.
+  - Header relabeled "**Recent milestones**
+    (newest first)" so the ordering convention
+    is explicit and survives future additions.
+
+**Verification**:
+
+- All 4 retrospective links unchanged — wake-207
+  cross-check ("every retrospective doc must
+  have a README link") still satisfied.
+- Wake-225 cross-check (analysis-path existence)
+  unaffected — same paths, same files.
+- `.venv/bin/python3 tools/build_site.py`
+  re-ran clean.
+- `pytest server/javelin -q` → **456 passing,
+  1 skipped** (unchanged).
+
+**Pattern note**: this is a small UX
+correction, not a doc-freshness wake. The
+question wasn't "is the content stale" — it was
+"is the ordering optimal for the actual reader
+flow". The header annotation ("newest first")
+is the structural fix: future arc-closures
+(fifth-stretch retro etc.) will naturally land
+at the top without needing to remember a
+convention.
+
+**Why this ordering benefits return visitors**:
+the wake-228-253 retrospective is the surface
+that explains the most recent state-machine
+RE arc + the static-RE limit (wake 252's
+indirect-vtable wall). That's the *current*
+status of the most active work-stream — far
+more relevant to "what should I work on" than
+the wake-1-to-150 codec-build narrative, which
+is now stable infrastructure.
+
+**Cost summary**: 1 prose reorder, ~10 lines
+diff. Single targeted commit. Smallest possible
+change to address a long-recognized minor
+issue.
+
+**Blockers:** None.

@@ -28746,6 +28746,12 @@
       "test_count": 457,
       "commit": "70f5314",
       "subject": "docs: wake-261 deferred drift \u2014 batch fix worklog references across 11 files"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "8fb18af",
+      "subject": "docs(worklog): wake-263 \u2014 archive header preamble for sealed wake-1-to-253 file"
     }
   ],
   "live_decoder_history": [
@@ -29350,6 +29356,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 264,
+      "title": "README \"Recent milestones\" reorder (newest-first)",
+      "line": 937,
+      "category": "docs"
+    },
+    {
       "wake": 263,
       "title": "archive header preamble (wake-261 follow-up)",
       "line": 849,
@@ -29378,12 +29390,6 @@
       "title": "wake-228 skeleton card: explicit cross-links to genre exemplars",
       "line": 472,
       "category": "other"
-    },
-    {
-      "wake": 258,
-      "title": "retrospective chain forward-pointers (wake-150, wake-227)",
-      "line": 390,
-      "category": "docs"
     }
   ],
   "live_decoder_coverage": {
