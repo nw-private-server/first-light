@@ -1539,6 +1539,47 @@ def load_findings():
                        "the 4-genre coverage.",
         },
         {
+            "title": "Indirect-vtable wall: static-RE limit pattern (3 instances)",
+            "category": "Architecture",
+            "wake": 283,
+            "summary": "Three static-RE arcs in this codebase have "
+                       "hit the same wall shape, now documented as a "
+                       "**generalizable limit pattern**: function "
+                       "chain → 3-line dispatch shim → DATA xref into "
+                       "a vtable-like table → further upstream "
+                       "tracing is not statically tractable. "
+                       "**Wake 252**: state-13→14 upstream trace via "
+                       "`FUN_142ff8940` hit indirect-vtable at "
+                       "`0x14816cec0`. **Wake 276**: V3 send-scheduler "
+                       "hunt via `FUN_146aaa130` → shim "
+                       "`FUN_146b11020` → 16-entry GridMate RPC "
+                       "vtable at `14858b2b0`. **Wake 283**: "
+                       "destroy-event scheduler verification via "
+                       "`FUN_146b64550` → shim `FUN_146b5d110` → "
+                       "misaligned-data table at `14ac16958` (not a "
+                       "standard 8-byte vtable). All three exhibit "
+                       "the GridMate RPC pattern: message handlers "
+                       "are registered through vtables installed at "
+                       "object construction time, and the construction "
+                       "site is itself indirect. **Implication**: "
+                       "static-RE on call paths above any "
+                       "vtable+offset boundary in the GridMate / "
+                       "AzCore RPC subsystem is not productive "
+                       "without either (a) full RTTI/typeinfo "
+                       "recovery to identify the interface type, or "
+                       "(b) runtime tracing. Future RE work should "
+                       "treat **any `(*vtable+offset)(...)` call as "
+                       "a likely wall** and budget accordingly. The "
+                       "pattern is also evidence that the bottleneck "
+                       "is design, not effort: the engine deliberately "
+                       "uses indirect dispatch for runtime flexibility, "
+                       "which is the same property that makes static "
+                       "reversal hit limits. Recording this as a "
+                       "structural finding so future contributors "
+                       "don't repeatedly hit the same wall expecting "
+                       "different results.",
+        },
+        {
             "title": "VM-on-Apple-Silicon ruled out for runtime testing",
             "category": "Architecture",
             "wake": 70,

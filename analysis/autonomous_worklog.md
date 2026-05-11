@@ -3964,3 +3964,108 @@ the destroy-event-family RE picture in one
 place.
 
 **Blockers:** None.
+
+
+## Wake 285 — Findings card for the indirect-vtable wall pattern (3 instances)
+
+**Goal**: per wake-284's recommendation +
+wake-285 forward menu option (b), surface
+the indirect-vtable-wall pattern as a
+discoverable Findings card. Three instances
+documented now (wakes 252 / 276 / 283),
+enough to be a structural pattern worth
+explicit visitor-facing surfacing rather
+than only in the worklog's methodological
+filings.
+
+**Built**:
+
+**`tools/build_site.py`** — new Findings
+card:
+- **Title**: "Indirect-vtable wall: static-
+  RE limit pattern (3 instances)".
+- **Category**: Architecture (matches the
+  meta-pattern nature; distinct from
+  individual finding/decision/investigation/
+  wall artifacts which are RE breakthroughs
+  or Research closure).
+- **Wake**: 283 (the wake that confirmed
+  the 3rd instance and filed the
+  generalizable rule).
+- **Content**: names all 3 instances with
+  their function names + vtable addresses;
+  describes the GridMate RPC pattern that
+  produces this wall (handlers registered
+  through indirect-dispatch vtables at
+  construction time); identifies the
+  implication (static-RE limit above any
+  `vtable+offset` boundary in the
+  GridMate/AzCore RPC subsystem) and the
+  remediation paths (runtime trace OR
+  RTTI/typeinfo recovery). Notes the
+  design-vs-effort framing: the engine
+  deliberately uses indirect dispatch for
+  runtime flexibility, which is the same
+  property that makes static reversal hit
+  limits.
+
+**Position**: inserted just before the
+wake-70 "VM-on-Apple-Silicon ruled out"
+Architecture card. The two cards now form a
+**runtime-handoff cluster** in the
+Architecture bucket — one captures the
+runtime-host blocker, the other captures
+the static-RE-limit blocker. Both point at
+the same "runtime is the next leg"
+conclusion from different angles.
+
+**Verification**:
+
+- `.venv/bin/python3 tools/build_site.py` →
+  clean.
+- `pytest server/javelin -q` → **456
+  passing, 1 skipped** — unchanged.
+- Wake-225 cross-check (analysis-path
+  existence): no new analysis paths in the
+  card prose.
+- Architecture bucket: 2 → 3 cards (now
+  wake-70 + wake-283 + wake-228
+  retrospective-skeleton). Findings tab
+  total: 23 → 24 cards.
+
+**Pattern note**: this is the second
+visitor-facing surfacing wake in the arc
+closure (after wake 281 which added the
+destroy-event-scheduler card). Together,
+wakes 281 + 285 surface the **two most
+substantive findings of the 17-wake arc**
+to the dashboard's discoverable surface:
+the destroy-event-family model + the
+indirect-vtable-wall pattern.
+
+**Architecture-bucket framing**: the bucket
+now captures structural truths about the
+project, distinct from specific RE
+findings (RE breakthrough) or methodology
+synthesis (Research closure). All 3 cards
+in this bucket point at structural
+constraints that shape what work is
+possible: VM testability (wake 70),
+session-arc narrative pattern (wake 228),
+static-RE limits at indirect vtables
+(wake 283).
+
+**Forward implication**: future RE wakes
+should reference this Findings card when
+hitting a vtable boundary — "this is the
+wake-283 wall pattern; budget accordingly"
+becomes a discoverable framing rather than
+a tribal-knowledge filing in the worklog.
+
+**Cost summary**: 1 new Findings card
+inserted, no other changes. Smallest
+possible follow-up to the wake-284
+reflection's "1-2 more small-drift wakes
+recommended" plan.
+
+**Blockers:** None.

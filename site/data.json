@@ -1749,6 +1749,12 @@
       "summary": "The autonomous-session work is now narrated across four frozen retrospective documents, each covering a coherent multi-wake arc: wakes 1-150 (`analysis/session_retrospective_150.md`) \u2014 codec library + dispatcher + initial dashboard, ending at 40/40 captured-codec coverage and the wake-112 state-10 RE breakthrough; wakes 151-196 (`analysis/session_retrospective_196.md`) \u2014 navigable dashboard, live decoder at 80%, rep_responder \u2194 dispatcher integration foundation; wakes 197-227 (`analysis/session_retrospective_227.md`) \u2014 live decoder push to 90.0% (with the wake-221 floor decision), phase-2 emission swap + counter-advance realism extension, and the cross-check graph (see the wake-210 meta-pattern card for current count, with five self-referential pins on the meta-card itself); **wakes 228-253 (`analysis/session_retrospective_253.md`) \u2014 state-machine RE closure arc, all 4 post-V3 state-spawn transitions now have writers + trigger chains identified at static-RE level, with the wake-252 indirect-vtable wall marking the static-RE limit (further progress on NewProxy wire-type ID is runtime-dependent)**. Each doc is a frozen snapshot of its arc + a forward pointer to the next. The wake-207 cross-check pins each doc to a README link; the wake-225 cross-check pins each path cited in this card to actually exist; wake 231 added an analogous pin for decision-doc README links. Future arcs follow the same pattern: ~25-50 wakes per retrospective, snapshot + 3-5 phases + open-items + forward pointer. The wake-253 retro covers 26 wakes \u2014 slightly below the previous-arc range, but the state-machine closure provided a natural narrative anchor. Four artifact genres now coexist on the Findings tab: **retrospectives** (frozen snapshots \u2014 4 docs, this is their card); **decision docs** (closed questions with reversal criteria \u2014 wake 221's 0x065c, cited from the wake-200 Findings card); **investigation logs** (search-in-progress with candidate triage \u2014 wake 241's state-13\u219214 investigation doc, surfaced via the wake-251 methodology card); **walls** (documented static-RE limit, runtime handoff necessary \u2014 wake 252's indirect-vtable termination, surfaced via its own wake-252 Findings card on this tab). Each genre has at least one exemplar Findings card on the dashboard, completing the 4-genre coverage."
     },
     {
+      "title": "Indirect-vtable wall: static-RE limit pattern (3 instances)",
+      "category": "Architecture",
+      "wake": 283,
+      "summary": "Three static-RE arcs in this codebase have hit the same wall shape, now documented as a **generalizable limit pattern**: function chain \u2192 3-line dispatch shim \u2192 DATA xref into a vtable-like table \u2192 further upstream tracing is not statically tractable. **Wake 252**: state-13\u219214 upstream trace via `FUN_142ff8940` hit indirect-vtable at `0x14816cec0`. **Wake 276**: V3 send-scheduler hunt via `FUN_146aaa130` \u2192 shim `FUN_146b11020` \u2192 16-entry GridMate RPC vtable at `14858b2b0`. **Wake 283**: destroy-event scheduler verification via `FUN_146b64550` \u2192 shim `FUN_146b5d110` \u2192 misaligned-data table at `14ac16958` (not a standard 8-byte vtable). All three exhibit the GridMate RPC pattern: message handlers are registered through vtables installed at object construction time, and the construction site is itself indirect. **Implication**: static-RE on call paths above any vtable+offset boundary in the GridMate / AzCore RPC subsystem is not productive without either (a) full RTTI/typeinfo recovery to identify the interface type, or (b) runtime tracing. Future RE work should treat **any `(*vtable+offset)(...)` call as a likely wall** and budget accordingly. The pattern is also evidence that the bottleneck is design, not effort: the engine deliberately uses indirect dispatch for runtime flexibility, which is the same property that makes static reversal hit limits. Recording this as a structural finding so future contributors don't repeatedly hit the same wall expecting different results."
+    },
+    {
       "title": "VM-on-Apple-Silicon ruled out for runtime testing",
       "category": "Architecture",
       "wake": 70,
@@ -28968,6 +28974,12 @@
       "test_count": 457,
       "commit": "53620ab",
       "subject": "re(static): wake-283 \u2014 vtable+0x608 verification stalls (3rd indirect-vtable wall); card refresh"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "92b41ce",
+      "subject": "docs(worklog): wake-284 \u2014 pause-reflection on 17-wake arc 267-283"
     }
   ],
   "live_decoder_history": [
@@ -29572,6 +29584,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 285,
+      "title": "Findings card for the indirect-vtable wall pattern (3 instances)",
+      "line": 3969,
+      "category": "site"
+    },
+    {
       "wake": 284,
       "title": "pause-reflection on the 17-wake arc 267-283",
       "line": 3703,
@@ -29599,12 +29617,6 @@
       "wake": 280,
       "title": "emitter / subscriber split surfaces (4 more dispatchers examined)",
       "line": 3135,
-      "category": "other"
-    },
-    {
-      "wake": 279,
-      "title": "hit-site enumeration: 3 more dispatchers + 5-flag Carrier state map",
-      "line": 2963,
       "category": "other"
     }
   ],
