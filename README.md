@@ -7,6 +7,8 @@ First Light is in reference to the territory "First Light" that was eventually r
 
 **Live dashboard:** [nw-private-server.github.io/first-light](https://nw-private-server.github.io/first-light/) — friendly project overview, captured-traffic charts, connection-state diagram, and the codec/decompile catalog. Mobile-friendly; auto-redeploys on push.
 
+**Recent milestone:** [150-wake session retrospective](analysis/session_retrospective_150.md) — single-page summary of the major phases (40/40 codec coverage, central dispatcher, state-10 RE breakthrough, audit arcs, 100% decompile cross-link density).
+
 
 ---
 

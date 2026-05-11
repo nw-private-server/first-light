@@ -1432,6 +1432,7 @@ a:hover { text-decoration: underline; }
         <option value="15d_W">0x15d W — heartbeat ack (36 bytes)</option>
         <option value="14f">0x14f — session_clock beacon (12 bytes)</option>
         <option value="651">0x651 — empty marker (4 bytes)</option>
+        <option value="18a6">0x18a6 — InitMessage18A6 (40 bytes)</option>
       </select>
       <button id="ld-decode" class="preset-btn ld-decode">Decode</button>
     </div>
@@ -1443,6 +1444,7 @@ a:hover { text-decoration: underline; }
       <button class="preset-btn" data-ldtype="15d_W" data-ldhex="65c50b2b 0000001c 00000000000000000000000000000000 00019d05 00036ef6 af912d74">0x15d ack</button>
       <button class="preset-btn" data-ldtype="14f" data-ldhex="00018f05 0b888d68 7b13001a">0x14f clock beacon</button>
       <button class="preset-btn" data-ldtype="651" data-ldhex="00019119">0x651 empty marker</button>
+      <button class="preset-btn" data-ldtype="18a6" data-ldhex="0001a662 f8cbed57c68b18f4 bf85314bbc4a951a 01010000 9cfa58617814 69f2 65030000 000002 01">0x18a6 init beacon</button>
     </div>
     <pre id="ld-result" class="ld-empty">(pick a preset or paste hex and press Decode)</pre>
   </div>
@@ -1825,6 +1827,14 @@ function setupLiveDecoder() {
       buf[off + 3]
     ) >>> 0;
   }
+  function u32le(buf, off) {
+    return (
+      buf[off] +
+      (buf[off + 1] << 8) +
+      (buf[off + 2] << 16) +
+      (buf[off + 3] * 0x1000000)
+    ) >>> 0;
+  }
   function hexBytes(buf, off, len) {
     let s = "";
     for (let i = 0; i < len; i++) {
@@ -1893,6 +1903,27 @@ function setupLiveDecoder() {
       size: 4,
       decode(buf) {
         return [["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x651, zero payload)"]];
+      },
+    },
+    "18a6": {
+      label: "InitMessage18A6 (type 0x18a6) — identity-bundle init beacon",
+      header: [0x00, 0x01, 0xa6, 0x62],
+      size: 40,
+      decode(buf) {
+        const reserved = hexBytes(buf, 36, 3);
+        if (reserved !== "000002") {
+          throw new Error(`reserved bytes mismatch: expected 000002, got ${reserved}`);
+        }
+        return [
+          ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x18a6)"],
+          ["first_uuid_half     (8 bytes)", hexBytes(buf, 4, 8)],
+          ["session_uuid_lower  (8 bytes)", hexBytes(buf, 12, 8)],
+          ["flags               (u32 LE)", hex0x(u32le(buf, 20))],
+          ["second_id           (8 bytes)", hexBytes(buf, 24, 8)],
+          ["build_version       (u32 LE)", hex0x(u32le(buf, 32)) + "  (= " + u32le(buf, 32) + ")"],
+          ["reserved            (3 bytes)", hexBytes(buf, 36, 3) + "  (✓ fixed)"],
+          ["counter             (u8)", "0x" + buf[39].toString(16).padStart(2, "0") + "  (= " + buf[39] + ")"],
+        ];
       },
     },
   };

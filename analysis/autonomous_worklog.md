@@ -12126,3 +12126,66 @@ file metadata, so the dashboard will pick up the new
 descriptions on next push.
 
 **Blockers:** None.
+
+## Wake 154 — README retrospective link + live-decoder picks up 0x18a6
+
+**Goal**: two complementary small wins. (1) Link the wake-150
+retrospective from the working-branch README so it's
+discoverable from the project's front door. (2) Extend the
+wake-152 live-decoder with the `InitMessage18A6` codec since
+visitors have a real worked example for it on the "How it
+works" tab; pairing the two means they can paste hex of a
+known shape and see exactly which fields are which.
+
+**Built**:
+
+- **README.md** (working branch only): one-line "Recent
+  milestone" note right under the "Live dashboard:" line,
+  linking to `analysis/session_retrospective_150.md`. Skipped
+  `main` because the retrospective doc lives on this branch
+  — a main-side link would be a forward reference until the
+  branch merges. The link will resolve correctly once this
+  branch is merged.
+
+- **site/index.html**:
+  - New `0x18a6 — InitMessage18A6 (40 bytes)` entry in the
+    type-id dropdown.
+  - New preset button populating the textarea with the
+    canonical 40-byte capture
+    (`0001a662 f8cb…f4 bf85…1a 01010000 9cfa…f2 65030000
+    000002 01`).
+  - `DECODERS["18a6"]`: validates type header, asserts the
+    3-byte `reserved` field is `000002`, then renders the 8
+    structured fields with field-aligned key/value
+    formatting:
+    - TYPE_HEADER, first_uuid_half (hex), session_uuid_lower
+      (hex), flags (u32 LE), second_id (hex),
+      build_version (u32 LE), reserved (constant), counter
+      (u8).
+  - New `u32le(buf, off)` helper alongside the existing
+    `u32be` — InitMessage18A6 is the first codec using
+    little-endian (flags + build_version).
+
+  Verified that the preset hex decodes cleanly through the
+  Python codec (`flags=257, build_version=869, counter=1`)
+  before shipping; the JS DECODERS table mirrors the Python
+  layout byte-for-byte.
+
+- **Skipped this wake**: a `subkey_beacon` decoder entry.
+  The wire shape has a per-type `type_header` at +0x18, so
+  it'd need an inner dropdown for the 12 family members; not
+  worth the extra UI complexity in one wake. Worth picking
+  up later as its own arc.
+
+**Result**: the README front door now points at the
+retrospective alongside the dashboard link. The live-decoder
+gained the 5th supported wire-type — the most structurally
+interesting one so far, with identity-bundle + LE/BE mixed
+fields + a constant-checked reserved field — so visitors can
+explore the same captured beacon that the "How it works"
+walkthrough explains.
+
+**No code changes** to `server/`. Tests still 374 (+1
+skipped). Site rebuild trivial.
+
+**Blockers:** None.
