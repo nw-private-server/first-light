@@ -24,6 +24,7 @@ from tools.build_site import (  # noqa: E402
     load_live_decoder_coverage,
     _coverage_badge_color,
     CATEGORY_ORDER,
+    CROSS_CHECK_MANIFEST,
     FINDINGS_CATEGORY_ORDER,
     LDTYPE_TO_TYPE_IDS,
     WAKE_CATEGORY_ORDER,
@@ -727,6 +728,69 @@ def test_phase2_arc_findings_card_pair_consistent():
         assert pattern.search(closure["summary"]), (
             f"closure card (wake 204) summary missing reference "
             f"to wake {wake} — phase-2 arc has drifted between cards"
+        )
+
+
+def test_findings_meta_card_count_matches_manifest():
+    """13th cross-check (wake 214) — self-referential. The wake-210
+    Findings card narrates the cross-check graph as
+    "N invariants" plus per-bucket counts. Those numbers are easy
+    to leave behind when a new structural test ships: the
+    maintainer adds the test to `test_build_tools.py`, updates
+    `CROSS_CHECK_MANIFEST` in `build_site.py`, but forgets the
+    Findings card prose. Pin the consistency.
+
+    Asserts:
+      - The card title contains "N invariants" where N is
+        `sum(len(v) for v in CROSS_CHECK_MANIFEST.values())`.
+      - The card summary opens with "N pytest tests" matching the
+        same total.
+      - Each bucket name appears in the card summary with its
+        per-bucket count: e.g. "Code structure** (6 tests:".
+
+    Why not assert the wake-numbers cited in the prose match the
+    manifest's per-bucket lists too? That would double the
+    surface area for cosmetic typos without proportionally
+    raising the safety. The count claim is the most likely thing
+    to drift; the per-wake citations are harder to mistype and
+    easier to spot in review."""
+    import re
+    cards = {f["wake"]: f for f in load_findings()}
+    card = cards.get(210)
+    assert card is not None, (
+        "expected the wake-210 cross-check meta-pattern card"
+    )
+    total = sum(len(v) for v in CROSS_CHECK_MANIFEST.values())
+    # Title: "Cross-check test graph: N invariants pinning ..."
+    title_match = re.search(rf"\b{total} invariants\b", card["title"])
+    assert title_match, (
+        f"wake-210 card title should claim {total} invariants "
+        f"(matching CROSS_CHECK_MANIFEST); got: {card['title']!r}"
+    )
+    # Summary opening: "N pytest tests now form ..."
+    open_match = re.search(
+        rf"\b{total} pytest tests now form\b", card["summary"]
+    )
+    assert open_match, (
+        f"wake-210 card summary should open with '{total} pytest "
+        f"tests now form'; got: {card['summary'][:120]!r}..."
+    )
+    # Summary closing benefit line: "Benefit: N silent failure modes"
+    benefit_match = re.search(
+        rf"Benefit: {total} silent failure modes", card["summary"]
+    )
+    assert benefit_match, (
+        f"wake-210 card benefit line should say "
+        f"'Benefit: {total} silent failure modes'"
+    )
+    # Per-bucket counts: "Bucket Name** (N tests:"
+    for bucket, wakes in CROSS_CHECK_MANIFEST.items():
+        n = len(wakes)
+        pattern = re.compile(rf"{re.escape(bucket)}\*\*\s*\({n} tests:")
+        assert pattern.search(card["summary"]), (
+            f"wake-210 card should claim {n} tests in bucket "
+            f"{bucket!r} (matching manifest); summary excerpt: "
+            f"{card['summary'][card['summary'].find(bucket):card['summary'].find(bucket)+80]!r}"
         )
 
 

@@ -16000,3 +16000,92 @@ as-is. Tests **449 passing (+1 skipped)** —
 unchanged. Coverage delta is the value here.
 
 **Blockers:** None.
+
+## Wake 214 — 13th cross-check: self-referential card-count ↔ manifest consistency
+
+**Goal**: the wake-210 meta-pattern Findings card
+narrates the cross-check graph as "12 invariants"
+across three buckets with per-bucket counts. Those
+numbers are now decoupled from reality — adding a
+13th test means the card claim needs updating, and
+the maintainer might forget. Pin the consistency
+with a self-referential test that asserts the card
+claims match a canonical manifest in `build_site.py`.
+
+Bonus: this 13th test IS one of the things the card
+counts, so the act of writing the test also flipped
+the count from 12 → 13. The manifest, the card, and
+the test all updated atomically in the same commit.
+
+**Built**:
+
+- **`tools/build_site.py`**:
+  - **`CROSS_CHECK_MANIFEST: dict[str, list[int]]`** —
+    canonical source of truth, mapping bucket names
+    to lists of wake numbers:
+    - "Code structure": [162, 166, 178, 184, 185, 196]
+    - "Generated output integrity": [172, 201, 202]
+    - "Doc/navigation drift": [207, 209, 210, **214**]
+    - Total: 13.
+  - **Wake-210 Findings card prose updated**:
+    - Title: "12 invariants" → "**13 invariants**".
+    - Summary opening: "12 pytest tests" →
+      "**13 pytest tests**".
+    - Doc/navigation drift bucket: "3 tests" →
+      "**4 tests**", with new entry "**214
+      self-referential card-count ↔ manifest
+      consistency**".
+    - Benefit line: "12 silent failure modes" →
+      "**13 silent failure modes**".
+    - Closing line: "future structural invariant
+      becomes test 13" → "**becomes test 14; the
+      wake-214 self-referential test now enforces
+      that the count claim here matches
+      `CROSS_CHECK_MANIFEST` in `tools/build_site.py`.**"
+
+- **`server/javelin/test_build_tools.py`**:
+  - **New test
+    `test_findings_meta_card_count_matches_manifest`**
+    (the 13th cross-check itself):
+    - Loads the wake-210 card via `load_findings()`.
+    - Computes `total = sum(len(v) for v in
+      CROSS_CHECK_MANIFEST.values())`.
+    - Asserts title contains "{total} invariants".
+    - Asserts summary opens with "{total} pytest tests
+      now form".
+    - Asserts benefit line claims "{total} silent
+      failure modes".
+    - For each bucket, asserts the prose contains
+      "{Bucket name}** ({len(wakes)} tests:".
+    - ~25 lines of regex + 20 lines of docstring.
+  - **Why not also assert wake-number citations match
+    manifest lists?** That would double the surface
+    area for cosmetic typos without proportionally
+    raising safety. The total count is what drifts;
+    citations rarely typo.
+
+**Cross-check graph at wake 214**: **13 tests** —
+adding the self-referential count check to the
+doc/navigation drift bucket.
+
+**Self-referential pattern note**: this is the
+**first** cross-check test whose subject IS the
+cross-check graph itself. Cute trick: if a future
+wake adds test 14 but only updates the manifest,
+this test fails — the card still says "13" but the
+manifest sums to 14. If they update the card but
+not the manifest, no test failure but the bucket
+sublist will be out of date and a careful reader
+spots it. The asymmetry is fine — the card-side
+drift is the dangerous one (publicly visible);
+the manifest-side drift is invisible until
+someone tries to add another test.
+
+**Test count**: **450 passing (+1 skipped)** — up
+from 449 (wake 213). +1 new test (the 13th
+cross-check) as planned. The wake-211 worklog
+narrated 8 Research closure cards; this wake
+doesn't add another card, just updates one — the
+count stays at 9.
+
+**Blockers:** None.
