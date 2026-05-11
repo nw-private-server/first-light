@@ -1986,6 +1986,15 @@ function showInspector(data, seq) {
     el.innerHTML = `<div class="empty">No decoded record for seq=${seq}.</div>`;
     return;
   }
+  // Reflect the inspected seq in the URL hash so the view is shareable.
+  // history.replaceState avoids cluttering the back-button stack as the
+  // user clicks prev/next through the session.
+  try {
+    const newHash = `#msg=0x${seq.toString(16)}`;
+    if (location.hash !== newHash) {
+      history.replaceState(null, "", newHash);
+    }
+  } catch (_e) { /* ignore — non-browser env or hash disabled */ }
 
   const all = data.replay_decoded;
   const idx = all.findIndex(r => r.seq === seq);
@@ -2257,9 +2266,32 @@ document.addEventListener("keydown", (ev) => {
   if (input) input.focus();
 });
 
-load().catch(err => {
-  document.body.innerHTML += `<pre style="color:#f85149">Error loading data: ${err}</pre>`;
-});
+load()
+  .then(() => {
+    // After data + UI are loaded, honor #msg=0xNN deep-links by opening
+    // the message inspector for that seq. Useful for sharing direct
+    // links to a specific captured message's decoded view.
+    const applyHash = () => {
+      const m = /^#msg=(?:0x)?([0-9a-fA-F]+)$/.exec(location.hash || "");
+      if (!m) return;
+      const seq = parseInt(m[1], 16);
+      const dataEl = document.querySelector('script[data-replay]');
+      // Re-fetch data.json (cheaper than threading the closure here).
+      fetch("data.json").then(r => r.json()).then(d => {
+        if (typeof showInspector === "function") {
+          showInspector(d, seq);
+          // Scroll the inspector into view so the deep-link lands on it.
+          const insp = document.getElementById("msg-inspector");
+          if (insp) insp.scrollIntoView({behavior: "smooth", block: "start"});
+        }
+      });
+    };
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+  })
+  .catch(err => {
+    document.body.innerHTML += `<pre style="color:#f85149">Error loading data: ${err}</pre>`;
+  });
 </script>
 </body>
 </html>

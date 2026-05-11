@@ -11863,3 +11863,35 @@ the other 38 captured wire-types by analogy.
 Site rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 149 — sharable inspector deep-links (`#msg=0xNN`)
+
+**Goal**: the wake-120 message inspector lets visitors click any
+dot on the session-timeline scatter to see decoded fields. But
+the view isn't sharable — closing/reopening the page loses
+state. Add URL-hash deep-linking.
+
+**Built**:
+
+- `site/index.html`:
+  - `showInspector(data, seq)` now writes
+    `#msg=0x{seq:hex}` via `history.replaceState` (no
+    back-button clutter as users prev/next).
+  - On page load, if `location.hash` matches `#msg=0xNN`,
+    `applyHash()` fetches data.json and calls
+    `showInspector(d, seq)` plus `scrollIntoView` so the
+    deep-link lands directly on the inspector.
+  - `hashchange` listener so manually editing the hash also
+    works.
+
+**Result**: visitors can now share URLs like
+`https://nw-private-server.github.io/first-light/#msg=0x2c`
+that open the dashboard at a specific captured message's
+decoded view. Clicking the scatter updates the hash so the
+URL reflects the current selection — copy-paste works
+naturally.
+
+**No code changes** to `server/`. Tests still 346 (+1 skipped).
+Site rebuild trivial.
+
+**Blockers:** None.
