@@ -794,6 +794,54 @@ def test_findings_meta_card_count_matches_manifest():
         )
 
 
+def test_findings_meta_card_cites_every_manifest_wake():
+    """14th cross-check (wake 218) — extends wake-214 self-referential
+    coverage. The wake-214 test pins the COUNT claims in the
+    wake-210 card; this test pins the WAKE CITATIONS. Without it, a
+    maintainer could swap one wake number for another in the card
+    prose (e.g. change "wake 162" to "wake 152" by mistake), keep
+    the total count at 14, and pass wake-214's test — but the
+    citations would diverge from the manifest's list silently.
+
+    Asserts that for every wake number in CROSS_CHECK_MANIFEST
+    (across all three buckets), the summary of the wake-210 card
+    contains a reference to that wake number (matched as a bare
+    integer at word boundaries — robust to both "wake N" and
+    bare-number forms used in the bucket prose).
+
+    Distinct from wake-214 because that test answers "does the card
+    claim the right TOTAL?"; this one answers "does the card cite
+    the right WAKES?". Together they pin both axes of drift."""
+    import re
+    cards = {f["wake"]: f for f in load_findings()}
+    card = cards.get(210)
+    assert card is not None, (
+        "expected the wake-210 cross-check meta-pattern card"
+    )
+    all_wakes = sorted(
+        {w for bucket in CROSS_CHECK_MANIFEST.values() for w in bucket}
+    )
+    assert all_wakes, "expected CROSS_CHECK_MANIFEST to be non-empty"
+    summary = card["summary"]
+    missing = []
+    for wake in all_wakes:
+        # Match the wake number as a standalone integer with word
+        # boundaries. Manifest wakes (162, 166, ...) don't collide
+        # with the non-wake digits in the card body (14 invariants,
+        # &lt;30 lines, ~320 lines, etc), so a bare \b{N}\b match
+        # is unambiguous in this context.
+        pattern = re.compile(rf"\b{wake}\b")
+        if not pattern.search(summary):
+            missing.append(wake)
+    assert not missing, (
+        f"wake-210 card summary missing references to manifest wakes: "
+        f"{missing}. The wake-218 test pins citation-by-citation "
+        f"consistency: every wake listed in CROSS_CHECK_MANIFEST must "
+        f"appear in the card. Either fix the card prose to cite the "
+        f"wake, or update the manifest if the wake was removed."
+    )
+
+
 def test_every_retrospective_doc_has_readme_entry():
     """Structural drift mode: someone writes a new
     `analysis/session_retrospective_*.md` but forgets to link it from

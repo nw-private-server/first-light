@@ -16284,3 +16284,82 @@ was used as-is. Tests **450 passing (+1 skipped)** —
 unchanged.
 
 **Blockers:** None.
+
+## Wake 218 — 14th cross-check: card prose cites every manifest wake
+
+**Goal**: the wake-214 test pinned the wake-210 card's
+COUNT claims to `CROSS_CHECK_MANIFEST`, but left a
+loose end: WAKE CITATIONS aren't pinned. A maintainer
+could swap "wake 162" → "wake 152" in the card prose,
+keep the total at 14, and pass the wake-214 test —
+but the citations would silently diverge from the
+manifest's list. Close that loop with the 14th
+cross-check.
+
+**Built**:
+
+- **`tools/build_site.py`**:
+  - **`CROSS_CHECK_MANIFEST` updated**: added 218 to
+    Doc/navigation drift bucket → 5 entries → total
+    14.
+  - **Wake-210 card text updated atomically**:
+    - Title: "13 invariants" → "**14 invariants**".
+    - Summary opening: "13 pytest tests" →
+      "**14 pytest tests**".
+    - Doc/navigation drift bucket prose:
+      "(4 tests: …, 214 self-referential…)" →
+      "(5 tests: …, 214 self-referential…,
+      **218 wake-number citations match manifest**)".
+    - Benefit line: "13" → "**14 silent failure
+      modes**".
+    - Test cost: "~300 lines" → "~320 lines".
+    - Closing: "future structural invariant becomes
+      test 14" → "**becomes test 15; wakes 214 and
+      218 together now enforce that both the count
+      claim AND the wake-number citations here match
+      `CROSS_CHECK_MANIFEST`.**"
+
+- **`server/javelin/test_build_tools.py`**:
+  - **New test
+    `test_findings_meta_card_cites_every_manifest_wake`**
+    (the 14th cross-check itself):
+    - Loads the wake-210 card via `load_findings()`.
+    - Flattens `CROSS_CHECK_MANIFEST` to a sorted set
+      of all 14 manifest wakes.
+    - For each wake, asserts a `\b{wake}\b` match
+      against the card summary.
+    - Robust to both "wake N" and bare-number forms
+      since manifest wakes (162, 166, 172, 178, …)
+      don't collide with the non-wake digits used
+      elsewhere in the card (count claims, line
+      estimates).
+    - Assertion message tells the maintainer exactly
+      what's missing and where to look.
+
+**Verification**: both the wake-214 (count) and
+wake-218 (citations) tests pass against the updated
+card. Together they form a 2-axis pin: changing
+either the count OR the citation set without
+updating the manifest fails loudly.
+
+**Cross-check graph at wake 218**: **14 tests** —
+adding the citation-pin to Doc/navigation drift.
+
+**Pattern note**: this is the **2nd** self-
+referential cross-check (wake 214 was the first).
+Both subjects are the meta-pattern card itself. The
+recursion is bounded: each new self-referential test
+adds a different axis of consistency check, but
+doesn't itself become an axis that needs further
+pinning (the test's docstring describes its own
+contract; if a future maintainer changes the
+docstring without changing behavior, no test fails
+— and that's fine because the docstring isn't
+load-bearing).
+
+**Test count**: **451 passing (+1 skipped)** — up
+from 450 (wake 217). +1 new test as planned. The
+Research closure cluster stays at 9 cards (no new
+card added; we updated existing wake-210 card).
+
+**Blockers:** None.
