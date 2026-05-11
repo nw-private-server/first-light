@@ -470,6 +470,32 @@ def load_recent_wakes(limit: int = 6):
     ]
 
 
+def load_live_decoder_history() -> list[dict]:
+    """Hardcoded coverage milestones for the live-decoder progression
+    chart (wake 223). Updated by hand at each milestone wake — there
+    are few enough of these (~7) that automating extraction from git
+    log isn't worth the maintenance. The wake-185 preset coverage
+    test + the wake-222 manifest uniqueness test together prevent
+    the more critical drift modes; an out-of-date entry here just
+    means a slightly stale chart, not a code bug."""
+    return [
+        {"wake": 152, "covered": 6,  "total": 40, "percent": 15.0,
+         "note": "Initial live-decoder shipping with 6 simple codecs"},
+        {"wake": 178, "covered": 23, "total": 40, "percent": 57.5,
+         "note": "+1097, 136a, 1096, subkey family (14 types via one decoder)"},
+        {"wake": 192, "covered": 32, "total": 40, "percent": 80.0,
+         "note": "First 80% milestone: +1067 VivoxConfig, +663 LevelDescriptor"},
+        {"wake": 199, "covered": 34, "total": 40, "percent": 85.0,
+         "note": "+16a0 AssetBlob Small (153 bytes), +ca4 AssetCountTable"},
+        {"wake": 213, "covered": 35, "total": 40, "percent": 87.5,
+         "note": "+0x635 ActionHistory (variable 15-byte history records)"},
+        {"wake": 217, "covered": 36, "total": 40, "percent": 90.0,
+         "note": "+0x12f6 KeybindingConfig (UTF-8 binding walk + 2 version blocks)"},
+        {"wake": 221, "covered": 36, "total": 40, "percent": 90.0,
+         "note": "Decision: 0x065c stays out — 90.0% is the floor by design"},
+    ]
+
+
 def load_test_count_history():
     """Mine git log for the test_count history of site/data.json.
 
@@ -1206,6 +1232,7 @@ def build_data():
     replay_timeline = load_replay_timeline()
     replay_decoded = load_replay_decoded()
     test_count_history = load_test_count_history()
+    live_decoder_history = load_live_decoder_history()
     wire_type_families = load_wire_type_families()
     decompile_groups = load_decompile_groups()
     decompile_annotations = load_decompile_annotations()
@@ -1488,6 +1515,7 @@ def build_data():
         "replay_timeline": replay_timeline,
         "replay_decoded": replay_decoded,
         "test_count_history": test_count_history,
+        "live_decoder_history": live_decoder_history,
         "wire_type_families": wire_type_families,
         "decompile_groups": decompile_groups,
         "analysis_docs": analysis_docs,

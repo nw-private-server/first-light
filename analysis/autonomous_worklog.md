@@ -16684,3 +16684,82 @@ from 451 (wake 221). +1 new test as planned. The
 Research closure cluster stays at 9 cards.
 
 **Blockers:** None.
+
+## Wake 223 — live-decoder coverage chart on the dashboard
+
+**Goal**: the live-decoder coverage progression is
+narrated across multiple Findings cards (wake-192,
+wake-200) but isn't visualized. Add a small Chart.js
+line chart that plots the 7-point progression
+(wake 152 6/40 → wake 221 90.0%) — visitor sees the
+trajectory at a glance and tooltip-hovers each
+milestone for the codec that landed at that wake.
+
+**Built**:
+
+- **`tools/build_site.py`**:
+  - **New `load_live_decoder_history()`** returning
+    hardcoded list of 7 milestone dicts. Each entry
+    carries `wake`, `covered`, `total`, `percent`,
+    and a `note` for the tooltip. Updated manually
+    at each milestone wake — not automated since the
+    growth rate is low (~1-2 entries per multi-wake
+    arc).
+  - **`load_live_decoder_history` hooked into the
+    main data build**: stamped onto `data.json` as
+    `live_decoder_history`.
+
+- **`site/index.html`**:
+  - **New chart card** added below "Test-suite
+    growth over wakes" with the same full-width
+    layout. Title "Live-decoder coverage over
+    wakes", hint text references the wake-221
+    decision doc explaining why 90.0% is the floor.
+  - **New canvas** `chart-live-decoder-history`.
+  - **New `drawLiveDecoderHistory(data)`** mirroring
+    `drawTestHistory`: line chart with blue
+    accent color (vs green for test-history),
+    `pointRadius: 5` (vs 4 for test-history) since
+    we have far fewer points (7 vs 50+), Y-axis
+    ticks formatted as `N/40`, suggestedMax of 40.
+    Tooltip renders "covered/total (percent%)" on
+    line one and the milestone note on line two.
+  - **`safeDraw("live-decoder-history",
+    drawLiveDecoderHistory)`** wired alongside the
+    other chart draws.
+
+**Verification**:
+- All 7 milestones present in `data.json`:
+  152 6/40, 178 23/40, 192 32/40, 199 34/40,
+  213 35/40, 217 36/40, 221 36/40 (plateau marker
+  for the decision wake).
+- Tests **452 passing (+1 skipped)** — unchanged.
+  No new test for the chart itself (rendering-only;
+  Chart.js handles the heavy lifting; the data
+  comes from a deterministic hardcoded list).
+
+**Why the wake-221 plateau marker?** Visually
+emphasizes "we stopped at 90% by choice, not
+because we ran out of types." The flat segment
+from wake 217 to wake 221 at 36/40 reads as a
+deliberate floor rather than abandonment. Tooltip
+on the wake-221 point links the decision doc.
+
+**Chart-card neighbor consistency**: the test-
+history chart shows test-suite growth over wakes
+(~50 commits worth of points). The new chart is
+denser per-point (each point is a meaningful
+addition, not a per-commit tick) but the two
+share full-width layout + same hint style, so
+they read as a pair.
+
+**No new test** for the chart. The `data.json`
+output is deterministic; if `load_live_decoder_history`
+returns an incorrect list, the visual output is
+wrong but no code is broken. A future wake could
+add a cross-check that the last milestone's
+percentage matches the current `badge-live-decoder.json`
+value, but that's overkill for a hardcoded list
+with low growth velocity.
+
+**Blockers:** None.

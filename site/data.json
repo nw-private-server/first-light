@@ -28344,6 +28344,63 @@
       "test_count": 452,
       "commit": "4826263",
       "subject": "docs(analysis): decision document \u2014 0x065c stays out of live decoder"
+    },
+    {
+      "wake": null,
+      "test_count": 453,
+      "commit": "4ad59eb",
+      "subject": "test(site): 15th cross-check \u2014 manifest wake-numbers unique across buckets"
+    }
+  ],
+  "live_decoder_history": [
+    {
+      "wake": 152,
+      "covered": 6,
+      "total": 40,
+      "percent": 15.0,
+      "note": "Initial live-decoder shipping with 6 simple codecs"
+    },
+    {
+      "wake": 178,
+      "covered": 23,
+      "total": 40,
+      "percent": 57.5,
+      "note": "+1097, 136a, 1096, subkey family (14 types via one decoder)"
+    },
+    {
+      "wake": 192,
+      "covered": 32,
+      "total": 40,
+      "percent": 80.0,
+      "note": "First 80% milestone: +1067 VivoxConfig, +663 LevelDescriptor"
+    },
+    {
+      "wake": 199,
+      "covered": 34,
+      "total": 40,
+      "percent": 85.0,
+      "note": "+16a0 AssetBlob Small (153 bytes), +ca4 AssetCountTable"
+    },
+    {
+      "wake": 213,
+      "covered": 35,
+      "total": 40,
+      "percent": 87.5,
+      "note": "+0x635 ActionHistory (variable 15-byte history records)"
+    },
+    {
+      "wake": 217,
+      "covered": 36,
+      "total": 40,
+      "percent": 90.0,
+      "note": "+0x12f6 KeybindingConfig (UTF-8 binding walk + 2 version blocks)"
+    },
+    {
+      "wake": 221,
+      "covered": 36,
+      "total": 40,
+      "percent": 90.0,
+      "note": "Decision: 0x065c stays out \u2014 90.0% is the floor by design"
     }
   ],
   "wire_type_families": [
@@ -28876,6 +28933,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 223,
+      "title": "live-decoder coverage chart on the dashboard",
+      "line": 16688,
+      "category": "site"
+    },
+    {
       "wake": 222,
       "title": "15th cross-check: manifest wake-numbers unique across buckets",
       "line": 16598,
@@ -28904,12 +28967,6 @@
       "title": "14th cross-check: card prose cites every manifest wake",
       "line": 16288,
       "category": "test"
-    },
-    {
-      "wake": 217,
-      "title": "0x12f6 KeybindingConfig live decoder (coverage 35\u219236, 90%)",
-      "line": 16214,
-      "category": "site"
     }
   ],
   "live_decoder_coverage": {

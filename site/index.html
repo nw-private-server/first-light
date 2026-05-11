@@ -1332,6 +1332,11 @@ a:hover { text-decoration: underline; }
       <div class="hint">Each commit that touched <code>site/data.json</code> records the test count at that point. Wake numbers come from commit messages. The jump at wake&nbsp;164 (347→410) reflects a scope change: the counter was originally only the codec suite, now covers all of <code>server/javelin/</code> including the wake-157 shadow-decode + wake-162 tooling tests.</div>
       <div class="chart-wrap"><canvas id="chart-test-history"></canvas></div>
     </div>
+    <div class="chart-card" style="grid-column: 1 / -1;">
+      <h3>Live-decoder coverage over wakes</h3>
+      <div class="hint">Captured wire-types decodable directly from the Explore tab. Wake 152 introduced the live decoder at 6/40; wake 217 reached 36/40 (90.0%) — the design floor per the <a href="https://github.com/nw-private-server/first-light/blob/claude/vacation-2026-05-06/analysis/decision_0x065c_live_decoder.md" target="_blank" rel="noopener">wake-221 decision doc</a>.</div>
+      <div class="chart-wrap"><canvas id="chart-live-decoder-history"></canvas></div>
+    </div>
   </div>
 
   <div class="section-h">The captured login session, message-by-message</div>
@@ -2038,6 +2043,7 @@ async function load() {
     safeDraw("volume-coverage", drawVolumeCoverageChart);
     safeDraw("replay-timeline", drawReplayTimeline);
     safeDraw("test-history", drawTestHistory);
+    safeDraw("live-decoder-history", drawLiveDecoderHistory);
   }
 
   // ---- Recent activity (wake 168, deep-linked wake 170) ----
@@ -3598,6 +3604,60 @@ function drawTestHistory(data) {
           beginAtZero: false,
           grid: { color: "#30363d" },
           ticks: { color: COLORS.dim, font: { family: "ui-monospace, monospace", size: 11 } },
+        },
+      },
+    },
+  });
+}
+
+function drawLiveDecoderHistory(data) {
+  const h = data.live_decoder_history || [];
+  if (!h.length) return;
+  const labels = h.map(r => `wake ${r.wake}`);
+  const counts = h.map(r => r.covered);
+  new Chart(document.getElementById("chart-live-decoder-history"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        data: counts,
+        borderColor: COLORS.blue,
+        backgroundColor: "rgba(88,166,255,0.14)",
+        pointBackgroundColor: COLORS.blue,
+        pointBorderColor: "#161b22",
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        tension: 0.18,
+        fill: true,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const r = h[ctx.dataIndex];
+              return [
+                `${r.covered}/${r.total} (${r.percent.toFixed(1)}%)`,
+                r.note,
+              ];
+            },
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: COLORS.dim } },
+        y: {
+          beginAtZero: false,
+          suggestedMax: 40,
+          grid: { color: "#30363d" },
+          ticks: {
+            color: COLORS.dim, font: { family: "ui-monospace, monospace", size: 11 },
+            callback: (v) => `${v}/40`,
+          },
         },
       },
     },
