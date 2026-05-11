@@ -389,6 +389,25 @@ main { padding: 16px; max-width: 1100px; margin: 0 auto; }
 .wake-pill-code  { background: #1f3528; color: #95d4a8; border-color: #2f5840; }
 .wake-pill-docs  { background: #3a2818; color: #e0b283; border-color: #5e4022; }
 .wake-pill-other { background: #2a2a2a; color: #999;    border-color: #444; }
+/* Wake 215: legend below the recent-activity strip. Explains the four
+   non-"other" pill colors at the same dim weight as the pills themselves
+   so a scanner doesn't read it as a callout. Wraps cleanly on narrow
+   widths. */
+.wake-pill-legend {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.8;
+}
+.wake-pill-legend .legend-note {
+  margin-right: 2px;
+}
+.wake-pill-legend .legend-sep {
+  margin: 0 8px;
+  color: #555;
+}
 
 /* Contributor ramp-up cards (wake 167) */
 .contrib-paths {
@@ -1248,6 +1267,19 @@ a:hover { text-decoration: underline; }
   <div class="recent-activity">
     <div class="recent-h">Recent activity</div>
     <ul id="recent-wakes"></ul>
+    <div class="wake-pill-legend" aria-label="Category pill legend">
+      <span class="wake-pill wake-pill-test">test</span>
+      <span class="legend-note">cross-checks, lockdowns, invariants</span>
+      <span class="legend-sep">·</span>
+      <span class="wake-pill wake-pill-site">site</span>
+      <span class="legend-note">Findings cards, decoder coverage, dashboard</span>
+      <span class="legend-sep">·</span>
+      <span class="wake-pill wake-pill-code">code</span>
+      <span class="legend-note">rep_responder, codec, phase-2 work</span>
+      <span class="legend-sep">·</span>
+      <span class="wake-pill wake-pill-docs">docs</span>
+      <span class="legend-note">retrospective, README, worklog updates</span>
+    </div>
     <a class="recent-more"
        href="https://github.com/nw-private-server/first-light/blob/claude/vacation-2026-05-06/analysis/autonomous_worklog.md"
        target="_blank" rel="noopener">Full worklog →</a>

@@ -16089,3 +16089,56 @@ doesn't add another card, just updates one — the
 count stays at 9.
 
 **Blockers:** None.
+
+## Wake 215 — recent-activity pill legend
+
+**Goal**: the wake-210 category pills color-code each
+recent wake (test/site/code/docs/other) but there's
+no legend explaining what the colors mean. A first-
+time visitor sees a purple "test" pill or a green
+"code" pill and has to infer the system from
+context. Add a small legend below the strip.
+
+**Built**:
+
+- **`site/index.html`**:
+  - **HTML**: a `<div class="wake-pill-legend">`
+    inserted between the `<ul id="recent-wakes">` and
+    the "Full worklog →" link. Four pill samples
+    with terse descriptions:
+    - `test` — "cross-checks, lockdowns, invariants"
+    - `site` — "Findings cards, decoder coverage,
+      dashboard"
+    - `code` — "rep_responder, codec, phase-2 work"
+    - `docs` — "retrospective, README, worklog
+      updates"
+  - **CSS**: `.wake-pill-legend` style block — 10px
+    top margin, dim border-top separator, `var(--
+    text-dim)` color so the legend reads as quiet
+    metadata rather than competing with the wake
+    list itself. `.legend-sep` middot between pill+
+    note groups in a darker shade.
+  - **"other" category omitted** from the legend
+    intentionally — it's the heuristic fallback that
+    should rarely appear. If a wake title doesn't
+    match any known bucket, the "other" pill stays
+    informative (i.e. "we don't have a category for
+    this one") rather than presenting as an
+    intentional choice.
+  - The legend uses the same `.wake-pill` /
+    `.wake-pill-<cat>` classes as the strip itself,
+    so any future color theme change ripples through
+    legend + strip together.
+
+**No `tools/build_site.py` change** — the legend is
+fully static HTML/CSS, no data dependency. **No new
+test** for the legend; the existing wake-210
+12th-cross-check (every recent wake has a known
+category) already pins the category set, and the
+HTML legend mirroring it is small enough that a
+visual review at next deploy catches drift.
+
+**No `server/javelin/` changes**. Tests still **450
+passing (+1 skipped)** — unchanged.
+
+**Blockers:** None.

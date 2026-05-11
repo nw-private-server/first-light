@@ -28296,6 +28296,12 @@
       "test_count": 450,
       "commit": "356497f",
       "subject": "feat(site): live decoder +0x635 ActionHistory \u2192 35/40 (87.5%)"
+    },
+    {
+      "wake": null,
+      "test_count": 451,
+      "commit": "abc329e",
+      "subject": "test(site): 13th cross-check \u2014 self-referential card-count vs manifest"
     }
   ],
   "wire_type_families": [
@@ -28821,6 +28827,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 215,
+      "title": "recent-activity pill legend",
+      "line": 16093,
+      "category": "other"
+    },
+    {
       "wake": 214,
       "title": "13th cross-check: self-referential card-count \u2194 manifest consistency",
       "line": 16004,
@@ -28849,12 +28861,6 @@
       "title": "recent-activity category pills",
       "line": 15701,
       "category": "site"
-    },
-    {
-      "wake": 209,
-      "title": "11th cross-check: phase-2 arc Findings card pair consistency",
-      "line": 15632,
-      "category": "test"
     }
   ],
   "live_decoder_coverage": {
