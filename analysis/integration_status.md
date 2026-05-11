@@ -1,9 +1,15 @@
 # Codec ↔ server integration status
 
 > Snapshot of how much of the codec library
-> (`server/javelin/*`, 22 dedicated + 1 generic codec, ~35 captured
-> type-IDs covered) is currently consumed by the runtime
-> server-side code. Compiled wake 82.
+> (`server/javelin/*`, **40 / 40 captured type-IDs covered** as of
+> wake 109, plus a central dispatcher in
+> [`server/javelin/dispatch.py`](../server/javelin/dispatch.py))
+> is currently consumed by the runtime server-side code.
+> Originally compiled wake 82; codec-side counts refreshed wake
+> 153. The integration tl;dr below ("mostly decoupled") still
+> holds — `rep_responder.py` continues to drive the runtime from
+> raw replay bytes; the dispatcher is wired but the responder
+> is not yet routed through it.
 
 ## tl;dr
 

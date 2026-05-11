@@ -12064,3 +12064,65 @@ Site rebuild went from 386,233 → 386,363 bytes (no data
 changes; just the index.html UI delta is what matters).
 
 **Blockers:** None.
+
+## Wake 153 — doc-staleness audit (3 files updated)
+
+**Goal**: post-150-wake retrospective, several older analysis
+docs still framed open problems that have since closed. Run a
+parallel-agent audit and apply targeted fixes.
+
+**Built**:
+
+- **Two parallel `Explore` subagents** audited 8 docs in total
+  (batch A: `replay_message_inventory.md`,
+  `state_machine_summary.md`, `message_inventory.md`,
+  `integration_status.md`; batch B: `typename_unblock_spec.md`,
+  `state_10_unblock_synthesis.md`,
+  `clientmessagestrait_wire_formats.md`,
+  `compression_algorithm.md`). Each agent was given the current
+  ground-truth state (40/40 codecs, 374 tests, 0 decode
+  failures, dispatcher live, state-10 predicate at `+0xa0`)
+  and asked to quote-match stale claims.
+
+- **Fixes applied** to 3 docs:
+  1. **`typename_unblock_spec.md`**: added an "**archived**"
+     status banner at the top — the doc was written wake 97
+     when 35 of 40 wire-types were unclaimed; all 40 are now
+     codec-complete (wake 109). The remaining body content
+     stays for historical context but the banner now points
+     readers at `codec_library_overview.md` and
+     `session_retrospective_150.md` for current state.
+  2. **`codec_coverage.md`**: replaced the contradictory "252
+     tests passing in test_codecs.py" line and the "~35 of 40
+     captured type-IDs covered" line — the doc had two
+     contradictory test counts (252 vs 346) and a stale
+     coverage claim. Now reads "40 / 40 captured type-IDs
+     covered" with a note clarifying that the doc has older
+     snapshots and pointing at the authoritative source.
+  3. **`integration_status.md`**: refreshed the lead snapshot
+     from "22 dedicated + 1 generic codec, ~35 captured
+     type-IDs" to "40 / 40 captured type-IDs covered as of
+     wake 109, plus a central dispatcher" — and added a
+     pointer to `dispatch.py`. The body's "mostly decoupled"
+     verdict still holds (rep_responder hasn't routed
+     through the dispatcher yet), so that stayed.
+
+- **Found-but-no-fix-needed**: `state_machine_summary.md`,
+  `state_10_unblock_synthesis.md`,
+  `clientmessagestrait_wire_formats.md`,
+  `compression_algorithm.md`, `replay_message_inventory.md`,
+  `message_inventory.md` all checked out as current.
+
+**Result**: the three biggest staleness traps (a spec doc that
+still framed the codec library as 35/40 open, a coverage doc
+with internally contradictory test counts, an integration-
+status doc citing pre-dispatcher numbers) are now banner-
+flagged or in-line corrected. The 5 remaining docs in the
+audit are current.
+
+**No code changes**. No test changes (374 +1 skipped). Site
+rebuild not strictly needed — the analysis-doc index re-reads
+file metadata, so the dashboard will pick up the new
+descriptions on next push.
+
+**Blockers:** None.

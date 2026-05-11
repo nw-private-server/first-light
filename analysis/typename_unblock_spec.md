@@ -1,5 +1,24 @@
 # Type-name extraction: what's needed for further progress
 
+> **Status (wake 150+):** this spec is **archived**. It described
+> the type-name extraction problem as of wake 97, when 35 of the
+> 40 captured wire-types lacked authoritative names. **All 40 are
+> now codec-complete** (wake 109 closed the final decode failure
+> with `AssetBlob16A0Large`; wake 112 wire-bound the state-10
+> trigger `0x5d1`). The full 177-message replay round-trips with
+> **0 decode failures, 0 wire mismatches** through
+> `server/javelin/dispatch.py`. The strategies below (Frida hook,
+> registry dump, static-RE) are kept for historical context — they
+> are no longer required to make the capture useful. The remaining
+> type-name work is incremental polish (better human-readable
+> names on the dashboard), not unblocking.
+>
+> See [`codec_library_overview.md`](codec_library_overview.md) for
+> the current state and [`session_retrospective_150.md`](session_retrospective_150.md)
+> for the full milestone arc.
+
+---
+
 > Spec for unblocking the **35 captured wire-types** that remain
 > unclaimed after wakes 90-97. Five (0x03, 0x13, 0xa4, 0x14f,
 > 0x15d) are confirmed by direct static-only matching; the rest

@@ -106,8 +106,14 @@ For any new codec:
   `make_handshake_blob_76`, `make_result_token_136a`,
   `make_result_token_1097`
 - **49 exports** from `server/javelin/__init__.py`
-- **252 tests passing** in `test_codecs.py`
-- **~35 of 40 captured type-IDs covered**
+- **40 / 40 captured type-IDs covered** by codecs (as of wake 109)
+
+> Older snapshots in this doc cited "252 tests" and "~35 of 40
+> covered" — those are pre-wake-109 numbers. Current state is
+> `40/40` and 374 pytest cases (347 named functions; parametrize
+> markers expand a few of them). See
+> [`codec_library_overview.md`](codec_library_overview.md) for
+> the authoritative current count.
 
 ### Larger codec modules (≥ 200 lines)
 

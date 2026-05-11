@@ -27857,6 +27857,12 @@
       "test_count": 347,
       "commit": "5935962",
       "subject": "feat(site): group analysis docs by category on Findings tab"
+    },
+    {
+      "wake": null,
+      "test_count": 347,
+      "commit": "68aa47e",
+      "subject": "feat(site): inline live decoder on Explore tab"
     }
   ],
   "wire_type_families": [
@@ -28020,7 +28026,7 @@
       "filename": "codec_coverage.md",
       "title": "Codec coverage map",
       "summary": "Both audits (decoder rejection + encoder round-trip) are at **0 gaps** as of wake 136 \u2014 see [`codec_test_audit.md`](codec_test_audit.md) and [`codec_encoder_audit.md`](codec_encoder_audit.md).",
-      "bytes": 10463,
+      "bytes": 10770,
       "category": "Overview"
     },
     {
@@ -28118,7 +28124,7 @@
       "filename": "integration_status.md",
       "title": "Codec \u2194 server integration status",
       "summary": "The codec library and the server (`server/rep_responder.py`) are **mostly decoupled**. The responder uses **raw replay-message bytes** (with redaction-span substitution for live values) for all post-V3 traffic. Only t\u2026",
-      "bytes": 7101,
+      "bytes": 7453,
       "category": "Overview"
     },
     {
@@ -28209,7 +28215,7 @@
       "filename": "typename_unblock_spec.md",
       "title": "Type-name extraction: what's needed for further progress",
       "summary": "in `info/typeregistry.json` (3487 entries) maps `typeIndex` to `(uuid, handler_fingerprint, ...)` but only 312 entries have a populated `name` field \u2014 the remaining 3175 have `name=\"\"`.",
-      "bytes": 6032,
+      "bytes": 6969,
       "category": "RE Finding"
     },
     {
