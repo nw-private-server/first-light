@@ -1425,6 +1425,12 @@
       "summary": "The state 12 \u2192 13 transition is gated by **wrapper[+0xbc8] != 0** (per the state-machine summary predicate table). The primary path is **LevelInfoChangedMsg**'s handler (FUN_146446800) which **directly forces state to 13**. A separate scan (`FindOffsetWrites 0xbc8 0x1`) found that there is also a **soft writer** of the gate byte that sets wrapper[+0xbc8] = 1 without force-advancing: FUN_145a9fa00 (one-line setter, exactly one xref). The state machine then advances 12 \u2192 13 on its next tick via the normal predicate. The writer's single caller is FUN_14645c660 \u2014 itself a ClientMessagesTrait dispatch-table entry (at 0x14abcc45c, 0x300 bytes from PlayerManagerSelfIdentification's entry). So a **second trait message** (name TBD) provides an alternative path to advance state past 12 without sending the full LevelInfoChanged payload. Static-RE can't recover the message name because that dispatch row's metadata column points into a different `.rdata` segment with no log-strings or RTTI tag near the entry. Candidates are the 3 unmapped ClientMessagesTrait classes (PlayerManagerRejectedMsg, RemoteConfigChangedMsg, DebugCommandResponseMsg); definitive ID needs a runtime Frida trace hooking FUN_14645c660 to log the incoming RTTI tag. Finding originated at autonomous-loop wake 13 (2026-05-07) and was surfaced into `analysis/state_machine_summary.md` \u00a7 4\u00bd at wake 232 (with a wake-234 correction \u2014 the wake-232 prose mistakenly framed this as the 11\u219212 gate; 11\u219212 is actually a re-check on wrapper[+0xa0] that auto-fires once 10\u219211 lands). State 13 \u2192 14 (entering InGame) remains TBD \u2014 wrapper[+0x252] is its gate but no clean single-writer was found."
     },
     {
+      "title": "Post-V3 state-spawn ladder: 4 transitions mapped (1 writer still open)",
+      "category": "RE breakthrough",
+      "wake": 240,
+      "summary": "Static-RE has mapped the post-V3 state-spawn ladder end-to-end. States 10 \u2192 14 form the spawn sequence (10=WaitingForREPConnection, 11=WaitingForActorGameConnection, 12=WaitingForSpawnPoint, 13=WaitingForPlayerSpawn, 14=InGame \u2014 names recovered from the table at 0x1484f9ff0). Each transition reads a different field on the `GameConnectionWrapper` sub-object at `gc + 0x130`: **10\u219211** `*(int)(wrapper+0xa0) == 2`, written by `FUN_145a87010` (onConnectionSuccess) called from `FUN_146454c00` (PlayerManagerSelfIdentification handler); wire trigger 0x5d1 (wake 112). **11\u219212** `*(int)(wrapper+0xa0) != 0` \u2014 inverted check on the same field, auto-fires once 10\u219211 lands. **12\u219213** `*(u8)(wrapper+0xbc8) != 0` \u2014 primary path: LevelInfoChangedMsg's handler (`FUN_146446800`) directly forces state to 13; secondary path: `FUN_14645c660` (another ClientMessagesTrait dispatch entry, message TBD) sets the gate byte via `FUN_145a9fa00` (wake 232/234). **13\u219214** `*(u8)(wrapper+0x252) != 0` \u2014 **writer NOT yet identified**. Wake-13's FindOffsetWrites scan came up empty (3 hits, all unrelated). The real writer must use a register-based, memcpy, or OR-store pattern. This is the **last concrete static-RE step** to close the spawn ladder; once found, the post-V3 server-message sequence will be fully characterized end-to-end. See `analysis/state_machine_summary.md` \u00a7 1 for the predicate table and \u00a7 4\u00bd for the wake-232 12\u219213 writer details. The wake-112 + wake-232 individual cards capture the breakthroughs; this synthesis card surfaces the complete picture in one place."
+    },
+    {
       "title": "W-direction CRC32 confirmed",
       "category": "Wire-level finding",
       "wake": 90,
@@ -28458,6 +28464,12 @@
       "test_count": 457,
       "commit": "cee85e9",
       "subject": "docs(analysis): MORNING_BRIEF.md historical-snapshot header"
+    },
+    {
+      "wake": 153,
+      "test_count": 457,
+      "commit": "e010bcb",
+      "subject": "docs(analysis): integration_status.md phase-2D update (wake 153 -> 239)"
     }
   ],
   "live_decoder_history": [
@@ -29048,6 +29060,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 240,
+      "title": "Findings card: post-V3 state-spawn ladder synthesis",
+      "line": 18133,
+      "category": "site"
+    },
+    {
       "wake": 239,
       "title": "integration_status.md phase-2D update",
       "line": 18054,
@@ -29075,12 +29093,6 @@
       "wake": 235,
       "title": "queued_work.md targeted refresh (wake-83 \u2192 wake-235)",
       "line": 17695,
-      "category": "other"
-    },
-    {
-      "wake": 234,
-      "title": "state-numbering correction (wake-232 / wake-233 framing error)",
-      "line": 17597,
       "category": "other"
     }
   ],

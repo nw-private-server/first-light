@@ -961,6 +961,51 @@ def load_findings():
                        "no clean single-writer was found.",
         },
         {
+            "title": "Post-V3 state-spawn ladder: 4 transitions mapped (1 writer still open)",
+            "category": "RE breakthrough",
+            "wake": 240,
+            "summary": "Static-RE has mapped the post-V3 state-spawn "
+                       "ladder end-to-end. States 10 → 14 form the "
+                       "spawn sequence (10=WaitingForREPConnection, "
+                       "11=WaitingForActorGameConnection, "
+                       "12=WaitingForSpawnPoint, "
+                       "13=WaitingForPlayerSpawn, 14=InGame — names "
+                       "recovered from the table at 0x1484f9ff0). "
+                       "Each transition reads a different field on "
+                       "the `GameConnectionWrapper` sub-object at "
+                       "`gc + 0x130`: "
+                       "**10→11** `*(int)(wrapper+0xa0) == 2`, written "
+                       "by `FUN_145a87010` (onConnectionSuccess) "
+                       "called from `FUN_146454c00` "
+                       "(PlayerManagerSelfIdentification handler); "
+                       "wire trigger 0x5d1 (wake 112). "
+                       "**11→12** `*(int)(wrapper+0xa0) != 0` — "
+                       "inverted check on the same field, auto-fires "
+                       "once 10→11 lands. "
+                       "**12→13** `*(u8)(wrapper+0xbc8) != 0` — "
+                       "primary path: LevelInfoChangedMsg's handler "
+                       "(`FUN_146446800`) directly forces state to 13; "
+                       "secondary path: `FUN_14645c660` (another "
+                       "ClientMessagesTrait dispatch entry, message "
+                       "TBD) sets the gate byte via `FUN_145a9fa00` "
+                       "(wake 232/234). "
+                       "**13→14** `*(u8)(wrapper+0x252) != 0` — "
+                       "**writer NOT yet identified**. Wake-13's "
+                       "FindOffsetWrites scan came up empty (3 hits, "
+                       "all unrelated). The real writer must use a "
+                       "register-based, memcpy, or OR-store pattern. "
+                       "This is the **last concrete static-RE step** "
+                       "to close the spawn ladder; once found, the "
+                       "post-V3 server-message sequence will be "
+                       "fully characterized end-to-end. See "
+                       "`analysis/state_machine_summary.md` § 1 for "
+                       "the predicate table and § 4½ for the wake-232 "
+                       "12→13 writer details. The wake-112 + wake-232 "
+                       "individual cards capture the breakthroughs; "
+                       "this synthesis card surfaces the complete "
+                       "picture in one place.",
+        },
+        {
             "title": "W-direction CRC32 confirmed",
             "category": "Wire-level finding",
             "wake": 90,

@@ -18129,3 +18129,88 @@ investigation is the next substantive RE step.
 **No new tests, no new code**. Doc refresh.
 
 **Blockers:** None.
+
+## Wake 240 — Findings card: post-V3 state-spawn ladder synthesis
+
+**Goal**: the 3 individual RE breakthrough cards
+(wake-90 typename limit, wake-112 state-10,
+wake-232 state-12→13) plus the state_machine_summary
+doc cover the state-spawn ladder across multiple
+surfaces. A visitor landing on the Findings tab
+sees the individual breakthroughs but not the
+**complete arc**. Add a synthesis card narrating
+all 4 transitions end-to-end + the lone remaining
+open question (state 13 → 14 writer).
+
+**Built**:
+
+- **`tools/build_site.py`**: new Findings card
+  inserted after wake-232 card:
+  - **Title**: "Post-V3 state-spawn ladder: 4
+    transitions mapped (1 writer still open)".
+  - **Category**: RE breakthrough (4th card in
+    the cluster — joins wake-90 typename, wake-112
+    state-10, wake-232 state-12→13).
+  - **Wake**: 240.
+  - **Summary** (~330 words): walks each transition
+    with predicate, writer, trigger. Calls out
+    11→12 as the auto-fire on the same wrapper[+0xa0]
+    field. State 13→14 explicitly named as the
+    "last concrete static-RE step". Cross-references
+    `state_machine_summary.md` § 1 + § 4½ for
+    detail.
+  - **Framing**: explicitly notes it's a synthesis
+    card — "this synthesis card surfaces the
+    complete picture in one place" — to avoid
+    reading as redundant with the individual
+    cards.
+
+**Why a synthesis card now**:
+- The wake-228 retrospective-skeleton (Architecture)
+  card mentions state work but doesn't enumerate
+  the transitions.
+- The wake-227 retrospective covers the 197-227
+  arc but isn't focused on state.
+- `state_machine_summary.md` has the full picture
+  but lives in `analysis/` (requires drill-down).
+- The Findings tab is the dashboard's primary
+  "what's known" surface; a visitor scanning it
+  should see the state-machine claim as a unified
+  artifact.
+
+**Findings tab at wake 240**: **20 cards** across
+4 categories:
+- Research closure: 9
+- Wire-level finding: 5
+- **RE breakthrough: 4** (+1)
+- Architecture: 2
+
+**Cross-check coverage**:
+- wake-225 (analysis-path existence): cites
+  `state_machine_summary.md` — exists ✓.
+- wake-218 (manifest citation): unaffected.
+- wake-227 (manifest-vs-tests): unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: 12th Findings card added since
+wake-163 categorization. The "zero new
+infrastructure" property holds — single dict entry.
+
+**Discoverability cascade now complete for state-
+machine work**: a visitor can land on either:
+1. The Findings tab and see the synthesis card
+   (one-stop summary).
+2. The individual breakthrough cards (wake-112,
+   wake-232) for specific findings.
+3. The state_machine_summary doc (deep dive).
+4. The wake-227 retrospective (chronological
+   narrative).
+
+All four surfaces converge on the same picture.
+The remaining state-13→14 writer question is the
+single open thread — visible from every surface.
+
+**No new tests, no new code**. Pure dashboard
+artifact + dict-only Findings card.
+
+**Blockers:** None.
