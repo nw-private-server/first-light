@@ -844,3 +844,91 @@ longer a drift mode anywhere in the repo.
 Single batch commit.
 
 **Blockers:** None.
+
+
+## Wake 263 — archive header preamble (wake-261 follow-up)
+
+**Goal**: the `autonomous_worklog_through_253.md`
+archive (created at wake 261, references propagated
+at wake 262) retained its original header
+("Autonomous worklog — extended session starting
+2026-05-07") which now reads as if the file is still
+the active worklog. A visitor landing on the archive
+directly — via a retrospective's "per-wake trail
+lives in" pointer, for example — has no immediate
+signal that this file is sealed history.
+
+**Built**:
+
+- **`analysis/autonomous_worklog_through_253.md`**
+  — prepended an "Archive note" preamble:
+  - **New title**: "Autonomous worklog — wakes
+    1-253 (sealed archive)" (was "extended
+    session starting 2026-05-07")
+  - **Sealed-at-wake-261 callout** with the
+    2026-05-11 split date.
+  - **Forward pointer** to the active worklog
+    + all 4 retrospectives as the recommended
+    arc-level entry points.
+  - **Frozen-state disclaimer**: the "Currently
+    actionable" + "Task queue" sections below
+    are historical record, not current
+    priorities. Names the single current
+    carry-over (real-GPU host).
+  - **Original header preserved** below the
+    preamble, separated by `---`, for
+    historical context.
+
+**Verification**:
+
+- Read first 40 lines of the modified file — the
+  new title appears at the top, the archive note
+  is the first block of prose, the original
+  header is preserved below the `---`.
+- All existing links into the file (deep section
+  references) remain valid: only the topmost
+  H1 + intro block changed; no anchors below
+  are affected.
+- Tests **456 (+1 skipped)** — unchanged. No
+  code, no `build_site.py` impact (archive isn't
+  surfaced in the dashboard's Findings index,
+  per wake-261's EXCLUDED set).
+
+**Snapshot-doc scan (option e, opportunistic)**:
+checked `frida_hook_audit.md` and
+`community_archives_survey.md` as candidates from
+the wake-263 menu's option (e). Both are
+appropriately frozen: the Frida audit is a one-
+shot suspicion-sort of `tools/frida_dtls_hook.js`,
+and the community-archive survey is a wake-99
+verdict ("not protocol-relevant") on five
+maintainer-added archives. Neither is a rolling-
+status doc; both are correctly frozen by nature.
+**No drift to fix.**
+
+**Pattern note**: this is the third wake in the
+wake-261 cascade (261 split → 262 reference
+propagation → 263 archive self-description). The
+archive can now stand on its own — a visitor
+arriving at it directly knows immediately what it
+is, when it was sealed, and where to find current
+state. After this wake, the worklog-split
+infrastructure is fully self-describing.
+
+The cascade also surfaces a small meta-finding:
+when a file is split or archived, the **three
+follow-on concerns** are (1) downstream
+references, (2) the archive's own self-
+description, (3) any tooling that indexed the
+original. Wakes 261/262/263 hit (1) and (2);
+(3) was solved at wake 261 itself via the
+EXCLUDED-set update in `tools/build_site.py`.
+That's a complete pattern — file it for any
+future split (the worklog will inevitably need
+another split around wake ~500 if the autonomous
+mode continues).
+
+**Cost summary**: 1 file edit, ~25 lines of new
+prose. Single targeted commit.
+
+**Blockers:** None.

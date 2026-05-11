@@ -1,3 +1,26 @@
+# Autonomous worklog — wakes 1-253 (sealed archive)
+
+> **Archive note (sealed 2026-05-11 at wake 261):** this file is the
+> frozen wake-1-to-253 portion of the autonomous worklog, split off
+> when the active file grew past readability (~20k lines). Wakes 254+
+> are in the active [`autonomous_worklog.md`](autonomous_worklog.md).
+>
+> For arc-level narrative, the four retrospectives are the recommended
+> entry points: [wake 150](session_retrospective_150.md) /
+> [wake 196](session_retrospective_196.md) /
+> [wake 227](session_retrospective_227.md) /
+> [wake 253](session_retrospective_253.md).
+>
+> The original header is preserved below for historical context. The
+> "Currently actionable" + "Task queue" sections reflect priorities at
+> the time those wakes ran — they are frozen historical record, not
+> current state. Per the wake-253 retrospective, the single current
+> carry-over is "real-GPU Windows host with Frida" (one experiment
+> unblocks both phase-2D validation and the state-13→14 trigger
+> upstream trace).
+
+---
+
 # Autonomous worklog — extended session starting 2026-05-07
 
 This file is appended to by an autonomous Claude session running in `/loop`

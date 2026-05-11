@@ -28740,6 +28740,12 @@
       "test_count": 457,
       "commit": "d56919a",
       "subject": "docs(worklog): split autonomous_worklog at wake-253 boundary (1800 -> 20155 lines)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "70f5314",
+      "subject": "docs: wake-261 deferred drift \u2014 batch fix worklog references across 11 files"
     }
   ],
   "live_decoder_history": [
@@ -29344,6 +29350,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 263,
+      "title": "archive header preamble (wake-261 follow-up)",
+      "line": 849,
+      "category": "other"
+    },
+    {
       "wake": 262,
       "title": "wake-261 deferred drift: batch fix worklog references",
       "line": 771,
@@ -29372,12 +29384,6 @@
       "title": "retrospective chain forward-pointers (wake-150, wake-227)",
       "line": 390,
       "category": "docs"
-    },
-    {
-      "wake": 257,
-      "title": "Wall Findings card (22nd card, 4-genre typology completes)",
-      "line": 289,
-      "category": "site"
     }
   ],
   "live_decoder_coverage": {
