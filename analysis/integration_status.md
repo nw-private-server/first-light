@@ -6,10 +6,51 @@
 > [`server/javelin/dispatch.py`](../server/javelin/dispatch.py))
 > is currently consumed by the runtime server-side code.
 > Originally compiled wake 82; codec-side counts refreshed wake
-> 153. The integration tl;dr below ("mostly decoupled") still
-> holds — `rep_responder.py` continues to drive the runtime from
-> raw replay bytes; the dispatcher is wired but the responder
-> is not yet routed through it.
+> 153; integration arc updates added at wake 239 (covering
+> the phase-2D work shipped at wakes 204/208). The integration
+> tl;dr below ("mostly decoupled") still holds for the **default
+> code path** — `rep_responder.py` continues to drive runtime
+> from raw replay bytes — but the dispatcher is now wired in
+> with two default-off feature flags that route 0x15d heartbeats
+> through it. See "Post-wake-153 update" below for the full arc.
+
+## Post-wake-153 update: phase-2D integration foundation (wakes 157-208)
+
+A 6-step arc closed the rep_responder ↔ dispatcher integration
+gap behind feature flags. From wake-227 retrospective:
+
+| Wake | Step |
+|---|---|
+| 157 | Inbound shadow-decode (every received record routes through dispatcher at debug level, no behavior change) |
+| 158 | 9-test lockdown of the inbound shadow path |
+| 187 | Outbound encode-validation probe (startup-time byte-equality check on cached 0x15d) |
+| 188 | 8-test lockdown of the outbound probe |
+| 204 | **Actual heartbeat emission swap** behind `heartbeat_use_dispatcher` flag (default off, byte-equivalent to captured replay) |
+| 208 | **Counter-advance extension** behind `heartbeat_advance_counter` flag — mutates `_heartbeat_decoded.counter / nonce` per call so dispatched heartbeats genuinely progress |
+
+The wake-204/208 flags compose:
+- `off / off` (default) = captured replay path, identical to pre-wake-157 behavior.
+- `on / off` = dispatcher-encoded emission, byte-identical to captured replay.
+- `on / on` = dispatcher-encoded emission with counter advancement
+  per call (closest to a real server).
+
+All three modes are pinned by tests; real-GPU validation is the
+next step (current blocker — see
+[`MORNING_BRIEF.md`](MORNING_BRIEF.md) for the runtime-host
+status as of wake 70 + the wake-227 retrospective for the
+current static-RE state).
+
+What this means for the original tl;dr:
+- "**mostly decoupled**" — still accurate for the default off/off
+  mode. The codec library remains a schema + invariant test bed
+  + future-emission scaffolding for that path.
+- The shadow-decode + probe paths (157/187) consume the
+  dispatcher even at the default code path, but only for
+  validation/logging; no behavior change.
+- When `heartbeat_use_dispatcher = True` is flipped, the
+  heartbeat emission path **does** route through the codec
+  library (specifically `heartbeat_15d` via the central
+  dispatcher).
 
 ## tl;dr
 
@@ -43,14 +84,16 @@ beyond the redacted-span substitutions.
 | Module | Use | Path |
 |---|---|---|
 | `frame.py` | parse incoming Carrier datagrams + records (low-level wire framing) | runtime |
+| `dispatch.py` (added wake 157) | central dispatcher — shadow-decodes inbound records (default), validates outbound 0x15d at startup (default), emits outbound 0x15d when `heartbeat_use_dispatcher=True` (wake 204+) | runtime |
 | `replay_store.py` | load the captured `messages-redacted.txt` and surface `ReplayMessage` objects | replay setup |
 | `replay_substitution.py` | fill XX redacted spans with live session_uuid / persona_id values | replay emission |
 | `v3_request.py` | parse the client's V3 RegistrationRequest | runtime |
 | `v3_response.py` | encode the server's V3 RegistrationResponse | runtime |
 | `wire.py` | `encode_vlq32`, `chunk_replay_payload` for the chunked-replay path | replay emission |
 
-Total: **6 of the 23+ javelin modules** are imported by
-`rep_responder.py`.
+Total: **7 of the 23+ javelin modules** are imported by
+`rep_responder.py` (was 6 pre-wake-157; the dispatcher landed
+during the phase-2D arc).
 
 ## What's shipped but unused at runtime
 
@@ -91,7 +134,7 @@ test suite, not by the runtime.
 | `permission_bitmap_a95` (W decode) | Inspect / log client-reported permission bitmap | low |
 | `receipt_handshake_9fc` (W decode) | Validate the 0x8e6→0x9fc hash echo (catch invariant violations) | low |
 | `world_data_blob_65c` | Build a fresh WORLD DATA blob for non-captured zones (would need handler-side info too) | future |
-| AzCore-style (`level_info_changed`, `self_ident`) | Already deferred per worklog wakes 51-63; needs static-RE | **deferred** |
+| AzCore-style (`level_info_changed`, `self_ident`) | ~~Already deferred per worklog wakes 51-63; needs static-RE~~ — **partly resolved at wake 112**: state-10 gate found (`wrapper[+0xa0] == 2`), 0x5d1 trigger identified. Runtime emission still gated on real-GPU validation per phase-2D arc. | now ready for runtime |
 
 ## What integration would look like, concretely
 

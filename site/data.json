@@ -28452,6 +28452,12 @@
       "test_count": 457,
       "commit": "205c69e",
       "subject": "docs(analysis): state_machine_summary cross-references between \u00a7\u00a7 1, 4, 4\u00bd"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "cee85e9",
+      "subject": "docs(analysis): MORNING_BRIEF.md historical-snapshot header"
     }
   ],
   "live_decoder_history": [
@@ -28889,8 +28895,8 @@
     {
       "filename": "integration_status.md",
       "title": "Codec \u2194 server integration status",
-      "summary": "The codec library and the server (`server/rep_responder.py`) are **mostly decoupled**. The responder uses **raw replay-message bytes** (with redaction-span substitution for live values) for all post-V3 traffic. Only t\u2026",
-      "bytes": 7453,
+      "summary": "A 6-step arc closed the rep_responder \u2194 dispatcher integration gap behind feature flags. From wake-227 retrospective:",
+      "bytes": 10106,
       "category": "Overview"
     },
     {
@@ -29042,6 +29048,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 239,
+      "title": "integration_status.md phase-2D update",
+      "line": 18054,
+      "category": "code"
+    },
+    {
       "wake": 238,
       "title": "MORNING_BRIEF.md historical-snapshot header",
       "line": 17968,
@@ -29070,12 +29082,6 @@
       "title": "state-numbering correction (wake-232 / wake-233 framing error)",
       "line": 17597,
       "category": "other"
-    },
-    {
-      "wake": 233,
-      "title": "Findings card for the wake-232 state-11\u219212 surfaced finding",
-      "line": 17516,
-      "category": "site"
     }
   ],
   "live_decoder_coverage": {

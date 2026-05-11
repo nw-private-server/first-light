@@ -18050,3 +18050,82 @@ state 13 → 14 writer (`wrapper[+0x252]`) — still
 the only concrete open static-RE step.
 
 **Blockers:** None.
+
+## Wake 239 — integration_status.md phase-2D update
+
+**Goal**: 5th doc-freshness wake. The
+`integration_status.md` doc was refreshed at wake
+153 — pre-dates the entire phase-2D integration
+arc (wakes 157, 158, 187, 188, 204, 208). The
+"6 of 23 javelin modules imported" count is off
+(now 7 — `dispatch.py` added at wake 157), and
+the "AzCore-style ... needs static-RE" line is
+out of date (wake 112 found the state-10 gate).
+
+**Built**:
+
+- **`analysis/integration_status.md`**:
+  - **Header** updated to note wake-239 phase-2D
+    update. The "mostly decoupled" tl;dr still
+    accurate for default-off mode.
+  - **New "Post-wake-153 update: phase-2D
+    integration foundation (wakes 157-208)"
+    section** summarizing the 6-step arc with a
+    table:
+    - 157 inbound shadow-decode
+    - 158 9-test lockdown
+    - 187 outbound encode-validation probe
+    - 188 8-test lockdown
+    - **204 actual emission swap** behind
+      `heartbeat_use_dispatcher` (default off)
+    - **208 counter-advance** behind
+      `heartbeat_advance_counter` (default off)
+  - Explicit flag-composition matrix:
+    - off/off (default) = captured-replay
+    - on/off = byte-identical dispatcher
+    - on/on = genuinely-advancing dispatcher
+  - **Imports table** extended with `dispatch.py`
+    row (added wake 157, used for shadow-decode +
+    startup probe + dispatched emission). Count
+    bumped from 6 → 7.
+  - **AzCore-style row** in "Where each codec
+    WOULD be useful" struck through + annotated
+    with wake-112 resolution + phase-2D runtime
+    readiness.
+
+**Why preserve the wake-82 thesis?** The
+"mostly decoupled" + "do not eagerly integrate"
+recommendation is still load-bearing **for the
+default code path**. The phase-2D arc shipped the
+infrastructure to flip the integration on, but
+defaults stay off until real-GPU validation
+runs. The doc's overall structure stays — only
+specific claims got updated where they're now
+incomplete.
+
+**Verification**:
+- wake-225 (analysis-path existence): card prose
+  unchanged.
+- wake-209 (paired card): unaffected.
+- wake-207 (retrospective ↔ README): unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Doc-freshness pass status** (now wakes 235-239):
+- 235 queued_work.md
+- 236 ghidra_hunt_list.md
+- 237 state_machine_summary cross-references
+- 238 MORNING_BRIEF.md historical-snapshot
+- **239 integration_status.md phase-2D update**
+
+5 consecutive doc-freshness wakes. Each closes a
+specific stale-claim risk. The wake-238 "snapshot
+vs rolling" framing applies cleanly to
+integration_status (rolling — the doc tracks
+ongoing integration state, refresh in place).
+
+**Carry-over** still surfaced: state 13 → 14 writer
+investigation is the next substantive RE step.
+
+**No new tests, no new code**. Doc refresh.
+
+**Blockers:** None.
