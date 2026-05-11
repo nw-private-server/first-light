@@ -28434,6 +28434,12 @@
       "test_count": 457,
       "commit": "b93427f",
       "subject": "docs(analysis): correct wake-232/233 state-numbering error"
+    },
+    {
+      "wake": 83,
+      "test_count": 457,
+      "commit": "9fc6d67",
+      "subject": "docs(analysis): queued_work.md targeted refresh (wake 83 -> 235)"
     }
   ],
   "live_decoder_history": [
@@ -28857,8 +28863,8 @@
     {
       "filename": "ghidra_hunt_list.md",
       "title": "Ghidra Hunt List \u2014 Javelin / GridMate fingerprints in NewWorld.exe",
-      "summary": "These are confirmed present in the binary. Cross-referencing each string gives the function(s) that use it; from there we demangle and map back to GridMate.",
-      "bytes": 7954,
+      "summary": "State-machine gates (see [`state_machine_summary.md`](state_machine_summary.md) for the predicate table at \u00a7 1):",
+      "bytes": 10989,
       "category": "Audit"
     },
     {
@@ -29024,6 +29030,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 236,
+      "title": "ghidra_hunt_list.md targeted refresh (wake-109 \u2192 wake-236)",
+      "line": 17788,
+      "category": "other"
+    },
+    {
       "wake": 235,
       "title": "queued_work.md targeted refresh (wake-83 \u2192 wake-235)",
       "line": 17695,
@@ -29052,12 +29064,6 @@
       "title": "19th cross-check: every decision doc has a README link",
       "line": 17330,
       "category": "test"
-    },
-    {
-      "wake": 230,
-      "title": "Findings card: three-retrospective session-arc skeleton",
-      "line": 17256,
-      "category": "docs"
     }
   ],
   "live_decoder_coverage": {

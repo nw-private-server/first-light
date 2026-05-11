@@ -17784,3 +17784,87 @@ mirror that's structurally redundant, collapse
 it rather than refresh.
 
 **Blockers:** None.
+
+## Wake 236 — ghidra_hunt_list.md targeted refresh (wake-109 → wake-236)
+
+**Goal**: symmetric to wake 235's `queued_work.md`
+pass — `analysis/ghidra_hunt_list.md` was last
+bulk-updated at wake-109 era (40/40 codec coverage
+note in the header). Significant findings since
+(state-machine gates, ClientMessagesTrait catalog,
+W-CRC32, compression algorithm) aren't reflected
+in the doc, and the "Deliberately NOT hunted yet"
+list has stale entries.
+
+**Built**:
+
+- **`analysis/ghidra_hunt_list.md`**:
+  - **Header** updated to reflect last-bulk-update
+    wake 109 + wake-236 closures.
+  - **New "Major findings since wake 109 (as of
+    wake 236)" section** at the top:
+    - **State-machine gates** — 4 transitions
+      (10→11, 11→12, 12→13, 13→14) with predicate
+      formulas, gate-field offsets, and the
+      writer-traces. Calls out wake-13's 13→14
+      writer scan as still open (the actual
+      remaining static-RE step).
+    - **Other consolidated findings** — 5 bullet
+      points covering ClientMessagesTrait catalog,
+      state-name table, W-CRC32, lifecycle
+      callbacks, destroy timer (client-side).
+    - All references chained back to
+      `state_machine_summary.md` § 1 +
+      `ghidra_findings.md` for detail.
+  - **"Deliberately NOT hunted yet" section**
+    strike-throughs:
+    - Opcode table / dispatcher → partly done
+      (`server/javelin/dispatch.py` + ClientMessagesTrait
+      catalog).
+    - Custom RPC trait structs → partly done
+      (ClientMessagesTrait enumerated; other trait
+      categories still open).
+    - Compression algorithm → resolved
+      (`analysis/compression_algorithm.md`).
+  - **Items still open**: AOI / replication-window,
+    server-side Carrier handshake.
+
+**Why this matters**: a future contributor opening
+this doc to plan their Ghidra session would have
+been mislead by stale "not hunted" claims into
+duplicating work that's already done (e.g.
+hunting for the compression algorithm when it's
+already RE'd). The wake-236 update makes the
+distinction between "open" and "already-done"
+crisp.
+
+**Verification**:
+- wake-225 (analysis-path existence): card prose
+  unchanged.
+- wake-209 (paired card): unchanged.
+- The new "Major findings" section references
+  `state_machine_summary.md`,
+  `ghidra_findings.md`, and
+  `compression_algorithm.md` — all 3 exist.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: 2nd consecutive analysis-doc
+freshness wake (235=queued_work, 236=ghidra_hunt_list).
+The two docs are the project's "open RE work"
+indexes; keeping them aligned with current findings
+helps both Claude's future autonomous wakes AND
+human contributors orient.
+
+**Carry-over for future wakes**: the only
+remaining concrete static-RE step from the
+ghidra_hunt_list "Major findings" section is the
+**state 13 → 14 writer** identification.
+`wrapper[+0x252]` writer needs a non-immediate-store
+scan (register-based, memcpy, or OR-store) — wake
+13's plain `FindOffsetWrites 0x252 0x1` won't catch
+it. Concrete future task.
+
+**No new tests, no new code**. Two analysis docs
+refreshed.
+
+**Blockers:** None.

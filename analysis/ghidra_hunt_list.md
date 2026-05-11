@@ -5,14 +5,65 @@
 > for the retail build at `<archive-game-exe>`.
 >
 > PE image base: `0x0000000140000000`
-> Last updated: 2026-04-17 (initial scan). Ghidra static-RE on the
+> Last bulk update 2026-04-17 (initial scan). Ghidra static-RE on the
 > EAC-wrapped binary succeeded 2026-05-06 — for current findings see
-> [`ghidra_findings.md`](ghidra_findings.md) and the wakes-90-onward
-> entries in [`autonomous_worklog.md`](autonomous_worklog.md). Many of
-> the targets below have since been classified by name (see the
-> `name`/`uuid` columns in `info/typeregistry.json`) or wired up in
-> `server/javelin/` codecs — 40 / 40 captured wire-types now have
-> codec coverage as of wake 109.
+> [`ghidra_findings.md`](ghidra_findings.md), the
+> [`state_machine_summary.md`](state_machine_summary.md), and the
+> wake-90-onward entries in
+> [`autonomous_worklog.md`](autonomous_worklog.md). The 40/40
+> captured-wire-type codec coverage shipped at wake 109. The
+> "Major findings since wake 109" section below + targeted closures
+> were added at wake 236.
+
+## Major findings since wake 109 (as of wake 236)
+
+State-machine gates (see
+[`state_machine_summary.md`](state_machine_summary.md) for the
+predicate table at § 1):
+
+- **State 10 → 11** (`WaitingForREPConnection` →
+  `WaitingForActorGameConnection`): wake 112 RE breakthrough —
+  predicate `*(int *)(wrapper + 0xa0) == 2`, written by
+  `FUN_145a87010` (`onConnectionSuccess`), called from
+  `FUN_146454c00` (`PlayerManagerSelfIdentification` handler).
+  Wire-type trigger: 0x5d1 (server synthesizes; not in captured
+  replay).
+- **State 11 → 12** (`WaitingForActorGameConnection` →
+  `WaitingForSpawnPoint`): inverted check on the same
+  `wrapper[+0xa0]` field — auto-fires once 10 → 11 lands.
+- **State 12 → 13** (`WaitingForSpawnPoint` →
+  `WaitingForPlayerSpawn`): predicate `*(u8 *)(wrapper + 0xbc8)
+  != 0`. Primary path: `LevelInfoChangedMsg`'s handler
+  `FUN_146446800` directly forces state to 13. Secondary path
+  (wake 232/234 surfacing): `FUN_14645c660` (a separate
+  `ClientMessagesTrait` dispatch entry, message name still TBD)
+  sets the gate via `FUN_145a9fa00` without force-advancing.
+- **State 13 → 14** (`WaitingForPlayerSpawn` → `InGame`):
+  predicate `*(u8 *)(wrapper + 0x252) != 0`. **Writer is not
+  yet identified** — wake-13's `FindOffsetWrites 0x252 0x1`
+  found 3 hits, all in unrelated classes (UI text helper, Wwise
+  audio plugin, JSON helper). The real writer must use a
+  register-based / memcpy / OR-store pattern. **Still open**:
+  next static-RE step beyond what this hunt list documents.
+
+Other consolidated findings (see
+[`ghidra_findings.md`](ghidra_findings.md) for full detail):
+
+- **`ClientMessagesTrait` catalog** of 5 message classes
+  enumerated via RTTI mangled-name fragments at `0x14a153xxx`
+  (wake 11 of the autonomous loop).
+- **Full state-name table** recovered at `0x1484f9ff0`
+  (15 entries 0=Disconnected … 14=InGame).
+- **W-direction CRC32 confirmed** as the 4-byte field at offset
+  0 of every captured W message (wake 90).
+- **`onConnectionSuccess` / `onConnectionFail` lifecycle**
+  callbacks observed at `FUN_14103b570` /
+  `FUN_14103b1a0` — both used by Javelin's runtime hook
+  framework.
+- **The 30-second destroy timer** is **client-side**, not
+  server-driven (wake-11 finding). The carrier-flush flag at
+  `carrier[+0xfd]` is set by `FUN_140fb3560` line 452, gated
+  by event-id `0xFE476177` (Crc32 of an unknown string).
 
 ---
 
@@ -168,10 +219,23 @@ Once auto-analysis finishes and GhidraMCP is enabled:
 
 ## Deliberately NOT hunted yet
 
-Too speculative without post-analysis symbol resolution:
+Too speculative without post-analysis symbol resolution at the time
+this list was written. Status as of wake 236:
 
-- Opcode table / dispatcher for gameplay messages
-- AOI / replication-window implementation
-- Custom RPC trait structs
-- Compression algorithm (might be LZ4 + dictionary or custom)
-- Server-side Carrier handshake (most of what we capture is client-side)
+- ~~Opcode table / dispatcher for gameplay messages~~ — **partly
+  done**: central dispatcher exists at
+  `server/javelin/dispatch.py` covering 40 wire-types + the
+  subkey-beacon family. The `ClientMessagesTrait` dispatch table
+  (5 classes) is the static-RE-side equivalent for state-machine
+  messages.
+- AOI / replication-window implementation — **still open**.
+- ~~Custom RPC trait structs~~ — **partly done**:
+  `ClientMessagesTrait` is enumerated (5 classes, wake 11). Other
+  trait categories (ServerMessages variants, RPC groups like
+  `S2STokenRefreshMessages`) remain uncataloged.
+- ~~Compression algorithm (might be LZ4 + dictionary or
+  custom)~~ — **resolved**: see
+  [`compression_algorithm.md`](compression_algorithm.md) for the
+  RE finding.
+- Server-side Carrier handshake (most of what we capture is
+  client-side) — **still open**.
