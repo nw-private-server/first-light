@@ -850,7 +850,7 @@ FINDINGS_CATEGORY_ORDER = [
 # added to the manifest that forgets to update the card prose fails
 # loudly. Bucket names match the card prose verbatim.
 CROSS_CHECK_MANIFEST: dict[str, list[int]] = {
-    "Code structure":              [162, 166, 178, 184, 185, 196],
+    "Code structure":              [162, 166, 178, 184, 185, 196, 222],
     "Generated output integrity":  [172, 201, 202],
     "Doc/navigation drift":        [207, 209, 210, 214, 218],
 }
@@ -979,10 +979,10 @@ def load_findings():
                        "real-GPU validation.",
         },
         {
-            "title": "Cross-check test graph: 14 invariants pinning dashboard + workflow drift",
+            "title": "Cross-check test graph: 15 invariants pinning dashboard + workflow drift",
             "category": "Research closure",
             "wake": 210,
-            "summary": "14 pytest tests now form a structural drift "
+            "summary": "15 pytest tests now form a structural drift "
                        "safety net for the dashboard + workflow. Each "
                        "pins a discrete failure mode that wouldn't "
                        "surface as a product bug — silent prose drift, "
@@ -990,33 +990,37 @@ def load_findings():
                        "heuristics — but would degrade contributor "
                        "experience or documentation legibility. The "
                        "graph splits into three buckets: "
-                       "**Code structure** (6 tests: wake 162 "
+                       "**Code structure** (7 tests: wake 162 "
                        "`parse_sections`, 166 parser coverage, 178 "
                        "JS↔Python LDTYPE map sync, 184 linkify map ↔ "
                        "coverage map, 185 preset coverage, 196 "
-                       "shadow/validate-helper lockdown parity); "
-                       "**Generated output integrity** (3 tests: 172 "
-                       "preset hex round-trip, 201 badge color "
-                       "thresholds, 202 api-ref idempotency + on-"
-                       "disk consistency); **Doc/navigation drift** "
+                       "shadow/validate-helper lockdown parity, "
+                       "**222 manifest wake-numbers unique across "
+                       "buckets**); **Generated output integrity** "
+                       "(3 tests: 172 preset hex round-trip, 201 "
+                       "badge color thresholds, 202 api-ref "
+                       "idempotency + on-disk consistency); "
+                       "**Doc/navigation drift** "
                        "(5 tests: 207 retrospective ↔ README link, "
                        "209 Findings-card pair consistency, 210 "
                        "recent-wake category membership, 214 "
                        "self-referential card-count ↔ manifest "
-                       "consistency, **218 wake-number citations "
-                       "match manifest**). Each test "
+                       "consistency, 218 wake-number citations "
+                       "match manifest). Each test "
                        "is &lt;30 lines and self-documents the drift "
                        "mode in its docstring, including a pointer "
                        "to where the maintainer should fix the "
-                       "regression. Test cost: ~320 lines total. "
-                       "Benefit: 14 silent failure modes converted "
+                       "regression. Test cost: ~340 lines total. "
+                       "Benefit: 15 silent failure modes converted "
                        "to loud pytest failures with precise "
                        "remediation hints. Pattern is extensible — "
                        "any future structural invariant becomes test "
-                       "15; wakes 214 and 218 together now enforce "
+                       "16; wakes 214 and 218 together enforce "
                        "that both the count claim AND the wake-number "
                        "citations here match `CROSS_CHECK_MANIFEST` "
-                       "in `tools/build_site.py`.",
+                       "in `tools/build_site.py`; wake 222 pins the "
+                       "manifest itself against bucket-cross-"
+                       "contamination.",
         },
         {
             "title": "Server↔client counter pairs",

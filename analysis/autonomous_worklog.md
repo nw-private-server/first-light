@@ -16594,3 +16594,93 @@ Finding" placement is fine since there's only one.
 + wake-200 card prose extension.
 
 **Blockers:** None.
+
+## Wake 222 — 15th cross-check: manifest wake-numbers unique across buckets
+
+**Goal**: defensive pin on `CROSS_CHECK_MANIFEST`
+itself. The structure groups cross-check test wakes
+into three buckets; a wake naturally belongs to
+exactly one. If a future addition placed a wake in
+two buckets, the wake-214 count claim would
+over-count and the wake-218 citation pin would
+silently accept the duplicate. Close the loop on the
+self-referential meta-card pinning.
+
+**Built**:
+
+- **`tools/build_site.py`**:
+  - **`CROSS_CHECK_MANIFEST` updated**: added 222
+    to "Code structure" bucket → 7 entries → total
+    15. (Placement under "Code structure" because
+    the pin is on internal data structure in
+    `tools/build_site.py`, not on docs or
+    generated output.)
+  - **Wake-210 card text updated atomically**:
+    - Title: "14 invariants" → "**15 invariants**".
+    - Summary opening: "14 pytest tests" →
+      "**15 pytest tests**".
+    - Code structure bucket: "(6 tests: …, 196 …)" →
+      "(7 tests: …, 196 …, **222 manifest wake-
+      numbers unique across buckets**)".
+    - Benefit: "14" → "**15 silent failure modes**".
+    - Test cost: "~320 lines" → "**~340 lines**".
+    - Closing: "becomes test 15" → "**becomes test
+      16**".
+    - Closing line extended: "wakes 214 and 218
+      enforce count + citations against manifest;
+      **wake 222 pins the manifest itself against
+      bucket-cross-contamination**."
+
+- **`server/javelin/test_build_tools.py`**:
+  - **New test
+    `test_cross_check_manifest_wake_numbers_are_unique_across_buckets`**
+    (the 15th cross-check itself):
+    - Flattens `CROSS_CHECK_MANIFEST` to
+      `[(wake, bucket), ...]`.
+    - Uses `Counter` to detect duplicates.
+    - On failure, builds a `dupe_locations` dict
+      mapping each duplicate to its bucket
+      memberships — so the assertion message names
+      both the wake AND which buckets are conflicting.
+    - "Pick the bucket that best describes the
+      drift mode being pinned" — actionable
+      remediation hint in the docstring.
+
+**Verification**:
+- wake-214 self-referential test (count) still
+  passes: title now says "15 invariants" ✓,
+  summary opens with "15 pytest tests" ✓, benefit
+  line says "15 silent failure modes" ✓, per-
+  bucket counts match (7/3/5) ✓.
+- wake-218 citation test still passes: all 15
+  manifest wakes (162, 166, 178, 184, 185, 196,
+  172, 201, 202, 207, 209, 210, 214, 218, **222**)
+  appear in the card summary as bare integer
+  references.
+- New wake-222 test passes against current state
+  (all 15 wakes unique across the 3 buckets).
+
+**Self-referential triple at wake 222**: the
+wake-210 meta-pattern card is now pinned by **3**
+self-referential tests:
+- Wake 214: card's count claim matches manifest sum.
+- Wake 218: card's wake citations match manifest
+  membership.
+- Wake 222: manifest itself has unique wakes
+  across buckets.
+
+Each adds a different axis without itself becoming
+an axis that needs further pinning. The recursion
+naturally bottoms out at wake 222 — there's no
+fourth thing about the manifest that could drift
+without one of the existing three tests catching it.
+
+**Cross-check graph at wake 222**: **15 tests** —
+Code structure 7, Generated output integrity 3,
+Doc/navigation drift 5.
+
+**Test count**: **452 passing (+1 skipped)** — up
+from 451 (wake 221). +1 new test as planned. The
+Research closure cluster stays at 9 cards.
+
+**Blockers:** None.

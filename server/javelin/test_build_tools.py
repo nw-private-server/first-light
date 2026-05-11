@@ -794,6 +794,49 @@ def test_findings_meta_card_count_matches_manifest():
         )
 
 
+def test_cross_check_manifest_wake_numbers_are_unique_across_buckets():
+    """15th cross-check (wake 222) — defensive pin on the manifest
+    itself. CROSS_CHECK_MANIFEST groups cross-check test wakes into
+    three buckets (code structure / generated output integrity /
+    doc-navigation drift). A wake naturally belongs to exactly one
+    bucket — pinning structure isn't the same job as pinning a
+    badge value. If a wake appeared in two buckets the wake-214
+    count claim ('N invariants') would over-count the actual number
+    of distinct tests, and the wake-218 citation pin would
+    silently accept the duplicate.
+
+    Asserts every wake number across all manifest values appears
+    exactly once. Concrete failure message tells the maintainer
+    which wake is duplicated and across which buckets.
+
+    Why "manifest wake-numbers unique across buckets" rather than
+    "manifest length matches distinct count"? Same end result,
+    different framing: this phrasing makes the failure more
+    actionable ('wake N is in both X and Y, pick one')."""
+    from collections import Counter
+    flat = [
+        (wake, bucket)
+        for bucket, wakes in CROSS_CHECK_MANIFEST.items()
+        for wake in wakes
+    ]
+    counts = Counter(wake for wake, _ in flat)
+    dupes = {w: n for w, n in counts.items() if n > 1}
+    if dupes:
+        # Find which buckets each duplicate appears in for the
+        # diagnostic message.
+        dupe_locations = {
+            w: [b for ww, b in flat if ww == w]
+            for w in dupes
+        }
+        raise AssertionError(
+            f"CROSS_CHECK_MANIFEST has duplicate wake numbers across "
+            f"buckets: {dupe_locations}. Each cross-check test "
+            f"belongs to exactly one bucket — pick the one that "
+            f"best describes the drift mode being pinned and remove "
+            f"the duplicate."
+        )
+
+
 def test_findings_meta_card_cites_every_manifest_wake():
     """14th cross-check (wake 218) — extends wake-214 self-referential
     coverage. The wake-214 test pins the COUNT claims in the
