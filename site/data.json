@@ -1419,6 +1419,12 @@
       "summary": "The state-10 \u2192 11 transition is gated by *(int*)(wrapper+0xa0) == 2 (corrected from the earlier +0x130 hypothesis). The trigger is wire type 0x5d1 (PlayerManagerSelfIdentificationMsg) \u2014 not in the captured replay, so the server must synthesize it. Codec is wire-bound; ready for runtime testing."
     },
     {
+      "title": "State-11 \u2192 12 gate identified, message TBD",
+      "category": "RE breakthrough",
+      "wake": 232,
+      "summary": "The state-11 \u2192 12 transition uses the same single-writer pattern as state-10: gate field is **wrapper[+0xbc8]** (a u8 byte, distinct from state-10's wrapper[+0xa0] int); reader is FUN_145a905c0 (returns the byte); writer is FUN_145a9fa00 (sets it to 1, exactly one xref). The single caller is FUN_14645c660 \u2014 itself a ClientMessagesTrait dispatch-table entry (at 0x14abcc45c, 0x300 bytes from PlayerManagerSelfIdentification's entry). So the 11 \u2192 12 step is gated by a **second trait message** \u2014 name not yet recoverable statically because that row's metadata column points into a different `.rdata` segment with no log-strings or RTTI tag near the function entry. Candidates are the 3 unmapped ClientMessagesTrait classes (PlayerManagerRejectedMsg, RemoteConfigChangedMsg, DebugCommandResponseMsg); definitive ID needs a runtime Frida trace hooking FUN_14645c660 to log the incoming RTTI tag. Finding originated at autonomous-loop wake 13 (2026-05-07) and was buried in the worklog until wake 232 surfaced it as `analysis/state_machine_summary.md` \u00a7 4\u00bd. Together with wake-112's state-10 finding, this completes the static-RE picture of the post-V3 server-message sequence: at least three messages (SelfIdent \u2192 unknown-11\u219212 \u2192 LevelInfoChanged), possibly four (the \u00a74 catalog still has '13\u219214 TBD')."
+    },
+    {
       "title": "W-direction CRC32 confirmed",
       "category": "Wire-level finding",
       "wake": 90,
@@ -28410,6 +28416,12 @@
       "test_count": 457,
       "commit": "3b335d7",
       "subject": "test(site): 19th cross-check \u2014 every decision doc has a README link"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "79b68e1",
+      "subject": "docs(analysis): surface state-11 -> 12 gate finding in state_machine_summary"
     }
   ],
   "live_decoder_history": [
@@ -29000,6 +29012,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 233,
+      "title": "Findings card for the wake-232 state-11\u219212 surfaced finding",
+      "line": 17516,
+      "category": "site"
+    },
+    {
       "wake": 232,
       "title": "surface buried state-11 \u2192 12 finding in state_machine_summary",
       "line": 17419,
@@ -29028,12 +29046,6 @@
       "title": "third-stretch retrospective (wakes 197-227)",
       "line": 17096,
       "category": "docs"
-    },
-    {
-      "wake": 227,
-      "title": "18th cross-check: every manifest wake has a referencing test",
-      "line": 17005,
-      "category": "test"
     }
   ],
   "live_decoder_coverage": {

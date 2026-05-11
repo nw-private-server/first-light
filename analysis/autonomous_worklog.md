@@ -17512,3 +17512,84 @@ calls out "RE work hadn't advanced for many wakes"
 rather than new static-RE.
 
 **Blockers:** None.
+
+## Wake 233 — Findings card for the wake-232 state-11→12 surfaced finding
+
+**Goal**: the wake-232 doc consolidation surfaced
+the state-11→12 gate into `state_machine_summary.md`,
+but the Findings tab (the dashboard's primary
+"what's known about this project" surface) still
+only mentions the state-10 RE breakthrough. Add a
+sibling Findings card so the 11→12 step is equally
+visible.
+
+**Built**:
+
+- **`tools/build_site.py`**: new Findings card placed
+  adjacent to the wake-112 state-10 card:
+  - **Title**: "State-11 → 12 gate identified,
+    message TBD".
+  - **Category**: RE breakthrough (3rd card in that
+    bucket — joins wake-112 state-10 + wake-90
+    typename-extraction limit).
+  - **Wake**: 232 (the wake that surfaced it; the
+    finding itself dates from autonomous-loop wake
+    13).
+  - **Summary** (~270 words): narrates the
+    field-offset (wrapper[+0xbc8]), the reader/writer
+    pair (FUN_145a905c0 / FUN_145a9fa00), the
+    single-xref bridge (FUN_14645c660), and the
+    dispatch-table position (0x14abcc45c, 0x300 bytes
+    from PlayerManagerSelfIdentification). Calls out
+    that this is **another ClientMessagesTrait
+    message** — explicit candidate list (Rejected /
+    RemoteConfigChanged / DebugCommandResponse) with
+    the static-RE-can't-resolve-it explanation.
+    Frames the runtime-Frida-trace as the remaining
+    step. Closes with the completeness claim: with
+    wake-112 + wake-232 together, the post-V3 server-
+    message sequence is "at least three messages,
+    possibly four (13→14 still TBD)".
+
+**Discoverability cascade**:
+- The Findings tab now surfaces all three known
+  state-gate findings (wake-90, wake-112, wake-232).
+- The card prose mentions
+  `analysis/state_machine_summary.md` § 4½ as the
+  detailed write-up; wake-225 cross-check ensures
+  that path resolves (it does).
+- The README's "Recent milestones" section indirectly
+  references this via the wake-227 retrospective
+  (Open items: "real-GPU validation"); the wake-228
+  Architecture card describes the session-arc
+  skeleton that holds all three retrospectives.
+
+**Why RE breakthrough, not Research closure?** The
+finding is partial — the gate field/writer/caller
+are statically identified, but the message NAME is
+not. Research closure would imply the question is
+closed; "message TBD" makes it explicitly open.
+RE breakthrough fits a major static-RE discovery
+that opens followups, which is what this is.
+
+**Verification**:
+- wake-225 (analysis-path existence): card cites
+  `analysis/state_machine_summary.md` — exists ✓.
+- wake-218 (manifest citation): unaffected.
+- wake-227 (manifest-vs-tests): unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Findings tab now**: **19 cards** across 4
+categories:
+- Research closure: 9
+- Wire-level finding: 5
+- **RE breakthrough: 3** (+1)
+- Architecture: 2
+
+**Pattern note**: 11th Findings card added since
+wake-163 categorization (wake 156, 180, 189, 193,
+194, 200, 205, 211, 212, 228, 230, 233). "Zero new
+infrastructure" property holds — single dict entry,
+no new code paths.
+
+**Blockers:** None.

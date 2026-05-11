@@ -917,6 +917,40 @@ def load_findings():
                        "runtime testing.",
         },
         {
+            "title": "State-11 → 12 gate identified, message TBD",
+            "category": "RE breakthrough",
+            "wake": 232,
+            "summary": "The state-11 → 12 transition uses the same "
+                       "single-writer pattern as state-10: gate field "
+                       "is **wrapper[+0xbc8]** (a u8 byte, distinct from "
+                       "state-10's wrapper[+0xa0] int); reader is "
+                       "FUN_145a905c0 (returns the byte); writer is "
+                       "FUN_145a9fa00 (sets it to 1, exactly one xref). "
+                       "The single caller is FUN_14645c660 — itself a "
+                       "ClientMessagesTrait dispatch-table entry "
+                       "(at 0x14abcc45c, 0x300 bytes from "
+                       "PlayerManagerSelfIdentification's entry). So "
+                       "the 11 → 12 step is gated by a **second trait "
+                       "message** — name not yet recoverable statically "
+                       "because that row's metadata column points into "
+                       "a different `.rdata` segment with no log-strings "
+                       "or RTTI tag near the function entry. Candidates "
+                       "are the 3 unmapped ClientMessagesTrait classes "
+                       "(PlayerManagerRejectedMsg, RemoteConfigChangedMsg, "
+                       "DebugCommandResponseMsg); definitive ID needs a "
+                       "runtime Frida trace hooking FUN_14645c660 to "
+                       "log the incoming RTTI tag. Finding originated "
+                       "at autonomous-loop wake 13 (2026-05-07) and was "
+                       "buried in the worklog until wake 232 surfaced "
+                       "it as `analysis/state_machine_summary.md` § 4½. "
+                       "Together with wake-112's state-10 finding, this "
+                       "completes the static-RE picture of the post-V3 "
+                       "server-message sequence: at least three messages "
+                       "(SelfIdent → unknown-11→12 → LevelInfoChanged), "
+                       "possibly four (the §4 catalog still has '13→14 "
+                       "TBD').",
+        },
+        {
             "title": "W-direction CRC32 confirmed",
             "category": "Wire-level finding",
             "wake": 90,
