@@ -27921,6 +27921,12 @@
       "test_count": 347,
       "commit": "24559c5",
       "subject": "docs(analysis): staleness audit round 2 \u2014 2 Ghidra snapshots flagged"
+    },
+    {
+      "wake": null,
+      "test_count": 347,
+      "commit": "a9a5124",
+      "subject": "docs(api): generated public-API reference for server.javelin"
     }
   ],
   "wire_type_families": [

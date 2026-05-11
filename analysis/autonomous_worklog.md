@@ -12639,3 +12639,65 @@ explicit.
 383 +1 skipped. Site rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 162 — past the 400-test milestone (383 → 407)
+
+**Goal**: 383 → 400+ tests by covering the pure helpers in the
+`tools/` directory that drive the dashboard + API reference.
+Three small modules have shipped logic that was tested only
+indirectly through full `build_site.py` / `build_api_reference.py`
+runs: `categorize_doc` (wake 151), `_enrich_families` (wake 159),
+`parse_sections` + `first_paragraph` (wake 161). Pin them.
+
+**Built**:
+
+- **`server/javelin/test_build_tools.py`** (~190 LOC, 24
+  tests). Tests live alongside the codec suite so a single
+  `pytest server/javelin/` covers all of them.
+  - **12 tests for `categorize_doc`** (wake 151) — pin every
+    category bucket (Retrospective × 3, Audit × 2, Decompile
+    × 2, Overview × 2, RE Finding fallback × 1) plus
+    extension-tolerance + the invariant that every output
+    is in `CATEGORY_ORDER`.
+  - **6 tests for `_enrich_families`** (wake 159) — known-
+    wire-type metadata join, unknown-wire-type zero-fill,
+    empty input, hex-form normalization (`0x15d` matches
+    `0x015d`), captured-entries with missing `type_id_hex`
+    are skipped gracefully, original family fields
+    (label / sub_system_id / note) survive the enrichment.
+  - **6 tests for `build_api_reference` helpers** (wake 161):
+    - `first_paragraph`: single-paragraph collapse, multi-
+      paragraph trim, empty input, leading-whitespace.
+    - `parse_sections`: returns expected wake-shipped
+      headings ("Low-level wire framing", "Generic / family
+      codecs", "R-direction codecs", "W-direction codecs")
+      and each section has at least one populated member
+      name with no quote characters carried in.
+
+- **Total**: 383 → **407 passing (+1 skipped)** in
+  `server/javelin/`. Past the 400-test milestone.
+
+**Why these tests matter**:
+
+- `categorize_doc` is the only place that picks which group
+  header each analysis writeup ends up under on the
+  dashboard. A typo or accidental allow-list drop would
+  silently bucket a doc as "RE Finding"; the invariant test
+  (`returns_known_category_member`) catches that across
+  multiple inputs.
+- `_enrich_families` is the join between the wake-121
+  family list and the wake-95 captured-types metadata. The
+  hex-form-normalization test catches the most plausible
+  regression: someone changes `type_id_hex` from `0xNNNN` to
+  `0xNNN` (or back) and the join stops finding matches.
+- `parse_sections` walks the comment markers in
+  `__init__.py`'s `__all__` block to recover section
+  headings. A future contributor reformatting the
+  `__all__` list could break the implicit comment-parsing
+  contract; the assertions about specific shipped headings
+  catch that immediately.
+
+**No `server/javelin/` codec changes**. No `tools/` code
+changes — pure test coverage. Site rebuild trivial.
+
+**Blockers:** None.
