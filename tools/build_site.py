@@ -931,6 +931,39 @@ def load_findings():
                        "drilldown from the Overview tab's family panel.",
         },
         {
+            "title": "Counter-advance: phase-2D realism extension behind a second flag",
+            "category": "Research closure",
+            "wake": 208,
+            "summary": "The wake-204 dispatched-heartbeat path cached "
+                       "the decoded 0x15d once and re-encoded it on "
+                       "every emission — bytes were identical to the "
+                       "captured replay forever. Real servers slow-"
+                       "increment a counter (~1 Hz) and randomize a "
+                       "nonce per ping. Wake 208 adds optional "
+                       "per-call mutation via a second feature flag "
+                       "`heartbeat_advance_counter` (default off — "
+                       "preserves wake-204 byte-equality contract). "
+                       "When flipped alongside `heartbeat_use_dispatcher`, "
+                       "each call mutates `_heartbeat_decoded`: "
+                       "`counter += 1` (mod u32, wraps cleanly at "
+                       "`0xFFFFFFFF + 1 → 0`) and `nonce = "
+                       "_heartbeat_nonce_fn()` (default "
+                       "`secrets.randbits(32)`, pluggable for tests). "
+                       "Mutation persists across calls so the counter "
+                       "genuinely advances. Three new lockdown tests "
+                       "pin the advance-when-set, no-advance-default "
+                       "(safe-default guarantee), and u32 wraparound "
+                       "behaviors. Distinct from the integration arc "
+                       "(wakes 157-204) — that arc proves the "
+                       "dispatcher CAN emit safely; counter-advance "
+                       "extends the emission to match real server "
+                       "behavior. The two flags compose: default off/"
+                       "off = captured replay; on/off = byte-identical "
+                       "dispatcher emission; on/on = genuinely-"
+                       "advancing dispatcher emission ready for "
+                       "real-GPU validation.",
+        },
+        {
             "title": "Cross-check test graph: 12 invariants pinning dashboard + workflow drift",
             "category": "Research closure",
             "wake": 210,

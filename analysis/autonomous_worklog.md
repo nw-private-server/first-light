@@ -15846,3 +15846,74 @@ skipped)**. Site rebuild trivial; the new card appears
 on the Findings tab at the next page load.
 
 **Blockers:** None.
+
+## Wake 212 — Findings card: wake-208 counter-advance as realism extension
+
+**Goal**: the wake-208 counter-advance enhancement
+shipped quietly with worklog narration but no
+discoverable Findings-tab artifact. A visitor scanning
+Research closure sees "phase-2D shipped" (wake 204) but
+nothing about the realism extension that makes
+dispatched heartbeats actually advance. Add a card.
+Frame it as a **separate** narrative from the
+integration arc so the wake-209 paired-card invariant
+stays correctly scoped to the wake-188/wake-204 pair.
+
+**Built**:
+
+- **`tools/build_site.py`**: new Findings card in the
+  Research closure cluster:
+  - **Title**: "Counter-advance: phase-2D realism
+    extension behind a second flag" (wake 208).
+  - **Two-flag composition** documented explicitly:
+    - `off/off` = captured replay (wake-204 default)
+    - `on/off` = byte-identical dispatcher emission
+    - `on/on` = genuinely-advancing dispatcher
+      emission ready for real-GPU validation
+  - **Test coverage** noted: 3 lockdown tests
+    (advance-when-set, no-advance-default,
+    u32 wraparound).
+  - **Distinct from integration arc** stated
+    explicitly: "Distinct from the integration arc
+    (wakes 157-204) — that arc proves the dispatcher
+    CAN emit safely; counter-advance extends the
+    emission to match real server behavior."
+  - HTML entities escaped (e.g. `\`counter += 1\``
+    backticks are safe; numerical hex `0xFFFFFFFF` is
+    safe).
+
+- **Why frame as separate, not arc-step-6**: The
+  wake-209 paired-card invariant
+  (`test_phase2_arc_findings_card_pair_consistent`)
+  pins the wake-188 foundation card and wake-204
+  closure card to reference the same 5 wakes. If I
+  reframed counter-advance as "phase-2 step 6", the
+  closure card would need updating to mention wake
+  208, and the foundation card would need updating
+  too (it can't say "a future wake can flip the
+  switch" anymore if step 6 has shipped). That cascade
+  is exactly what the paired-card invariant guards
+  against. Treating counter-advance as a separate
+  story keeps both arc cards stable.
+
+**Findings tab now**: **17 cards** across 4 categories:
+- **Research closure: 9** (still the largest, +1):
+  hash ruled out, type-id catalog false lead, audit
+  arcs closed, 80% live-decoder coverage,
+  rep_responder foundation, remaining-6-uncovered,
+  phase-2D swap shipped, cross-check meta-pattern,
+  **NEW: counter-advance realism extension**.
+- Wire-level finding: 5
+- RE breakthrough: 2
+- Architecture: 1
+
+**Pattern note**: this is the **9th** Findings card
+since wake-163 categorization (wake 156, 180, 189,
+193, 194, 200, 205, 211, 212). All single dict
+entries; "zero new infrastructure" property holds
+across all nine.
+
+**No code changes**. Tests still **449 passing (+1
+skipped)**. Site rebuild trivial.
+
+**Blockers:** None.

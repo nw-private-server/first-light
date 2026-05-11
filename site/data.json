@@ -1449,6 +1449,12 @@
       "summary": "Cross-correlation of the 11 sub_system_ids across captured wire-types: 7 of 11 are shared by multiple message kinds, surfacing in-session sub-system groupings. Notable correlations: 0x18a6\u21940x1a59 (counter-coupled init pair, shared ID f8cbed57c68b18f4), 0x8e6\u21940x9fc (identity blob + receipt echo), 0x1096\u21940x1097 (frame config + spawn-confirmation token), and the 3-way 0x102e+0x1033+0x192c (sub_system_id ce81136a2b7ad33e \u2014 opaque-blob fragmented across three message types). All 7 cards drilldown from the Overview tab's family panel."
     },
     {
+      "title": "Counter-advance: phase-2D realism extension behind a second flag",
+      "category": "Research closure",
+      "wake": 208,
+      "summary": "The wake-204 dispatched-heartbeat path cached the decoded 0x15d once and re-encoded it on every emission \u2014 bytes were identical to the captured replay forever. Real servers slow-increment a counter (~1 Hz) and randomize a nonce per ping. Wake 208 adds optional per-call mutation via a second feature flag `heartbeat_advance_counter` (default off \u2014 preserves wake-204 byte-equality contract). When flipped alongside `heartbeat_use_dispatcher`, each call mutates `_heartbeat_decoded`: `counter += 1` (mod u32, wraps cleanly at `0xFFFFFFFF + 1 \u2192 0`) and `nonce = _heartbeat_nonce_fn()` (default `secrets.randbits(32)`, pluggable for tests). Mutation persists across calls so the counter genuinely advances. Three new lockdown tests pin the advance-when-set, no-advance-default (safe-default guarantee), and u32 wraparound behaviors. Distinct from the integration arc (wakes 157-204) \u2014 that arc proves the dispatcher CAN emit safely; counter-advance extends the emission to match real server behavior. The two flags compose: default off/off = captured replay; on/off = byte-identical dispatcher emission; on/on = genuinely-advancing dispatcher emission ready for real-GPU validation."
+    },
+    {
       "title": "Cross-check test graph: 12 invariants pinning dashboard + workflow drift",
       "category": "Research closure",
       "wake": 210,
@@ -28272,6 +28278,12 @@
       "test_count": 450,
       "commit": "27b0198",
       "subject": "feat(site): recent-activity category pills + 12th cross-check"
+    },
+    {
+      "wake": null,
+      "test_count": 450,
+      "commit": "47ffe12",
+      "subject": "feat(site): Findings card for the cross-check test graph (meta-pattern)"
     }
   ],
   "wire_type_families": [
@@ -28797,6 +28809,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 212,
+      "title": "Findings card: wake-208 counter-advance as realism extension",
+      "line": 15850,
+      "category": "site"
+    },
+    {
       "wake": 211,
       "title": "Findings card: cross-check test graph as a meta-pattern",
       "line": 15781,
@@ -28825,12 +28843,6 @@
       "title": "10th cross-check: every retrospective doc must have a README link",
       "line": 15480,
       "category": "test"
-    },
-    {
-      "wake": 206,
-      "title": "update wake-197 retrospective with wake-204 swap + post-196 deltas",
-      "line": 15431,
-      "category": "docs"
     }
   ],
   "live_decoder_coverage": {
