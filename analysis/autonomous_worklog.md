@@ -14095,3 +14095,65 @@ map sync, 184's How-it-works mentions).
 trivial.
 
 **Blockers:** None.
+
+## Wake 185 — preset-coverage invariant (every ldtype has a preset)
+
+**Goal**: pin a new dashboard cross-check. Every entry in
+`LDTYPE_TO_TYPE_IDS` (source of live-decoder coverage)
+should have at least one preset button in `site/index.html`
+so visitors can demo the decoder without typing hex. A
+future contributor who adds a decoder without a preset
+ships a "decodable but undiscoverable" type — fixed at the
+test level.
+
+**Built**:
+
+- **`server/javelin/test_live_decoder_presets.py`**: new
+  test `test_every_covered_ldtype_has_at_least_one_preset`:
+  - Imports `LDTYPE_TO_TYPE_IDS` directly.
+  - Re-uses the existing `_load_presets()` helper to scan
+    `site/index.html` for `data-ldtype=...` preset
+    buttons.
+  - Asserts `set(LDTYPE_TO_TYPE_IDS) - set(preset_ldtypes)`
+    is empty. Failure message names the missing entries.
+
+**Verified**: all 14 entries in `LDTYPE_TO_TYPE_IDS` have
+matching presets in `site/index.html`. Test passes.
+
+**Pattern continuation**: this is the **6th structural
+cross-check test** the dashboard now has:
+1. Wake 162: `categorize_doc`, `_enrich_families` shape
+2. Wake 166: `parse_sections` covers every `__all__`
+   export.
+3. Wake 172: preset hex round-trips through Python codecs.
+4. Wake 178: JS `TYPE_ID_TO_LDTYPE` ↔ Python
+   `LDTYPE_TO_TYPE_IDS` sync (both directions).
+5. Wake 184: every 3+ char `0xNNN` in "How it works"
+   prose is in `LDTYPE_TO_TYPE_IDS`.
+6. **Wake 185 (new): every ldtype in
+   `LDTYPE_TO_TYPE_IDS` has at least one preset.**
+
+Tests: 420 → **421 passing (+1 skipped)**. Together these 6
+tests pin a graph: source codec → Python coverage map → JS
+typelink map → preset hex → static walkthrough → preset
+button. A break anywhere fails the corresponding test with
+a precise message pointing at the gap.
+
+**Workflow implication for adding a future decoder**:
+1. Add the JS DECODERS entry in `site/index.html`.
+2. Add a preset button with verified hex.
+3. Update `LDTYPE_TO_TYPE_IDS` (build_site.py) and
+   `TYPE_ID_TO_LDTYPE` (index.html).
+4. Update `PYTHON_DECODERS` in
+   `server/javelin/test_live_decoder_presets.py`.
+5. Run pytest.
+
+Tests catch: forgotten preset (wake 185), map drift (wake
+178), preset typo (wake 172), forgotten walkthrough update
+(wake 184). The contributor is guided to the right files
+by the failure messages.
+
+**No `server/javelin/` codec changes**. No new dashboard
+features. Site rebuild trivial.
+
+**Blockers:** None.
