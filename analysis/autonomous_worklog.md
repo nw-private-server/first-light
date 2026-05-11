@@ -5064,3 +5064,11 @@ acknowledging post-stop resumption. No
 substantive work this wake.
 
 **Blockers:** None.
+
+
+## Wake 296 — signaling heartbeat
+
+State unchanged. Loop continues in
+post-stop signaling mode per wake-295.
+
+**Blockers:** None.

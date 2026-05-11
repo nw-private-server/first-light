@@ -29040,6 +29040,12 @@
       "test_count": 457,
       "commit": "dbbcac0",
       "subject": "docs(worklog): wake-294 \u2014 loop stop (final entry)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "d46cc83",
+      "subject": "docs(worklog): wake-295 \u2014 loop resumed post-stop (signaling check-in)"
     }
   ],
   "live_decoder_history": [
@@ -29644,6 +29650,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 296,
+      "title": "signaling heartbeat",
+      "line": 5069,
+      "category": "code"
+    },
+    {
       "wake": 295,
       "title": "loop resumed post-stop (signaling check-in)",
       "line": 5026,
@@ -29672,12 +29684,6 @@
       "title": "deferred pointer fix + Findings-card title drift",
       "line": 4570,
       "category": "other"
-    },
-    {
-      "wake": 290,
-      "title": "wider drift sweep: 3 more worklog-pointer drifts caught",
-      "line": 4458,
-      "category": "docs"
     }
   ],
   "live_decoder_coverage": {
