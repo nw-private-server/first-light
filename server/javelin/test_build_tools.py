@@ -931,17 +931,25 @@ def test_cross_check_manifest_wake_numbers_are_unique_across_buckets():
 def test_findings_meta_card_cites_every_manifest_wake():
     """14th cross-check (wake 218) — extends wake-214 self-referential
     coverage. The wake-214 test pins the COUNT claims in the
-    wake-210 card; this test pins the WAKE CITATIONS. Without it, a
-    maintainer could swap one wake number for another in the card
-    prose (e.g. change "wake 162" to "wake 152" by mistake), keep
-    the total count at 14, and pass wake-214's test — but the
-    citations would diverge from the manifest's list silently.
+    wake-210 card; this test pins the WAKE CITATIONS.
 
-    Asserts that for every wake number in CROSS_CHECK_MANIFEST
-    (across all three buckets), the summary of the wake-210 card
-    contains a reference to that wake number (matched as a bare
-    integer at word boundaries — robust to both "wake N" and
-    bare-number forms used in the bucket prose).
+    Drift mode: a maintainer swaps one wake number for another in
+    the card prose by mistake (e.g. "wake 162" → "wake 152"),
+    keeping the total count consistent with the manifest size — so
+    wake-214's test still passes — while the citation list silently
+    diverges from CROSS_CHECK_MANIFEST. The cross-check graph then
+    has correct cardinality but wrong identity.
+
+    Asserts: for every wake number in CROSS_CHECK_MANIFEST (across
+    all three buckets), the summary of the wake-210 card contains
+    a reference to that wake number (matched as a bare integer at
+    word boundaries — robust to both "wake N" and bare-number
+    forms used in the bucket prose).
+
+    Remediation on failure: either edit the wake-210 card prose in
+    `tools/build_site.py` to cite the missing wake, or remove the
+    wake from CROSS_CHECK_MANIFEST if its test no longer exists.
+    The failure message names the specific missing wakes.
 
     Distinct from wake-214 because that test answers "does the card
     claim the right TOTAL?"; this one answers "does the card cite
@@ -961,9 +969,9 @@ def test_findings_meta_card_cites_every_manifest_wake():
     for wake in all_wakes:
         # Match the wake number as a standalone integer with word
         # boundaries. Manifest wakes (162, 166, ...) don't collide
-        # with the non-wake digits in the card body (14 invariants,
-        # &lt;30 lines, ~320 lines, etc), so a bare \b{N}\b match
-        # is unambiguous in this context.
+        # with the non-wake digits in the card body (invariant
+        # count, line-length numbers, etc.), so a bare \b{N}\b
+        # match is unambiguous in this context.
         pattern = re.compile(rf"\b{wake}\b")
         if not pattern.search(summary):
             missing.append(wake)
@@ -1032,13 +1040,20 @@ def test_every_decision_doc_has_readme_entry():
     Findings card lists decision docs as a discoverable category;
     the wake-225 cross-check requires referenced paths to exist;
     but nothing requires NEW decision docs to be linked from the
-    repo root.
+    repo root, so a fresh decision doc can sit in `analysis/`
+    indefinitely without any reader landing on it from the
+    project entry surface.
 
-    Asserts every `analysis/decision_*.md` file's relative path
-    appears in README.md. Symmetric counterpart to wake 207 for a
-    different doc category — together they pin that both
-    retrospective and decision docs survive as discoverable
-    artifacts from the repo root."""
+    Asserts: every `analysis/decision_*.md` file's relative path
+    (`analysis/<name>.md`) appears verbatim in README.md.
+
+    Remediation on failure: add a one-line bullet for the missing
+    doc under the "Design decisions" section in README.md. The
+    failure message names the specific missing paths.
+
+    Symmetric counterpart to wake 207 for a different doc category
+    — together they pin that both retrospective and decision docs
+    survive as discoverable artifacts from the repo root."""
     repo = Path(__file__).resolve().parents[2]
     readme = (repo / "README.md").read_text()
     decisions = sorted((repo / "analysis").glob("decision_*.md"))

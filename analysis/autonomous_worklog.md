@@ -1461,3 +1461,115 @@ Two cards now tighter + one parenthetical
 drift fixed.
 
 **Blockers:** None.
+
+
+## Wake 269 — wake-218 + wake-231 docstring symmetry with wake-225 convention
+
+**Goal**: bring the wake-218 and wake-231 cross-
+check test docstrings up to the explicit
+"Drift mode: … / Asserts: … / Remediation: …"
+labeled-section convention that wake-225 was
+brought to at wake 266. Convention parity
+across all three "self-referential / symmetric"
+Doc/navigation tests means a future reader hits
+the same shape regardless of which test fires
+first.
+
+**Built**:
+
+**`server/javelin/test_build_tools.py`** — two
+docstring rewrites:
+
+- **wake-218
+  (`test_findings_meta_card_cites_every_manifest_wake`)**:
+  - Restructured into explicit labeled
+    paragraphs (Drift mode / Asserts /
+    Remediation).
+  - Replaced the stale "keep the total count at
+    14, and pass wake-214's test" with the
+    generic "keeping the total count consistent
+    with the manifest size" (the manifest is
+    currently at 19; the 14 was the wake-218
+    write-time count). Drift-mode prose now
+    survives manifest growth.
+  - Added explicit Remediation paragraph
+    naming `tools/build_site.py` as the prose
+    location.
+  - Also: updated an inline `#` comment from
+    "(14 invariants, &lt;30 lines, ~320 lines,
+    etc)" to "(invariant count, line-length
+    numbers, etc.)" — drift-resilient phrasing.
+
+- **wake-231
+  (`test_every_decision_doc_has_readme_entry`)**:
+  - Already had explicit "Drift mode:" label
+    (added when the test was written).
+  - Added explicit "Asserts:" label (was just
+    a paragraph break).
+  - Added explicit "Remediation on failure:"
+    paragraph naming the README "Design
+    decisions" section as the edit target.
+  - Extended drift-mode example with concrete
+    failure consequence ("a fresh decision doc
+    can sit in `analysis/` indefinitely without
+    any reader landing on it from the project
+    entry surface") — same hygiene principle
+    as wake-225's wake-266 extension.
+
+**Verification**:
+
+- `pytest server/javelin/test_build_tools.py
+  -q` → **55 passing** — both edited tests
+  still passing.
+- `pytest server/javelin -q` → **456 passing,
+  1 skipped** — unchanged. Pure docstring
+  changes, no behavior diff.
+- No `tools/build_site.py` edits needed
+  (docstrings don't surface in the dashboard).
+
+**Convention parity now achieved across all
+three Doc/navigation cross-check tests with
+labeled sections** (wakes 218 / 225 / 231):
+
+| Wake | Labels present |
+|---|---|
+| 218 | Drift mode / Asserts / Remediation ✓ |
+| 225 | Drift mode / Asserts / Remediation ✓ |
+| 231 | Drift mode / Asserts / Remediation ✓ |
+
+The wake-207 (retrospective ↔ README link)
+test is the natural next candidate to extend
+this pattern to — its docstring is older and
+uses prose paragraphs without labels. But
+wake-207 predates the labeled-section
+convention and lives in the Doc/navigation
+bucket alongside the now-parity-converged
+trio; extending the convention to it would be
+a 4th iteration of the same pattern, not new
+value. Filing the heuristic only.
+
+**Pattern note**: this completes the "docstring
+hygiene" mini-arc that started at wake 266
+(wake-225 docstring extension) and continued
+at wake 268's filing of the indirection
+principle for numeric references. All three
+self-referential tests now describe their
+drift mode + remediation in a uniform shape —
+a future maintainer reading any one of them
+at test-failure time gets the same mental
+model.
+
+**Generalizable principle**: when one test in
+a family is brought to a documentation
+convention, the cost of extending the
+convention to its siblings is small but the
+value is uniform contributor experience.
+Avoid letting docstring-convention parity slip
+across test families — it's harder to fix
+once the family has grown.
+
+**Cost summary**: 2 docstring rewrites + 1
+inline-comment fix in one file. Pure
+documentation; no behavior diff.
+
+**Blockers:** None.

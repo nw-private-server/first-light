@@ -28776,6 +28776,12 @@
       "test_count": 457,
       "commit": "72344ce",
       "subject": "docs: wake-267 \u2014 DASHBOARD.md deprecation + CONTRIBUTING.md drift fixes"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "7c7ec5d",
+      "subject": "docs(site): wake-268 \u2014 prose-tail scan, three Findings-card cleanups"
     }
   ],
   "live_decoder_history": [
@@ -29380,6 +29386,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 269,
+      "title": "wake-218 + wake-231 docstring symmetry with wake-225 convention",
+      "line": 1466,
+      "category": "other"
+    },
+    {
       "wake": 268,
       "title": "Findings-card prose-tail scan (wake-265 hygiene heuristic applied)",
       "line": 1336,
@@ -29408,12 +29420,6 @@
       "title": "README \"Recent milestones\" reorder (newest-first)",
       "line": 937,
       "category": "docs"
-    },
-    {
-      "wake": 263,
-      "title": "archive header preamble (wake-261 follow-up)",
-      "line": 849,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {
