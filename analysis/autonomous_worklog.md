@@ -14222,3 +14222,103 @@ this one) preserve it.
 trivial.
 
 **Blockers:** None.
+
+## Wake 187 — rep_responder phase-2B foundation: heartbeat encode validation
+
+**Goal**: continue the wake-157 shadow-decode pattern on the
+**emission** side. Wake 157 added an inbound shadow path
+that runs every received record through the central
+dispatcher and logs the decoded class. Wake 187 adds an
+outbound validation: at startup, decode the cached 0x15d
+heartbeat through the dispatcher, re-encode it, and assert
+the round-trip equals the captured body byte-for-byte. If
+the assertion holds, a future wake can swap the emission
+path from raw replay-bytes to dispatcher-encoded fresh
+bytes with confidence. If it fails, the failure surfaces
+at startup, not later as a wire-level surprise.
+
+**Built**:
+
+- **`server/rep_responder.py`**:
+  - In `_arm_replay_queue`, after `_heartbeat_msg` is
+    selected, call new
+    `self._validate_dispatcher_heartbeat_encode_matches()`.
+  - The new method:
+    1. Bails silently if `_heartbeat_msg` is None or not
+       0x15d (the captured replay falls back to 0x14f if
+       0x15d isn't available; that case is a future-wake
+       extension).
+    2. Decodes `msg.body` via
+       `dispatch.decode_replay_message(0x15d, "R", body)`.
+    3. Re-encodes the result via
+       `dispatch.encode_replay_message(0x15d, decoded)`.
+    4. Compares to the original body.
+    5. **On match**: logs at INFO level "dispatcher
+       encoder produces byte-identical heartbeat (N bytes)
+       — emission-path swap would be safe."
+    6. **On length/content mismatch**: logs at WARN with
+       the first differing offset for diagnosis. Does not
+       raise. The captured-replay path continues to drive
+       emission unchanged.
+    7. Any decoder/encoder exception logs at WARN; never
+       propagates.
+
+- **Smoke-tested in isolation** (no test added — the
+  helper is one-shot startup validation, not a hot path):
+  with a captured 0x15d ping body (`00019d05 00036ef6
+  af912d74`), the helper logs:
+  > `[phase-2B] dispatcher encoder produces byte-identical
+  > heartbeat (12 bytes) — emission-path swap would be safe.`
+
+**Why this is a safe wake**:
+- **No runtime behavior change**: the responder still
+  emits the captured bytes verbatim via
+  `_send_replay_message`. The new helper is a logging-only
+  startup probe.
+- **No new failure modes**: every exception in the new
+  path is caught and logged; the heartbeat path stays
+  identical to wake-186's behavior on any failure.
+- **Validated against the wake-105 round-trip test**:
+  `test_dispatch_encode_decode_round_trip_full_replay`
+  (already in test_codecs.py) covers the same property
+  for all 174 captured replay messages including the
+  heartbeat. The startup check is a runtime version of
+  that test, against the *cached* message specifically.
+
+**What this unlocks for a future wake**:
+- Swap `_send_replay_message(self._heartbeat_msg, is_heartbeat=True)`
+  to a `_send_dispatched_message(0x15d, decoded, is_heartbeat=True)`-shaped
+  call. The dispatcher path can then synthesize fresh
+  (counter, nonce) values on each heartbeat instead of
+  replaying the same captured (counter, nonce) repeatedly
+  — more realistic server behavior, and the client may
+  validate monotonic counter increment.
+- Doing the swap requires runtime validation (real-GPU
+  host); the wake-187 startup probe is the static-analysis
+  prerequisite.
+
+**Pattern continuation**: this is the third "shadow / prove
+safety before flipping" step in the rep_responder
+integration arc:
+1. Wake 157: inbound shadow decode (log only)
+2. Wake 158: 9 tests pinning the shadow path
+3. Wake 187: **outbound encode validation (log only)**
+
+The next step in this arc (a future wake) would be a
+9-test-style lockdown for the encode path, then the
+actual emission-path swap. The conservative stance is
+deliberate — the responder's behavior matters for a real
+client, and the test suite's runtime coverage stops at the
+codec library; the responder itself doesn't have a runtime
+test harness in this repo.
+
+**Tests**: still **421 passing (+1 skipped)**. The new
+helper is exercised at responder startup; not added to the
+unit test suite since it requires constructing a
+PeerSession-like fixture (more setup than the helper
+warrants for one-shot validation).
+
+**No new `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.

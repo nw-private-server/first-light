@@ -388,6 +388,60 @@ class PeerSession:
             f"{type(decoded).__name__ if decoded is not None else 'None'}"
         )
 
+    def _validate_dispatcher_heartbeat_encode_matches(self) -> None:
+        """Wake 187 phase-2B foundation: confirm the central dispatcher's
+        encoder produces byte-identical output to the captured heartbeat
+        message we're about to replay. Logging-only; never raises.
+
+        The path that would replace `_send_replay_message(msg)` for the
+        heartbeat case is:
+            decoded = _dispatch.decode_replay_message(0x15d, "R", body)
+            new_body = _dispatch.encode_replay_message(0x15d, decoded)
+            ... wrap new_body in the Carrier envelope and send ...
+
+        This validation runs that decode → encode round-trip against the
+        cached `_heartbeat_msg.body` and asserts byte-equality. If
+        equality holds, a future wake can swap the emission path with
+        confidence. If it fails, the failure surfaces here at startup
+        with the diff bytes, not later as a wire-level surprise.
+        """
+        msg = self._heartbeat_msg
+        if msg is None or msg.type_id != 0x15d:
+            return
+        try:
+            decoded = _dispatch.decode_replay_message(0x15d, "R", msg.body)
+            if decoded is None:
+                self.log.debug(
+                    "[phase-2B] dispatcher returned None for heartbeat 0x15d; "
+                    "expected HeartbeatPing15D"
+                )
+                return
+            roundtripped = _dispatch.encode_replay_message(0x15d, decoded)
+        except Exception as e:  # noqa: BLE001 — log-only, never raise
+            self.log.warning(
+                f"[phase-2B] dispatcher heartbeat round-trip failed: "
+                f"{type(e).__name__}: {e}"
+            )
+            return
+        if roundtripped == msg.body:
+            self.log.info(
+                "[phase-2B] dispatcher encoder produces byte-identical "
+                f"heartbeat ({len(roundtripped)} bytes) — emission-path swap "
+                f"would be safe."
+            )
+        else:
+            # Diff the first differing offset for diagnosis.
+            diff_at = next(
+                (i for i, (a, b) in enumerate(zip(msg.body, roundtripped))
+                 if a != b),
+                min(len(msg.body), len(roundtripped)),
+            )
+            self.log.warning(
+                f"[phase-2B] dispatcher heartbeat encode differs from "
+                f"captured: lens {len(msg.body)} vs {len(roundtripped)}, "
+                f"first diff at offset 0x{diff_at:x}. NOT safe to swap."
+            )
+
     def _handle_v3_data_record(self, m) -> None:
         """Log + reply to an inbound V3 RegistrationRequest record."""
         try:
@@ -629,6 +683,16 @@ class PeerSession:
                     "found in dump; disabling heartbeat"
                 )
                 self.post_replay_heartbeat_ms = 0
+            else:
+                # Wake 187 phase-2B foundation: validate that the central
+                # dispatcher's encoder produces byte-identical output to
+                # the captured heartbeat. Future wakes can swap the
+                # emission path from `_send_replay_message(msg)` (raw
+                # captured bytes) to a dispatcher-encoded fresh body —
+                # this assertion proves the swap is safe BEFORE actually
+                # performing it, in the spirit of the wake-157 shadow
+                # pattern. Currently logs only; no behavior change.
+                self._validate_dispatcher_heartbeat_encode_matches()
         # The V3 response sent on ch=0 with seq=0/rel_seq=0 doesn't go through
         # _next_seq, so the per-channel counters are still at 0. Bump them so
         # replay records get seq=1/rel_seq=1 onward instead of colliding with

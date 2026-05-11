@@ -28086,6 +28086,12 @@
       "test_count": 422,
       "commit": "3712d2b",
       "subject": "test(site): pin \"every covered ldtype has a preset\" invariant"
+    },
+    {
+      "wake": null,
+      "test_count": 422,
+      "commit": "f85df04",
+      "subject": "feat(site): linkify four remaining dashboard prose surfaces"
     }
   ],
   "wire_type_families": [
@@ -28604,6 +28610,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 187,
+      "title": "rep_responder phase-2B foundation: heartbeat encode validation",
+      "line": 14226
+    },
+    {
       "wake": 186,
       "title": "linkify the four remaining dashboard surfaces",
       "line": 14161
@@ -28627,11 +28638,6 @@
       "wake": 182,
       "title": "linkify Recent-activity titles (forward-compatible payoff)",
       "line": 13901
-    },
-    {
-      "wake": 181,
-      "title": "linkify Wire Types tab + document-wide click handler",
-      "line": 13845
     }
   ],
   "live_decoder_coverage": {
