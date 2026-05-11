@@ -19063,3 +19063,104 @@ finding shipped as 5 new decomp files + doc
 updates.
 
 **Blockers:** None.
+
+## Wake 250 — wake-240 synthesis card final update with wake-249 trigger chain
+
+**Goal**: the wake-248 commit updated the wake-240
+synthesis card to reflect the wake-247 writer-found
+state ("trigger context still TBD"). Wake 249 found
+the trigger chain, but the synthesis card prose
+wasn't updated — still says "trigger context still
+TBD" and "decompile the 5 callers" as next step.
+Drift correction: bring the synthesis card current.
+
+**Built**:
+
+- **`tools/build_site.py`** wake-240 synthesis card
+  13→14 paragraph rewritten:
+  - "writer identified wake 247 ... trigger context
+    still TBD" → "**writer + trigger chain
+    identified (wakes 247, 249)**".
+  - Concrete trigger chain narrated:
+    > server replica-creation message (likely
+    > GridMate NewProxy) → client replica system
+    > populates `param_2[+0x7d0]` → caller fires,
+    > copies into wrapper → writer matches
+    > predicate, sets gate → state advances.
+  - **MVP estimate revised**: "**3 messages
+    minimum** — SelfIdent + LevelInfoChanged + a
+    replica-creation message". Both the wake-241
+    alt hypothesis framing ("directionally right
+    but quantitatively off") and the revision
+    visible on the dashboard's Findings tab.
+  - "Next concrete static-RE step: decompile the 5
+    callers" prose removed (it's done).
+  - References to `state_13_14_writer_investigation.md`
+    note "the full wake-241 → 247 → 249 RE arc"
+    rather than just "wake-247 finding".
+
+**Why this matters**: the synthesis card was the
+last of the 5 surfaces (README / synthesis card /
+state_machine_summary § 1 / investigation log /
+retrospective) where the wake-249 trigger-chain
+finding hadn't propagated. Bringing it current
+completes the discoverability cascade.
+
+**Surfaces NOW all consistent on wake-249 state**:
+1. **README Gate-2 row** — "all 4 transition
+   writers + trigger chains are now RE'd" + MVP
+   3-message estimate.
+2. **Findings tab wake-240 synthesis card** —
+   complete trigger chain + revised MVP estimate
+   (**this wake**).
+3. **`state_machine_summary.md` § 1** — predicate
+   table with the wake-249 trigger-chain detail.
+4. **`state_13_14_writer_investigation.md`** —
+   wake-241 search + wake-247 writer + wake-249
+   trigger-chain analysis.
+5. **Wake-227 retrospective** — chronological
+   (still pre-247 era; will need a delta callout
+   only if a 4th-stretch retrospective is
+   produced).
+
+**Cumulative pattern note**: the state-machine
+work has now been the subject of **3 substantive
+RE wakes** (232/247/249), **5 dashboard-surface
+updates** (213-244 phase-2D narrative; 240
+synthesis; 243 README; 245/246 forward-references;
+248/250 wake-249 propagation), and **1 documented
+investigation** (241→247→249 log). The wake-240
+synthesis card has been updated 5 times: wake 240
+initial creation, wake 242 alt-hypothesis surfacing,
+wake 244 implicit (count drift), wake 248 writer-
+found, wake 250 trigger-chain. That high
+edit-frequency is consistent with the synthesis
+card being a moving target during active RE.
+
+**The state-machine closure is now stable.** Future
+updates only if a 4th transition is added (won't
+happen — the ladder ends at state 14 = InGame), the
+revised MVP estimate is invalidated by a different
+RE finding, or runtime confirmation refines specific
+claims.
+
+**Verification**:
+- wake-225 (analysis-path existence): card still
+  cites `state_13_14_writer_investigation.md` —
+  exists ✓.
+- wake-209 (paired card consistency): wake-188 +
+  wake-204 pair untouched.
+- wake-218 (manifest citation): unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: this is the 6th update to the
+wake-240 synthesis card (counting initial
+creation). The card has been the focal point of
+discoverability for the state-machine RE work. As
+of wake 250, the prose should be stable for the
+foreseeable future.
+
+**No new tests, no new code**. Single targeted
+synthesis-card drift fix.
+
+**Blockers:** None.
