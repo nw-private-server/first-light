@@ -14027,3 +14027,71 @@ cross-check now validates 16 hex strings (was 14).
 trivial.
 
 **Blockers:** None.
+
+## Wake 184 — linkify "How it works" walkthrough prose
+
+**Goal**: the "How it works" tab has two worked examples
+(heartbeat `0x15d`, InitMessage `0x18a6`) plus general prose
+explaining wire-format encoding. The walkthroughs mention
+type-ids in their explanations as static HTML — `<code>0x15d</code>`
+etc. — but the wake-177 linkifier only handles JS-rendered
+content (Findings, Wire Types table, Recent activity). Walk
+the DOM to convert the static mentions too.
+
+**Built**:
+
+- **`site/index.html`**: new `linkifyTypeIdsInDom(rootEl)`
+  helper. Uses `TreeWalker` to collect text nodes
+  descended from `rootEl`, filters out any whose ancestor
+  chain already includes an `<a>` (HTML disallows
+  nesting), then for each candidate splits the text on
+  `\b0x[0-9a-fA-F]{2,4}\b` matches and inserts a real
+  `<a class="finding-typelink">` for each match that
+  resolves to a covered ldtype. Builds a
+  `DocumentFragment` per node so the replacement is a
+  single atomic DOM update.
+- **`load()`** calls
+  `linkifyTypeIdsInDom(document.querySelector('.tab[data-tab="howitworks"]'))`
+  after the existing setup. The wake-181 document-wide
+  click handler catches clicks on the inserted typelinks
+  with no extra wiring.
+- **`server/javelin/test_build_tools.py`**: new test
+  `test_howitworks_type_id_mentions_all_linkify` pins the
+  invariant: every 3+ hex-char `0xNNN` mentioned in the
+  walkthrough must be in `LDTYPE_TO_TYPE_IDS` so the DOM
+  linkifier actually surfaces a clickable link. Test
+  scope deliberately restricted to 3+ hex chars — 1-2
+  hex chars usually refers to individual byte values in
+  wire-format explanations (`0x80` marker, `0x3f` bit
+  mask, `0xa6` type-header byte), not type-ids.
+
+**What gets linkified** (covered 3+ hex-char mentions in
+the current walkthrough text):
+- 0x15d (heartbeat ping walkthrough)
+- 0x18a6 (InitMessage walkthrough)
+- 0x1a59 (referenced as InitMessage's counter-coupled
+  pair)
+
+Byte-value mentions (`0x80`, `0x9d`, `0x3f`, etc.) pass
+through as plain text — correct behavior since they're
+not type-ids.
+
+**Tests**: 419 → **420 passing (+1 skipped)**. The new
+invariant catches the regression class: a future contributor
+adding a wire-type walkthrough or mentioning a new type-id
+in prose without extending `LDTYPE_TO_TYPE_IDS` (and the JS
+`TYPE_ID_TO_LDTYPE`).
+
+**Pattern note**: this is the second time (after wake 178)
+that a wake added an invariant test alongside the feature
+it pins. The pattern is becoming routine: every dashboard
+feature that introduces a new place to drift gets a test
+catching the most plausible drift mode. The dashboard now
+has 4 structural cross-check tests (wakes 162's tools,
+166's parse_sections, 172's preset hex, 178's JS↔Python
+map sync, 184's How-it-works mentions).
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.

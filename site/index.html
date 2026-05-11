@@ -1836,6 +1836,62 @@ function linkifyTypeIds(text) {
   });
 }
 
+// Walk every text node descended from `rootEl` and convert
+// `0xNNN` mentions to `.finding-typelink` anchors when the type-id
+// is covered by the live decoder. Skips text nodes whose ancestor
+// chain already includes an `<a>` to avoid invalid nesting.
+function linkifyTypeIdsInDom(rootEl) {
+  if (!rootEl) return;
+  const pattern = /\b0x[0-9a-fA-F]{2,4}\b/g;
+  // Collect text nodes first; mutating the DOM while iterating with
+  // TreeWalker leads to skips.
+  const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      // Skip text nodes inside existing anchors — HTML disallows nesting.
+      let p = node.parentNode;
+      while (p && p !== rootEl) {
+        if (p.tagName === "A") return NodeFilter.FILTER_REJECT;
+        p = p.parentNode;
+      }
+      return pattern.test(node.nodeValue)
+        ? NodeFilter.FILTER_ACCEPT
+        : NodeFilter.FILTER_REJECT;
+    },
+  });
+  const targets = [];
+  let n;
+  while ((n = walker.nextNode())) targets.push(n);
+  pattern.lastIndex = 0;
+  for (const node of targets) {
+    const text = node.nodeValue;
+    const frag = document.createDocumentFragment();
+    let lastEnd = 0;
+    pattern.lastIndex = 0;
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const norm = "0x" + match[0].slice(2).toLowerCase();
+      const ldtype = TYPE_ID_TO_LDTYPE[norm];
+      if (!ldtype) continue;
+      if (match.index > lastEnd) {
+        frag.appendChild(document.createTextNode(text.slice(lastEnd, match.index)));
+      }
+      const a = document.createElement("a");
+      a.href = "#";
+      a.className = "finding-typelink";
+      a.dataset.ldtype = ldtype;
+      a.title = `Open ${norm} in live decoder`;
+      a.textContent = match[0];
+      frag.appendChild(a);
+      lastEnd = match.index + match[0].length;
+    }
+    if (lastEnd === 0) continue;  // no covered matches in this node
+    if (lastEnd < text.length) {
+      frag.appendChild(document.createTextNode(text.slice(lastEnd)));
+    }
+    node.parentNode.replaceChild(frag, node);
+  }
+}
+
 async function load() {
   const data = await fetch("data.json").then(r => r.json());
   document.getElementById("generated").textContent =
@@ -2261,6 +2317,15 @@ async function load() {
   // ---- Byte-pattern playground ----
   setupBytePatternSearch(data);
   setupLiveDecoder();
+
+  // ---- Wake 184: linkify type-id mentions in the "How it works" tab.
+  // Walks text nodes inside the static walkthrough HTML and converts
+  // `0xNNN` references to clickable typelinks the same way the
+  // Findings/Wire-Types renderers do for dynamic content. The wake-181
+  // document-wide click handler catches the new links automatically.
+  linkifyTypeIdsInDom(
+    document.querySelector('.tab[data-tab="howitworks"]')
+  );
 
   // ---- Live-decoder coverage indicator (wake 175) ----
   const cov = data.live_decoder_coverage;

@@ -391,6 +391,57 @@ def test_findings_linkify_map_matches_build_site_coverage_map():
         )
 
 
+def test_howitworks_type_id_mentions_all_linkify():
+    """Wake 184 added a DOM walker that linkifies `0xNNN` mentions in
+    the static "How it works" walkthrough HTML. Pin the invariant:
+    every type-id mentioned in the walkthrough's prose must be in
+    `LDTYPE_TO_TYPE_IDS` (the source-of-truth Python map), so the
+    DOM walker actually surfaces a clickable link rather than passing
+    through as plain text.
+
+    Catches the scenario: a future contributor adds a new wire-type
+    walkthrough or mentions a type-id in the "How it works" prose
+    but forgets to add the matching live-decoder entry."""
+    import re as _re
+    repo = Path(__file__).resolve().parents[2]
+    html = (repo / "site" / "index.html").read_text()
+
+    # Slice out the howitworks tab's section. Section tags don't nest
+    # in our markup, so a non-greedy match is sufficient.
+    m = _re.search(
+        r'<section class="tab" data-tab="howitworks">(.*?)</section>',
+        html, _re.DOTALL,
+    )
+    assert m, "couldn't locate howitworks section"
+    walkthrough = m.group(1)
+
+    # Find every 0xNNN mention. 1-2 hex-char mentions (e.g. `0x80`,
+    # `0xa6`) typically refer to individual byte values in wire-format
+    # explanations, not type-ids — restrict the invariant to 3+ hex
+    # chars which is the common type-id shape. Edge case: 0xa4 is a
+    # 2-char type-id we DO support; the wake-183 DOM linkifier would
+    # surface it as a link if mentioned (the JS regex matches 2-char
+    # hex), but the test stays conservative on the static-walkthrough
+    # side.
+    mentions = set()
+    for w in _re.finditer(r"\b0x([0-9a-fA-F]{3,4})\b", walkthrough):
+        mentions.add(int(w.group(1), 16))
+
+    assert mentions, "walkthrough should mention at least one type-id"
+
+    covered = set()
+    for tids in LDTYPE_TO_TYPE_IDS.values():
+        covered |= tids
+
+    uncovered = sorted(mentions - covered)
+    assert not uncovered, (
+        f"How-it-works mentions type-ids that aren't in LDTYPE_TO_TYPE_IDS, "
+        f"so the wake-184 DOM linkifier will leave them plain text: "
+        f"{[hex(t) for t in uncovered]}. Add the type-id to "
+        f"LDTYPE_TO_TYPE_IDS (and TYPE_ID_TO_LDTYPE) or stop mentioning it."
+    )
+
+
 def test_live_decoder_coverage_against_real_data():
     """Smoke test: the actual computed coverage against the captured
     set is non-trivial. Avoids hard-coding an exact number (which
