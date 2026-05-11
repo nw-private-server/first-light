@@ -419,6 +419,54 @@ def test_coverage_badge_color_thresholds():
         assert _coverage_badge_color(pct) == "brightgreen", f"{pct}% should be brightgreen"
 
 
+def test_public_api_md_matches_render_output():
+    """Wake 202 invariant. The wake-161 generator
+    `tools/build_api_reference.py` produces `analysis/public_api.md`
+    from the current source code. The doc must always match the
+    `render()` output for the current code state — otherwise visitors
+    landing on the API ref see stale class summaries or missing
+    entries.
+
+    Catches: a contributor adds an export to `__init__.py` or
+    patches a class docstring, runs the test suite, but forgets to
+    re-run `tools/build_api_reference.py`. The committed
+    `public_api.md` would drift from the live code; the test fails
+    with a precise pointer to re-run the generator.
+
+    Idempotency is implicit: if `render()` output ever changes
+    spontaneously between two calls (e.g. due to dict-ordering or
+    timestamp), this test fails. The wake-161 generator is
+    deterministic by design (sorted iteration, no timestamps).
+    """
+    from tools.build_api_reference import render
+    repo = Path(__file__).resolve().parents[2]
+    expected = render()
+    actual = (repo / "analysis" / "public_api.md").read_text()
+    assert actual == expected, (
+        "analysis/public_api.md is stale. Re-run "
+        "`tools/build_api_reference.py` to regenerate. "
+        f"(rendered output is {len(expected)} bytes; current file is "
+        f"{len(actual)} bytes)"
+    )
+
+
+def test_render_is_idempotent():
+    """Wake 202 invariant. Two consecutive calls to `render()` must
+    produce byte-identical output. Catches the regression: a future
+    tweak to `build_api_reference.py` introduces dict-ordering noise
+    or timestamp drift, which would make the generated doc churn
+    in git on every rebuild.
+    """
+    from tools.build_api_reference import render
+    out1 = render()
+    out2 = render()
+    assert out1 == out2, (
+        f"render() is non-deterministic: outputs differ "
+        f"({len(out1)} vs {len(out2)} bytes). Check for dict-iteration "
+        f"or timestamp-based content."
+    )
+
+
 def test_current_coverage_badge_matches_data_json():
     """Wake 201: the live badge JSON (`site/badge-live-decoder.json`)
     must agree with the color the function picks for the *current*

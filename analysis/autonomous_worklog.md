@@ -15197,3 +15197,49 @@ output, with precise failure messages.
 trivial.
 
 **Blockers:** None.
+
+## Wake 202 — api-ref idempotency invariant (2 new tests)
+
+**Goal**: pin the wake-161 `build_api_reference.py`
+generator's deterministic behavior and current-state
+agreement. Mirrors wake-201's "extract pure function +
+test it" pattern.
+
+**Built**:
+
+- **`server/javelin/test_build_tools.py`** (+2 tests):
+  - `test_public_api_md_matches_render_output` — imports
+    the generator's `render()` and asserts the committed
+    `analysis/public_api.md` matches the current output.
+    Catches: a contributor adds an export to
+    `__init__.py` or patches a class docstring, runs the
+    test suite, but forgets to re-run
+    `tools/build_api_reference.py`. The committed doc
+    would drift from live code; the test fails with
+    byte-counts and a precise "re-run the generator"
+    message.
+  - `test_render_is_idempotent` — calls `render()` twice
+    in succession and asserts byte-identical output.
+    Catches the regression: a future tweak introduces
+    dict-iteration noise, timestamp-based content, or
+    other non-determinism that would make the generated
+    doc churn in git on every rebuild.
+
+- **Tests**: 432 → **434 passing (+1 skipped)**.
+
+**Pattern continuation**: this is the **9th** dashboard
+cross-check test (wakes 162, 166, 172, 178, 184, 185,
+196, 201, **202**).
+
+**Wakes 201 + 202 are paired in shape**: both extract or
+exercise a pure function + add an invariant pinning its
+behavior + add a second invariant asserting the on-disk
+artifact matches the function's current output. This
+"pure → test thresholds → test consistency" triple is the
+durable template; future build_*.py functions can adopt
+it with minimal effort.
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.
