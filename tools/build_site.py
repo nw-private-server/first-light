@@ -270,6 +270,11 @@ def load_decompile_annotations():
 def load_test_count():
     """Collect-only pytest to get the test count without running them.
 
+    Scans the full `server/javelin/` test directory (wake 164) so the
+    badge reflects every test the project ships, not just the codec
+    suite. That includes the wake-157 shadow-decode tests and the
+    wake-162 build-tools tests.
+
     Uses `.venv/bin/pytest` locally if present, else `pytest` on PATH.
     The CI runner installs pytest globally (no .venv), so the fallback
     matters there.
@@ -285,8 +290,7 @@ def load_test_count():
     if pytest_cmd is None:
         return 0
     res = subprocess.run(
-        [pytest_cmd, "server/javelin/test_codecs.py",
-         "--collect-only", "-q"],
+        [pytest_cmd, "server/javelin/", "--collect-only", "-q"],
         cwd=str(REPO), capture_output=True, text=True,
     )
     m = re.search(r"(\d+) tests collected", res.stdout)
