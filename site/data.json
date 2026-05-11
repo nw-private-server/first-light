@@ -1443,6 +1443,12 @@
       "summary": "Every captured type's 16-byte identity field decomposes as [sub_system_id:8][session_uuid_lower:8]. 11 distinct sub_system_id values surfaced across the codec library, each tied to a specific message family."
     },
     {
+      "title": "Sub-system families: 7 of 11 IDs span multiple wire-types",
+      "category": "Wire-level finding",
+      "wake": 121,
+      "summary": "Cross-correlation of the 11 sub_system_ids across captured wire-types: 7 of 11 are shared by multiple message kinds, surfacing in-session sub-system groupings. Notable correlations: 0x18a6\u21940x1a59 (counter-coupled init pair, shared ID f8cbed57c68b18f4), 0x8e6\u21940x9fc (identity blob + receipt echo), 0x1096\u21940x1097 (frame config + spawn-confirmation token), and the 3-way 0x102e+0x1033+0x192c (sub_system_id ce81136a2b7ad33e \u2014 opaque-blob fragmented across three message types). All 7 cards drilldown from the Overview tab's family panel."
+    },
+    {
       "title": "Server\u2194client counter pairs",
       "category": "Wire-level finding",
       "wake": 78,
@@ -28038,6 +28044,12 @@
       "test_count": 420,
       "commit": "d04ff25",
       "subject": "test(site): pin JS \u2194 Python type-id map sync invariant"
+    },
+    {
+      "wake": null,
+      "test_count": 420,
+      "commit": "ca24855",
+      "subject": "feat(site): live decoder +3 codecs (8e6, handshake_blob_76, 9fc) \u2192 26/40"
     }
   ],
   "wire_type_families": [
@@ -28556,6 +28568,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 180,
+      "title": "Findings card: 7 of 11 sub_system_ids span multiple wire-types",
+      "line": 13772
+    },
+    {
       "wake": 179,
       "title": "live decoder + 3 codecs (8e6, handshake_blob_76, 9fc) \u2192 26/40",
       "line": 13695
@@ -28579,11 +28596,6 @@
       "wake": 175,
       "title": "live-decoder coverage indicator (22/40 = 55%)",
       "line": 13431
-    },
-    {
-      "wake": 174,
-      "title": "live decoder coverage push: 20 \u2192 23 wire-types",
-      "line": 13366
     }
   ],
   "live_decoder_coverage": {

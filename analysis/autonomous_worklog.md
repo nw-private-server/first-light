@@ -13768,3 +13768,76 @@ silently.
 trivial.
 
 **Blockers:** None.
+
+## Wake 180 — Findings card: 7 of 11 sub_system_ids span multiple wire-types
+
+**Goal**: long-deferred (carried through wakes 168-179) — the
+wake-121 sub_system_id correlation work is well-documented in
+`identity_bundle_correlation.md` and surfaced on the Overview
+tab's family panel, but it has no entry on the curated
+Findings list. The 3-way correlation
+(`0x102e+0x1033+0x192c` sharing `ce81136a2b7ad33e`) is one
+of the strongest static-RE results we have; it deserves a
+card.
+
+**Built**:
+
+- **`tools/build_site.py`**: new Findings card under
+  "Wire-level finding" category (the 5th in that bucket):
+  - **Title**: "Sub-system families: 7 of 11 IDs span
+    multiple wire-types" (wake 121)
+  - **Summary**: walks through the headline findings —
+    7-of-11 multi-wire-type spans, then names the four
+    most informative correlations:
+    - `0x18a6↔0x1a59` (counter-coupled init pair, shared
+      ID `f8cbed57c68b18f4`)
+    - `0x8e6↔0x9fc` (identity blob + receipt echo)
+    - `0x1096↔0x1097` (frame config + spawn-confirmation
+      token)
+    - 3-way `0x102e+0x1033+0x192c` (`ce81136a2b7ad33e`,
+      opaque-blob fragmented across three types)
+  - Ends with a pointer to the Overview tab's family
+    panel for the full drill-down.
+
+**Auto-linkified type-ids in the new card** (via the wake-177
+`TYPE_ID_TO_LDTYPE` linkify):
+- 0x18a6 ✓ (InitMessage18A6 decoder)
+- 0x1a59 ✓ (subkey family decoder)
+- 0x8e6 ✓ (IdentityBlob decoder, wake 179)
+- 0x9fc ✓ (ReceiptHandshake decoder, wake 179)
+- 0x1096 ✓ (FrameConfig decoder)
+- 0x1097 ✓ (ResultToken1097 decoder)
+- 0x102e ✓ (subkey family)
+- 0x192c ✓ (subkey family)
+- 0x1033 ✗ (opaque blob — not yet in live decoder; passes
+  through as plain text)
+
+8 of 9 wire-type mentions in the new card render as clickable
+links straight to the live decoder. A visitor reading "the
+3-way correlation" can click each ID and see the actual
+wire layout in 1-2 clicks.
+
+**Findings tab now**: 10 cards across 4 categories:
+- RE breakthrough: 2 (state-10 gate, type-name limit)
+- Wire-level finding: **5** (CRC32, typeIndex==type-id,
+  identity-bundle map, server↔client counter pairs,
+  **NEW: sub-system families 7-of-11**)
+- Research closure: 2 (hash hypothesis ruled out, type-id
+  catalog false lead)
+- Architecture: 1 (VM ruled out)
+
+**Tests**: still **419 passing (+1 skipped)**. The wake-163
+findings-category invariant tests automatically validate the
+new card's `category` field; the wake-177 linkify auto-renders
+the type-id links; the wake-178 map-sync test continues to
+pass because no new ldtype was added.
+
+**Pattern win**: this card adds 0 new infrastructure. Every
+field in the new entry is rendered by existing dashboard
+machinery (categorization, linkify, render). The
+infrastructure built wakes 156 → 178 paid for itself the
+moment a new finding wanted to ship.
+
+**No `server/javelin/` codec changes**. Site rebuild trivial.
+
+**Blockers:** None.

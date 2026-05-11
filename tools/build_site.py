@@ -870,6 +870,23 @@ def load_findings():
                        "family.",
         },
         {
+            "title": "Sub-system families: 7 of 11 IDs span multiple wire-types",
+            "category": "Wire-level finding",
+            "wake": 121,
+            "summary": "Cross-correlation of the 11 sub_system_ids "
+                       "across captured wire-types: 7 of 11 are shared "
+                       "by multiple message kinds, surfacing in-session "
+                       "sub-system groupings. Notable correlations: "
+                       "0x18a6↔0x1a59 (counter-coupled init pair, shared "
+                       "ID f8cbed57c68b18f4), 0x8e6↔0x9fc (identity "
+                       "blob + receipt echo), 0x1096↔0x1097 (frame "
+                       "config + spawn-confirmation token), and the "
+                       "3-way 0x102e+0x1033+0x192c (sub_system_id "
+                       "ce81136a2b7ad33e — opaque-blob fragmented "
+                       "across three message types). All 7 cards "
+                       "drilldown from the Overview tab's family panel.",
+        },
+        {
             "title": "Server↔client counter pairs",
             "category": "Wire-level finding",
             "wake": 78,
