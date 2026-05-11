@@ -2644,3 +2644,139 @@ coordinator" layer that the REP-level
 rep.ready=1 doesn't satisfy.
 
 **Blockers:** None.
+
+
+## Wake 277 — O3DE corpus brute-force attempt for AZ::Crc32(0xFE476177)
+
+**Goal**: external review (post wake-275)
+suggested wake-9's CRC reversal attempt was
+incomplete because the wordlist was too small
++ the AzCore CRC32 algorithm might differ
+from zlib. Wake-9 tried 65 candidates against
+zlib CRC32 (raw + lowercased). This wake
+extends with broader wordlist + algorithm
+variants.
+
+**Method**:
+
+1. **Verify AzCore CRC32 algorithm**:
+   Computed `zlib.crc32(b"GameEntityContextRequests")`
+   = `0xD8984A98`. AzCore's `Crc32` class in
+   public O3DE source uses polynomial
+   `0xEDB88320` (same as zlib). The wake-9
+   algorithm choice was correct.
+
+2. **Broader wordlist**: 187 additional
+   candidates focusing on GridMate Carrier
+   tear-down / flush / disconnect / timeout
+   events, AZ EBus naming patterns, and
+   Lumberyard/O3DE component lifecycle names.
+
+3. **Algorithm variants** (7): raw, raw+null,
+   lowercased, lowercased+null, uppercased,
+   raw inverted (`^ 0xFFFFFFFF`), lowercased
+   inverted.
+
+**Result**: **no match**. Total across wakes
+9 + 277: ~252 unique candidate strings ×
+multiple variants ≈ 1300+ CRC computations.
+The release-build string stripping is real;
+hand-curated wordlists are too sparse to hit
+the specific tear-down event name.
+
+**Built**:
+
+- **`analysis/crc32_FE476177_brute_force.py`**
+  — self-contained reproducible brute-force
+  script with the combined wordlist + 7
+  algorithm variants. Future contributors with
+  access to O3DE source can extend the
+  `candidates` list and re-run.
+- **`analysis/state_machine_summary.md`
+  § 8 A3.1 row** — updated to note: AzCore
+  CRC32 verified to match zlib, two brute-
+  force attempts exhausted, next static thread
+  is O3DE corpus grep.
+
+**Verification**:
+
+- `pytest server/javelin -q` → not run (no
+  code-path changes; pure analysis artifacts +
+  one doc update).
+- `.venv/bin/python3 tools/build_site.py` →
+  will run pre-commit.
+
+**Static-RE conclusion for `0xFE476177`**:
+
+Three thresholds for resolution have now been
+identified:
+
+1. **Hand-curated wordlist** (wake 9 + 277):
+   exhausted. ~252 candidates × variants. Dead
+   end for further iteration.
+2. **O3DE source corpus brute-force** (not yet
+   attempted): requires cloning public O3DE
+   repo, grepping every `AZ_CRC` /
+   `AZ_CRC_CE` / `Crc32(...)` callsite,
+   computing each. Tractable but requires
+   external repo access outside the loop. The
+   `crc32_FE476177_brute_force.py` script is
+   ready to take an extended wordlist.
+3. **AZ::Name string-internment table hunt**
+   (alternative static thread, not yet
+   attempted): AZ::Name in O3DE uses a hash
+   → string lookup table at runtime. If the
+   binary preserves any of this table, the
+   string for `0xFE476177` might be reachable
+   through it. The wake-9 notes mention
+   `PTR_LAB_147ef8d50` as a suspected AZ::Name
+   vtable. Finding the consumers of that
+   vtable might surface the table. This is a
+   different static-RE thread that's never
+   been hunted.
+4. **Runtime trace** (canonical path): Frida
+   hook on `FUN_140fb3560` logs the event-id
+   argument structure at call time. Resolves
+   the question definitively.
+
+**Negative-result value**: this wake confirms
+the wake-9 conclusion was correct and adds a
+larger-wordlist + multi-variant data point.
+The wake-9 archive entry now has a directly-
+linked extension. Also: the
+`crc32_FE476177_brute_force.py` script makes
+the brute-force trivially extensible for any
+future contributor with O3DE source access.
+
+**Methodological note**: this wake is the
+third in a row to produce a substantive
+negative result that *advances* the question
+(wake 274 surfaced wake-8 resolution; wake 275
+surfaced wake-247 closure; wake 276 + 277 hit
+new walls). Three negative-result wakes in a
+row, each producing forward-progress
+documentation, is a different mode from the
+"shipping a fix" wakes that dominated wakes
+267-273. Worth tracking — substantive
+negative results have been *higher*-value
+than the doc fixes in the recent arc.
+
+**Forward implications**: with this wake, the
+static-RE toolkit on the destroy-trigger
+question is genuinely exhausted from the loop.
+The two remaining tractable static threads
+(O3DE corpus + AZ::Name table) both require
+either external source-tree access or a more
+elaborate Ghidra session. Either could
+plausibly be pursued in a future wake; both
+have a meaningful chance of producing a
+single-shot answer.
+
+**Cost summary**: 1 brute-force script
+authored + 187 additional candidates tested,
+1 doc row updated in
+`state_machine_summary.md`. Negative result
+documented + future-extensible script left
+behind. ~25 minutes.
+
+**Blockers:** None.

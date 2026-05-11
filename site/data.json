@@ -28833,6 +28833,12 @@
       "test_count": 457,
       "commit": "d23b14e",
       "subject": "docs(analysis): wake-275 \u2014 archive audit pass, fix state-13\u219214 \"still TBD\" drift"
+    },
+    {
+      "wake": 252,
+      "test_count": 457,
+      "commit": "ad72a46",
+      "subject": "re(static): wake-276 \u2014 V3 send-scheduler hunt, hits same indirect-vtable wall as wake 252"
     }
   ],
   "live_decoder_history": [
@@ -29369,7 +29375,7 @@
       "filename": "state_machine_summary.md",
       "title": "GameConnection State Machine \u2014 Synthesis (2026-05-07)",
       "summary": "After the V3 RegistrationResponse is accepted (already working \u2014 prior project notes confirmed `rep.ready` flips 0\u21921), the client sits in",
-      "bytes": 21077,
+      "bytes": 21429,
       "category": "Overview"
     },
     {
@@ -29437,6 +29443,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 277,
+      "title": "O3DE corpus brute-force attempt for AZ::Crc32(0xFE476177)",
+      "line": 2649,
+      "category": "other"
+    },
+    {
       "wake": 276,
       "title": "V3 send-scheduler hunt (external-review-driven pivot)",
       "line": 2486,
@@ -29465,12 +29477,6 @@
       "title": "parallel-staleness sweep (closes the wake-271 pattern)",
       "line": 1844,
       "category": "other"
-    },
-    {
-      "wake": 271,
-      "title": "README \"What the project needs most right now\" rewrite",
-      "line": 1702,
-      "category": "docs"
     }
   ],
   "live_decoder_coverage": {
