@@ -1650,7 +1650,7 @@
       "title": "Four-retrospective session-arc skeleton",
       "category": "Architecture",
       "wake": 228,
-      "summary": "The autonomous-session work is now narrated across four frozen retrospective documents, each covering a coherent multi-wake arc: wakes 1-150 (`analysis/session_retrospective_150.md`) \u2014 codec library + dispatcher + initial dashboard, ending at 40/40 captured-codec coverage and the wake-112 state-10 RE breakthrough; wakes 151-196 (`analysis/session_retrospective_196.md`) \u2014 navigable dashboard, live decoder at 80%, rep_responder \u2194 dispatcher integration foundation; wakes 197-227 (`analysis/session_retrospective_227.md`) \u2014 live decoder push to 90.0% (with the wake-221 floor decision), phase-2 emission swap + counter-advance realism extension, and the cross-check graph (see the wake-210 meta-pattern card for current count, with five self-referential pins on the meta-card itself); **wakes 228-253 (`analysis/session_retrospective_253.md`) \u2014 state-machine RE closure arc, all 4 post-V3 state-spawn transitions now have writers + trigger chains identified at static-RE level, with the wake-252 indirect-vtable wall marking the static-RE limit (further progress on NewProxy wire-type ID is runtime-dependent)**. Each doc is a frozen snapshot of its arc + a forward pointer to the next. The wake-207 cross-check pins each doc to a README link; the wake-225 cross-check pins each path cited in this card to actually exist; wake 231 added an analogous pin for decision-doc README links. Future arcs follow the same pattern: ~25-50 wakes per retrospective, snapshot + 3-5 phases + open-items + forward pointer. The wake-253 retro covers 26 wakes \u2014 slightly below the previous-arc range, but the state-machine closure provided a natural narrative anchor. Four artifact genres now coexist on the Findings tab: **retrospectives** (frozen snapshots \u2014 4 docs, this is their card); **decision docs** (closed questions with reversal criteria \u2014 wake 221's 0x065c, cited from the wake-200 Findings card); **investigation logs** (search-in-progress with candidate triage \u2014 wake 241's state-13\u219214 search, surfaced via the wake-251 methodology card); **walls** (documented static-RE limit, runtime handoff necessary \u2014 wake 252's indirect-vtable termination, surfaced via the wake-257 wall card). Each genre has at least one exemplar Findings card on the dashboard, completing the 4-genre coverage as of wake 257."
+      "summary": "The autonomous-session work is now narrated across four frozen retrospective documents, each covering a coherent multi-wake arc: wakes 1-150 (`analysis/session_retrospective_150.md`) \u2014 codec library + dispatcher + initial dashboard, ending at 40/40 captured-codec coverage and the wake-112 state-10 RE breakthrough; wakes 151-196 (`analysis/session_retrospective_196.md`) \u2014 navigable dashboard, live decoder at 80%, rep_responder \u2194 dispatcher integration foundation; wakes 197-227 (`analysis/session_retrospective_227.md`) \u2014 live decoder push to 90.0% (with the wake-221 floor decision), phase-2 emission swap + counter-advance realism extension, and the cross-check graph (see the wake-210 meta-pattern card for current count, with five self-referential pins on the meta-card itself); **wakes 228-253 (`analysis/session_retrospective_253.md`) \u2014 state-machine RE closure arc, all 4 post-V3 state-spawn transitions now have writers + trigger chains identified at static-RE level, with the wake-252 indirect-vtable wall marking the static-RE limit (further progress on NewProxy wire-type ID is runtime-dependent)**. Each doc is a frozen snapshot of its arc + a forward pointer to the next. The wake-207 cross-check pins each doc to a README link; the wake-225 cross-check pins each path cited in this card to actually exist; wake 231 added an analogous pin for decision-doc README links. Future arcs follow the same pattern: ~25-50 wakes per retrospective, snapshot + 3-5 phases + open-items + forward pointer. The wake-253 retro covers 26 wakes \u2014 slightly below the previous-arc range, but the state-machine closure provided a natural narrative anchor. Four artifact genres now coexist on the Findings tab: **retrospectives** (frozen snapshots \u2014 4 docs, this is their card); **decision docs** (closed questions with reversal criteria \u2014 wake 221's 0x065c, cited from the wake-200 Findings card); **investigation logs** (search-in-progress with candidate triage \u2014 wake 241's state-13\u219214 investigation doc, surfaced via the wake-251 methodology card); **walls** (documented static-RE limit, runtime handoff necessary \u2014 wake 252's indirect-vtable termination, surfaced via its own wake-252 Findings card on this tab). Each genre has at least one exemplar Findings card on the dashboard, completing the 4-genre coverage."
     },
     {
       "title": "VM-on-Apple-Silicon ruled out for runtime testing",
@@ -28782,6 +28782,12 @@
       "test_count": 457,
       "commit": "7c7ec5d",
       "subject": "docs(site): wake-268 \u2014 prose-tail scan, three Findings-card cleanups"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "08b542b",
+      "subject": "test(build): wake-269 \u2014 wake-218 + wake-231 docstring symmetry with wake-225 convention"
     }
   ],
   "live_decoder_history": [
@@ -29386,6 +29392,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 270,
+      "title": "4-genre Findings card audit (caught wake-228 broken cross-link)",
+      "line": 1578,
+      "category": "site"
+    },
+    {
       "wake": 269,
       "title": "wake-218 + wake-231 docstring symmetry with wake-225 convention",
       "line": 1466,
@@ -29414,12 +29426,6 @@
       "title": "wake-200 Findings card cleanup",
       "line": 1005,
       "category": "site"
-    },
-    {
-      "wake": 264,
-      "title": "README \"Recent milestones\" reorder (newest-first)",
-      "line": 937,
-      "category": "docs"
     }
   ],
   "live_decoder_coverage": {

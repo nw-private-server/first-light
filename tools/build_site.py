@@ -1468,15 +1468,15 @@ def load_findings():
                        "from the wake-200 Findings card); "
                        "**investigation logs** (search-in-progress "
                        "with candidate triage — wake 241's "
-                       "state-13→14 search, surfaced via the "
-                       "wake-251 methodology card); **walls** "
-                       "(documented static-RE limit, runtime handoff "
-                       "necessary — wake 252's indirect-vtable "
-                       "termination, surfaced via the wake-257 "
-                       "wall card). Each genre has at least one "
-                       "exemplar Findings card on the dashboard, "
-                       "completing the 4-genre coverage as of wake "
-                       "257.",
+                       "state-13→14 investigation doc, surfaced "
+                       "via the wake-251 methodology card); "
+                       "**walls** (documented static-RE limit, "
+                       "runtime handoff necessary — wake 252's "
+                       "indirect-vtable termination, surfaced via "
+                       "its own wake-252 Findings card on this tab). "
+                       "Each genre has at least one exemplar "
+                       "Findings card on the dashboard, completing "
+                       "the 4-genre coverage.",
         },
         {
             "title": "VM-on-Apple-Silicon ruled out for runtime testing",

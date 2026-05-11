@@ -1573,3 +1573,127 @@ inline-comment fix in one file. Pure
 documentation; no behavior diff.
 
 **Blockers:** None.
+
+
+## Wake 270 — 4-genre Findings card audit (caught wake-228 broken cross-link)
+
+**Goal**: the wake-228 narrative card claims
+"4 artifact genres now coexist on the Findings
+tab" with named exemplars for each genre. This
+wake verifies each named exemplar actually
+exists on the dashboard, per the wake-225
+cross-check principle but applied at the
+narrative-prose level rather than the file
+level.
+
+**Found**: 3 of 4 genre claims hold up; **1
+broken cross-link**:
+
+| Genre | Claim | Status |
+|---|---|---|
+| retrospectives | "4 docs, this is their card" (= wake-228 itself) | ✓ |
+| decision docs | "wake 221's 0x065c, cited from the wake-200 Findings card" | ✓ |
+| investigation logs | "wake 241's state-13→14 search, surfaced via the wake-251 methodology card" | ✓ |
+| walls | "wake 252's indirect-vtable termination, surfaced via the wake-257 wall card" | ✗ |
+
+The wall card's `wake` field in `tools/
+build_site.py` is **252**, not 257 — meaning
+visitors looking at the dashboard see it as a
+wake-252 card. There is no wake-257 card on
+the dashboard at all. The git log shows the
+wall Findings card was *created* at wake 257
+(commit `2e5e46d`, "wall Findings card #22"),
+but the data was stamped with `wake=252` (the
+underlying finding wake). So the wake-228
+prose was referring to the creation wake while
+the dashboard surfaces the finding wake.
+
+Also: "completing the 4-genre coverage as of
+wake 257" is a stale date stamp — by the
+wake-265 hygiene heuristic, this is
+process-narration that aged out (the
+completion is what visitors see today; the
+date the milestone landed is not visitor-
+relevant).
+
+**Built**:
+
+**`tools/build_site.py`** — wake-228 card
+prose edit (~5 lines):
+
+- **walls bullet**: replaced "wake 252's
+  indirect-vtable termination, surfaced via the
+  wake-257 wall card" with "wake 252's
+  indirect-vtable termination, surfaced via
+  its own wake-252 Findings card on this tab".
+  This makes the cross-link discoverable for
+  any visitor reading the wake-228 card (they
+  can now look for and find the wake-252
+  card).
+- **investigation logs bullet** (minor): tweaked
+  "wake 241's state-13→14 search" to "wake
+  241's state-13→14 investigation doc" — the
+  word "search" was vague; "investigation
+  doc" parallels the other genre exemplar
+  language and matches the actual artifact
+  type (an analysis/`.md` doc).
+- **Closing sentence**: removed "as of wake
+  257" date stamp; closing sentence now reads
+  "Each genre has at least one exemplar
+  Findings card on the dashboard, completing
+  the 4-genre coverage."
+
+**Verification**:
+
+- `.venv/bin/python3 tools/build_site.py` →
+  clean.
+- `pytest server/javelin -q` → **456 passing,
+  1 skipped** — unchanged.
+- Manual audit pass: all 4 genre exemplars
+  now point to wake numbers that have actual
+  Findings cards on the dashboard:
+  - retrospectives: wake-228 (self) ✓
+  - decision docs: wake-221 (decision doc on
+    disk) cited from wake-200 card ✓
+  - investigation logs: wake-241 (doc on
+    disk) surfaced by wake-251 card ✓
+  - walls: wake-252 doc + wake-252 card ✓
+
+**Pattern note**: the wake-225 cross-check
+pins **analysis-path** existence in Findings
+prose, but not **wake-number** consistency
+across cards. The wake-218 cross-check pins
+manifest-wake citations in the wake-210 card
+specifically. Neither catches the wake-228
+broken cross-link because it's prose citing
+*another card's wake number*, not a path or a
+manifest wake.
+
+**Could this become a cross-check?** Tempting,
+but per the wake-227 "graph is essentially
+complete" principle, the cost of pinning every
+narrative cross-reference outweighs the
+benefit. The wake-228 card's drift was caught
+by a focused audit pass (~15 min). Future
+cards' similar drift would be caught by
+similar audits. Filing the audit pattern as a
+periodic hygiene exercise rather than a
+new test.
+
+**Discrepancy filed**: the wake-228 card has a
+`wake=228` field but mentions a "wake-257 wall
+card" — the underlying genuine ambiguity is
+that "wake N" can mean either (a) the wake
+where the underlying finding happened or (b)
+the wake where the Findings card was created.
+For most cards these coincide; for the wall
+card they don't. The fix establishes that
+dashboard cards should be referenced by
+`wake` field (= visitor-discoverable
+identifier), not by creation wake.
+
+**Cost summary**: 1 prose edit (~5 lines in
+the wake-228 card). Audit-driven fix; the
+audit itself was the higher-cost work.
+
+**Blockers:** None.
