@@ -626,6 +626,29 @@ def load_findings():
     few wake entries' headlines)."""
     return [
         {
+            "title": "sub_system_id deterministic-hash hypothesis ruled out",
+            "wake": 155,
+            "summary": "13 hash families × 9,470 byte-inputs × 2 byte-"
+                       "orderings = 246,220 hash invocations checked → 0 "
+                       "matches. xxh3_64, xxh64, mmh3 ×3, CRC-64-ECMA all "
+                       "tested on top of the wake-122 FNV/SHA/MD5/CRC32 "
+                       "set. The 11 captured sub_system_ids are not "
+                       "deterministic hashes of any registry name or UUID. "
+                       "Session-scoped allocation is now the strongly-"
+                       "favored remaining hypothesis.",
+        },
+        {
+            "title": "State-10 gate predicate + trigger identified",
+            "wake": 112,
+            "summary": "The state-10 → 11 transition is gated by "
+                       "*(int*)(wrapper+0xa0) == 2 (corrected from the "
+                       "earlier +0x130 hypothesis). The trigger is wire "
+                       "type 0x5d1 (PlayerManagerSelfIdentificationMsg) — "
+                       "not in the captured replay, so the server must "
+                       "synthesize it. Codec is wire-bound; ready for "
+                       "runtime testing.",
+        },
+        {
             "title": "W-direction CRC32 confirmed",
             "wake": 90,
             "summary": "The 4-byte field at offset 0 of every captured "

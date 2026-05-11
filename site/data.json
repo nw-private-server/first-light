@@ -1407,6 +1407,16 @@
   ],
   "findings": [
     {
+      "title": "sub_system_id deterministic-hash hypothesis ruled out",
+      "wake": 155,
+      "summary": "13 hash families \u00d7 9,470 byte-inputs \u00d7 2 byte-orderings = 246,220 hash invocations checked \u2192 0 matches. xxh3_64, xxh64, mmh3 \u00d73, CRC-64-ECMA all tested on top of the wake-122 FNV/SHA/MD5/CRC32 set. The 11 captured sub_system_ids are not deterministic hashes of any registry name or UUID. Session-scoped allocation is now the strongly-favored remaining hypothesis."
+    },
+    {
+      "title": "State-10 gate predicate + trigger identified",
+      "wake": 112,
+      "summary": "The state-10 \u2192 11 transition is gated by *(int*)(wrapper+0xa0) == 2 (corrected from the earlier +0x130 hypothesis). The trigger is wire type 0x5d1 (PlayerManagerSelfIdentificationMsg) \u2014 not in the captured replay, so the server must synthesize it. Codec is wire-bound; ready for runtime testing."
+    },
+    {
       "title": "W-direction CRC32 confirmed",
       "wake": 90,
       "summary": "The 4-byte field at offset 0 of every captured W-direction message is standard zlib CRC32 over (correlation_uuid + envelope), big-endian. Validated 37 of 39 captured W messages."
@@ -27875,6 +27885,12 @@
       "test_count": 347,
       "commit": "1a58638",
       "subject": "feat: README retrospective link + 0x18a6 in live decoder"
+    },
+    {
+      "wake": 155,
+      "test_count": 347,
+      "commit": "ef181c8",
+      "subject": "analysis(wake 155): extended sub_system_id hash hunt \u2014 definitive negative"
     }
   ],
   "wire_type_families": [

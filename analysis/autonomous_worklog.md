@@ -12249,3 +12249,51 @@ and prints a clear error if missing.
 Site rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 156 — promote two RE findings to the Findings tab
+
+**Goal**: the Findings tab is the curated short list — what
+visitors should walk away knowing if they only read one tab.
+Two major recent findings weren't there yet: the wake-155
+hash-hunt closure and the wake-112 state-10 RE breakthrough.
+Both are significant enough that a visitor browsing for "what
+have they figured out" should see them in the curated list.
+
+**Built**:
+
+- `tools/build_site.py`:
+  - `load_findings()` gains two new entries at the top of
+    the list (newest first):
+    - **Wake 155 — sub_system_id deterministic-hash
+      hypothesis ruled out**: 13 hash families × 9,470
+      byte-inputs × 2 byte-orderings = 246,220 hash
+      invocations checked → 0 matches. xxh3_64, xxh64,
+      mmh3 ×3, CRC-64-ECMA all tested on top of the
+      wake-122 FNV/SHA/MD5/CRC32 set. The 11 captured
+      sub_system_ids are not deterministic hashes of any
+      registry name or UUID. Session-scoped allocation is
+      now the strongly-favored remaining hypothesis.
+    - **Wake 112 — state-10 gate predicate + trigger
+      identified**: The state-10 → 11 transition is gated
+      by `*(int*)(wrapper+0xa0) == 2` (corrected from the
+      earlier `+0x130` hypothesis). The trigger is wire
+      type 0x5d1 (PlayerManagerSelfIdentificationMsg) —
+      not in the captured replay, so the server must
+      synthesize it. Codec is wire-bound; ready for
+      runtime testing.
+
+  The new entries push the curated list from 7 → 9 cards. No
+  schema changes — both entries match the existing
+  `{title, wake, summary}` shape so the front-end renders
+  them automatically.
+
+**Why this matters**: the Findings tab was missing both the
+biggest static-RE breakthrough (state-10 unblock predicate)
+and the biggest research-closure (hash-hunt definitive
+negative) of the recent stretch. Visitors who only check the
+curated tab now see both as the lead findings.
+
+**No code changes** to `server/`. Tests still 374 (+1
+skipped). Site rebuild trivial.
+
+**Blockers:** None.
