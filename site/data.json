@@ -28428,6 +28428,12 @@
       "test_count": 457,
       "commit": "2907eb9",
       "subject": "feat(site): Findings card for wake-232's state-11 -> 12 gate finding"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "b93427f",
+      "subject": "docs(analysis): correct wake-232/233 state-numbering error"
     }
   ],
   "live_decoder_history": [
@@ -28886,8 +28892,8 @@
     {
       "filename": "queued_work.md",
       "title": "Queued / deferred work",
-      "summary": "Apple Silicon were definitively ruled out at wake 70: virtio-style GPU virtualization presents `VendorId = DeviceId = 0` to DXGI, which the game rejects. Next escalation: physical Windows host (Bootcamp / spare PC) or\u2026",
-      "bytes": 6926,
+      "summary": "For a structured narrative of the 150+ wakes that followed, see:",
+      "bytes": 8972,
       "category": "Overview"
     },
     {
@@ -29018,6 +29024,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 235,
+      "title": "queued_work.md targeted refresh (wake-83 \u2192 wake-235)",
+      "line": 17695,
+      "category": "other"
+    },
+    {
       "wake": 234,
       "title": "state-numbering correction (wake-232 / wake-233 framing error)",
       "line": 17597,
@@ -29046,12 +29058,6 @@
       "title": "Findings card: three-retrospective session-arc skeleton",
       "line": 17256,
       "category": "docs"
-    },
-    {
-      "wake": 229,
-      "title": "simplify wake-196 delta callout (now superseded by wake-227 retro)",
-      "line": 17195,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {

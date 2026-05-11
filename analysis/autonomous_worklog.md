@@ -17691,3 +17691,96 @@ normal, not as something to hide.
 prose updates.
 
 **Blockers:** None.
+
+## Wake 235 — queued_work.md targeted refresh (wake-83 → wake-235)
+
+**Goal**: `analysis/queued_work.md`'s header says
+"Updated wake 83" but ~150 wakes have happened
+since. Major items in the doc are now resolved
+(state-10 → 11 RE breakthrough, worklog grooming
+via retrospectives, 0x065c decision). Avoid the
+delta-callout drift surface that wake 229 just
+collapsed in `session_retrospective_196.md`; do
+targeted strike-throughs + a small "Major progress"
+section pointing to retrospectives.
+
+**Built**:
+
+- **`analysis/queued_work.md`**:
+  - **Header**: "Updated wake 83" → "Last bulk
+    update wake 83; targeted closures + the 'Major
+    progress' section below were added at wake
+    235."
+  - **New section "Major progress since wake 83
+    (as of wake 235)"** at the top:
+    - 3 retrospective links (150/196/227).
+    - 3 specific closures: state-10 → 11 RE
+      breakthrough (wake 112), state-12 → 13 second
+      writer surfacing (wake 232/234), 0x065c
+      decision (wake 221).
+  - **3 in-place item closures** via strike-through +
+    "**resolved/partly-addressed wake N**" notes:
+    - "Phase 9b SelfIdent integration" — pointed at
+      wakes 112 + 204 (state-10 gate + phase-2D
+      infrastructure).
+    - "0x65c WORLD-DATA: a second capture" — pointed
+      at wake-221 decision doc + reversal criteria.
+    - "Worklog grooming" — pointed at the 3
+      retrospectives.
+
+**Why strike-through-and-keep rather than delete?**
+Future contributors reading the doc benefit from
+seeing what WAS deferred and what subsequently
+closed. The strike-through pattern matches the
+existing "shipped wake 83" notation for closed
+items (see lines 67-92 of the doc, untouched). New
+"resolved wake N" / "partly-addressed wake N"
+markers extend that pattern.
+
+**Why "Major progress" section vs item-by-item
+update?** Most of the doc's open items are still
+legitimately open or genuinely uncertain. A full
+audit would take multiple wakes. The "Major
+progress" section gives readers a quick orient
+("here are the big closures since this doc was
+last bulk-updated") + retrospective links for
+detail. The item-by-item closures cover the 3
+items I'm CONFIDENT are resolved; everything else
+stays as-is.
+
+**Not addressed**:
+- The "Multi-capture comparison" cluster still
+  has 3 open items (0x12f6, identity-bundle
+  uppers, 0x1033) — all still legitimately need
+  captures.
+- "0x65c handshake-family signing scheme",
+  "0x1033 Merkle structure", "0x9fc receipt-
+  handshake state block" — all still legitimately
+  open static-RE follow-ups.
+- "Cert regeneration noise" — still legitimately
+  open (gitignore consideration), but addressing
+  it would require a `.gitignore` edit + commit
+  test, larger than this wake's scope.
+
+**Verification**:
+- wake-225 cross-check (analysis-path existence
+  in card prose): unaffected; the doc isn't cited
+  from a Findings card.
+- wake-207 (retrospective ↔ README): unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: `queued_work.md` is now the
+**third** doc this stretch where I've taken the
+"strike-through + minimal new section" approach
+(others: wake-200 Findings card refresh cycle,
+wake-219 wake-192 milestone card refresh). The
+pattern emerges: when a doc accumulates state, mark
+closures explicitly and leave the historical
+record intact, rather than rewriting in place. The
+wake-229 delta-callout simplification of
+`session_retrospective_196.md` is the
+counter-example — when a doc has a "current state"
+mirror that's structurally redundant, collapse
+it rather than refresh.
+
+**Blockers:** None.
