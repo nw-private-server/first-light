@@ -16210,3 +16210,77 @@ underlying maps are correct.
 **450 passing (+1 skipped)**.
 
 **Blockers:** None.
+
+## Wake 217 — 0x12f6 KeybindingConfig live decoder (coverage 35→36, 90%)
+
+**Goal**: 0x12f6 was one of the 2 remaining future-
+candidate uncovered types per wake-216's revised
+wake-200 card. Wake 213's 0x635 ship validated the
+"variable-length-record" pattern; 0x12f6 follows a
+different but tractable shape (u8-prefixed UTF-8
+binding list + 2 length-prefixed version blocks).
+Single 299-byte capture, well-structured. Push
+coverage to 36/40 (90%).
+
+**Built**:
+
+- **`tools/build_site.py`**: added `"12f6": {0x12f6}`
+  to `LDTYPE_TO_TYPE_IDS`.
+- **`site/index.html`**:
+  - **`TYPE_ID_TO_LDTYPE`**: `"0x12f6": "12f6"`.
+  - **Dropdown option**: "0x12f6 W — Keybinding
+    config (299 bytes; UTF-8 binding list + 2
+    version blocks)".
+  - **Preset button** with the captured 299-byte hex
+    (18 keybindings including `@cc_f3`, `@cc_e`,
+    `@cc_tab`, etc.).
+  - **DECODER entry** (~85 lines): validates
+    `minSize >= 192` (70 prefix + 122 suffix),
+    `remaining_len == total - 8`, `TYPE_HEADER`
+    at +0x18, walks u8-prefixed UTF-8 strings from
+    +70 until landing on `total - 122` exactly,
+    validates both `0x37` version-block length
+    prefixes, and renders the 55-byte version
+    blocks as UTF-8 with nulls visualized as `·`.
+    Surfaces 12 fields including binding count +
+    empty-entry count, transition constant
+    (`01 00 00 00 00`), and the trailer.
+- **`server/javelin/test_live_decoder_presets.py`**:
+  registered `keybinding_config_12f6.decode` in
+  `PYTHON_DECODERS`.
+
+**Verification**:
+- All 4 preset cross-checks pass (wake-172 round-trip
+  + wake-178 LDTYPE sync + wake-185 preset coverage +
+  the per-preset registration).
+- Live-decoder coverage badge: **36/40 (90.0%)** —
+  up from 35/40 (87.5%).
+- 18 keybindings round-trip identically: walked
+  through encode(decode(captured)) at the Python
+  side via existing test_codecs.py invariant.
+
+**Updated wake-200 card again** (third refresh of
+this snapshot): now lists 4 uncovered. The only
+remaining future-candidate is **0x065c**
+(world_data_blob, 12706 bytes, 42 records with
+ff-padding) — the wake-200 card now explicitly
+flags whether the 12-kbyte size makes
+"single-screen JS rendering" still appropriate.
+Other 3 uncovered (0x0003, 0x0008, 0x0013)
+remain structurally unable to add.
+
+**Live-decoder coverage progression**:
+- Wake 152: 6/40 (15%)
+- Wake 192: 32/40 (80%)
+- Wake 199: 34/40 (85%)
+- Wake 213: 35/40 (87.5%)
+- **Wake 217: 36/40 (90.0%)** — first time crossing
+  90%; "remaining 4" is now the floor (3
+  structurally untestable + 1 questionable).
+
+**No `server/javelin/` codec changes** — existing
+wake-78 era `keybinding_config_12f6.py` (303 lines)
+was used as-is. Tests **450 passing (+1 skipped)** —
+unchanged.
+
+**Blockers:** None.

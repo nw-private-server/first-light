@@ -326,6 +326,7 @@ LDTYPE_TO_TYPE_IDS: dict[str, set[int]] = {
     "16a0":  {0x16a0},
     "ca4":   {0xca4},
     "635":   {0x635},
+    "12f6":  {0x12f6},
     # 0x5d1 is NOT in the captured replay (server synthesizes it for
     # the state-10 → 11 transition). Included here for completeness
     # — the coverage join against captured_types naturally drops it.
@@ -1083,11 +1084,11 @@ def load_findings():
                        "promotion.",
         },
         {
-            "title": "Remaining 5 uncovered wire-types: structural reasons",
+            "title": "Remaining 4 uncovered wire-types: structural reasons",
             "category": "Research closure",
             "wake": 200,
-            "summary": "Live-decoder coverage at 35/40 (87.5%) after "
-                       "wake 213's 0x0635 ship. The remaining 5 "
+            "summary": "Live-decoder coverage at 36/40 (90.0%) after "
+                       "wake 217's 0x12f6 ship. The remaining 4 "
                        "captured wire-types each have a real reason "
                        "for being left out of the live decoder: 0x0003 "
                        "(REPClient registration response — emitted "
@@ -1098,23 +1099,22 @@ def load_findings():
                        "decode our own V3 sends); 0x065c "
                        "(world_data_blob — variable-size records "
                        "section with ff_padding trailers, most "
-                       "complex remaining shape); 0x12f6 "
-                       "(keybinding_config — strings + 2 × 56-byte "
-                       "version blocks, conservative even in Python). "
-                       "Each is fully covered by Python codecs and "
-                       "the dispatcher; the live decoder draws the "
-                       "line at \"single-screen JS rendering useful "
-                       "to a visitor.\" Three (0x0003, 0x0008, 0x0013) "
+                       "complex remaining shape — 12706 bytes / "
+                       "42 records). Three (0x0003, 0x0008, 0x0013) "
                        "are structurally unable to add — they're "
-                       "either server-only or meta-codecs. The two "
-                       "remaining (0x065c, 0x12f6) are candidates for "
-                       "future wakes. A contributor adding one should "
-                       "expect 50-100 JS lines (wake 213's 0x0635 "
-                       "decoder shipped at ~70 lines) plus a preset "
-                       "hex generated via the Python codec. Updated "
-                       "wake 216 after the wake-213 ship; this card "
-                       "now tracks the remaining count rather than "
-                       "the wake-200 snapshot of 6.",
+                       "either server-only or meta-codecs. Only "
+                       "0x065c remains as a future-wake candidate, "
+                       "and even then the 12-kbyte size makes the "
+                       "\"single-screen JS rendering useful to a "
+                       "visitor\" boundary questionable. A contributor "
+                       "adding one should expect 50-100 JS lines "
+                       "(wake 213's 0x0635 shipped at ~70 lines; "
+                       "wake 217's 0x12f6 shipped at ~85 lines) plus "
+                       "a preset hex generated via the Python codec. "
+                       "Updated wakes 216 (post-wake-213) and 217 "
+                       "(post-0x12f6 ship); this card now tracks the "
+                       "current count rather than the wake-200 "
+                       "snapshot of 6.",
         },
         {
             "title": "Live decoder addresses 80% of captured wire-types",

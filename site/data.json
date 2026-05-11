@@ -1479,10 +1479,10 @@
       "summary": "Two-step shadow/validate proof that the central dispatcher can drive the rep_responder's wire output safely. Wake 157 added an inbound shadow-decode path (every received record routes through the dispatcher at debug-log level, no behavior change); wake 158 locked it down with 9 tests. Wake 187 added an outbound encode-validation probe (at startup, decode + re-encode the cached 0x15d heartbeat through the dispatcher, assert byte-equality against the captured body); wake 188 locked that down with 8 tests across the success / mismatch / decoder-exception / encoder-exception branches. The startup probe currently logs 'dispatcher encoder produces byte-identical heartbeat \u2014 emission-path swap would be safe.' A future wake can flip the switch and have the responder emit dispatcher-encoded fresh bytes instead of captured replay bytes, with the wake-105 round-trip tests + the two lockdowns catching any regression. The incremental approach (shadow \u2192 lockdown \u2192 validate \u2192 lockdown \u2192 swap) is now a repeatable pattern for every future dispatcher-emission promotion."
     },
     {
-      "title": "Remaining 5 uncovered wire-types: structural reasons",
+      "title": "Remaining 4 uncovered wire-types: structural reasons",
       "category": "Research closure",
       "wake": 200,
-      "summary": "Live-decoder coverage at 35/40 (87.5%) after wake 213's 0x0635 ship. The remaining 5 captured wire-types each have a real reason for being left out of the live decoder: 0x0003 (REPClient registration response \u2014 emitted only by the server, no captured-side decode); 0x0008 (chunked_stream \u2014 meta-codec, framing rather than a single message); 0x0013 (V3 request \u2014 encoder-only path, we don't reply-decode our own V3 sends); 0x065c (world_data_blob \u2014 variable-size records section with ff_padding trailers, most complex remaining shape); 0x12f6 (keybinding_config \u2014 strings + 2 \u00d7 56-byte version blocks, conservative even in Python). Each is fully covered by Python codecs and the dispatcher; the live decoder draws the line at \"single-screen JS rendering useful to a visitor.\" Three (0x0003, 0x0008, 0x0013) are structurally unable to add \u2014 they're either server-only or meta-codecs. The two remaining (0x065c, 0x12f6) are candidates for future wakes. A contributor adding one should expect 50-100 JS lines (wake 213's 0x0635 decoder shipped at ~70 lines) plus a preset hex generated via the Python codec. Updated wake 216 after the wake-213 ship; this card now tracks the remaining count rather than the wake-200 snapshot of 6."
+      "summary": "Live-decoder coverage at 36/40 (90.0%) after wake 217's 0x12f6 ship. The remaining 4 captured wire-types each have a real reason for being left out of the live decoder: 0x0003 (REPClient registration response \u2014 emitted only by the server, no captured-side decode); 0x0008 (chunked_stream \u2014 meta-codec, framing rather than a single message); 0x0013 (V3 request \u2014 encoder-only path, we don't reply-decode our own V3 sends); 0x065c (world_data_blob \u2014 variable-size records section with ff_padding trailers, most complex remaining shape \u2014 12706 bytes / 42 records). Three (0x0003, 0x0008, 0x0013) are structurally unable to add \u2014 they're either server-only or meta-codecs. Only 0x065c remains as a future-wake candidate, and even then the 12-kbyte size makes the \"single-screen JS rendering useful to a visitor\" boundary questionable. A contributor adding one should expect 50-100 JS lines (wake 213's 0x0635 shipped at ~70 lines; wake 217's 0x12f6 shipped at ~85 lines) plus a preset hex generated via the Python codec. Updated wakes 216 (post-wake-213) and 217 (post-0x12f6 ship); this card now tracks the current count rather than the wake-200 snapshot of 6."
     },
     {
       "title": "Live decoder addresses 80% of captured wire-types",
@@ -28308,6 +28308,12 @@
       "test_count": 451,
       "commit": "f70c58a",
       "subject": "feat(site): pill legend below recent-activity strip"
+    },
+    {
+      "wake": null,
+      "test_count": 451,
+      "commit": "9e1925e",
+      "subject": "docs(site): refresh wake-200 Findings card after wake-213 0x635 ship"
     }
   ],
   "wire_type_families": [
@@ -28833,6 +28839,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 217,
+      "title": "0x12f6 KeybindingConfig live decoder (coverage 35\u219236, 90%)",
+      "line": 16214,
+      "category": "site"
+    },
+    {
       "wake": 216,
       "title": "wake-200 Findings card update after wake-213 ship",
       "line": 16146,
@@ -28861,24 +28873,17 @@
       "title": "Findings card: wake-208 counter-advance as realism extension",
       "line": 15850,
       "category": "site"
-    },
-    {
-      "wake": 211,
-      "title": "Findings card: cross-check test graph as a meta-pattern",
-      "line": 15781,
-      "category": "test"
     }
   ],
   "live_decoder_coverage": {
-    "covered": 35,
+    "covered": 36,
     "total": 40,
-    "percent": 87.5,
+    "percent": 90.0,
     "uncovered": [
       "0x0003",
       "0x0008",
       "0x0013",
-      "0x065c",
-      "0x12f6"
+      "0x065c"
     ]
   }
 }

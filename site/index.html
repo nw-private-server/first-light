@@ -1779,6 +1779,7 @@ a:hover { text-decoration: underline; }
         <option value="16a0">0x16a0 — AssetBlob Small (153 bytes)</option>
         <option value="ca4">0xca4 — AssetCountTable (22+ bytes, variable records)</option>
         <option value="635">0x635 W — ActionHistory beacon (93+ bytes, 15-byte history records)</option>
+        <option value="12f6">0x12f6 W — Keybinding config (299 bytes; UTF-8 binding list + 2 version blocks)</option>
         <option value="5d1">0x5d1 — PlayerManagerSelfIdent (state-10 trigger, 4 or 25+ bytes)</option>
         <option value="subkey">subkey_beacon family — 14 wire-types (44+T bytes)</option>
       </select>
@@ -1813,6 +1814,7 @@ a:hover { text-decoration: underline; }
       <button class="preset-btn" data-ldtype="16a0" data-ldhex="0001a05a 4c0c0ed6478a69dabf85314bbc4a951a 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 00010008 4974656d506f6f6c 24 41414141414141414141414141414141414141414141414141414141414141414141414141414141 000000000000000bcccccccccccccccccccccccccc">0x16a0 asset blob (small)</button>
       <button class="preset-btn" data-ldtype="ca4" data-ldhex="0001a432 f8cbed57c68b18f4bf85314bbc4a951a 05 aabbccdd 0000002b 11223344 00000006 55667788 00000001 99aabbcc 000000e2 deadbeef 00000518 01">0xca4 asset count table (5 records)</button>
       <button class="preset-btn" data-ldtype="635" data-ldhex="a24e2975 00000055 1a954abc4b3185bfbe37c3d8592618e0 0001b518 fbde4b9a600d428f bf85314bbc4a951a 00010000 91020600 000101000000000000000001 2007194b 000000ac0f01 01 01 00000001 c0802000808080800300000001">0x635 action history (counter=1, first-send)</button>
+      <button class="preset-btn" data-ldtype="12f6" data-ldhex="33697b3b 00000123 1a954abc4b3185bfbe37c3d8592618e0 0001b64b 9e921a154971f6b7bf85314bbc4a951a 01000101010001000100000001050003 00030303030303030303 06 4063635f6633 05 4063635f65 07 4063635f746162 00 05 4063635f63 00 05 4063635f65 0a 4063635f6d6f75736532 06 4063635f6633 05 4063635f79 05 4063635f33 05 4063635f34 05 4063635f35 05 4063635f36 05 4063635f71 05 4063635f72 05 4063635f66 05 4063635f6d 0100000000 37 7b302e302e302e30303030303030307d2e7b000000000000000000000000000000000000000000000000000000000000000000000000 7d 37 7b302e302e312e30303030303030307d2e7b000000000000000000000000000000000000000000000000000000000000000000000000 7d 0000000000">0x12f6 keybinding config (18 entries)</button>
     </div>
     <pre id="ld-result" class="ld-empty">(pick a preset or paste hex and press Decode)</pre>
   </div>
@@ -1881,7 +1883,7 @@ const TYPE_ID_TO_LDTYPE = {
   "0xa4": "a4", "0x1033": "1033",
   "0x5b2": "5b2", "0xa95": "a95",
   "0x1067": "1067", "0x663": "663", "0x16a0": "16a0", "0xca4": "ca4",
-  "0x635": "635",
+  "0x635": "635", "0x12f6": "12f6",
   // Both 0x40a and 0x1be share the HandshakeBlob76 codec.
   "0x40a": "76", "0x1be": "76",
   // subkey_beacon family — all 14 share one ldtype
@@ -3095,6 +3097,89 @@ function setupLiveDecoder() {
           ["trailer             (13 bytes)", hexBytes(buf, 0x50, 13)],
           [`history_records  (${historyCount} × 15 bytes)`,
             historyLines.length ? historyLines.join("  ") : "(none — counter=1 first-send)"],
+        ];
+      },
+    },
+    "12f6": {
+      // Wire type 0x12f6 — keybinding configuration (W direction,
+      // singleton 299-byte capture). Variable-size body: 70-byte
+      // prefix (envelope + subkey + state_region) + u8-prefixed
+      // UTF-8 keybinding strings + 122-byte suffix (5-byte
+      // transition + 2 × 56-byte version blocks + 5-byte trailer).
+      // Decoder walks the binding region by length-prefix until it
+      // lands on the suffix boundary at len-122; mirrors the Python
+      // codec's parse strategy.
+      label: "KeybindingConfig12F6 (type 0x12f6 W) — keyboard/mouse bindings",
+      header: null,
+      minSize: 192,  // 70 prefix + 122 suffix (no bindings)
+      decode(buf) {
+        const total = buf.length;
+        const SUFFIX_SIZE = 122;
+        const KB_OFFSET = 70;
+        if (total < KB_OFFSET + SUFFIX_SIZE) {
+          throw new Error(`min size ${KB_OFFSET + SUFFIX_SIZE}; got ${total}`);
+        }
+        const remaining = u32be(buf, 4);
+        if (remaining !== total - 8) {
+          throw new Error(`remaining_len mismatch: declared ${hex0x(remaining)}, expected ${hex0x(total - 8)}`);
+        }
+        const innerHdr = hexBytes(buf, 0x18, 4);
+        if (innerHdr !== "0001b64b") {
+          throw new Error(`type header mismatch at +0x18: expected 0001b64b, got ${innerHdr}`);
+        }
+        const suffixStart = total - SUFFIX_SIZE;
+        // Walk u8-prefixed UTF-8 strings from KB_OFFSET to suffixStart.
+        const utf8 = new TextDecoder("utf-8");
+        const bindings = [];
+        let pos = KB_OFFSET;
+        while (pos < suffixStart) {
+          const L = buf[pos];
+          pos += 1;
+          if (pos + L > suffixStart) {
+            throw new Error(`keybinding length ${L} at offset 0x${(pos-1).toString(16)} overruns suffix start ${hex0x(suffixStart)}`);
+          }
+          const slice = buf.slice(pos, pos + L);
+          bindings.push(L === 0 ? "" : utf8.decode(slice));
+          pos += L;
+        }
+        if (pos !== suffixStart) {
+          throw new Error(`binding walk landed at ${hex0x(pos)}; expected ${hex0x(suffixStart)}`);
+        }
+        // Suffix: transition (5) + version_block_1 (1+55) + version_block_2 (1+55) + trailer (5)
+        const transition = hexBytes(buf, suffixStart, 5);
+        const v1LenByte = buf[suffixStart + 5];
+        if (v1LenByte !== 0x37) {
+          throw new Error(`version_block_1 length prefix at offset ${hex0x(suffixStart + 5)}: expected 0x37, got 0x${v1LenByte.toString(16)}`);
+        }
+        const v1Bytes = buf.slice(suffixStart + 6, suffixStart + 6 + 55);
+        const v2LenByte = buf[suffixStart + 61];
+        if (v2LenByte !== 0x37) {
+          throw new Error(`version_block_2 length prefix at offset ${hex0x(suffixStart + 61)}: expected 0x37, got 0x${v2LenByte.toString(16)}`);
+        }
+        const v2Bytes = buf.slice(suffixStart + 62, suffixStart + 62 + 55);
+        const trailer = hexBytes(buf, suffixStart + 117, 5);
+        // Render version blocks as UTF-8 with nulls shown as · for legibility.
+        const renderV = (b) => {
+          let s = "";
+          for (const c of b) s += (c === 0 ? "·" : String.fromCharCode(c));
+          return s;
+        };
+        const bindingsCount = bindings.length;
+        const emptyCount = bindings.filter(b => b === "").length;
+        return [
+          ["client_hash         (4 bytes)", hexBytes(buf, 0, 4)],
+          ["remaining_len       (u32 BE)", hex0x(remaining) + "  (✓ = total-8)"],
+          ["session_uuid        (16 bytes)", hexBytes(buf, 8, 16)],
+          ["TYPE_HEADER  @+0x18", "0x" + innerHdr + "  (type 0x12f6)"],
+          ["subkey upper 8 @+0x1c", hexBytes(buf, 0x1c, 8) + "  (keybinding sub-system)"],
+          ["subkey lower 8 @+0x24", hexBytes(buf, 0x24, 8) + "  (session_uuid_lower)"],
+          ["state_region        (26 bytes)", hexBytes(buf, 0x2c, 26)],
+          [`keybindings         (${bindingsCount} entries, ${emptyCount} empty)`,
+            bindings.map((b, i) => `[${i}] ${b || "(empty)"}`).join("  ")],
+          ["transition  (5 bytes)", transition + (transition === "0100000000" ? "  (✓ captured constant)" : "  (unexpected)")],
+          ["version_block_1  (55-byte UTF-8)", renderV(v1Bytes)],
+          ["version_block_2  (55-byte UTF-8)", renderV(v2Bytes)],
+          ["trailer    (5 bytes)", trailer + (trailer === "0000000000" ? "  (✓)" : "  (unexpected)")],
         ];
       },
     },

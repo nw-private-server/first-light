@@ -39,6 +39,7 @@ from server.javelin import (
     asset_blob_16a0,
     asset_count_table_ca4,
     action_history_635,
+    keybinding_config_12f6,
 )
 
 
@@ -88,6 +89,7 @@ PYTHON_DECODERS = {
     "16a0":  asset_blob_16a0.decode,
     "ca4":   asset_count_table_ca4.decode,
     "635":   action_history_635.decode,
+    "12f6":  keybinding_config_12f6.decode,
 }
 
 
