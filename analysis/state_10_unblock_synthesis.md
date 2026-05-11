@@ -136,3 +136,29 @@ experiment when a real-GPU host is available:
   precise tick relative to the captured replay is unverified.
 
 These three need runtime testing.
+
+## Forward references (added wake 245)
+
+This doc was the wake-111 deep-dive on the state-10 → 11 gate.
+It remains accurate as that wake's snapshot. Later wakes
+extended the state-machine picture; current state is in:
+
+- [`state_machine_summary.md`](state_machine_summary.md) — full
+  predicate table (states 10 → 14), the ClientMessagesTrait
+  catalog, § 4½ on the wake-232 12→13 second-writer finding,
+  and the § 1 trigger/writer column added at wake 237.
+- [`state_13_14_writer_investigation.md`](state_13_14_writer_investigation.md)
+  — wake-241 search log for the lone remaining unknown writer.
+  Includes the substantive alt hypothesis that **MVP may only
+  need SelfIdent + LevelInfoChanged** (state 13 → 14 may be
+  set by client-side actor-spawn-complete, not a server
+  message).
+- [`session_retrospective_227.md`](session_retrospective_227.md)
+  — third-stretch retrospective covering wakes 197-227
+  including the state-machine surfacing arc.
+
+The wake-204 phase-2D heartbeat-emission infrastructure (default
+off) + the wake-208 counter-advance extension are the runtime-
+emit scaffolding needed for the 0x5d1 SelfIdent synthesis once
+real-GPU validation flips the flags. The three "needs runtime
+testing" items above are still legitimately open.

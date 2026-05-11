@@ -18548,3 +18548,85 @@ ghidra_hunt_list, and (after this wake) the wake-
 card prose tightening.
 
 **Blockers:** None.
+
+## Wake 245 — state_10_unblock_synthesis.md forward references
+
+**Goal**: 6th doc-freshness wake (the others were
+235-239 + a small wake-244 prose tightening). The
+`cross_link_arc.md` audit checked out as
+internally current; while scanning for the next
+stale-risk doc, found `state_10_unblock_synthesis.md`
+— a wake-111-era deep-dive that's still accurate
+as a snapshot but doesn't reference the post-wake-
+111 state-machine work.
+
+**Built**:
+
+- **`analysis/state_10_unblock_synthesis.md`** —
+  new "Forward references (added wake 245)" section
+  appended:
+  - States this doc was wake-111 deep-dive on 10→11
+    gate; remains accurate as that wake's snapshot.
+  - Forward pointers to 3 current docs:
+    - `state_machine_summary.md` (full predicate
+      table + 12→13 second writer + trigger
+      column).
+    - `state_13_14_writer_investigation.md` (the
+      alt hypothesis "MVP may only need 2 server
+      messages").
+    - `session_retrospective_227.md` (third-stretch
+      retrospective).
+  - Notes the wake-204/208 phase-2D infrastructure
+    as the runtime-emit scaffolding for the 0x5d1
+    synthesis the doc proposed.
+  - The "needs runtime testing" items the wake-111
+    analysis flagged are still legitimately open.
+
+**Pattern note**: this is the **3rd** doc this
+session where I've added a forward-references
+footer rather than refreshing in place (others:
+wake-196 retrospective callout simplification at
+wake 229, MORNING_BRIEF historical-snapshot header
+at wake 238). The pattern crystallizes:
+- **Wake-111-era snapshot doc** (deep-dive on a
+  specific finding) → keep frozen, add forward
+  pointers.
+- **Rolling-status doc** (`queued_work`,
+  `integration_status`) → refresh in place.
+
+state_10_unblock_synthesis.md fits the first
+category — a wake-111 deep-dive on a specific gate.
+
+**Verification**:
+- wake-225 (analysis-path existence): the new
+  references all point at existing files ✓.
+- wake-207 (retrospective ↔ README): unaffected.
+- wake-231 (decision doc ↔ README): unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Doc-freshness pass status now**:
+- 235 queued_work.md
+- 236 ghidra_hunt_list.md
+- 237 state_machine_summary cross-references
+- 238 MORNING_BRIEF.md historical-snapshot
+- 239 integration_status.md phase-2D update
+- 244 wake-228 skeleton card drift correction
+- **245 state_10_unblock_synthesis.md forward
+  references**
+
+7 doc-freshness wakes total (235-239 contiguous,
+244-245 follow-up). The wake-241 investigation log
+inserted itself between the two clusters; that
+was substantive RE, not a doc refresh. After
+this wake, the analysis-doc layer should be
+genuinely settled — no obvious stale-claim risks
+remain.
+
+**Carry-over**: state 13 → 14 writer is still the
+single open static-RE thread, with the wake-241
+investigation log holding the candidate triage.
+
+**No new tests, no new code**. Forward-references
+footer + worklog entry.
+
+**Blockers:** None.

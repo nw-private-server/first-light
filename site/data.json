@@ -28494,6 +28494,12 @@
       "test_count": 457,
       "commit": "4d673fa",
       "subject": "docs(readme): Gate-2 row gains the state-machine picture + alt hypothesis"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "5fed6d7",
+      "subject": "docs(site): wake-228 skeleton card prose tightening (drift + investigation logs)"
     }
   ],
   "live_decoder_history": [
@@ -29009,7 +29015,7 @@
       "filename": "state_10_unblock_synthesis.md",
       "title": "State-10\u219211 gate \u2014 unblock synthesis (wake 111)",
       "summary": "The message that writes `2` there is `PlayerManagerSelfIdentificationMsg` (wire type `0x5d1`). 0x5d1 is NOT in the captured replay, which is why the pure-replay server can't drive the client past state 10. Unblocking \u2026",
-      "bytes": 4763,
+      "bytes": 6023,
       "category": "RE Finding"
     },
     {
@@ -29091,6 +29097,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 245,
+      "title": "state_10_unblock_synthesis.md forward references",
+      "line": 18552,
+      "category": "other"
+    },
+    {
       "wake": 244,
       "title": "wake-228 skeleton card prose drift correction",
       "line": 18479,
@@ -29119,12 +29131,6 @@
       "title": "Findings card: post-V3 state-spawn ladder synthesis",
       "line": 18133,
       "category": "site"
-    },
-    {
-      "wake": 239,
-      "title": "integration_status.md phase-2D update",
-      "line": 18054,
-      "category": "code"
     }
   ],
   "live_decoder_coverage": {
