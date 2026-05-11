@@ -28020,6 +28020,12 @@
       "test_count": 419,
       "commit": "0c6d370",
       "subject": "feat(site): live-decoder coverage indicator (22/40 = 55%)"
+    },
+    {
+      "wake": null,
+      "test_count": 419,
+      "commit": "e4a49fc",
+      "subject": "feat(site): live decoder gains 0x5d1 PlayerManagerSelfIdent"
     }
   ],
   "wire_type_families": [
@@ -28538,6 +28544,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 177,
+      "title": "Findings cards cross-link to the live decoder",
+      "line": 13560
+    },
+    {
       "wake": 176,
       "title": "live decoder gains 0x5d1 PlayerManagerSelfIdent",
       "line": 13498
@@ -28561,11 +28572,6 @@
       "wake": 172,
       "title": "pin \"live-decoder presets round-trip through Python\" invariant",
       "line": 13228
-    },
-    {
-      "wake": 171,
-      "title": "live-decoder gains SessionIdentityBeacon (0x1b88)",
-      "line": 13177
     }
   ],
   "live_decoder_coverage": {

@@ -892,6 +892,18 @@ tr:hover { background: var(--surface-2); }
   font-family: ui-monospace, monospace;
 }
 .finding p { margin: 0; color: var(--text-dim); font-size: 13px; }
+.finding-typelink {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+  font-family: ui-monospace, monospace;
+}
+.finding-typelink:hover {
+  background: rgba(88,166,255,0.15);
+  border-radius: 3px;
+  padding: 0 2px;
+  margin: 0 -2px;
+}
 .analysis-doc {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -2088,7 +2100,35 @@ async function load() {
   }
   setupFilter("decomp-search", decompList.children);
 
-  // ---- Findings (grouped by category, wake 163) ----
+  // ---- Findings (grouped by category, wake 163; type-id cross-links wake 177) ----
+  // Map type_id hex → live-decoder ldtype value (the dropdown option).
+  // For 0x15d we default to R direction; same wire-type, different shape.
+  const TYPE_ID_TO_LDTYPE = {
+    "0x15d": "15d_R", "0x14f": "14f", "0x651": "651",
+    "0x18a6": "18a6", "0x1b88": "1b88", "0x1097": "1097",
+    "0x136a": "136a", "0x1096": "1096", "0x5d1": "5d1",
+    // subkey_beacon family — all 14 share one ldtype
+    "0x66b": "subkey", "0x9d3": "subkey", "0xf7f": "subkey",
+    "0x101a": "subkey", "0x101d": "subkey", "0x102e": "subkey",
+    "0x102f": "subkey", "0x10b0": "subkey", "0x1098": "subkey",
+    "0x143d": "subkey", "0x187c": "subkey", "0x187f": "subkey",
+    "0x192c": "subkey", "0x1a59": "subkey",
+  };
+
+  function linkifyTypeIds(text) {
+    // Replace inline `0xNNN` references with clickable spans when the
+    // type-id maps to a live-decoder option. Other 0xNNN (e.g. CRC
+    // values, byte counts written in hex) pass through unchanged.
+    return text.replace(/\b0x[0-9a-fA-F]{2,4}\b/g, (m) => {
+      const norm = "0x" + m.slice(2).toLowerCase();
+      const ldtype = TYPE_ID_TO_LDTYPE[norm];
+      if (!ldtype) return m;
+      return `<a href="#" class="finding-typelink" ` +
+             `data-ldtype="${ldtype}" ` +
+             `title="Open ${norm} in live decoder">${m}</a>`;
+    });
+  }
+
   const findingsList = document.getElementById("findings-list");
   const findingsOrder = data.findings_categories || [
     "RE breakthrough", "Wire-level finding", "Research closure", "Architecture"];
@@ -2111,11 +2151,33 @@ async function load() {
       const div = document.createElement("div");
       div.className = "finding";
       div.innerHTML = `
-        <h3>${escapeHtml(f.title)} <span class="wake">wake ${f.wake}</span></h3>
-        <p>${escapeHtml(f.summary)}</p>
+        <h3>${linkifyTypeIds(escapeHtml(f.title))} <span class="wake">wake ${f.wake}</span></h3>
+        <p>${linkifyTypeIds(escapeHtml(f.summary))}</p>
       `;
       findingsList.appendChild(div);
     }
+  }
+  // Wire up the type-id cross-links (delegated, single listener on the list).
+  if (findingsList) {
+    findingsList.addEventListener("click", (ev) => {
+      const a = ev.target.closest(".finding-typelink");
+      if (!a) return;
+      ev.preventDefault();
+      const ldtype = a.dataset.ldtype;
+      if (!ldtype) return;
+      // Switch to Explore tab + set the live decoder dropdown.
+      activateTab("explore");
+      const sel = document.getElementById("ld-type");
+      if (sel) {
+        sel.value = ldtype;
+        // Scroll the decoder into view, then focus the hex box.
+        const box = document.getElementById("ld-hex");
+        if (box) {
+          box.scrollIntoView({behavior: "smooth", block: "center"});
+          setTimeout(() => box.focus(), 300);
+        }
+      }
+    });
   }
 
   // ---- Analysis docs index (grouped by category) ----

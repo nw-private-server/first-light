@@ -13556,3 +13556,75 @@ captured set). Total wire-types decodable on the dashboard:
 trivial.
 
 **Blockers:** None.
+
+## Wake 177 — Findings cards cross-link to the live decoder
+
+**Goal**: visitors reading a Findings card mentioning a
+specific wire-type (e.g. wake-78's "0x18a6↔0x1a59 counter-
+coupled pair" or wake-112's "trigger is wire type 0x5d1")
+should be able to click those references and land in the
+live decoder pre-loaded with that type. Currently the
+Findings cards are static prose — a curious visitor has to
+remember the type-id, switch tabs, scroll, and pick the
+decoder manually.
+
+**Built**:
+
+- **`site/index.html`**:
+  - New `TYPE_ID_TO_LDTYPE` JS map. 23 entries covering
+    every wire-type the live decoder currently handles:
+    the 9 simple decoders + 0x5d1 + all 14 subkey family
+    members (all → "subkey"). For 0x15d (which has R/W
+    forms) defaults to "15d_R".
+  - New `linkifyTypeIds(text)` function: regex-replaces
+    inline `\b0x[0-9a-fA-F]{2,4}\b` references with
+    clickable `<a class="finding-typelink">` spans IF the
+    type-id maps to a live-decoder option. Non-matching
+    hex references (CRC values, byte counts, addresses)
+    pass through unchanged.
+  - Findings render path now wraps title and summary
+    through `linkifyTypeIds`. Each finding card auto-
+    links wire-type mentions; no per-card config needed.
+  - Delegated click handler on `#findings-list`: switches
+    to Explore tab, sets the `#ld-type` dropdown to the
+    referenced wire-type, scrolls the hex textarea into
+    view, and focuses it (so the visitor can immediately
+    paste hex).
+  - CSS: `.finding-typelink` — accent color, dotted
+    underline, monospace font; subtle hover background
+    so the clickable affordance is obvious without being
+    loud.
+
+**What gets linkified** (existing Findings cards):
+- **Wake 78 (Server↔client counter pairs)**: `0x18a6`,
+  `0x1a59`, `0x15d`, `0x14f` (4 links; `0x8e6` and `0x9fc`
+  pass through as plain text since they're not yet in the
+  live decoder).
+- **Wake 112 (State-10 gate predicate + trigger)**:
+  `0x5d1` (1 link, leads directly to the wake-176
+  decoder).
+- Other findings have no inline type-id mentions; cards
+  render unchanged.
+
+**Why this matters**: the wake-156 → wake-176 chain
+established "Findings tab tells visitors what's been
+figured out; live decoder lets them inspect the wire form."
+Linking the two closes the loop — a visitor reading "state-
+10 trigger is 0x5d1" can now *do something* about that
+curiosity in one click rather than navigating the dashboard
+manually.
+
+**No `server/javelin/` codec changes**. No data.json schema
+changes (the JS-side `TYPE_ID_TO_LDTYPE` doesn't need to
+ship in data.json — it's static). Tests still **418 passing
+(+1 skipped)**.
+
+**Future**: if a future codec moves into the live decoder,
+extending the map is one line. The cross-check tests
+caught one related concern: the JS-side map and the
+build_site.py `LDTYPE_TO_TYPE_IDS` map both encode the
+ldtype → type-ids relationship; they're held in sync by
+convention (no test pins them together yet — possible
+future invariant).
+
+**Blockers:** None.
