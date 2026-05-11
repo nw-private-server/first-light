@@ -16496,3 +16496,101 @@ boundary).
 drift correction across 2 files.
 
 **Blockers:** None.
+
+## Wake 221 — 0x065c decision document (90% is the floor by design)
+
+**Goal**: 0x065c is the last captured wire-type with
+a full Python codec but no JS live decoder. Multiple
+prior wakes have flagged it ambiguously — "questionable
+fit", "future candidate", etc. — without committing
+either way. Crystallize the decision into a record-of-
+rationale document so a future contributor doesn't
+have to re-derive the call from scratch.
+
+**Built**:
+
+- **`analysis/decision_0x065c_live_decoder.md`**
+  (new file, ~120 lines):
+  - **TL;DR** stating the call: live decoder stops at
+    36/40 (90.0%); 0x065c stays Python-only.
+  - **What 0x065c is**: 12706 bytes, 42 records,
+    structural Python codec at
+    `world_data_blob_65c.py`.
+  - **The live-decoder boundary** — explicit:
+    "single-screen JS rendering useful to a visitor."
+    With size comparison: 0x065c is ~14× larger than
+    0x12f6 (the largest already-shipped).
+  - **Decision criteria** — 3 lenses, all converging:
+    1. **Visitor utility** (primary): the visitor
+       leaves no better-equipped to RE 0x065c after
+       seeing it — per-record content isn't decodable
+       without a second capture.
+    2. **Maintenance cost**: 120-150-line JS decoder
+       would be the largest in `site/index.html`,
+       raising the bar on every future refactor.
+    3. **Coverage-vs-completeness**: ticking to 92.5%
+       wouldn't change the floor structurally (other
+       3 remain untestable); optical clarity of
+       "stopped at 90% by design" is larger than
+       2.5% optical gain.
+  - **Decision**: explicit "90.0% is the floor by
+    design."
+  - **Reversal criteria**: 3 concrete conditions
+    under which to revisit (second capture for diff,
+    new large-blob rendering primitive, coverage
+    symmetry as a stated goal).
+  - **See also** section links back to wake-200 +
+    wake-192 cards.
+
+- **`tools/build_site.py`** wake-200 card prose
+  extended:
+  - The previous "0x065c remains as a future-wake
+    candidate" hedge replaced with: "Wake 221
+    documented the explicit decision to leave
+    0x065c out as well … see
+    `analysis/decision_0x065c_live_decoder.md` for
+    the criteria."
+  - Updated wake list: "Updated wakes 216, 217, and
+    221" (was: "216 and 217").
+  - Closing line bumped from a hedge to a claim:
+    "**90.0% is the floor by design, not by
+    accident.**"
+  - This makes the decision doc discoverable from
+    the dashboard's Findings tab without
+    orphaning the link.
+
+**Verification**:
+- `categorize_doc('decision_0x065c_live_decoder.md')`
+  returns "RE Finding" (correct catch-all bucket for
+  the analysis-doc index).
+- The doc is rendered on the dashboard's Findings
+  tab automatically via `load_analysis_docs()`.
+- wake-207 retrospective ↔ README test still passes
+  (decision_*.md isn't a retrospective).
+- wake-214/wake-218 self-referential tests still
+  pass (wake-210 card untouched).
+- Tests **451 (+1 skipped)** — unchanged.
+
+**Why a doc, not a Findings card?** The wake-200
+card now succinctly summarizes the decision with a
+pointer; a duplicate Findings card would be
+redundant. The dedicated doc lives in `analysis/`
+where deeper decisions belong; the card stays the
+discovery surface.
+
+**Pattern note**: this is the **first** explicit
+"decision document" artifact in `analysis/`. Past
+docs there are either retrospectives, audits,
+decompiles, or RE findings. Decision docs are a new
+category — useful when a question is recurring,
+when the answer is "no" or "defer", and when the
+rationale needs preserving so a future contributor
+doesn't re-litigate. If a second decision doc lands
+in the future, `categorize_doc` could grow a
+`"Decision"` bucket; for now the catch-all "RE
+Finding" placement is fine since there's only one.
+
+**No new code, no new tests**. Pure documentation
++ wake-200 card prose extension.
+
+**Blockers:** None.

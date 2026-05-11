@@ -1482,7 +1482,7 @@
       "title": "Remaining 4 uncovered wire-types: structural reasons",
       "category": "Research closure",
       "wake": 200,
-      "summary": "Live-decoder coverage at 36/40 (90.0%) after wake 217's 0x12f6 ship. The remaining 4 captured wire-types each have a real reason for being left out of the live decoder: 0x0003 (REPClient registration response \u2014 emitted only by the server, no captured-side decode); 0x0008 (chunked_stream \u2014 meta-codec, framing rather than a single message); 0x0013 (V3 request \u2014 encoder-only path, we don't reply-decode our own V3 sends); 0x065c (world_data_blob \u2014 variable-size records section with ff_padding trailers, most complex remaining shape \u2014 12706 bytes / 42 records). Three (0x0003, 0x0008, 0x0013) are structurally unable to add \u2014 they're either server-only or meta-codecs. Only 0x065c remains as a future-wake candidate, and even then the 12-kbyte size makes the \"single-screen JS rendering useful to a visitor\" boundary questionable. A contributor adding one should expect 50-100 JS lines (wake 213's 0x0635 shipped at ~70 lines; wake 217's 0x12f6 shipped at ~85 lines) plus a preset hex generated via the Python codec. Updated wakes 216 (post-wake-213) and 217 (post-0x12f6 ship); this card now tracks the current count rather than the wake-200 snapshot of 6."
+      "summary": "Live-decoder coverage at 36/40 (90.0%) after wake 217's 0x12f6 ship. The remaining 4 captured wire-types each have a real reason for being left out of the live decoder: 0x0003 (REPClient registration response \u2014 emitted only by the server, no captured-side decode); 0x0008 (chunked_stream \u2014 meta-codec, framing rather than a single message); 0x0013 (V3 request \u2014 encoder-only path, we don't reply-decode our own V3 sends); 0x065c (world_data_blob \u2014 variable-size records section with ff_padding trailers, most complex remaining shape \u2014 12706 bytes / 42 records). Three (0x0003, 0x0008, 0x0013) are structurally unable to add \u2014 they're either server-only or meta-codecs. Wake 221 documented the explicit decision to leave 0x065c out as well \u2014 the 12-kbyte size + 42-record blob fails the \"single-screen JS rendering useful to a visitor\" bar that the other 36 covered types meet (see `analysis/decision_0x065c_live_decoder.md` for the criteria, reversal conditions, and the 120-150-line cost estimate that drove the call). Reference points for any future complex codec: wake 213's 0x0635 shipped at ~70 lines, wake 217's 0x12f6 at ~85 lines. Updated wakes 216, 217, and 221; this card now tracks the current count rather than the wake-200 snapshot of 6. **90.0% is the floor by design, not by accident.**"
     },
     {
       "title": "Live decoder addresses 90% of captured wire-types",
@@ -28332,6 +28332,12 @@
       "test_count": 452,
       "commit": "96e786b",
       "subject": "docs(site): refresh wake-192 milestone card after 90.0% crossing"
+    },
+    {
+      "wake": 219,
+      "test_count": 452,
+      "commit": "d626d88",
+      "subject": "docs: refresh README + retrospective deltas through wake 219"
     }
   ],
   "wire_type_families": [
@@ -28681,6 +28687,13 @@
       "category": "RE Finding"
     },
     {
+      "filename": "decision_0x065c_live_decoder.md",
+      "title": "Decision: 0x065c stays out of the live decoder",
+      "summary": "The live decoder stops at **36/40 (90.0%)** after wake 217's 0x12f6 ship. 0x065c (`world_data_blob`) is the last captured wire-type with a full Python codec but no JS live decoder. This document records the explicit d\u2026",
+      "bytes": 5688,
+      "category": "RE Finding"
+    },
+    {
       "filename": "frida_hook_audit.md",
       "title": "Frida Hook CTD Audit \u2014 `tools/frida_dtls_hook.js`",
       "summary": "Audit of suspicious patterns most likely to cause the intermittent ~30-90s character-select CTD. Sorted by suspicion.",
@@ -28857,6 +28870,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 221,
+      "title": "0x065c decision document (90% is the floor by design)",
+      "line": 16500,
+      "category": "other"
+    },
+    {
       "wake": 220,
       "title": "README retrospective summary + retrospective doc deltas refresh",
       "line": 16427,
@@ -28885,12 +28904,6 @@
       "title": "wake-200 Findings card update after wake-213 ship",
       "line": 16146,
       "category": "site"
-    },
-    {
-      "wake": 215,
-      "title": "recent-activity pill legend",
-      "line": 16093,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {
