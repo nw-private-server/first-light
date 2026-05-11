@@ -1722,6 +1722,7 @@ a:hover { text-decoration: underline; }
         <option value="5b2">0x5b2 W — IdentityFingerprintSet (45+ bytes)</option>
         <option value="a95">0xa95 W — PermissionBitmap (45+ bytes)</option>
         <option value="1067">0x1067 — VivoxConfig (variable, 23+ bytes)</option>
+        <option value="663">0x663 — LevelDescriptor (110 bytes)</option>
         <option value="5d1">0x5d1 — PlayerManagerSelfIdent (state-10 trigger, 4 or 25+ bytes)</option>
         <option value="subkey">subkey_beacon family — 14 wire-types (44+T bytes)</option>
       </select>
@@ -1752,6 +1753,7 @@ a:hover { text-decoration: underline; }
       <button class="preset-btn" data-ldtype="5b2" data-ldhex="f9b3ea55 00000025 f8cbed57c68b18f4bf85314bbc4a951a 0001b216 180f8d4e573697c6 bf85314bbc4a951a 00">0x5b2 fingerprints (count=0)</button>
       <button class="preset-btn" data-ldtype="a95" data-ldhex="11223344 00000049 f8cbed57c68b18f4bf85314bbc4a951a 0001952a 180f8d4e573697c6bf85314bbc4a951a 24 010101010101000101010101010101010101010101010101010101010101010101010101">0xa95 permissions (36 flags)</button>
       <button class="preset-btn" data-ldtype="1067" data-ldhex="0001a741 f8cbed57c68b18f4bf85314bbc4a951a 2068747470733a2f2f6e7778702e7777772e7669766f782e636f6d2f617069322f 0f616d617a6f6e393035302d6e653833 0f406e7778702e7669766f782e636f6d 00">0x1067 vivox config</button>
+      <button class="preset-btn" data-ldtype="663" data-ldhex="0001a319 144e6577576f726c645f5669746165457465726e61 1e636f61746c696375652f4e6577576f726c645f5669746165457465726e61 45000000418000004620280046402800 0000000000000000 01010000 9cfa5861781469f2 65030000 000001010100000000c17f9be48f">0x663 level descriptor</button>
     </div>
     <pre id="ld-result" class="ld-empty">(pick a preset or paste hex and press Decode)</pre>
   </div>
@@ -1819,7 +1821,7 @@ const TYPE_ID_TO_LDTYPE = {
   "0x8e6": "8e6", "0x9fc": "9fc",
   "0xa4": "a4", "0x1033": "1033",
   "0x5b2": "5b2", "0xa95": "a95",
-  "0x1067": "1067",
+  "0x1067": "1067", "0x663": "663",
   // Both 0x40a and 0x1be share the HandshakeBlob76 codec.
   "0x40a": "76", "0x1be": "76",
   // subkey_beacon family — all 14 share one ldtype
@@ -2690,6 +2692,64 @@ function setupLiveDecoder() {
           ["state_block            (26 bytes)", hexBytes(buf, 60, 26)],
           ["echoed_blob            (16 bytes)", hexBytes(buf, 86, 16) +
             "  (must match 0x8e6 opaque_blob)"],
+        ];
+      },
+    },
+    "663": {
+      // Level descriptor. Two byte-identical captures (110 bytes each):
+      // header + 2 Pascal-style strings (1-byte length + UTF-8) +
+      // 4 f32 BE + 8 zero bytes + metadata block (4-byte flags LE +
+      // 8 second_id + 4 build_version LE) + 14-byte trailer.
+      label: "LevelDescriptor663 (type 0x663) — level name/path/geometry",
+      header: [0x00, 0x01, 0xa3, 0x19],
+      size: 110,
+      decode(buf) {
+        const utf8 = new TextDecoder("utf-8");
+        // +0x04: len_a (u8) + level_name
+        const lenA = buf[4];
+        const nameStart = 5;
+        const nameEnd = nameStart + lenA;
+        const levelName = utf8.decode(buf.slice(nameStart, nameEnd));
+        // +nameEnd: len_b (u8) + level_path
+        const lenB = buf[nameEnd];
+        const pathStart = nameEnd + 1;
+        const pathEnd = pathStart + lenB;
+        const levelPath = utf8.decode(buf.slice(pathStart, pathEnd));
+        // +pathEnd: 4 f32 BE
+        const f32be = (off) => {
+          const dv = new DataView(buf.buffer, buf.byteOffset + off, 4);
+          return dv.getFloat32(0, false);
+        };
+        const geom = [
+          f32be(pathEnd),
+          f32be(pathEnd + 4),
+          f32be(pathEnd + 8),
+          f32be(pathEnd + 12),
+        ];
+        // +pathEnd+16: 8 zero bytes
+        const zeroOff = pathEnd + 16;
+        for (let i = 0; i < 8; i++) {
+          if (buf[zeroOff + i] !== 0) {
+            throw new Error(`zero padding non-zero at +0x${(zeroOff + i).toString(16)}`);
+          }
+        }
+        // Metadata block: 4 flags LE + 8 second_id + 4 build_version LE
+        const metaOff = zeroOff + 8;
+        const flags = u32le(buf, metaOff);
+        const secondId = hexBytes(buf, metaOff + 4, 8);
+        const buildVer = u32le(buf, metaOff + 12);
+        const trailerOff = metaOff + 16;
+        const trailer = hexBytes(buf, trailerOff, 14);
+        return [
+          ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x663)"],
+          [`level_name  (${lenA} chars)`, `"${levelName}"`],
+          [`level_path  (${lenB} chars)`, `"${levelPath}"`],
+          ["geometry    (4 × f32 BE)", `(${geom.map(f => f.toString()).join(", ")})`],
+          ["zero_pad    (8 bytes)", "all zero  (✓)"],
+          ["flags         (u32 LE)", hex0x(flags)],
+          ["second_id     (8 bytes)", secondId],
+          ["build_version (u32 LE)", hex0x(buildVer) + "  (= " + buildVer + ")"],
+          ["trailer       (14 bytes)", trailer],
         ];
       },
     },

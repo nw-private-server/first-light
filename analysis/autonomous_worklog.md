@@ -14610,3 +14610,72 @@ cross-check now validates 19 hex strings.
 trivial.
 
 **Blockers:** None.
+
+## Wake 192 — live decoder +0x663 LevelDescriptor → 32/40 (80%)
+
+**Goal**: continue coverage push. Add `0x663` LevelDescriptor —
+the level name + path + geometry + metadata block. Like
+wake-191's VivoxConfig, this codec exposes actual strings
+on the wire so visitors see real captured content.
+
+**Built**:
+
+- **`site/index.html`** — new DECODERS entry:
+  - **`0x663` LevelDescriptor** (110 bytes fixed): R
+    direction; TYPE_HEADER `00 01 a3 19` + 2 Pascal-style
+    UTF-8 strings (u8 length + content) + 4 IEEE-754 BE
+    floats + 8-byte zero padding + 4-byte flags LE + 8-byte
+    second_id + 4-byte build_version LE + 14-byte trailer.
+    Decoder reads variable-length strings via the u8
+    length-prefix, decodes the geometry quad as 4 f32 BE
+    via DataView, validates the zero padding, and renders
+    9 field rows.
+
+- One new preset button: the captured 110-byte payload
+  (level_name="NewWorld_VitaeEterna", level_path=
+  "coatlicue/NewWorld_VitaeEterna", geometry=(2048.0, 16.0,
+  10250.0, 12272.0) — note the third/fourth floats are
+  shown in encode order, not the input-tuple order).
+
+- **Both maps + cross-check test updated in lockstep**.
+  All three structural tests (wakes 172/178/185) pass on
+  first run.
+
+**Coverage growth**:
+- Before wake 192: **31/40 = 77.5%**, 9 uncovered.
+- After wake 192: **32/40 = 80.0%**, 8 uncovered.
+- Hit the 80% milestone.
+- Uncovered now: `0x0003`, `0x0008`, `0x0013`, `0x0635`,
+  `0x065c`, `0x0ca4`, `0x12f6`, `0x16a0`.
+
+**Notable visitor-facing payoff** (similar to wake 191):
+the rendered output for 0x663 shows actual captured strings:
+- `level_name = "NewWorld_VitaeEterna" (20 chars)`
+- `level_path = "coatlicue/NewWorld_VitaeEterna" (30 chars)`
+- `geometry   = (2048, 16, 10250, 12272)` (likely region
+  bounds in world coordinates)
+- `build_version = 0x365 (= 869)` matches the captured
+  retail build
+
+Two consecutive wakes (191 + 192) have added decoders whose
+output is immediately legible — the dashboard's "make the
+wire bytes meaningful" promise is sharpest for these
+text-carrying types.
+
+**Remaining uncovered codecs** (8): each has a real reason:
+- `0x0003`: REPClient response — only encoded by us
+- `0x0008`: chunked_stream (per-chunk wire shape; meta-codec)
+- `0x0013`: V3 request — encoder only
+- `0x0635`: action_history — many constants + history records
+- `0x065c`: world_data_blob — variable-records section
+- `0x0ca4`: asset_count_table — variable
+- `0x12f6`: keybinding_config — complex strings + version blocks
+- `0x16a0`: asset_blob (Small + Large variants)
+
+**Tests**: still **429 passing (+1 skipped)** — preset
+cross-check now validates 20 hex strings.
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.

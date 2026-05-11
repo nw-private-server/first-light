@@ -28122,6 +28122,12 @@
       "test_count": 430,
       "commit": "05bd3ac",
       "subject": "feat(site): live decoder +2 W-direction (5b2, a95) \u2192 30/40 (75%)"
+    },
+    {
+      "wake": null,
+      "test_count": 430,
+      "commit": "71746a0",
+      "subject": "feat(site): live decoder +0x1067 VivoxConfig \u2192 31/40 (77.5%)"
     }
   ],
   "wire_type_families": [
@@ -28640,6 +28646,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 192,
+      "title": "live decoder +0x663 LevelDescriptor \u2192 32/40 (80%)",
+      "line": 14614
+    },
+    {
       "wake": 191,
       "title": "live decoder +0x1067 VivoxConfig \u2192 31/40 (77.5%)",
       "line": 14547
@@ -28663,24 +28674,18 @@
       "wake": 187,
       "title": "rep_responder phase-2B foundation: heartbeat encode validation",
       "line": 14226
-    },
-    {
-      "wake": 186,
-      "title": "linkify the four remaining dashboard surfaces",
-      "line": 14161
     }
   ],
   "live_decoder_coverage": {
-    "covered": 31,
+    "covered": 32,
     "total": 40,
-    "percent": 77.5,
+    "percent": 80.0,
     "uncovered": [
       "0x0003",
       "0x0008",
       "0x0013",
       "0x0635",
       "0x065c",
-      "0x0663",
       "0x0ca4",
       "0x12f6",
       "0x16a0"
