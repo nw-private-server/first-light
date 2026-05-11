@@ -368,6 +368,27 @@ main { padding: 16px; max-width: 1100px; margin: 0 auto; }
 .recent-link:hover {
   color: var(--accent);
 }
+/* Wake 210: category pills on the recent-activity strip. Tiny color-
+   coded chip between the wake-N badge and the title — lets a scanner
+   pick out test vs site vs code vs docs at a glance. Colors echo the
+   wake-163 dashboard theming family but on the dim end so the pill
+   reads as metadata, not a callout. */
+.wake-pill {
+  display: inline-block;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-right: 6px;
+  border: 1px solid transparent;
+}
+.wake-pill-test  { background: #2d1f3d; color: #c9a8e6; border-color: #4a3268; }
+.wake-pill-site  { background: #1a2840; color: #9bc1ed; border-color: #2e4470; }
+.wake-pill-code  { background: #1f3528; color: #95d4a8; border-color: #2f5840; }
+.wake-pill-docs  { background: #3a2818; color: #e0b283; border-color: #5e4022; }
+.wake-pill-other { background: #2a2a2a; color: #999;    border-color: #444; }
 
 /* Contributor ramp-up cards (wake 167) */
 .contrib-paths {
@@ -2001,8 +2022,15 @@ async function load() {
       // HTML doesn't allow nested anchors and the wake-170 wrapper
       // would close at the first typelink otherwise.
       const linkedTitle = linkifyTypeIds(escapeHtml(w.title));
+      // Wake 210: category pill from the Python-side heuristic. Falls
+      // back to "other" if the field is missing (e.g. older data.json
+      // from a stale build, or a doc category we haven't classified).
+      const cat = (w.category || "other").toLowerCase();
+      const pill = `<span class="wake-pill wake-pill-${cat}" ` +
+                   `title="Inferred category from wake title">${cat}</span>`;
       li.innerHTML =
         `<span class="recent-wake-n">wake ${w.wake}</span> ` +
+        pill + ` ` +
         `<span class="recent-title">${linkedTitle}</span> ` +
         `<a href="${url}" target="_blank" rel="noopener" class="recent-link" ` +
         `title="Open in worklog (line ${w.line || '?'})">↗</a>`;

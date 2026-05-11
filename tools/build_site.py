@@ -388,6 +388,39 @@ def load_live_decoder_coverage(captured_types: list) -> dict:
     }
 
 
+WAKE_CATEGORY_ORDER = ["test", "site", "code", "docs", "other"]
+
+
+def categorize_wake_title(title: str) -> str:
+    """Bucket a worklog wake title into a recent-activity category
+    (wake 210). Used to color a pill on the Overview tab strip so a
+    visitor scanning recent work can pick out structural-test wakes
+    vs feature-code wakes at a glance.
+
+    Heuristic precedence: test → docs → site → code → other. The
+    order matters because some titles match multiple keywords:
+      - "10th cross-check ..." also mentions retrospective — `test`
+        wins because the wake's artifact is a test.
+      - "update wake-197 retrospective with wake-204 swap" hits both
+        docs and code — `docs` wins because the artifact is doc text.
+      - "Findings card for the phase-2D swap" hits site and code —
+        `site` wins because the artifact is the dashboard card."""
+    t = title.lower()
+    # Test: cross-checks, invariants, lockdown tests.
+    if any(k in t for k in ("cross-check", "invariant", "lockdown")):
+        return "test"
+    # Docs: retrospective, README, worklog, checkpoint.
+    if any(k in t for k in ("retrospective", "readme", "worklog", "checkpoint", "documentation")):
+        return "docs"
+    # Site: Findings cards, decoder coverage, dashboard, badges.
+    if any(k in t for k in ("findings card", "live decoder", "dashboard", "badge", "category pill")):
+        return "site"
+    # Code: phase-2 work, heartbeat changes, rep_responder, codecs.
+    if any(k in t for k in ("phase-", "heartbeat", "rep_responder", "swap", "codec", "emission", "counter-advance")):
+        return "code"
+    return "other"
+
+
 def load_recent_wakes(limit: int = 6):
     """Tail the autonomous worklog and return the most recent N wake
     headlines as a list of `{wake, title, line}` dicts (newest first).
@@ -429,7 +462,10 @@ def load_recent_wakes(limit: int = 6):
     # Newest-first means *last in the file*. Take the tail.
     tail = headers[-limit:]
     tail.reverse()
-    return [{"wake": w, "title": t, "line": ln} for w, t, ln in tail]
+    return [
+        {"wake": w, "title": t, "line": ln, "category": categorize_wake_title(t)}
+        for w, t, ln in tail
+    ]
 
 
 def load_test_count_history():

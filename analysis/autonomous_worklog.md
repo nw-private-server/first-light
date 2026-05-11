@@ -15697,3 +15697,83 @@ could extend the same pattern.
 441 (wake 208).
 
 **Blockers:** None.
+
+## Wake 210 — recent-activity category pills
+
+**Goal**: the wake-168 recent-activity strip on the
+Overview tab shows the last 6 wake titles, but a visitor
+scanning has no way to quickly distinguish "this was a
+test" from "this was a feature ship" from "this was a
+doc update". Wake 163 introduced the Findings-tab
+category-coloring heuristic for analysis docs;
+apply the same idea to recent-activity titles.
+
+**Built**:
+
+- **`tools/build_site.py`**:
+  - **`categorize_wake_title(title) -> str`** — keyword-
+    based heuristic with precedence order:
+    test → docs → site → code → other. Precedence
+    matters when a title matches multiple keywords:
+    - "10th cross-check ..." also mentions retrospective —
+      `test` wins (artifact is the test).
+    - "update wake-197 retrospective with wake-204 swap"
+      hits both docs and code — `docs` wins
+      (artifact is the doc text).
+    - "Findings card for the phase-2D swap" hits site
+      and code — `site` wins (artifact is the card).
+  - **`WAKE_CATEGORY_ORDER`** exported as the canonical
+    list (`["test", "site", "code", "docs", "other"]`).
+  - **`load_recent_wakes`** now stamps `category` on
+    each row.
+
+- **`site/index.html`**:
+  - **CSS**: five `.wake-pill-{test,site,code,docs,other}`
+    rules with a uniform pill shape (10px monospace,
+    uppercase) and color pairs that echo the wake-163
+    theming family but on the dim end so the pill reads
+    as metadata, not a callout.
+  - **Recent-activity JS rendering**: insert the pill
+    between the wake-N badge and the title. Falls back
+    to "other" if a stale data.json predates the field.
+
+- **`server/javelin/test_build_tools.py`**:
+  - **6 unit tests** covering each category branch plus
+    the precedence rule (`test` beats `site` for
+    "cross-check for the live decoder badge").
+  - **1 structural test**
+    `test_every_recent_wake_has_a_known_category` —
+    iterates `load_recent_wakes()` and asserts every
+    entry's category is a member of
+    `WAKE_CATEGORY_ORDER`. Catches a future heuristic
+    change that accidentally returns an unknown string.
+
+**Verification**: `data.json` recent_wakes after rebuild:
+```
+wake 209: 11th cross-check ...        → test
+wake 208: counter-advance ...         → code
+wake 207: 10th cross-check ...        → test
+wake 206: update wake-197 retro ...   → docs
+wake 205: Findings card ...           → site
+wake 204: phase-2D heartbeat ...      → code
+```
+All six match expectation.
+
+**Cross-check graph at wake 210**: **12 tests** now —
+adding "recent wakes have known categories" to the doc/
+navigation drift bucket (now 3 entries: 207, 209, 210).
+The graph structure:
+- Code structure (6): 162, 166, 178, 184, 185, 196.
+- Generated output integrity (3): 172, 201, 202.
+- Doc/navigation drift (3): 207, 209, **210**.
+
+**Pattern note**: this is the **9th** cross-check test
+that doesn't touch product code or generated assets —
+purely structural. It also extends the category-pill
+infrastructure to the recent-activity strip, surfacing
+the work mix at a glance.
+
+**Test count**: **449 passing (+1 skipped)** — up from
+442 (wake 209). +7 tests for the wake-210 work.
+
+**Blockers:** None.

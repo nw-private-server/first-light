@@ -17,6 +17,7 @@ sys.path.insert(0, str(REPO))
 
 from tools.build_site import (  # noqa: E402
     categorize_doc,
+    categorize_wake_title,
     _enrich_families,
     load_findings,
     load_recent_wakes,
@@ -25,6 +26,7 @@ from tools.build_site import (  # noqa: E402
     CATEGORY_ORDER,
     FINDINGS_CATEGORY_ORDER,
     LDTYPE_TO_TYPE_IDS,
+    WAKE_CATEGORY_ORDER,
 )
 from tools.build_api_reference import (  # noqa: E402
     parse_sections,
@@ -624,6 +626,58 @@ def test_every_finding_has_required_render_fields():
 # ---------------------------------------------------------------------------
 #  10th cross-check (wake 207) — every retrospective doc has a README link
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+#  categorize_wake_title — recent-activity strip pill (wake 210)
+# ---------------------------------------------------------------------------
+
+
+def test_categorize_wake_title_test_keywords():
+    assert categorize_wake_title("10th cross-check: every retrospective doc must have a README link") == "test"
+    assert categorize_wake_title("badge-color invariant (2 new tests)") == "test"
+    assert categorize_wake_title("9-test lockdown of inbound shadow") == "test"
+
+
+def test_categorize_wake_title_site_keywords():
+    assert categorize_wake_title("Findings card for the phase-2D swap") == "site"
+    assert categorize_wake_title("live decoder +0xca4 AssetCountTable → 34/40") == "site"
+    assert categorize_wake_title("dashboard badge refresh") == "site"
+
+
+def test_categorize_wake_title_code_keywords():
+    assert categorize_wake_title("phase-2D: actual heartbeat emission swap") == "code"
+    assert categorize_wake_title("counter-advance enhancement (phase-2D follow-up)") == "code"
+
+
+def test_categorize_wake_title_docs_keywords():
+    assert categorize_wake_title("update wake-197 retrospective with wake-204 swap") == "docs"
+    assert categorize_wake_title("README refresh: add wake-197 retrospective link") == "docs"
+
+
+def test_categorize_wake_title_unknown_returns_other():
+    assert categorize_wake_title("free-form exploratory wake on something nobody saw coming") == "other"
+    assert categorize_wake_title("") == "other"
+
+
+def test_categorize_wake_title_precedence_test_beats_site():
+    """A wake titled "cross-check test for the live decoder badge"
+    matches both `test` (cross-check) and `site` (badge). Test
+    should win because the wake's primary artifact is a test."""
+    assert categorize_wake_title("cross-check for the live decoder badge") == "test"
+
+
+def test_every_recent_wake_has_a_known_category():
+    """12th cross-check (wake 210): every entry in `load_recent_wakes`
+    must carry a `category` field that's a member of
+    `WAKE_CATEGORY_ORDER`. Catches a future heuristic change that
+    accidentally returns an unknown string."""
+    for w in load_recent_wakes():
+        assert "category" in w, f"wake {w.get('wake')} missing category field"
+        assert w["category"] in WAKE_CATEGORY_ORDER, (
+            f"wake {w['wake']} has unknown category {w['category']!r}; "
+            f"expected one of {WAKE_CATEGORY_ORDER}"
+        )
 
 
 def test_phase2_arc_findings_card_pair_consistent():
