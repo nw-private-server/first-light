@@ -16142,3 +16142,71 @@ visual review at next deploy catches drift.
 passing (+1 skipped)** — unchanged.
 
 **Blockers:** None.
+
+## Wake 216 — wake-200 Findings card update after wake-213 ship
+
+**Goal**: the wake-200 card narrates the 6 uncovered
+captured wire-types and their structural reasons —
+"left out of the live decoder." Wake 213 shipped
+0x0635, dropping that count to 5. The card prose
+still claims "34/40 (85%)" coverage and lists 0x0635
+among the uncovered. Drift correction.
+
+**Choice: update in place vs. add new card?** The
+wake-200 card title "Remaining N uncovered wire-types:
+structural reasons" reads as a current claim
+(present-tense "remaining"), not a historical
+snapshot. Updating in place is the right move: keep
+the wake-200 keying to preserve the historical
+credit (the *structural reasoning* originated then),
+but refresh the content to match current state.
+Added a "Updated wake 216 after the wake-213 ship"
+tail note so a future maintainer reading both wake-
+numbers in the card knows the data is wake-216-fresh.
+
+**Built**:
+
+- **`tools/build_site.py`**:
+  - **Wake-200 card title**: "Remaining 6 uncovered…"
+    → "Remaining 5 uncovered…".
+  - **Summary**:
+    - Opening: "settled at 34/40 (85%) after wake 199"
+      → "at 35/40 (87.5%) after wake 213's 0x0635
+      ship".
+    - Dropped 0x0635 entry from the uncovered list
+      (it's now in the live decoder).
+    - Added explicit structural-vs-future-candidate
+      partition: 3 (0x0003, 0x0008, 0x0013) are
+      structurally unable to add (server-only or
+      meta-codec); 2 (0x065c, 0x12f6) are candidates
+      for future wakes. This clarifies what's
+      attainable next vs. what's not.
+    - Wake-213 line count empirical update: card
+      previously estimated 0x0635 at "50+ JS lines";
+      wake 213 actually shipped at ~70 lines. Now
+      cited as a real reference point for the next
+      complex codec ("expect 50-100 JS lines").
+    - "Updated wake 216" tail note explicit so the
+      historical-snapshot-vs-current-claim duality is
+      transparent to readers.
+
+**Why not change the keying to wake: 216?** Renaming
+the wake-key would break the chronological feel of
+the Findings list and the historical credit. The
+finding (the structural reasoning that makes 3 of the
+remaining types unaddressable) was real at wake 200
+and remains true. The wake-216 update is to the
+*count*, not the *finding*.
+
+**Verification**: full suite passes (450 + 1 skip).
+The wake-209 paired-card test (which pins wake-188 +
+wake-204 cards) is unaffected. The wake-214 self-
+referential test (which pins wake-210 card claims)
+is unaffected. The wake-185 preset coverage and
+wake-178 LDTYPE sync tests still pass since the
+underlying maps are correct.
+
+**No code changes, no test changes**. Tests still
+**450 passing (+1 skipped)**.
+
+**Blockers:** None.
