@@ -14679,3 +14679,50 @@ cross-check now validates 20 hex strings.
 trivial.
 
 **Blockers:** None.
+
+## Wake 193 — Findings card for the 80% live-decoder coverage milestone
+
+**Goal**: surface the 32/40 = 80% milestone as a curated
+Findings card. Wakes 190 → 191 → 192 pushed coverage from
+70% → 80% with two notable visitor-facing string-decoder
+additions; the dashboard's "make the wire bytes meaningful"
+promise is sharpest at this moment.
+
+**Built**:
+
+- **`tools/build_site.py`**: new Findings card under
+  "Research closure" (the 4th in that bucket):
+  - **Title**: "Live decoder addresses 80% of captured
+    wire-types" (wake 192)
+  - **Summary**: walks through what's covered (32 of 40
+    captured types decodable from the Explore tab),
+    highlights the two visitor-facing string-decoder
+    payoffs (Vivox API URL/realm/issuer; LevelDescriptor
+    name/path including the actual captured
+    `"NewWorld_VitaeEterna"`), and references the
+    wake-172/178/185 cross-check graph that catches
+    typos/drift at pytest-time with precise pointers.
+
+**Findings tab now**: **12 cards** across 4 categories:
+- RE breakthrough: 2 (state-10 gate, type-name limit)
+- Wire-level finding: 5
+- Research closure: **4** (hash hypothesis ruled out, type-id
+  catalog false lead, audit arcs closed at 0 gaps, **NEW:
+  80% live-decoder coverage**)
+- Architecture: 1
+
+**Pattern note**: this is the **4th** Findings card added
+since the wake-163 categorization shipped (wake 156, 180,
+189, 193). Each is a single dict entry in `load_findings()`
+— zero new infrastructure. The pattern has held across
+four very different findings (RE breakthroughs, wire-level
+findings, research closures, milestones).
+
+**No `server/javelin/` codec changes**. No new dashboard
+features. The wake-163 categorization, wake-177 linkify,
+wake-178 map-sync invariant, and wake-184 walkthrough
+invariant all continue to render and validate the new
+card automatically. Tests still **429 passing (+1
+skipped)**.
+
+**Blockers:** None.

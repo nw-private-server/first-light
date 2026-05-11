@@ -902,6 +902,25 @@ def load_findings():
                        "baseline), 0x8e6↔0x9fc (16-byte hash echo).",
         },
         {
+            "title": "Live decoder addresses 80% of captured wire-types",
+            "category": "Research closure",
+            "wake": 192,
+            "summary": "32 of 40 captured wire-types are now decodable "
+                       "directly from the dashboard's Explore tab — no "
+                       "clone, no CLI, no Python required. The visitor "
+                       "pastes a hex body, picks the type, and sees "
+                       "field-aligned output. Two recent additions "
+                       "render actual captured strings inline: 0x1067 "
+                       "VivoxConfig surfaces the production Vivox API "
+                       "URL + realm + issuer; 0x663 LevelDescriptor "
+                       "shows the level name and path (e.g. "
+                       "\"NewWorld_VitaeEterna\"). The wake-172/178/185 "
+                       "cross-check graph means a typo in any preset "
+                       "hex or a drift between the JS and Python "
+                       "type-id maps fails loudly at pytest with a "
+                       "precise pointer at the broken row.",
+        },
+        {
             "title": "Codec audit arcs both closed at 0 gaps",
             "category": "Research closure",
             "wake": 136,
