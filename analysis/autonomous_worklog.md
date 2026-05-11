@@ -14400,3 +14400,64 @@ unchanged; this wake only adds test coverage.
 **Tests**: 421 → **429 passing (+1 skipped)**.
 
 **Blockers:** None.
+
+## Wake 189 — Findings card: codec audit arcs both closed at 0 gaps
+
+**Goal**: surface the wake-125/126 + wake-135/136 audit
+closures as a curated Findings card. The dashboard's
+Overview tab already has an audit-gap counter (showing
+0/0), but a Findings entry tells the narrative — "both
+halves of the wire-format contract pinned across every
+codec."
+
+**Built**:
+
+- **`tools/build_site.py`**: new Findings card under the
+  "Research closure" category (the 3rd in that bucket):
+  - **Title**: "Codec audit arcs both closed at 0 gaps"
+    (wake 136)
+  - **Summary**: walks through the decoder-rejection
+    audit (wakes 125-126 — corrupt input must raise
+    precise error) + the encoder round-trip audit (wakes
+    135-136 — encode(decode(captured)) byte-equal). Notes
+    the 40-codec scope and points at `cross_link_arc.md`
+    for the scaffold-wedge-close pattern.
+
+**Findings tab now**: 11 cards across 4 categories:
+- RE breakthrough: 2 (state-10 gate, type-name limit)
+- Wire-level finding: 5
+- Research closure: **3** (hash hypothesis, type-id
+  catalog false lead, **NEW: audit arcs closed**)
+- Architecture: 1
+
+**Why this matters as a "Research closure"**: the audits
+weren't research per se — they were quality work. But
+they *closed* an open question ("does every codec correctly
+reject malformed input?" / "does every codec round-trip?")
+with definitive 0/0 answers. Same shape as the wake-155
+hash-hunt closure: hypothesis tested across the full
+domain, definitive answer, archived for future
+maintainers.
+
+**Auto-linkified mentions in the new card**: none — the
+summary mentions wake numbers and doc filenames, not
+type-ids. (The wake-181 linkify is conservative; only
+0xNNN-shaped mentions trigger.)
+
+**Tests**: still **429 passing (+1 skipped)**. The wake-163
+findings-category invariant continues to validate the new
+card's `category` field; no new infrastructure required.
+
+**Pattern note**: this is the **third** Findings card
+added since the wake-163 categorization shipped (wake 180:
+sub-system families; wake 156: state-10 gate; wake 189:
+audit arcs). The "zero new infrastructure" property holds
+for each one — every addition is a single dict entry in
+`load_findings()`. The wake-156→189 wakes prove the
+dashboard machinery is well-suited to curated-card
+maintenance.
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.

@@ -898,6 +898,25 @@ def load_findings():
                        "baseline), 0x8e6↔0x9fc (16-byte hash echo).",
         },
         {
+            "title": "Codec audit arcs both closed at 0 gaps",
+            "category": "Research closure",
+            "wake": 136,
+            "summary": "Two complete audits of the 40-codec library, "
+                       "both closing at 0 gaps. The decoder-rejection "
+                       "audit (wakes 125-126) added structural-rejection "
+                       "tests for every codec — corrupt or wrong-sized "
+                       "input must raise a precise error, not silently "
+                       "decode garbage. The encoder round-trip audit "
+                       "(wakes 135-136) added populated round-trip tests "
+                       "for every codec — encode(decode(captured)) must "
+                       "equal the original bytes. Together: every codec "
+                       "has both halves of the wire-format contract "
+                       "pinned. 0 captured wire-types lack either test "
+                       "as of this writing. See cross_link_arc.md for "
+                       "the scaffold-wedge-close pattern that closed "
+                       "both arcs in 2-3 wakes each.",
+        },
+        {
             "title": "VM-on-Apple-Silicon ruled out for runtime testing",
             "category": "Architecture",
             "wake": 70,
