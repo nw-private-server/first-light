@@ -173,6 +173,7 @@ def categorize_doc(filename: str) -> str:
         "codec_library_overview", "codec_coverage",
         "replay_message_inventory", "message_inventory",
         "integration_status", "queued_work", "state_machine_summary",
+        "public_api",
     }:
         return "Overview"
     return "RE Finding"

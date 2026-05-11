@@ -12572,3 +12572,70 @@ hypothesis, not as a ready-to-apply diff.
 rebuild trivial.
 
 **Blockers:** None.
+
+## Wake 161 — public-API reference (generated, auto-stays-current)
+
+**Goal**: `server/javelin/__init__.py` re-exports 55 symbols
+across 7 sections (low-level framing, wire helpers, generic
+codecs, R-direction codecs, W-direction codecs, AzCore-style
+codecs, session-state scaffolding). Plus the dispatcher in
+`dispatch.py` has 6 public entry points. There was no single-
+page reference; contributors had to grep `__init__.py` or
+read individual codec modules. Generate one.
+
+**Built**:
+
+- **`tools/build_api_reference.py`** (~150 LOC): parses the
+  `__all__` block in `__init__.py`, recovers the section
+  headings from the `# ...` comment markers, walks each
+  symbol via `importlib`/`inspect`, pulls the first
+  paragraph of its docstring + the source module name, and
+  renders a grouped markdown reference to
+  `analysis/public_api.md`. Six dispatcher entry points
+  (`decode_replay_message`, `encode_replay_message`,
+  `supported_type_ids`, `encodable_type_ids`, `DECODERS`,
+  `ENCODERS`) are pulled separately from `dispatch.py` and
+  rendered as the lead section. The two `dict` instances
+  (`DECODERS`/`ENCODERS`) get instance-aware summaries
+  ("`dict[int, decoder]` — 40 entries") instead of the
+  inherited dict-class docstring.
+
+- **`analysis/public_api.md`** (~9.5KB output):
+  - Lead section: dispatcher (6 entry points)
+  - 7 sections from `__all__`: low-level wire framing,
+    wire helpers, generic/family codecs, R-direction
+    codecs, W-direction codecs, AzCore-style typed codecs,
+    session-state scaffolding.
+  - Per entry: name, kind (class/function/value), source
+    module (in `⟨ ⟩`), first-paragraph docstring.
+  - Trailing footer with totals: 55 re-exports across 7
+    sections, plus 6 dispatcher entry points.
+
+- **`tools/build_site.py`**: added `public_api` to the
+  Overview category set in `categorize_doc()` so the new
+  doc shows up under the right header on the dashboard's
+  Findings tab, alongside `codec_library_overview` /
+  `codec_coverage` / etc.
+
+**Verified**:
+
+- The generator produced clean dispatcher entries
+  (`dict[int, decoder]` — 40 entries; `dict[int, encoder]`
+  — 41 entries — the +1 is `0x5d1`/SelfIdent which has an
+  encoder but no captured decoder path).
+- `public_api.md` categorizes as "Overview" in `data.json`
+  → renders under the Overview group on Findings.
+- All 383 javelin tests still pass (+1 skipped); the
+  generator only reads code and writes a doc.
+
+**Design note**: the script is idempotent and re-runnable.
+Future codec additions land in `__init__.py`'s `__all__`
+and a re-run of `tools/build_api_reference.py` regenerates
+the doc in-place. The "do not edit by hand" warning at the
+top of `public_api.md` makes the generator-driven nature
+explicit.
+
+**No `server/` changes** — pure tooling + doc. Tests still
+383 +1 skipped. Site rebuild trivial.
+
+**Blockers:** None.
