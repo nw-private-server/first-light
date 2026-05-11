@@ -18836,3 +18836,100 @@ with Ghidra access has a 30-minute path to a
 finding".
 
 **Blockers:** None.
+
+## Wake 248 — drift correction: wake-247 finding propagates to README + synthesis card
+
+**Goal**: wake-247 changed the state-machine
+picture — the 13→14 writer was found. The
+discoverability cascade established at wakes
+240/242/243 needs updating: synthesis card AND
+README Gate-2 row both claim "writer NOT yet
+identified" (synthesis card) and reference the
+wake-241 alt hypothesis as the framing (README).
+Both now stale.
+
+**Built**:
+
+- **`tools/build_site.py`** wake-240 synthesis
+  card 13→14 paragraph:
+  - "writer NOT yet identified statically" →
+    "**writer identified wake 247**: `FUN_142ffbc50`".
+  - Concrete description of what the writer does
+    (walks 0x70-stride collection, predicate-match,
+    notification callback).
+  - "5 unconditional-call xrefs ... observer-
+    notify pattern" surfaces the 5-caller
+    structure.
+  - Alt hypothesis updated: "**partly weakened**"
+    (writer in connection-namespace, not actor-
+    namespace) but trigger context still TBD.
+  - **Next concrete static-RE step** explicit:
+    decompile the 5 callers.
+
+- **`README.md`** Gate-2 row state-machine
+  paragraph:
+  - "wake 241 update" → "**wake 247 update**".
+  - "13→14 writer is the lone remaining open
+    question" → "**all 4 transition writers/
+    predicates are now RE'd**".
+  - Concrete reference to `FUN_142ffbc50` (5
+    caller xrefs, per-connection 0x70-stride
+    collection, predicate match).
+  - What remains: **trigger context** for the
+    13→14 writer (server-driven vs local) →
+    decompiling 5 callers is the next step.
+
+**Why this matters now**: visitor first-touch
+surfaces (README + Findings tab synthesis card)
+both claimed the 13→14 writer was the open
+question. Wake-247 RESOLVED that — claim now
+needs updating to "writer found, trigger context
+remains". Without this drift correction, a
+visitor reading the dashboard sees a stale claim
+about what's open.
+
+**Surfaces consistent now**:
+1. **README Gate-2 row** — wake-247 update, "all
+   4 transitions RE'd, trigger context remains".
+2. **Findings tab wake-240 synthesis card** —
+   same picture, with operational detail.
+3. **`state_machine_summary.md` § 1** — predicate
+   table updated wake 247 with writer column.
+4. **`state_13_14_writer_investigation.md`** —
+   the full search log + writer-found section.
+5. **Wake-227 retrospective** — chronological
+   (still pre-247 era; will need a delta callout
+   only if a 4th-stretch retrospective is
+   produced).
+
+**Verification**:
+- wake-225 (analysis-path existence): card prose
+  still cites
+  `state_13_14_writer_investigation.md` —
+  exists ✓.
+- wake-209 (paired card consistency): wake-188 +
+  wake-204 pair untouched.
+- wake-218 (manifest citation): unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: this is the **4th update** to
+the wake-240 synthesis card (wake-242 alt
+hypothesis, wake-244 skeleton-card cross-ref,
+wake-247 implicit via underlying findings,
+**this wake** writer-found update). Each update
+preserved the "synthesis" framing. The state-
+machine picture has been a moving target for
+the synthesis card; after wake-247 the picture
+is largely stable.
+
+**Next-step priorities**:
+- Decompile the 5 callers of FUN_142ffbc50
+  (resolves trigger context — substantive RE).
+- Findings card for the wake-247 breakthrough
+  (21st card, RE breakthrough — would join
+  wake-90 / 112 / 232 / 240 in the cluster).
+
+**No new tests, no new code**. Two prose updates
+on the dashboard's primary surfaces.
+
+**Blockers:** None.
