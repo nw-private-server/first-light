@@ -29028,6 +29028,12 @@
       "test_count": 457,
       "commit": "d94797f",
       "subject": "docs(worklog): wake-292 \u2014 systematic title scan, wake-291 drift was isolated (clean negative)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "b53f61f",
+      "subject": "docs(worklog): wake-293 \u2014 cross-check graph audit (second clean negative)"
     }
   ],
   "live_decoder_history": [
@@ -29632,6 +29638,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 294,
+      "title": "loop stop (final entry)",
+      "line": 4917,
+      "category": "other"
+    },
+    {
       "wake": 293,
       "title": "cross-check graph audit (second clean negative in a row)",
       "line": 4793,
@@ -29660,12 +29672,6 @@
       "title": "retrospective re-read drift sweep (caught 2 See-also pointer drifts)",
       "line": 4357,
       "category": "docs"
-    },
-    {
-      "wake": 288,
-      "title": "AZ::Name table angle: byte-pattern search confirms no data-segment match",
-      "line": 4262,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {

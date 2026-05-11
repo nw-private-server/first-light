@@ -4912,3 +4912,112 @@ intact + manifest is healthy. Second
 consecutive clean negative.
 
 **Blockers:** None.
+
+
+## Wake 294 — loop stop (final entry)
+
+**Goal**: act on wake-293's strong stop
+recommendation. Two consecutive clean
+negatives (wakes 292 + 293), the
+audit-mode plateau has reached genuine
+exhaustion, and the maintainer's handoff
+is complete. Stopping the loop is the
+cleanest narrative closure.
+
+**Final state**:
+
+- HEAD: `b53f61f` (wake 293).
+- Tests: 456 passing (+1 skipped).
+- Decompiles: 56.
+- Findings cards: 24 across 4 categories.
+- Cross-check graph: 19 manifest entries,
+  55 cross-check tests passing.
+- Visitor surfaces (README, dashboard, all
+  4 retros, state_machine_summary): all
+  current through wake 286.
+- Branch: `claude/vacation-2026-05-06`,
+  pushed.
+
+**Arc summary** (267-294 = 28 wakes total):
+
+| Sub-arc | Wakes | Outcome |
+|---|---|---|
+| Doc-freshness | 267-273 | 5 methodological filings; DASHBOARD/CONTRIBUTING/README all current |
+| Archive audit + RE pivot | 274-280 | Buried wake-8 finding surfaced; destroy-event family reframed 1→50 hashes |
+| Surfacing + scheduler | 281-286 | 2 new Findings cards; README "Recent milestones" 5th bullet |
+| Cadence-shifted plateau | 287-293 | 9 real drifts caught across 6 audit-sweep shapes; 2 clean negatives close the arc |
+
+**Methodological filings** (5 from the arc,
+worth preserving for future autonomous
+sessions):
+
+1. **Deprecate-don't-refresh** — for
+   manually-maintained docs superseded by
+   auto-generated equivalents.
+2. **Cross-doc grep before declaring
+   drift-fix done** — drift fixes need
+   greps on ALL syntactic shapes of the
+   stale pattern, not just the dominant
+   one.
+3. **Archive-audit cited "remaining"
+   work** — when citing a NEW remaining
+   task, also grep the archive to verify
+   it hasn't been previously resolved.
+4. **Re-run tool-bug-affected scans** —
+   when a tool bug prevented context
+   capture, re-running with a fixed
+   approach is high-value if the question
+   has remained open.
+5. **Indirect-vtable walls compound** —
+   for this codebase's GridMate RPC
+   subsystem, treat any vtable+offset
+   call as a likely wall.
+
+**Why stopping now**:
+
+- Substantive RE is genuinely runtime-
+  gated (3 open questions all share the
+  same Frida-on-real-GPU unblocker).
+- Static-RE on all known angles is
+  exhausted (3 indirect-vtable walls;
+  AZ::Name table angle confirmed
+  unrecoverable from this binary;
+  hand-curated wordlists at ~340
+  candidates with no match).
+- Drift-sweep arc closed with 2
+  consecutive clean negatives.
+- The user's continued /loop firing has
+  produced diminishing returns; honoring
+  the stop signal is more respectful of
+  the user's time than continuing to
+  produce marginal-value entries.
+
+**Final handoff state**:
+
+The maintainer has everything needed to
+resume when runtime access is available:
+- README "What the project needs most"
+  item 1 names the real-GPU host as the
+  single highest-leverage unblocker.
+- `analysis/state_machine_summary.md`
+  § A3.1 has the 50-hash event family
+  list + brute-force script ready for
+  O3DE corpus extension.
+- 2 Findings cards (Destroy-event
+  scheduler, Indirect-vtable wall
+  pattern) surface the most substantive
+  findings to the dashboard.
+- 4 retrospectives chained (150 / 196 /
+  227 / 253) for arc-level narrative.
+- All visitor surfaces current.
+
+**Loop terminates here.** If a future
+maintainer wants to resume autonomous
+work, fire /loop with a fresh prompt;
+this loop's chain ends at wake 294.
+
+**Cost summary**: final worklog entry, no
+code or doc changes beyond the entry
+itself.
+
+**Blockers:** None.
