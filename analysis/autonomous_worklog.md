@@ -14543,3 +14543,70 @@ cross-check now validates 18 hex strings (was 16).
 trivial.
 
 **Blockers:** None.
+
+## Wake 191 — live decoder +0x1067 VivoxConfig → 31/40 (77.5%)
+
+**Goal**: continue the coverage push. Add `0x1067` VivoxConfig
+— the simplest remaining uncovered codec (3 length-prefixed
+UTF-8 strings + terminator, header at +0). Visitors curious
+about "how does the client auth to Vivox voice-chat?" can now
+paste the captured 86 bytes and see the API URL / realm /
+issuer decoded inline.
+
+**Built**:
+
+- **`site/index.html`** — new DECODERS entry:
+  - **`0x1067` VivoxConfig** (variable, 23+ bytes): R
+    direction; TYPE_HEADER `00 01 a7 41` + identity_uuid
+    (16) + 3 length-prefixed UTF-8 strings (`api_url`,
+    `realm`, `issuer`) + 1-byte terminator. Decoder uses
+    `TextDecoder('utf-8')` to render the strings inline
+    (e.g. `"https://nwxp.www.vivox.com/api2/"`) — most
+    visually informative codec so far for a captured
+    message.
+  - Validates per-string length-prefix overrun and
+    terminator byte; rejects trailing bytes after
+    terminator.
+
+- One new preset button: the canonical captured Vivox
+  config (86 bytes, hex generated via the Python codec).
+
+- **Both maps + cross-check test updated in lockstep** —
+  the 3-line workflow continues to work:
+  `LDTYPE_TO_TYPE_IDS` (build_site.py) +
+  `TYPE_ID_TO_LDTYPE` (index.html) + `PYTHON_DECODERS`
+  (test file). All structural cross-check tests (wakes
+  172/178/185) pass on first run.
+
+**Coverage growth**:
+- Before wake 191: **30/40 = 75.0%**, 10 uncovered.
+- After wake 191: **31/40 = 77.5%**, 9 uncovered.
+- Uncovered now: `0x0003`, `0x0008`, `0x0013`, `0x0635`,
+  `0x065c`, `0x0663`, `0x0ca4`, `0x12f6`, `0x16a0`.
+
+**Notable**: the visitor-facing rendered output for 0x1067
+is the clearest "this is what the wire bytes actually mean"
+result so far. Most decoders show hex fields; this one
+shows actual human-readable strings:
+- `api_url = "https://nwxp.www.vivox.com/api2/"  (32 chars)`
+- `realm   = "amazon9050-ne83"  (15 chars)`
+- `issuer  = "@nwxp.vivox.com"  (15 chars)`
+
+Visitors interested in "what infrastructure does New World
+use for voice chat" can read the answer directly from the
+dashboard.
+
+**Why not 0x0635 (action_history) or 0x12f6 (keybinding_config)
+in this wake**: both codecs have many constant fields and/or
+complex variable-length records. Each would need 50+ lines of
+JS validation. Worth splitting into their own wakes later;
+this wake keeps focus on a single self-contained codec
+addition.
+
+**Tests**: still **429 passing (+1 skipped)** — preset
+cross-check now validates 19 hex strings.
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.

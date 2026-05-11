@@ -1721,6 +1721,7 @@ a:hover { text-decoration: underline; }
         <option value="1033">0x1033 — OpaqueBlob (variable, 20+ bytes)</option>
         <option value="5b2">0x5b2 W — IdentityFingerprintSet (45+ bytes)</option>
         <option value="a95">0xa95 W — PermissionBitmap (45+ bytes)</option>
+        <option value="1067">0x1067 — VivoxConfig (variable, 23+ bytes)</option>
         <option value="5d1">0x5d1 — PlayerManagerSelfIdent (state-10 trigger, 4 or 25+ bytes)</option>
         <option value="subkey">subkey_beacon family — 14 wire-types (44+T bytes)</option>
       </select>
@@ -1750,6 +1751,7 @@ a:hover { text-decoration: underline; }
       <button class="preset-btn" data-ldtype="1033" data-ldhex="0001b340 ce81136a2b7ad33e bf85314bbc4a951a deadbeefcafe1234">0x1033 opaque blob (demo)</button>
       <button class="preset-btn" data-ldtype="5b2" data-ldhex="f9b3ea55 00000025 f8cbed57c68b18f4bf85314bbc4a951a 0001b216 180f8d4e573697c6 bf85314bbc4a951a 00">0x5b2 fingerprints (count=0)</button>
       <button class="preset-btn" data-ldtype="a95" data-ldhex="11223344 00000049 f8cbed57c68b18f4bf85314bbc4a951a 0001952a 180f8d4e573697c6bf85314bbc4a951a 24 010101010101000101010101010101010101010101010101010101010101010101010101">0xa95 permissions (36 flags)</button>
+      <button class="preset-btn" data-ldtype="1067" data-ldhex="0001a741 f8cbed57c68b18f4bf85314bbc4a951a 2068747470733a2f2f6e7778702e7777772e7669766f782e636f6d2f617069322f 0f616d617a6f6e393035302d6e653833 0f406e7778702e7669766f782e636f6d 00">0x1067 vivox config</button>
     </div>
     <pre id="ld-result" class="ld-empty">(pick a preset or paste hex and press Decode)</pre>
   </div>
@@ -1817,6 +1819,7 @@ const TYPE_ID_TO_LDTYPE = {
   "0x8e6": "8e6", "0x9fc": "9fc",
   "0xa4": "a4", "0x1033": "1033",
   "0x5b2": "5b2", "0xa95": "a95",
+  "0x1067": "1067",
   // Both 0x40a and 0x1be share the HandshakeBlob76 codec.
   "0x40a": "76", "0x1be": "76",
   // subkey_beacon family — all 14 share one ldtype
@@ -2687,6 +2690,47 @@ function setupLiveDecoder() {
           ["state_block            (26 bytes)", hexBytes(buf, 60, 26)],
           ["echoed_blob            (16 bytes)", hexBytes(buf, 86, 16) +
             "  (must match 0x8e6 opaque_blob)"],
+        ];
+      },
+    },
+    "1067": {
+      // R-direction Vivox voice-chat config. Variable size: header
+      // (4) + identity_uuid (16) + 3 length-prefixed UTF-8 strings +
+      // 1-byte terminator. Captured singleton is 86 bytes.
+      label: "VivoxConfig1067 (type 0x1067) — Vivox voice-chat config",
+      header: [0x00, 0x01, 0xa7, 0x41],
+      minSize: 23,  // header + uuid + 3 zero-length strings + terminator
+      decode(buf) {
+        // 3 length-prefixed UTF-8 strings starting at +0x14.
+        let pos = 20;
+        const strings = [];
+        const labels = ["api_url", "realm", "issuer"];
+        const utf8 = new TextDecoder("utf-8");
+        for (let i = 0; i < 3; i++) {
+          if (pos >= buf.length) throw new Error(`unexpected end at offset 0x${pos.toString(16)}`);
+          const length = buf[pos];
+          pos += 1;
+          if (pos + length > buf.length) {
+            throw new Error(`string length ${length} at offset 0x${(pos-1).toString(16)} overruns buffer`);
+          }
+          strings.push(utf8.decode(buf.slice(pos, pos + length)));
+          pos += length;
+        }
+        if (pos >= buf.length) throw new Error("missing terminator");
+        if (buf[pos] !== 0x00) {
+          throw new Error(`terminator mismatch at +0x${pos.toString(16)}: expected 0x00, got 0x${buf[pos].toString(16)}`);
+        }
+        pos += 1;
+        if (pos !== buf.length) {
+          throw new Error(`trailing ${buf.length - pos} bytes after terminator`);
+        }
+        return [
+          ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x1067)"],
+          ["identity_uuid  (16 bytes)", hexBytes(buf, 4, 16)],
+          [labels[0] + "  (u8 len + UTF-8)", `"${strings[0]}"  (${strings[0].length} chars)`],
+          [labels[1] + "      (u8 len + UTF-8)", `"${strings[1]}"  (${strings[1].length} chars)`],
+          [labels[2] + "     (u8 len + UTF-8)", `"${strings[2]}"  (${strings[2].length} chars)`],
+          ["terminator", "0x00  (✓)"],
         ];
       },
     },

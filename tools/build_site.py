@@ -321,6 +321,7 @@ LDTYPE_TO_TYPE_IDS: dict[str, set[int]] = {
     "1033":  {0x1033},
     "5b2":   {0x5b2},
     "a95":   {0xa95},
+    "1067":  {0x1067},
     # 0x5d1 is NOT in the captured replay (server synthesizes it for
     # the state-10 → 11 transition). Included here for completeness
     # — the coverage join against captured_types naturally drops it.

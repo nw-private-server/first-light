@@ -28116,6 +28116,12 @@
       "test_count": 430,
       "commit": "67e9b23",
       "subject": "feat(site): Findings card for the wake-126 + wake-136 audit closures"
+    },
+    {
+      "wake": null,
+      "test_count": 430,
+      "commit": "05bd3ac",
+      "subject": "feat(site): live decoder +2 W-direction (5b2, a95) \u2192 30/40 (75%)"
     }
   ],
   "wire_type_families": [
@@ -28634,6 +28640,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 191,
+      "title": "live decoder +0x1067 VivoxConfig \u2192 31/40 (77.5%)",
+      "line": 14547
+    },
+    {
       "wake": 190,
       "title": "live decoder +2 W-direction codecs \u2192 30/40 (75%)",
       "line": 14465
@@ -28657,17 +28668,12 @@
       "wake": 186,
       "title": "linkify the four remaining dashboard surfaces",
       "line": 14161
-    },
-    {
-      "wake": 185,
-      "title": "preset-coverage invariant (every ldtype has a preset)",
-      "line": 14099
     }
   ],
   "live_decoder_coverage": {
-    "covered": 30,
+    "covered": 31,
     "total": 40,
-    "percent": 75.0,
+    "percent": 77.5,
     "uncovered": [
       "0x0003",
       "0x0008",
@@ -28676,7 +28682,6 @@
       "0x065c",
       "0x0663",
       "0x0ca4",
-      "0x1067",
       "0x12f6",
       "0x16a0"
     ]

@@ -34,6 +34,7 @@ from server.javelin import (
     opaque_blob_1033,
     identity_fingerprint_5b2,
     permission_bitmap_a95,
+    vivox_config_1067,
 )
 
 
@@ -78,6 +79,7 @@ PYTHON_DECODERS = {
     "1033":  opaque_blob_1033.decode,
     "5b2":   identity_fingerprint_5b2.decode,
     "a95":   permission_bitmap_a95.decode,
+    "1067":  vivox_config_1067.decode,
 }
 
 
