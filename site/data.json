@@ -1455,6 +1455,12 @@
       "summary": "Four R/W-coupled message pairs documented: 0x18a6\u21940x1a59 (counter-coupled 1\u21922\u21923\u21924), 0x15d ping\u2194ack (verbatim echo), 0x14f R (clock baseline), 0x8e6\u21940x9fc (16-byte hash echo)."
     },
     {
+      "title": "rep_responder \u2194 dispatcher integration foundation proven safe",
+      "category": "Research closure",
+      "wake": 188,
+      "summary": "Two-step shadow/validate proof that the central dispatcher can drive the rep_responder's wire output safely. Wake 157 added an inbound shadow-decode path (every received record routes through the dispatcher at debug-log level, no behavior change); wake 158 locked it down with 9 tests. Wake 187 added an outbound encode-validation probe (at startup, decode + re-encode the cached 0x15d heartbeat through the dispatcher, assert byte-equality against the captured body); wake 188 locked that down with 8 tests across the success / mismatch / decoder-exception / encoder-exception branches. The startup probe currently logs 'dispatcher encoder produces byte-identical heartbeat \u2014 emission-path swap would be safe.' A future wake can flip the switch and have the responder emit dispatcher-encoded fresh bytes instead of captured replay bytes, with the wake-105 round-trip tests + the two lockdowns catching any regression. The incremental approach (shadow \u2192 lockdown \u2192 validate \u2192 lockdown \u2192 swap) is now a repeatable pattern for every future dispatcher-emission promotion."
+    },
+    {
       "title": "Live decoder addresses 80% of captured wire-types",
       "category": "Research closure",
       "wake": 192,
@@ -28140,6 +28146,12 @@
       "test_count": 430,
       "commit": "e178e32",
       "subject": "feat(site): live decoder +0x663 LevelDescriptor \u2192 32/40 (80%)"
+    },
+    {
+      "wake": null,
+      "test_count": 430,
+      "commit": "8fd97f0",
+      "subject": "feat(site): Findings card for 80% live-decoder coverage milestone"
     }
   ],
   "wire_type_families": [
@@ -28658,6 +28670,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 194,
+      "title": "Findings card for the rep_responder integration foundation",
+      "line": 14730
+    },
+    {
       "wake": 193,
       "title": "Findings card for the 80% live-decoder coverage milestone",
       "line": 14683
@@ -28681,11 +28698,6 @@
       "wake": 189,
       "title": "Findings card: codec audit arcs both closed at 0 gaps",
       "line": 14404
-    },
-    {
-      "wake": 188,
-      "title": "phase-2C lockdown: 8 tests pin wake-187 encode validation",
-      "line": 14326
     }
   ],
   "live_decoder_coverage": {

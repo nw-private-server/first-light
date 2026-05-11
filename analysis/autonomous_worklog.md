@@ -14726,3 +14726,61 @@ card automatically. Tests still **429 passing (+1
 skipped)**.
 
 **Blockers:** None.
+
+## Wake 194 — Findings card for the rep_responder integration foundation
+
+**Goal**: surface the wake-157/158 + wake-187/188 four-step
+arc as a curated Findings card. The dispatcher-integration
+foundation work is currently visible only in the worklog —
+visitors looking at the Findings tab don't see that "the
+responder can now adopt dispatcher output safely" was a
+real outcome of the recent stretch.
+
+**Built**:
+
+- **`tools/build_site.py`**: new Findings card under
+  "Research closure" (the 5th in that bucket — now tied
+  with Wire-level findings as the largest category):
+  - **Title**: "rep_responder ↔ dispatcher integration
+    foundation proven safe" (wake 188)
+  - **Summary**: walks the 4-step arc:
+    1. Wake 157 — inbound shadow decode (logging-only)
+    2. Wake 158 — 9-test lockdown of inbound shadow
+    3. Wake 187 — outbound encode-validation probe
+       (decode + re-encode + byte-equality at startup)
+    4. Wake 188 — 8-test lockdown of outbound probe
+    Notes the startup log line, the future-wake emission
+    swap that's now safe, and the repeatable "shadow →
+    lockdown → validate → lockdown → swap" pattern for
+    every future dispatcher-emission promotion.
+
+**Findings tab now**: **13 cards** across 4 categories:
+- RE breakthrough: 2 (state-10 gate, type-name limit)
+- Wire-level finding: 5
+- Research closure: **5** (hash hypothesis ruled out, type-id
+  catalog false lead, audit arcs closed at 0 gaps, 80%
+  live-decoder coverage, **NEW: rep_responder integration
+  foundation**)
+- Architecture: 1
+
+**Visitor-facing narrative**: a maintainer landing on the
+Findings tab now sees a complete progression for the
+rep_responder integration arc:
+- "What was the next concrete step toward an MVP?" → the
+  integration foundation card explains the path.
+- "Is the codec library ready for it?" → the audit-arcs
+  card answers yes (both audits at 0 gaps).
+- "Can we inspect the wire bytes ourselves?" → the 80%-
+  coverage card points at the Explore tab.
+
+**Pattern note**: this is the **5th** Findings card added
+since the wake-163 categorization shipped (wake 156, 180,
+189, 193, 194). Each is a single dict entry in
+`load_findings()`. The "zero new infrastructure" property
+holds across all five additions; the dashboard machinery
+is well-suited to surfaced-narrative maintenance.
+
+**No `server/javelin/` codec changes**. Tests still **429
+passing (+1 skipped)**.
+
+**Blockers:** None.

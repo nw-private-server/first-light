@@ -902,6 +902,35 @@ def load_findings():
                        "baseline), 0x8e6↔0x9fc (16-byte hash echo).",
         },
         {
+            "title": "rep_responder ↔ dispatcher integration foundation proven safe",
+            "category": "Research closure",
+            "wake": 188,
+            "summary": "Two-step shadow/validate proof that the central "
+                       "dispatcher can drive the rep_responder's wire "
+                       "output safely. Wake 157 added an inbound shadow-"
+                       "decode path (every received record routes through "
+                       "the dispatcher at debug-log level, no behavior "
+                       "change); wake 158 locked it down with 9 tests. "
+                       "Wake 187 added an outbound encode-validation "
+                       "probe (at startup, decode + re-encode the cached "
+                       "0x15d heartbeat through the dispatcher, assert "
+                       "byte-equality against the captured body); wake "
+                       "188 locked that down with 8 tests across the "
+                       "success / mismatch / decoder-exception / "
+                       "encoder-exception branches. The startup probe "
+                       "currently logs 'dispatcher encoder produces "
+                       "byte-identical heartbeat — emission-path swap "
+                       "would be safe.' A future wake can flip the "
+                       "switch and have the responder emit dispatcher-"
+                       "encoded fresh bytes instead of captured replay "
+                       "bytes, with the wake-105 round-trip tests + the "
+                       "two lockdowns catching any regression. The "
+                       "incremental approach (shadow → lockdown → "
+                       "validate → lockdown → swap) is now a repeatable "
+                       "pattern for every future dispatcher-emission "
+                       "promotion.",
+        },
+        {
             "title": "Live decoder addresses 80% of captured wire-types",
             "category": "Research closure",
             "wake": 192,
