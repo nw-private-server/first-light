@@ -15476,3 +15476,70 @@ categorizer auto-picks up the doc's updated content on
 next build.
 
 **Blockers:** None.
+
+## Wake 207 — 10th cross-check: every retrospective doc must have a README link
+
+**Goal**: the dashboard cross-check graph reached 9 tests
+at wake 202. Each pins a discrete structural drift mode
+(parser coverage, preset round-trip, JS↔Python map sync,
+prose mentions, preset coverage, workflow conventions,
+badge thresholds, api-ref idempotency, helper-lockdown
+parity). One drift mode that the graph did NOT cover:
+**a new retrospective doc gets written but never linked
+from `README.md`**, leaving visitors landing on the repo
+root unaware it exists. The wake-203 commit added the
+wake-197 retrospective link — a manual step that could
+easily be skipped next time. Pin it with the 10th test.
+
+**Built**:
+
+- **`server/javelin/test_build_tools.py`**: new test
+  `test_every_retrospective_doc_has_readme_entry`:
+  - Globs `analysis/session_retrospective_*.md` from disk.
+  - Asserts each file's relative path
+    (`analysis/session_retrospective_NNN.md`) appears
+    as a substring in `README.md`.
+  - Asymmetric direction: a README link without a backing
+    file is allowed (a future retro might be linked
+    during a write-in-progress wake); but a file without
+    a link is a regression.
+  - Docstring explains the drift mode and tells the
+    contributor exactly where to add the link
+    ("under the Quick links in README.md").
+  - 6 lines of real test logic, ~15 lines of comment
+    explaining the intent — leans toward documentation
+    weight because the value is in future-maintainer
+    legibility, not algorithmic complexity.
+
+**Verification**: passes against current state (2 retros
+linked, both files exist). The assertion message points
+the maintainer at the missing path and the exact README
+section.
+
+**Cross-check graph at wake 207**: **10 tests** pinning:
+1. Code structure (wake 162 — `test_parse_sections_*`)
+2. Parser coverage (wake 166 —
+   `test_parse_sections_covers_every_shipped_export`)
+3. Preset hex round-trip (wake 172)
+4. JS↔Python LDTYPE map sync (wake 178)
+5. Findings linkify ↔ build_site coverage map
+   (wake 184 — `test_findings_linkify_map_matches_...`)
+6. Preset coverage (wake 185)
+7. Workflow conventions (wake 196 — shadow/validate
+   helpers have ≥6 lockdown tests)
+8. Badge color thresholds (wake 201)
+9. Api-ref idempotency + on-disk consistency (wake 202)
+10. **NEW (wake 207)**: every retrospective doc has
+    a README link.
+
+**Pattern note**: this is the **7th** cross-check test
+that doesn't touch product code or generated assets — it
+exists purely to make future structural drift a test
+failure rather than a quiet documentation degradation.
+Cost: 21 lines including docstring; benefit: guaranteed
+README discoverability of new retros.
+
+**No `server/javelin/` codec changes**. Tests now **438
+passing (+1 skipped)** — up from 437.
+
+**Blockers:** None.

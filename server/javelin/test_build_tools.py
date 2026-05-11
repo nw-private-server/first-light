@@ -619,3 +619,34 @@ def test_every_finding_has_required_render_fields():
             f"finding {f['title']!r} wake must be int; got {type(f['wake'])}"
         )
         assert f["summary"], f"finding {f['title']!r} has empty summary"
+
+
+# ---------------------------------------------------------------------------
+#  10th cross-check (wake 207) — every retrospective doc has a README link
+# ---------------------------------------------------------------------------
+
+
+def test_every_retrospective_doc_has_readme_entry():
+    """Structural drift mode: someone writes a new
+    `analysis/session_retrospective_*.md` but forgets to link it from
+    `README.md`. The doc still gets indexed by `categorize_doc`
+    (Retrospective bucket) and shows up on the dashboard, but a
+    visitor landing on the repo root never sees it.
+
+    Pin the invariant: every retrospective file on disk must be
+    referenced by relative path in the README. Reverse direction
+    isn't enforced (a README link to a future doc is allowed during
+    a write-in-progress wake)."""
+    repo = Path(__file__).resolve().parents[2]
+    readme = (repo / "README.md").read_text()
+    retros = sorted((repo / "analysis").glob("session_retrospective_*.md"))
+    assert retros, "expected at least one session_retrospective_*.md"
+    missing = []
+    for path in retros:
+        rel = f"analysis/{path.name}"
+        if rel not in readme:
+            missing.append(rel)
+    assert not missing, (
+        f"retrospective docs without a README link: {missing}. "
+        "Add a one-liner under the Quick links in README.md."
+    )
