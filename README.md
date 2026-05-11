@@ -12,6 +12,9 @@ First Light is in reference to the territory "First Light" that was eventually r
 - [Second-stretch retrospective (wakes 151-196)](analysis/session_retrospective_196.md) — rep_responder ↔ dispatcher integration foundation, live-decoder coverage at 80% (32/40 captured wire-types decodable from the Explore tab), 7-test cross-check graph. Frozen wake-196 snapshot.
 - [Third-stretch retrospective (wakes 197-227)](analysis/session_retrospective_227.md) — live-decoder coverage push to 90.0% (36/40) with the wake-221 floor decision, phase-2 emission swap + counter-advance extension, and the cross-check graph grown from 9 to 18 with five self-referential pins.
 
+**Design decisions:**
+- [Why the live decoder stops at 90.0% (wake 221)](analysis/decision_0x065c_live_decoder.md) — 0x065c (12706-byte world-data-blob) deferred by explicit decision rather than reflexive shipping. Criteria + reversal conditions documented.
+
 
 ---
 

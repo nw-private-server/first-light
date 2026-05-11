@@ -878,7 +878,7 @@ FINDINGS_CATEGORY_ORDER = [
 CROSS_CHECK_MANIFEST: dict[str, list[int]] = {
     "Code structure":              [162, 166, 178, 184, 185, 196, 222, 227],
     "Generated output integrity":  [172, 201, 202, 224],
-    "Doc/navigation drift":        [207, 209, 210, 214, 218, 225],
+    "Doc/navigation drift":        [207, 209, 210, 214, 218, 225, 231],
 }
 
 
@@ -1005,10 +1005,10 @@ def load_findings():
                        "real-GPU validation.",
         },
         {
-            "title": "Cross-check test graph: 18 invariants pinning dashboard + workflow drift",
+            "title": "Cross-check test graph: 19 invariants pinning dashboard + workflow drift",
             "category": "Research closure",
             "wake": 210,
-            "summary": "18 pytest tests now form a structural drift "
+            "summary": "19 pytest tests now form a structural drift "
                        "safety net for the dashboard + workflow. Each "
                        "pins a discrete failure mode that wouldn't "
                        "surface as a product bug — silent prose drift, "
@@ -1031,23 +1031,24 @@ def load_findings():
                        "**224 coverage-chart last-entry matches "
                        "badge**); "
                        "**Doc/navigation drift** "
-                       "(6 tests: 207 retrospective ↔ README link, "
+                       "(7 tests: 207 retrospective ↔ README link, "
                        "209 Findings-card pair consistency, 210 "
                        "recent-wake category membership, 214 "
                        "self-referential card-count ↔ manifest "
                        "consistency, 218 wake-number citations "
-                       "match manifest, **225 every analysis-doc "
+                       "match manifest, 225 every analysis-doc "
                        "path cited in a Findings card exists on "
-                       "disk**). Each test "
+                       "disk, **231 every decision doc has a "
+                       "README link**). Each test "
                        "is &lt;30 lines and self-documents the drift "
                        "mode in its docstring, including a pointer "
                        "to where the maintainer should fix the "
-                       "regression. Test cost: ~400 lines total. "
-                       "Benefit: 18 silent failure modes converted "
+                       "regression. Test cost: ~420 lines total. "
+                       "Benefit: 19 silent failure modes converted "
                        "to loud pytest failures with precise "
                        "remediation hints. Pattern is extensible — "
                        "any future structural invariant becomes test "
-                       "19; wakes 214 and 218 together enforce "
+                       "20; wakes 214 and 218 together enforce "
                        "that both the count claim AND the wake-number "
                        "citations here match `CROSS_CHECK_MANIFEST` "
                        "in `tools/build_site.py`; wake 222 pins the "
@@ -1056,9 +1057,9 @@ def load_findings():
                        "the wake-223 coverage chart; wake 225 "
                        "prevents card prose from referencing "
                        "renamed or deleted analysis files; wake 227 "
-                       "closes the manifest-vs-tests loop — every "
-                       "manifest entry must have a test function "
-                       "citing the wake number.",
+                       "closes the manifest-vs-tests loop; wake 231 "
+                       "extends the wake-207 retrospective-link "
+                       "pattern to decision docs.",
         },
         {
             "title": "Server↔client counter pairs",

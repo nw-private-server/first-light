@@ -1009,6 +1009,42 @@ def test_findings_card_analysis_doc_references_exist():
     )
 
 
+def test_every_decision_doc_has_readme_entry():
+    """19th cross-check (wake 231) — extends the wake-207
+    retrospective-link pattern to decision documents.
+
+    Drift mode: someone adds a new `analysis/decision_*.md` doc
+    (e.g. "why we deferred X" or "why we chose Y") but forgets to
+    surface it from README. The wake-228 Architecture-bucket
+    Findings card lists decision docs as a discoverable category;
+    the wake-225 cross-check requires referenced paths to exist;
+    but nothing requires NEW decision docs to be linked from the
+    repo root.
+
+    Asserts every `analysis/decision_*.md` file's relative path
+    appears in README.md. Symmetric counterpart to wake 207 for a
+    different doc category — together they pin that both
+    retrospective and decision docs survive as discoverable
+    artifacts from the repo root."""
+    repo = Path(__file__).resolve().parents[2]
+    readme = (repo / "README.md").read_text()
+    decisions = sorted((repo / "analysis").glob("decision_*.md"))
+    assert decisions, (
+        "expected at least one analysis/decision_*.md "
+        "(the first is wake-221's 0x065c decision)"
+    )
+    missing = []
+    for path in decisions:
+        rel = f"analysis/{path.name}"
+        if rel not in readme:
+            missing.append(rel)
+    assert not missing, (
+        f"decision docs without a README link: {missing}. "
+        "Add a one-liner under the 'Design decisions' section in "
+        "README.md."
+    )
+
+
 def test_every_retrospective_doc_has_readme_entry():
     """Structural drift mode: someone writes a new
     `analysis/session_retrospective_*.md` but forgets to link it from

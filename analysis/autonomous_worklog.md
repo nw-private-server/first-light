@@ -17326,3 +17326,92 @@ no new code paths.
 passing (+1 skipped)** — unchanged.
 
 **Blockers:** None.
+
+## Wake 231 — 19th cross-check: every decision doc has a README link
+
+**Goal**: extend the wake-207 retrospective-link
+pattern to decision documents. With 1 decision doc
+in place (wake-221's 0x065c) and the wake-228
+Architecture card framing "decision documents" as a
+new artifact category, a future second decision doc
+needs the same orphan-resistance the retrospectives
+have. Symmetric counterpart to wake 207.
+
+Bonus: surfaces the wake-221 0x065c decision doc
+from the repo root README — currently only
+discoverable from the dashboard's Findings tab.
+
+**Built**:
+
+- **`README.md`**:
+  - New "**Design decisions**" subsection added
+    under "Recent milestones":
+    > - [Why the live decoder stops at 90.0% (wake
+    >   221)](analysis/decision_0x065c_live_decoder.md)
+    >   — 0x065c (12706-byte world-data-blob)
+    >   deferred by explicit decision rather than
+    >   reflexive shipping. Criteria + reversal
+    >   conditions documented.
+  - One-line entry; not a separate top-level
+    section. The "Design decisions" header makes
+    the category extensible without forcing
+    structure for one doc.
+
+- **`tools/build_site.py`**:
+  - `CROSS_CHECK_MANIFEST` updated: added 231 to
+    "Doc/navigation drift" bucket → 7 entries →
+    total 19.
+  - Wake-210 card text updated atomically:
+    - Title: "18 invariants" → "**19 invariants**".
+    - Summary opening: "18 pytest tests" →
+      "**19 pytest tests**".
+    - Doc/navigation drift bucket: "(6 tests: …)" →
+      "(7 tests: …, **231 every decision doc has a
+      README link**)".
+    - Benefit: "18" → "**19 silent failure modes**".
+    - Test cost: "~400 lines" → "**~420 lines**".
+    - Closing: "becomes test 19" → "**becomes test
+      20**".
+    - Closing line extended: "wake 231 extends the
+      wake-207 retrospective-link pattern to
+      decision docs."
+
+- **`server/javelin/test_build_tools.py`**:
+  - New test `test_every_decision_doc_has_readme_entry`:
+    - Globs `analysis/decision_*.md`.
+    - Asserts each file's relative path appears in
+      README.md.
+    - Asserts at least one decision doc exists
+      (catches accidental glob breakage).
+    - Assertion message tells the maintainer to
+      add a one-liner under "Design decisions" in
+      README.md.
+  - Docstring explicitly notes the symmetric
+    relationship with wake 207.
+
+**Symmetric-pair structure**:
+- Wake 207 + Wake 225: every retrospective doc has
+  a README link AND every analysis path cited in
+  Findings prose exists on disk.
+- Wake 231: every decision doc has a README link.
+- Future wake could add a "(231-symm) every
+  analysis path cited in README points to an
+  existing file" — wake 207 + 225 catch most of
+  it but not README-only references. (Won't add
+  this preemptively — incremental over-pinning.)
+
+**Verification**:
+- New test passes: 1 decision doc, 1 README link.
+- All 6 self-referential pins still pass (214/218/
+  222/224/225/227 against the updated wake-210
+  card).
+- Tests **456 (+1 skipped)** — up from 455.
+
+**Pattern note**: 7th cross-check in
+"Doc/navigation drift" bucket. The bucket is
+becoming a notable concentration — 7 of 19 tests
+(37%) are about doc/navigation invariants. Reflects
+how much of the dashboard's value comes from
+docs/cards being internally consistent.
+
+**Blockers:** None.
