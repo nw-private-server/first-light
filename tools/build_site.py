@@ -933,6 +933,34 @@ def load_findings():
                        "promotion.",
         },
         {
+            "title": "Remaining 6 uncovered wire-types: structural reasons",
+            "category": "Research closure",
+            "wake": 200,
+            "summary": "Live-decoder coverage settled at 34/40 (85%) "
+                       "after wake 199. The remaining 6 captured "
+                       "wire-types each have a real reason for being "
+                       "left out of the live decoder: 0x0003 "
+                       "(REPClient registration response — emitted "
+                       "only by the server, no captured-side decode); "
+                       "0x0008 (chunked_stream — meta-codec, framing "
+                       "rather than a single message); 0x0013 (V3 "
+                       "request — encoder-only path, we don't reply-"
+                       "decode our own V3 sends); 0x0635 "
+                       "(action_history — many constant fields + "
+                       "variable history records, 50+ JS lines); "
+                       "0x065c (world_data_blob — variable-size "
+                       "records section with ff_padding trailers, "
+                       "most complex remaining shape); 0x12f6 "
+                       "(keybinding_config — strings + 2 × 56-byte "
+                       "version blocks, conservative even in Python). "
+                       "Each is fully covered by Python codecs and "
+                       "the dispatcher; the live decoder draws the "
+                       "line at \"single-screen JS rendering useful "
+                       "to a visitor.\" A future contributor wanting "
+                       "to add one should expect 50-100 JS lines + a "
+                       "preset hex generated via the Python codec.",
+        },
+        {
             "title": "Live decoder addresses 80% of captured wire-types",
             "category": "Research closure",
             "wake": 192,

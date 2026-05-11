@@ -1461,6 +1461,12 @@
       "summary": "Two-step shadow/validate proof that the central dispatcher can drive the rep_responder's wire output safely. Wake 157 added an inbound shadow-decode path (every received record routes through the dispatcher at debug-log level, no behavior change); wake 158 locked it down with 9 tests. Wake 187 added an outbound encode-validation probe (at startup, decode + re-encode the cached 0x15d heartbeat through the dispatcher, assert byte-equality against the captured body); wake 188 locked that down with 8 tests across the success / mismatch / decoder-exception / encoder-exception branches. The startup probe currently logs 'dispatcher encoder produces byte-identical heartbeat \u2014 emission-path swap would be safe.' A future wake can flip the switch and have the responder emit dispatcher-encoded fresh bytes instead of captured replay bytes, with the wake-105 round-trip tests + the two lockdowns catching any regression. The incremental approach (shadow \u2192 lockdown \u2192 validate \u2192 lockdown \u2192 swap) is now a repeatable pattern for every future dispatcher-emission promotion."
     },
     {
+      "title": "Remaining 6 uncovered wire-types: structural reasons",
+      "category": "Research closure",
+      "wake": 200,
+      "summary": "Live-decoder coverage settled at 34/40 (85%) after wake 199. The remaining 6 captured wire-types each have a real reason for being left out of the live decoder: 0x0003 (REPClient registration response \u2014 emitted only by the server, no captured-side decode); 0x0008 (chunked_stream \u2014 meta-codec, framing rather than a single message); 0x0013 (V3 request \u2014 encoder-only path, we don't reply-decode our own V3 sends); 0x0635 (action_history \u2014 many constant fields + variable history records, 50+ JS lines); 0x065c (world_data_blob \u2014 variable-size records section with ff_padding trailers, most complex remaining shape); 0x12f6 (keybinding_config \u2014 strings + 2 \u00d7 56-byte version blocks, conservative even in Python). Each is fully covered by Python codecs and the dispatcher; the live decoder draws the line at \"single-screen JS rendering useful to a visitor.\" A future contributor wanting to add one should expect 50-100 JS lines + a preset hex generated via the Python codec."
+    },
+    {
       "title": "Live decoder addresses 80% of captured wire-types",
       "category": "Research closure",
       "wake": 192,
@@ -28182,6 +28188,12 @@
       "test_count": 431,
       "commit": "75e06d4",
       "subject": "feat(site): live decoder +0x16a0 AssetBlob Small \u2192 33/40 (82.5%)"
+    },
+    {
+      "wake": null,
+      "test_count": 431,
+      "commit": "f4c6290",
+      "subject": "feat(site): live decoder +0xca4 AssetCountTable \u2192 34/40 (85%)"
     }
   ],
   "wire_type_families": [
@@ -28707,6 +28719,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 200,
+      "title": "Findings card: structural reasons for the 6 uncovered",
+      "line": 15100
+    },
+    {
       "wake": 199,
       "title": "live decoder +0xca4 AssetCountTable \u2192 34/40 (85%)",
       "line": 15051
@@ -28730,11 +28747,6 @@
       "wake": 195,
       "title": "shields.io live-decoder coverage badge",
       "line": 14788
-    },
-    {
-      "wake": 194,
-      "title": "Findings card for the rep_responder integration foundation",
-      "line": 14730
     }
   ],
   "live_decoder_coverage": {

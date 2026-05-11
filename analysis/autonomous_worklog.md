@@ -15096,3 +15096,62 @@ cross-check now validates 22 hex strings.
 trivial.
 
 **Blockers:** None.
+
+## Wake 200 — Findings card: structural reasons for the 6 uncovered
+
+**Goal**: surface the wake-199 observation ("85% saturates
+tractable simple decoders") as a durably-useful Findings
+card. A future contributor wondering "should I add a decoder
+for 0x0635?" can read the structural reason in 30 seconds
+instead of reading 6 codec docstrings.
+
+**Built**:
+
+- **`tools/build_site.py`**: new Findings card under
+  "Research closure" (the 6th in that bucket — now the
+  largest category):
+  - **Title**: "Remaining 6 uncovered wire-types:
+    structural reasons" (wake 200)
+  - **Summary** walks through each of the 6 captured
+    types not in the live decoder, with the structural
+    reason:
+    - `0x0003` REPClient response — server-emitted only.
+    - `0x0008` chunked_stream — meta-codec / framing.
+    - `0x0013` V3 request — encoder-only path.
+    - `0x0635` action_history — many constants + variable
+      records (50+ JS lines).
+    - `0x065c` world_data_blob — variable-size records +
+      ff_padding trailers (most complex remaining).
+    - `0x12f6` keybinding_config — strings + 2 × 56-byte
+      version blocks (conservative even in Python).
+  - Calls out the 50-100 JS line expectation for any
+    future addition.
+
+**Findings tab now**: **14 cards** across 4 categories:
+- **Research closure: 6** (now the largest bucket): hash
+  hypothesis ruled out, type-id catalog false lead, audit
+  arcs closed, 80% live-decoder coverage, rep_responder
+  integration foundation, **NEW: remaining 6 uncovered
+  with structural reasons**.
+- Wire-level finding: 5
+- RE breakthrough: 2
+- Architecture: 1
+
+**Pattern note**: 6th Findings card added since the
+wake-163 categorization shipped (wake 156, 180, 189, 193,
+194, 200). Each is still a single dict entry — the "zero
+new infrastructure" property has held across all six.
+
+**Narrative observation**: the **6-card Research closure
+bucket** is now the largest. The balance has shifted from
+raw findings to closures — every Research closure card
+either rules out a hypothesis or pins a foundation. That's
+a maturity indicator: the project's research surface area
+is mostly settled, with the remaining open work concentrated
+in the 2 RE breakthrough cards (state-10 runtime test +
+type-name extension).
+
+**No `server/javelin/` codec changes**. Tests still **430
+passing (+1 skipped)**.
+
+**Blockers:** None.
