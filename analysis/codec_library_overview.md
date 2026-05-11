@@ -21,9 +21,9 @@ plumbing to high-level routing:
               ┌───────────────────┼─────────────────────┐
               │                   │                     │
     ┌─────────▼────────┐  ┌──────▼─────────┐  ┌────────▼───────┐
-    │ Per-type codecs  │  │ Family codecs  │  │ Generic-purpose│
-    │  (22 modules)    │  │  (1 module,    │  │  helpers       │
-    │                  │  │   13 type-ids) │  │  (4 modules)   │
+    │ Per-type codecs  │  │ Family codecs  │  │ Supporting     │
+    │  (28 modules)    │  │  (1 module,    │  │  modules       │
+    │                  │  │   13 type-ids) │  │  (3 modules)   │
     └──────────────────┘  └────────────────┘  └────────────────┘
                                   │
                 ┌─────────────────▼───────────────────┐

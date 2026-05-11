@@ -35,10 +35,10 @@ The wake-204/208 flags compose:
   per call (closest to a real server).
 
 All three modes are pinned by tests; real-GPU validation is the
-next step (current blocker — see
-[`MORNING_BRIEF.md`](MORNING_BRIEF.md) for the runtime-host
-status as of wake 70 + the wake-227 retrospective for the
-current static-RE state).
+next step (current blocker — see the wake-253 retrospective
+for the current state-of-the-art summary, and the
+[Gate-2 row in the README](../README.md#current-status-2026-05-11)
+for the runtime-host situation).
 
 What this means for the original tl;dr:
 - "**mostly decoupled**" — still accurate for the default off/off

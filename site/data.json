@@ -28800,6 +28800,12 @@
       "test_count": 457,
       "commit": "2ce1df4",
       "subject": "docs(readme): wake-271 \u2014 \"What the project needs most\" rewrite, drift-fix carry-over from wake 267"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "0f90b56",
+      "subject": "docs: wake-272 \u2014 parallel-staleness sweep, 4 sibling sites of wake-271 framing"
     }
   ],
   "live_decoder_history": [
@@ -29238,7 +29244,7 @@
       "filename": "integration_status.md",
       "title": "Codec \u2194 server integration status",
       "summary": "A 6-step arc closed the rep_responder \u2194 dispatcher integration gap behind feature flags. From wake-227 retrospective:",
-      "bytes": 10106,
+      "bytes": 10139,
       "category": "Overview"
     },
     {
@@ -29404,6 +29410,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 273,
+      "title": "snapshot-doc scan (codec_library_overview + integration_status)",
+      "line": 2012,
+      "category": "code"
+    },
+    {
       "wake": 272,
       "title": "parallel-staleness sweep (closes the wake-271 pattern)",
       "line": 1844,
@@ -29432,12 +29444,6 @@
       "title": "Findings-card prose-tail scan (wake-265 hygiene heuristic applied)",
       "line": 1336,
       "category": "other"
-    },
-    {
-      "wake": 267,
-      "title": "DASHBOARD.md deprecation + CONTRIBUTING.md drift fixes",
-      "line": 1182,
-      "category": "site"
     }
   ],
   "live_decoder_coverage": {
