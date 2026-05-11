@@ -28500,6 +28500,12 @@
       "test_count": 457,
       "commit": "5fed6d7",
       "subject": "docs(site): wake-228 skeleton card prose tightening (drift + investigation logs)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "9b3aaff",
+      "subject": "docs(analysis): state_10_unblock_synthesis.md forward references footer"
     }
   ],
   "live_decoder_history": [
@@ -28987,7 +28993,7 @@
       "filename": "selfident_wire_format.md",
       "title": "PlayerManagerSelfIdentificationMsg \u2014 wire/struct layout (partial)",
       "summary": "The handler signature (Ghidra view):",
-      "bytes": 6761,
+      "bytes": 7877,
       "category": "RE Finding"
     },
     {
@@ -29050,7 +29056,7 @@
       "filename": "sub_system_id_hash_search.md",
       "title": "`sub_system_id` \u2194 class name hash search (wake 122)",
       "summary": "The 11 distinct `sub_system_id` values from the captured replay (see `identity_bundle_correlation.md`) might be deterministic hashes of class names, in which case computing the hash of each of the 312 named registry e\u2026",
-      "bytes": 5767,
+      "bytes": 6720,
       "category": "RE Finding"
     },
     {
@@ -29097,6 +29103,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 246,
+      "title": "two more snapshot-doc forward-references footers (selfident, hash-search)",
+      "line": 18634,
+      "category": "other"
+    },
+    {
       "wake": 245,
       "title": "state_10_unblock_synthesis.md forward references",
       "line": 18552,
@@ -29125,12 +29137,6 @@
       "title": "state-13 \u2192 14 writer investigation log (no finding, candidate triage shipped)",
       "line": 18218,
       "category": "other"
-    },
-    {
-      "wake": 240,
-      "title": "Findings card: post-V3 state-spawn ladder synthesis",
-      "line": 18133,
-      "category": "site"
     }
   ],
   "live_decoder_coverage": {

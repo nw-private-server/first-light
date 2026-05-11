@@ -136,3 +136,24 @@ groupings tell us "these messages belong to the same sub-system
 within this session", and that's useful for any same-session
 analysis (the captured replay) even without a class-name
 mapping.
+
+## Forward references (added wake 246)
+
+This doc was the wake-122 first-pass hash-hypothesis test. The
+wake-155 work definitively closed the deterministic-hash
+hypothesis with a much larger search: 13 hash families × 9,470
+byte-inputs × 2 byte-orderings = **246,220 hash invocations,
+0 matches**. Sub-system IDs are now **strongly favored as
+session-scoped allocations**, not deterministic hashes of any
+registry name or UUID. See:
+
+- [`session_retrospective_196.md`](session_retrospective_196.md)
+  — Phase 1 narrative covers the wake-155 closure as one of
+  the strongest research outputs of that stretch.
+- The wake-155 Findings card "sub_system_id deterministic-hash
+  hypothesis ruled out" on the dashboard's Findings tab.
+
+A second capture comparing identity-bundle bytes across
+sessions remains the cleanest way to confirm the session-scoped
+hypothesis (the cross-session test the conclusion above
+suggested). Still a worthwhile capture target.

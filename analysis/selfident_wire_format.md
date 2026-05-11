@@ -150,3 +150,27 @@ log with the SelfIdent in it would resolve this in one observation).
 - A2.9b approach (a) — the vtable at `0x14ab72930` containing
   `FUN_145a87010` — turned out to be the same packed-RVA format,
   not an exploitable second anchor.
+
+## Forward references (added wake 246)
+
+This doc was a wake-51 deep-dive on SelfIdent's handler-side
+field shapes. The wake-111/112 RE breakthrough confirmed the
+state-10 → 11 gate predicate (`wrapper[+0xa0] == 2`) and the
+wire-type trigger (`0x5d1`). Both findings are now canonical:
+
+- [`state_machine_summary.md`](state_machine_summary.md) — full
+  predicate table (states 10 → 14) including the trigger/writer
+  column added at wake 237; § 3 details the SelfIdent handler.
+- [`state_10_unblock_synthesis.md`](state_10_unblock_synthesis.md)
+  — wake-111 synthesis of the state-10 unblock question; the
+  wake-245 forward-references footer there points at current
+  state.
+- [`state_13_14_writer_investigation.md`](state_13_14_writer_investigation.md)
+  — wake-241 investigation log for the lone remaining open
+  question (state 13 → 14 writer + alt hypothesis that MVP may
+  only need SelfIdent + LevelInfoChanged).
+
+The "field-meaning work that needs runtime data" caveats above
+remain legitimately open — the SelfIdent body's exact field
+values can only be resolved via runtime trace (real-GPU host
+required).

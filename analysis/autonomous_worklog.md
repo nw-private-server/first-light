@@ -18630,3 +18630,89 @@ investigation log holding the candidate triage.
 footer + worklog entry.
 
 **Blockers:** None.
+
+## Wake 246 — two more snapshot-doc forward-references footers (selfident, hash-search)
+
+**Goal**: extend the wake-245 forward-references
+pattern to two more wake-N-era snapshot docs that
+predate their canonical successors:
+
+1. `selfident_wire_format.md` (wake 51 era,
+   pre-wake-112 RE breakthrough).
+2. `sub_system_id_hash_search.md` (wake 122 era,
+   pre-wake-155 definitive closure).
+
+Both docs are accurate as their wake-N snapshots
+but lack pointers to current state.
+
+**Built**:
+
+- **`analysis/selfident_wire_format.md`** —
+  "Forward references (added wake 246)" footer:
+  - Points at `state_machine_summary.md` (full
+    predicate table with the wake-237 trigger
+    column).
+  - Points at `state_10_unblock_synthesis.md`
+    (the wake-111 synthesis whose own footer was
+    added wake 245).
+  - Points at `state_13_14_writer_investigation.md`
+    + the alt hypothesis ("MVP may only need 2
+    messages").
+  - Preserves the doc's existing "field-meaning
+    needs runtime data" caveats as still
+    legitimately open.
+
+- **`analysis/sub_system_id_hash_search.md`** —
+  "Forward references (added wake 246)" footer:
+  - Surfaces the wake-155 definitive closure
+    (246,220 hash invocations × 0 matches across
+    13 hash families).
+  - Points at the wake-196 retrospective Phase 1
+    narrative + the Findings card on the
+    dashboard.
+  - Notes that the second-capture cross-session
+    test the doc proposed is still a worthwhile
+    target.
+
+**Doc-freshness pass progression**:
+- 235 queued_work.md
+- 236 ghidra_hunt_list.md
+- 237 state_machine_summary cross-refs
+- 238 MORNING_BRIEF.md historical snapshot
+- 239 integration_status.md phase-2D update
+- 244 wake-228 skeleton card drift correction
+- 245 state_10_unblock_synthesis.md forward refs
+- **246 selfident + hash-search forward refs**
+
+8 doc-freshness wakes total. After this, the most
+significant wake-N-era snapshot docs have either
+forward-reference footers (state_10 + selfident +
+hash-search) OR explicit "archived" status (typename
+spec) OR are still legitimately open investigations
+(static_re_*).
+
+**Forward-references pattern rule** (now applied
+3 times — state_10 / selfident / hash-search):
+- The doc is a wake-N-era snapshot, accurate as of
+  that wake.
+- Later wakes refined or superseded specific
+  findings.
+- The doc's body stays unchanged (preserves the
+  historical record).
+- A footer at the end cites the current state-of-
+  the-art docs.
+- The footer is dated ("added wake N").
+
+**Verification**:
+- wake-225 (analysis-path existence in card prose):
+  unaffected — no Findings card references the
+  two updated docs directly.
+- wake-207 (retrospective ↔ README): unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Carry-over**: state 13 → 14 writer investigation
+remains the single open static-RE thread.
+
+**No new tests, no new code**. Two footer additions.
+
+**Blockers:** None.
