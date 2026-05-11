@@ -1723,6 +1723,7 @@ a:hover { text-decoration: underline; }
         <option value="a95">0xa95 W — PermissionBitmap (45+ bytes)</option>
         <option value="1067">0x1067 — VivoxConfig (variable, 23+ bytes)</option>
         <option value="663">0x663 — LevelDescriptor (110 bytes)</option>
+        <option value="16a0">0x16a0 — AssetBlob Small (153 bytes)</option>
         <option value="5d1">0x5d1 — PlayerManagerSelfIdent (state-10 trigger, 4 or 25+ bytes)</option>
         <option value="subkey">subkey_beacon family — 14 wire-types (44+T bytes)</option>
       </select>
@@ -1754,6 +1755,7 @@ a:hover { text-decoration: underline; }
       <button class="preset-btn" data-ldtype="a95" data-ldhex="11223344 00000049 f8cbed57c68b18f4bf85314bbc4a951a 0001952a 180f8d4e573697c6bf85314bbc4a951a 24 010101010101000101010101010101010101010101010101010101010101010101010101">0xa95 permissions (36 flags)</button>
       <button class="preset-btn" data-ldtype="1067" data-ldhex="0001a741 f8cbed57c68b18f4bf85314bbc4a951a 2068747470733a2f2f6e7778702e7777772e7669766f782e636f6d2f617069322f 0f616d617a6f6e393035302d6e653833 0f406e7778702e7669766f782e636f6d 00">0x1067 vivox config</button>
       <button class="preset-btn" data-ldtype="663" data-ldhex="0001a319 144e6577576f726c645f5669746165457465726e61 1e636f61746c696375652f4e6577576f726c645f5669746165457465726e61 45000000418000004620280046402800 0000000000000000 01010000 9cfa5861781469f2 65030000 000001010100000000c17f9be48f">0x663 level descriptor</button>
+      <button class="preset-btn" data-ldtype="16a0" data-ldhex="0001a05a 4c0c0ed6478a69dabf85314bbc4a951a 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 00010008 4974656d506f6f6c 24 41414141414141414141414141414141414141414141414141414141414141414141414141414141 000000000000000bcccccccccccccccccccccccccc">0x16a0 asset blob (small)</button>
     </div>
     <pre id="ld-result" class="ld-empty">(pick a preset or paste hex and press Decode)</pre>
   </div>
@@ -1821,7 +1823,7 @@ const TYPE_ID_TO_LDTYPE = {
   "0x8e6": "8e6", "0x9fc": "9fc",
   "0xa4": "a4", "0x1033": "1033",
   "0x5b2": "5b2", "0xa95": "a95",
-  "0x1067": "1067", "0x663": "663",
+  "0x1067": "1067", "0x663": "663", "0x16a0": "16a0",
   // Both 0x40a and 0x1be share the HandshakeBlob76 codec.
   "0x40a": "76", "0x1be": "76",
   // subkey_beacon family — all 14 share one ldtype
@@ -2692,6 +2694,57 @@ function setupLiveDecoder() {
           ["state_block            (26 bytes)", hexBytes(buf, 60, 26)],
           ["echoed_blob            (16 bytes)", hexBytes(buf, 86, 16) +
             "  (must match 0x8e6 opaque_blob)"],
+        ];
+      },
+    },
+    "16a0": {
+      // R direction; small variant has fixed 153-byte body. Codec
+      // stores everything past the asset_uuid as opaque
+      // `payload_bytes` since the inner layout is partially
+      // conjectural with only one un-redacted capture. Decoder
+      // mirrors that: validate header, surface asset_uuid +
+      // payload preview + try to locate the inline ItemPool length-
+      // prefix as a sanity check.
+      label: "AssetBlob16A0Small (type 0x16a0) — 153-byte asset reference",
+      header: [0x00, 0x01, 0xa0, 0x5a],
+      size: 153,
+      decode(buf) {
+        const assetUuid = hexBytes(buf, 4, 16);
+        const payloadOff = 20;
+        const payloadLen = buf.length - payloadOff;
+        // Search the payload for `00 08 4974656d506f6f6c` ("ItemPool"
+        // u16 BE length prefix + UTF-8 bytes). Returns the offset
+        // (in the full body) where the prefix starts, or -1 if not
+        // found. The captured small variant has this at around +0x50.
+        const needle = [0x00, 0x08, 0x49, 0x74, 0x65, 0x6d, 0x50, 0x6f, 0x6f, 0x6c];
+        let itemPoolOff = -1;
+        outer: for (let i = payloadOff; i + needle.length <= buf.length; i++) {
+          for (let j = 0; j < needle.length; j++) {
+            if (buf[i + j] !== needle[j]) continue outer;
+          }
+          itemPoolOff = i;
+          break;
+        }
+        const utf8 = new TextDecoder("utf-8");
+        let assetClassRow = ["asset_class search", "(no `\\x00\\x08ItemPool` prefix found)"];
+        if (itemPoolOff >= 0) {
+          // Length is at itemPoolOff..itemPoolOff+1 = 0x0008 = 8.
+          // ItemPool string follows at itemPoolOff+2.
+          const classLen = u32be(buf, itemPoolOff) & 0xffff;  // top 2 bytes are 0
+          const classBytes = buf.slice(itemPoolOff + 2, itemPoolOff + 2 + classLen);
+          assetClassRow = [
+            `asset_class @ +0x${itemPoolOff.toString(16)}`,
+            `"${utf8.decode(classBytes)}"  (len ${classLen})`,
+          ];
+        }
+        const previewBytes = Math.min(payloadLen, 32);
+        return [
+          ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x16a0)"],
+          ["asset_uuid    (16 bytes)", assetUuid],
+          assetClassRow,
+          [`payload (${payloadLen} bytes, opaque)`,
+            hexBytes(buf, payloadOff, previewBytes) +
+            (payloadLen > previewBytes ? `…` : "")],
         ];
       },
     },

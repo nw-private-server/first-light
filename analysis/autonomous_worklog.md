@@ -14985,3 +14985,65 @@ pipe both handle the new doc automatically — typical
 "zero new infrastructure" wake.
 
 **Blockers:** None.
+
+## Wake 198 — live decoder +0x16a0 AssetBlob → 33/40 (82.5%)
+
+**Goal**: continue coverage push. Add `0x16a0` AssetBlob
+Small variant — 153-byte fixed-shape codec for the
+`asset_uuid + embedded "ItemPool" reference + asset_id +
+opaque header/trailer blobs` shape. Per the codec docstring,
+the inner layout is partially conjectural with only one
+un-redacted capture, so the decoder mirrors the Python
+conservative approach: validate type header, surface
+asset_uuid, search for the inline ItemPool length-prefix as
+a sanity check, present the rest as opaque payload preview.
+
+**Built**:
+
+- **`site/index.html`** — new DECODERS entry:
+  - **`0x16a0` AssetBlob16A0Small** (153 bytes fixed): R
+    direction; TYPE_HEADER `00 01 a0 5a` + asset_uuid (16)
+    + 133 bytes opaque `payload_bytes`. Decoder validates
+    header, surfaces `asset_uuid` and `payload (133 bytes,
+    opaque)` with a 32-byte hex preview, and searches the
+    payload for the inline `\x00\x08ItemPool` u16 BE
+    length prefix. If found, renders the asset_class
+    string + offset row; otherwise notes the prefix wasn't
+    found. The captured payload includes "ItemPool" at
+    approximately +0x50 (offsets ambiguous per docstring).
+
+- One preset button: synthesized 153-byte payload with the
+  ItemPool prefix at +0x50 (the docstring's hint offset).
+  Hex generated via the Python codec; the **wake-172
+  cross-check caught a 1-byte oversize on first try** (60
+  vs 59 header bytes) — fixed before commit, exactly the
+  regression class the cross-check is designed to catch.
+
+- **Both maps + cross-check test updated in lockstep**
+  (`LDTYPE_TO_TYPE_IDS` + `TYPE_ID_TO_LDTYPE` +
+  `PYTHON_DECODERS`).
+
+**Coverage growth**:
+- Before wake 198: **32/40 = 80.0%**, 8 uncovered.
+- After wake 198: **33/40 = 82.5%**, 7 uncovered.
+- Uncovered now: `0x0003`, `0x0008`, `0x0013`, `0x0635`,
+  `0x065c`, `0x0ca4`, `0x12f6`.
+- Pushed past the wake-195 shields-badge brightgreen
+  threshold (≥80%); badge stays green.
+
+**Notable**: this is the **second** time the wake-172
+cross-check caught a real typo at the structural level (the
+first was the wake-179 9fc state_block) — proves the
+infrastructure's value. The catch was a 1-byte size
+mismatch in a 153-byte preset; without the cross-check
+test, the preset would have shipped to the dashboard and
+visitors clicking it would see "expected 153 bytes; got
+154" only at runtime.
+
+**Tests**: still **430 passing (+1 skipped)** — preset
+cross-check now validates 21 hex strings.
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.

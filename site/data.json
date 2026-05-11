@@ -28170,6 +28170,12 @@
       "test_count": 431,
       "commit": "1a29424",
       "subject": "test(meta): pin \"every shadow/validate helper has a lockdown\" invariant"
+    },
+    {
+      "wake": null,
+      "test_count": 431,
+      "commit": "f74782f",
+      "subject": "docs(analysis): second-stretch retrospective (wakes 151-196)"
     }
   ],
   "wire_type_families": [
@@ -28695,6 +28701,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 198,
+      "title": "live decoder +0x16a0 AssetBlob \u2192 33/40 (82.5%)",
+      "line": 14989
+    },
+    {
       "wake": 197,
       "title": "second-stretch retrospective (wakes 151-196)",
       "line": 14919
@@ -28718,17 +28729,12 @@
       "wake": 193,
       "title": "Findings card for the 80% live-decoder coverage milestone",
       "line": 14683
-    },
-    {
-      "wake": 192,
-      "title": "live decoder +0x663 LevelDescriptor \u2192 32/40 (80%)",
-      "line": 14614
     }
   ],
   "live_decoder_coverage": {
-    "covered": 32,
+    "covered": 33,
     "total": 40,
-    "percent": 80.0,
+    "percent": 82.5,
     "uncovered": [
       "0x0003",
       "0x0008",
@@ -28736,8 +28742,7 @@
       "0x0635",
       "0x065c",
       "0x0ca4",
-      "0x12f6",
-      "0x16a0"
+      "0x12f6"
     ]
   }
 }

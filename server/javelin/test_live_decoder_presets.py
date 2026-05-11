@@ -36,6 +36,7 @@ from server.javelin import (
     permission_bitmap_a95,
     vivox_config_1067,
     level_descriptor_663,
+    asset_blob_16a0,
 )
 
 
@@ -82,6 +83,7 @@ PYTHON_DECODERS = {
     "a95":   permission_bitmap_a95.decode,
     "1067":  vivox_config_1067.decode,
     "663":   level_descriptor_663.decode,
+    "16a0":  asset_blob_16a0.decode,
 }
 
 
