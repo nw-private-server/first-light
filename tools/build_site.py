@@ -1303,6 +1303,17 @@ def write_badges(data: dict) -> None:
     Keeps the README counters in sync with the live build automatically.
     """
     stats = data["stats"]
+    cov = data.get("live_decoder_coverage", {})
+    cov_covered = cov.get("covered", 0)
+    cov_total = cov.get("total", 0)
+    # Color rule for live-decoder badge: green ≥80%, blue ≥60%, yellow ≥40%, orange below.
+    cov_pct = (cov_covered / cov_total * 100.0) if cov_total else 0.0
+    cov_color = (
+        "brightgreen" if cov_pct >= 80 else
+        "blue"        if cov_pct >= 60 else
+        "yellow"      if cov_pct >= 40 else
+        "orange"
+    )
     badges = {
         "tests": {
             "schemaVersion": 1,
@@ -1321,6 +1332,14 @@ def write_badges(data: dict) -> None:
             "label": "tests",
             "message": str(stats["test_count"]),
             "color": "brightgreen",
+        },
+        # Wake 195: live-decoder coverage. "X/40 in live decoder" links to
+        # the Explore tab on the live dashboard. Color steps with %-thresholds.
+        "live-decoder": {
+            "schemaVersion": 1,
+            "label": "live decoder",
+            "message": f"{cov_covered}/{cov_total}" if cov_total else "0/?",
+            "color": cov_color,
         },
     }
     for name, payload in badges.items():

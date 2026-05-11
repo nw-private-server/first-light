@@ -28152,6 +28152,12 @@
       "test_count": 430,
       "commit": "8fd97f0",
       "subject": "feat(site): Findings card for 80% live-decoder coverage milestone"
+    },
+    {
+      "wake": null,
+      "test_count": 430,
+      "commit": "a17c23e",
+      "subject": "feat(site): Findings card for rep_responder integration foundation"
     }
   ],
   "wire_type_families": [
@@ -28670,6 +28676,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 195,
+      "title": "shields.io live-decoder coverage badge",
+      "line": 14788
+    },
+    {
       "wake": 194,
       "title": "Findings card for the rep_responder integration foundation",
       "line": 14730
@@ -28693,11 +28704,6 @@
       "wake": 190,
       "title": "live decoder +2 W-direction codecs \u2192 30/40 (75%)",
       "line": 14465
-    },
-    {
-      "wake": 189,
-      "title": "Findings card: codec audit arcs both closed at 0 gaps",
-      "line": 14404
     }
   ],
   "live_decoder_coverage": {

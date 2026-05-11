@@ -14784,3 +14784,56 @@ is well-suited to surfaced-narrative maintenance.
 passing (+1 skipped)**.
 
 **Blockers:** None.
+
+## Wake 195 — shields.io live-decoder coverage badge
+
+**Goal**: the wake-175 on-page coverage indicator (X/40
+with progress bar) is only visible to visitors who navigate
+to the Explore tab. README readers see test count + codec
+count badges but no live-decoder coverage. Add a third
+shields endpoint badge so the README front door shows live-
+decoder progress too.
+
+**Built**:
+
+- **`tools/build_site.py`**: `write_badges()` now emits a
+  new `badge-live-decoder.json` alongside the existing
+  three (tests, codecs, tests-count). The badge label is
+  "live decoder"; message is "X/Y" pulled from
+  `data.live_decoder_coverage` (currently 32/40); color
+  steps by percentage:
+  - ≥80% → brightgreen
+  - ≥60% → blue
+  - ≥40% → yellow
+  - below → orange
+  This means the badge "improves" visually as coverage
+  grows past each threshold — a future contributor's
+  +1-decoder push is visible at a glance.
+
+- **`README.md`**: added the new badge as the 5th in the
+  top-of-file badge row, linked to the dashboard's Explore
+  tab (`#explore` anchor) since the live decoder lives
+  there. Working branch only this wake — main branch is
+  managed separately by a maintainer.
+
+**Current badge content**:
+```json
+{"schemaVersion": 1, "label": "live decoder",
+ "message": "32/40", "color": "brightgreen"}
+```
+
+**Auto-updates**: the badge endpoint JSON regenerates on
+every Pages workflow run (which triggers on every push to
+the working branch). Adding a new decoder bumps both the
+on-page indicator and the README badge in lockstep — no
+manual sync needed.
+
+**Tests**: still **429 passing (+1 skipped)**. The badge
+content is data-driven; no test changes needed. (Existing
+wake-178 map-sync + wake-185 preset-coverage tests
+indirectly cover the same source data.)
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.
