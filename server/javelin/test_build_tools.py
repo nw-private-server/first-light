@@ -933,6 +933,39 @@ def test_findings_meta_card_cites_every_manifest_wake():
     )
 
 
+def test_findings_card_analysis_doc_references_exist():
+    """17th cross-check (wake 225) — bidirectional pin between
+    Findings-card prose and `analysis/*.md` files. The wake-221
+    pattern of citing decision docs from card summaries (`see
+    analysis/decision_*.md for ...`) is useful but creates a
+    new drift mode: if the doc is renamed or deleted, the card
+    prose has a dead link that nothing else catches.
+
+    Scans every Findings card's summary for paths of the form
+    `analysis/<filename>.md` (or `analysis/<filename>` without
+    the suffix, with the .md inferred), and asserts each such
+    path resolves to an actual file in the repo.
+
+    Symmetric to wake-207's "every retrospective has a README
+    link" — that one pins file → mention; this pins mention →
+    file. Both directions together prevent both orphaning AND
+    broken references."""
+    import re
+    repo = Path(__file__).resolve().parents[2]
+    pattern = re.compile(r"analysis/[A-Za-z0-9_./-]+\.md")
+    missing = []
+    for f in load_findings():
+        for match in pattern.finditer(f["summary"]):
+            rel = match.group(0)
+            if not (repo / rel).exists():
+                missing.append((f["wake"], f["title"], rel))
+    assert not missing, (
+        f"Findings cards reference {len(missing)} non-existent "
+        f"analysis paths: {missing}. Either restore the missing "
+        f"file or update the card prose to drop the reference."
+    )
+
+
 def test_every_retrospective_doc_has_readme_entry():
     """Structural drift mode: someone writes a new
     `analysis/session_retrospective_*.md` but forgets to link it from

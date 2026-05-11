@@ -16862,3 +16862,82 @@ badge color thresholds (201), api-ref idempotency
 from 452 (wake 223). +1 new test as planned.
 
 **Blockers:** None.
+
+## Wake 225 — 17th cross-check: analysis-doc paths in Findings prose must exist
+
+**Goal**: wake 221 established a pattern of citing
+analysis docs from Findings-card summaries (see the
+wake-200 card's `\`analysis/decision_0x065c_live_decoder.md\``
+reference). Useful for discoverability, but creates
+a new drift mode: rename or delete the doc and the
+card prose silently develops a dead link.
+
+Symmetric counterpart to wake 207 — that test
+pinned **file → mention** (every retrospective doc
+must be linked from README); this one pins
+**mention → file** (every analysis path mentioned
+in a Findings card must resolve to a real file).
+Both directions together prevent both orphaning AND
+broken references.
+
+**Built**:
+
+- **`tools/build_site.py`**:
+  - **`CROSS_CHECK_MANIFEST` updated**: added 225
+    to "Doc/navigation drift" bucket → 6 entries →
+    total 17.
+  - **Wake-210 card text updated atomically**:
+    - Title: "16 invariants" → "**17 invariants**".
+    - Summary opening: "16 pytest tests" →
+      "**17 pytest tests**".
+    - Doc/navigation drift bucket: "(5 tests: …)" →
+      "(6 tests: …, **225 every analysis-doc path
+      cited in a Findings card exists on disk**)".
+    - Benefit: "16" → "**17 silent failure modes**".
+    - Test cost: "~360 lines" → "**~380 lines**".
+    - Closing: "becomes test 17" → "**becomes test
+      18**".
+    - Closing line extended: "wake 225 prevents card
+      prose from referencing renamed or deleted
+      analysis files."
+
+- **`server/javelin/test_build_tools.py`**:
+  - **New test
+    `test_findings_card_analysis_doc_references_exist`**:
+    - Compiles a regex `r"analysis/[A-Za-z0-9_./-]+\.md"`
+      matching any path of the form
+      `analysis/<filename>.md`.
+    - For each Findings card, finds all matches in
+      the summary, asserts each resolves to a real
+      file via `(repo / rel).exists()`.
+    - Collects `(wake, title, rel)` tuples on
+      failure for actionable error message.
+    - ~20 lines of test + docstring explaining
+      symmetry with wake-207.
+
+**Verification**:
+- New test passes against current state: the only
+  cited path is `analysis/decision_0x065c_live_decoder.md`
+  from the wake-200 card, and that file exists.
+- All 4 self-referential tests still pass:
+  - 214 (count): card claims 17, manifest sums to
+    17 ✓.
+  - 218 (citations): 225 appears in card prose ✓.
+  - 222 (uniqueness): 225 only in
+    "Doc/navigation drift" bucket ✓.
+  - 224 (chart-vs-badge): unaffected ✓.
+
+**Cross-check graph at wake 225**: **17 tests** —
+Code structure 7, Generated output integrity 4,
+Doc/navigation drift 6.
+
+**Pattern note**: wake 225 and wake 207 form a
+**symmetric pair** — file ↔ mention. The wake-209
+paired-card test is an asymmetric pair (closure
+card is a superset of foundation card). Both
+patterns are useful structural shapes.
+
+**Test count**: **454 passing (+1 skipped)** — up
+from 453 (wake 224). +1 new test as planned.
+
+**Blockers:** None.
