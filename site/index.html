@@ -1717,6 +1717,8 @@ a:hover { text-decoration: underline; }
         <option value="8e6">0x8e6 — IdentityBlob (42 bytes)</option>
         <option value="76">0x40a / 0x1be — HandshakeBlob76 (76 bytes)</option>
         <option value="9fc">0x9fc — ReceiptHandshake echo (102 bytes)</option>
+        <option value="a4">0xa4 — SessionMessage small (20 bytes)</option>
+        <option value="1033">0x1033 — OpaqueBlob (variable, 20+ bytes)</option>
         <option value="5d1">0x5d1 — PlayerManagerSelfIdent (state-10 trigger, 4 or 25+ bytes)</option>
         <option value="subkey">subkey_beacon family — 14 wire-types (44+T bytes)</option>
       </select>
@@ -1742,6 +1744,8 @@ a:hover { text-decoration: underline; }
       <button class="preset-btn" data-ldtype="8e6" data-ldhex="0001a623 4c0c0ed6478a69dabf85314bbc4a951a e16343700e7b4d06a72fd9df005cd942 000000000000">0x8e6 identity blob</button>
       <button class="preset-btn" data-ldtype="76" data-ldhex="00018a10 58617814 00000000000000000000000000000000000000000000000000000000000000 00 cbd4a18a4042c7eea46298c7499ba826ef5339aa2970e283fcf34b6f8f0786d68bf3ae45">0x40a handshake blob</button>
       <button class="preset-btn" data-ldtype="9fc" data-ldhex="aabbccdd 0000005e f8cbed57c68b18f4bf85314bbc4a951a 0001bc27 4c0c0ed6478a69dabf85314bbc4a951a f8cbed57c68b18f4bf85314bbc4a951a 0000000000000001000000010000000000a01000000010100009 e16343700e7b4d06a72fd9df005cd942">0x9fc receipt echo</button>
+      <button class="preset-btn" data-ldtype="a4" data-ldhex="0001a402 f8cbed57c68b18f4bf85314bbc4a951a">0xa4 session msg</button>
+      <button class="preset-btn" data-ldtype="1033" data-ldhex="0001b340 ce81136a2b7ad33e bf85314bbc4a951a deadbeefcafe1234">0x1033 opaque blob (demo)</button>
     </div>
     <pre id="ld-result" class="ld-empty">(pick a preset or paste hex and press Decode)</pre>
   </div>
@@ -1807,6 +1811,7 @@ const TYPE_ID_TO_LDTYPE = {
   "0x18a6": "18a6", "0x1b88": "1b88", "0x1097": "1097",
   "0x136a": "136a", "0x1096": "1096", "0x5d1": "5d1",
   "0x8e6": "8e6", "0x9fc": "9fc",
+  "0xa4": "a4", "0x1033": "1033",
   // Both 0x40a and 0x1be share the HandshakeBlob76 codec.
   "0x40a": "76", "0x1be": "76",
   // subkey_beacon family — all 14 share one ldtype
@@ -2548,6 +2553,39 @@ function setupLiveDecoder() {
             (hexBytes(buf, 4, 4) === "58617814" ? "  (✓ canonical)" : "  (⚠ non-canonical)")],
           ["blob            (32 bytes)", hexBytes(buf, 8, 32)],
           ["shared_trailer  (36 bytes)", hexBytes(buf, 40, 36)],
+        ];
+      },
+    },
+    "a4": {
+      label: "SessionMessageA4 (type 0xa4 small) — session-UUID handshake beacon",
+      header: [0x00, 0x01, 0xa4, 0x02],
+      size: 20,
+      decode(buf) {
+        return [
+          ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0xa4)"],
+          ["session_uuid  (16 bytes)", hexBytes(buf, 4, 16)],
+        ];
+      },
+    },
+    "1033": {
+      // Variable-size; minimum 20 bytes (header + identity bundle).
+      // Captured singleton is 498 bytes; the opaque tail is exposed
+      // verbatim regardless of length.
+      label: "OpaqueBlob1033 (type 0x1033) — identity bundle + opaque tail (20+ bytes)",
+      header: [0x00, 0x01, 0xb3, 0x40],
+      minSize: 20,
+      decode(buf) {
+        const tailLen = buf.length - 20;
+        const tailPreview = tailLen <= 32
+          ? hexBytes(buf, 20, tailLen)
+          : hexBytes(buf, 20, 16) + " … " + hexBytes(buf, buf.length - 16, 16);
+        return [
+          ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x1033)"],
+          ["sub_system_id      (8 bytes)", hexBytes(buf, 4, 8)],
+          ["session_uuid_lower (8 bytes)", hexBytes(buf, 12, 8)],
+          [`opaque             (${tailLen} bytes)`, tailLen
+            ? tailPreview + (tailLen > 32 ? "  (head+tail shown)" : "")
+            : "(empty)"],
         ];
       },
     },

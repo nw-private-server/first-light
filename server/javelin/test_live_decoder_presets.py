@@ -30,6 +30,8 @@ from server.javelin import (
     identity_blob_8e6,
     handshake_blob_76,
     receipt_handshake_9fc,
+    session_message_a4,
+    opaque_blob_1033,
 )
 
 
@@ -70,6 +72,8 @@ PYTHON_DECODERS = {
     "8e6":   identity_blob_8e6.decode,
     "76":    handshake_blob_76.decode,
     "9fc":   receipt_handshake_9fc.decode,
+    "a4":    session_message_a4.decode,
+    "1033":  opaque_blob_1033.decode,
 }
 
 

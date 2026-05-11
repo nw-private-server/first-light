@@ -28062,6 +28062,12 @@
       "test_count": 420,
       "commit": "a5db193",
       "subject": "feat(site): linkify Wire Types tab + document-wide typelink handler"
+    },
+    {
+      "wake": null,
+      "test_count": 420,
+      "commit": "0f7f935",
+      "subject": "feat(site): linkify Recent-activity titles (wake-181 pattern payoff)"
     }
   ],
   "wire_type_families": [
@@ -28580,6 +28586,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 183,
+      "title": "live decoder +2 codecs (0xa4, 0x1033) \u2192 28/40",
+      "line": 13966
+    },
+    {
       "wake": 182,
       "title": "linkify Recent-activity titles (forward-compatible payoff)",
       "line": 13901
@@ -28603,29 +28614,22 @@
       "wake": 178,
       "title": "pin \"JS \u2194 Python type-id map sync\" invariant",
       "line": 13632
-    },
-    {
-      "wake": 177,
-      "title": "Findings cards cross-link to the live decoder",
-      "line": 13560
     }
   ],
   "live_decoder_coverage": {
-    "covered": 26,
+    "covered": 28,
     "total": 40,
-    "percent": 65.0,
+    "percent": 70.0,
     "uncovered": [
       "0x0003",
       "0x0008",
       "0x0013",
-      "0x00a4",
       "0x05b2",
       "0x0635",
       "0x065c",
       "0x0663",
       "0x0a95",
       "0x0ca4",
-      "0x1033",
       "0x1067",
       "0x12f6",
       "0x16a0"

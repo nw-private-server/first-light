@@ -13962,3 +13962,68 @@ the (now module-scope) `TYPE_ID_TO_LDTYPE` agrees with
   can mention type-ids that auto-link.
 
 **Blockers:** None.
+
+## Wake 183 — live decoder +2 codecs (0xa4, 0x1033) → 28/40
+
+**Goal**: continue the live-decoder coverage push.
+Specifically: add `0x1033` so the wake-180 Findings card's
+3-way correlation mention (`0x102e+0x1033+0x192c`) finally
+has all three type-ids clickable.
+
+**Built**:
+
+- **`site/index.html`** — two new DECODERS entries:
+  - **`0xa4` SessionMessageA4 small** (20 bytes,
+    fixed): TYPE_HEADER + 16-byte session_uuid. The
+    smallest fixed-shape codec in the catalog besides the
+    0x651 empty marker.
+  - **`0x1033` OpaqueBlob** (variable, min 20 bytes):
+    TYPE_HEADER + sub_system_id (8) + session_uuid_lower
+    (8) + opaque tail. Decoder shows tail length and a
+    head+tail preview for long bodies (the captured
+    singleton is 498 bytes; first/last 16 bytes shown to
+    keep the UI compact).
+
+- Two new preset buttons (a small 24-byte 0x1033 demo and
+  a 20-byte 0xa4); hex generated via the Python codec.
+
+- **Maps updated in lockstep** (`tools/build_site.py`'s
+  `LDTYPE_TO_TYPE_IDS` + `site/index.html`'s
+  `TYPE_ID_TO_LDTYPE`):
+  - `a4 → {0xa4}` Python + `"0xa4": "a4"` JS
+  - `1033 → {0x1033}` Python + `"0x1033": "1033"` JS
+
+- **`server/javelin/test_live_decoder_presets.py`** gains
+  two `PYTHON_DECODERS` entries. All 4 cross-check tests
+  pass; both wake-178 map-sync directions stay green.
+
+**Wake-180 Findings card cross-link payoff**: the card's
+text says "3-way 0x102e+0x1033+0x192c (sub_system_id
+`ce81136a2b7ad33e` — opaque-blob fragmented across three
+message types)." Before this wake: 0x102e and 0x192c were
+clickable (subkey family), 0x1033 was plain text. After:
+all three are clickable. A visitor reading "fragmented
+across three message types" can now click each and see
+the wire layouts side by side.
+
+**Coverage growth**:
+- Before wake 183: **26/40 = 65.0%**, 14 uncovered.
+- After wake 183: **28/40 = 70.0%**, 12 uncovered.
+- Uncovered now: `0x0003`, `0x0008`, `0x0013`,
+  `0x05b2`, `0x0635`, `0x065c`, `0x0663`, `0x0a95`,
+  `0x0ca4`, `0x1067`, `0x12f6`, `0x16a0`.
+
+**Note on v3_response**: the wake-183 menu listed
+v3_response as a candidate. Skipped because the codec only
+has `encode()` (we always emit V3 responses, never receive
+them). Adding a "render the encoded response decoded" path
+would need a fresh parser — more work than this wake budgets
+for. Future wake could add a thin parser.
+
+**Tests**: still **419 passing (+1 skipped)** — the preset
+cross-check now validates 16 hex strings (was 14).
+
+**No `server/javelin/` codec changes**. Site rebuild
+trivial.
+
+**Blockers:** None.
