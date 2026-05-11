@@ -3304,3 +3304,111 @@ subscribers); the surface area for
 mechanical enumeration is exhausted.
 
 **Blockers:** None.
+
+
+## Wake 281 — surface destroy-event-family findings (README + Findings card)
+
+**Goal**: wakes 278-280 produced the most
+substantive static-RE arc in months, but the
+findings were only in the worklog +
+`state_machine_summary.md` § A3.1. This wake
+makes them **visitor-discoverable**: README
+"What the project needs most" item 3 + a new
+Findings card on the dashboard.
+
+**Built**:
+
+1. **`README.md` item 3 rewrite**:
+   - **Was**: "Runtime trace on FUN_140fb3560
+     to identify the destroy-trigger event
+     name" — framed as a single-shot Frida
+     hook on one writer, citing wake-9's
+     "string stripped" framing.
+   - **Now**: "Identify the 0xFE476177
+     broadcast-event name — either via
+     runtime Frida hook OR via an O3DE-source
+     corpus brute-force". Names all 4
+     emitters' shared pattern
+     (`local=0xFE476177; vtable+0x608(arg,
+     DAT_147efa330)`) + the 5 subscriber
+     flags `[+0xcd]/[+0xcf]/[+0xda]/[+0xfd]/
+     [+0x179]` + the ~50-hash event family.
+     Reframes wake-9's dead-end as a
+     tractable multi-prize hunt (50× the
+     surface area).
+
+2. **New Findings card** in
+   `tools/build_site.py`:
+   - **Title**: "Destroy-event broadcast: 4
+     emitters, 5 subscribers, 7 Carrier
+     flags".
+   - **Category**: RE breakthrough (3rd card
+     in this bucket after wakes 232, 240).
+   - **Wake**: 280 (the wake that closed the
+     emitter/subscriber split).
+   - **Content**: full narrative of how wake
+     8/9 left this as "one writer, one hash,
+     dead end" and wakes 278-280 reframed it
+     as "4 emitters, 5 subscribers, 7 flags,
+     50-hash family". Names all functions +
+     flag offsets + the brute-force script
+     path for future contributors.
+   - Position: directly after the wake-252
+     wall card (Research closure bucket) for
+     thematic adjacency.
+
+**Verification**:
+
+- `.venv/bin/python3 tools/build_site.py` →
+  clean.
+- `pytest server/javelin -q` → **456 passing,
+  1 skipped** — unchanged.
+- Wake-225 cross-check (analysis-path
+  existence): card references
+  `analysis/crc32_FE476177_brute_force.py`
+  (existing) but the cross-check scans for
+  `analysis/*.md` paths only. The `.py`
+  reference is not pinned by the cross-check
+  graph; this is intentional scope per the
+  wake-225 docstring (paths to docs, not
+  scripts).
+- Wake-218 cross-check (manifest-wake
+  citations in wake-210 card): not touched.
+
+**Pattern note**: this is **the second time
+in 15 wakes** that a substantive RE arc has
+been surfaced to visitor-facing docs after
+running primarily in the worklog (first was
+the wake-271 README rewrite after wake-267
+CONTRIBUTING fixes; this is the second).
+Filing the pattern: **substantive RE findings
+should be surfaced to README + Findings cards
+within 2-3 wakes of arc closure**, not
+indefinitely deferred. The wake-278/279/280
+sub-arc closed at wake 280; this is wake 281
+— within the 2-3-wake window.
+
+**Distinct from doc-freshness wakes**: this
+wake adds NEW visitor-facing content (a new
+card + a substantively-rewritten README item),
+not corrects stale prose. Different mode from
+the 267-273 arc.
+
+**Genre count update**: the Findings tab now
+has 23 cards (was 22). Categories:
+- Research closure: 12 (unchanged — wake-280
+  card is RE breakthrough, not research
+  closure)
+- Wire-level finding: 5 (unchanged)
+- RE breakthrough: 5 (was 4 — wake-280 card
+  added)
+- Architecture: 2 (unchanged)
+
+**Cost summary**: 2 file edits — README item
+3 rewrite + 1 new Findings card. Surfaces
+the wakes-278/279/280 findings to the two
+highest-visibility visitor surfaces (README
++ dashboard Findings tab). Pages will
+auto-redeploy on push.
+
+**Blockers:** None.

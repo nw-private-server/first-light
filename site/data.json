@@ -1692,6 +1692,12 @@
       "summary": "Static-RE has natural termination points where further progress requires runtime data. The state-13 \u2192 14 RE arc (closed wakes 247 + 249) traced the writer + 5-caller trigger chain, but the **upstream** of the trigger chain hits a wall: the most-informative caller (`FUN_142ff8940`) has 0 unconditional call xrefs and 4 data references, all to a single vtable entry at `0x14816cec0`. The function is invoked indirectly through that vtable, so static-RE can't trace the caller chain further without finding what dispatches through the vtable \u2014 and that dispatcher is itself indirect, recursively. Identifying the specific server message that triggers the gate-set (likely GridMate `NewProxy` per `ghidra_hunt_list.md` \u00a7 2C) is now genuinely **runtime-dependent**. A Frida hook on any of the 5 callers catches the stack frame at call-time and resolves the question immediately. This is documented as the **4th RE artifact genre \u2014 \"wall\"** \u2014 distinct from finding (writer identified), decision (question closed with criteria, e.g. 0x065c at wake 221), and investigation (search log with candidate triage, e.g. wake 241). The 4-genre typology is now established in the wake-228 skeleton card. Walls aren't failures \u2014 they're explicit handoff points to a different research method (here: runtime trace). Without a documented wall, future contributors might assume more static-RE could close the question; the wall card prevents wasted effort. See `analysis/state_13_14_writer_investigation.md` for the wake-252 wall section."
     },
     {
+      "title": "Destroy-event broadcast: 4 emitters, 5 subscribers, 7 Carrier flags",
+      "category": "RE breakthrough",
+      "wake": 280,
+      "summary": "Wake 8 identified a single writer (`FUN_140fb3560:452`) that sets a destroy flag at `[R13+0xfd]` when `AZ::Crc32` event `0xFE476177` fires. Wake 9 declared this a dead end after 65 candidate strings failed to reverse the CRC. Wakes 278-280 reopened the question by enumerating 7 of 29 hit sites for `0xFE476177` (wake 9's tool bug had blocked context capture). The picture transformed: `0xFE476177` is a **general-purpose Carrier lifecycle broadcast event** fired from at least 4 emitter sites (`FUN_1402af830`, `FUN_140fb84b0`, `FUN_146b64550`, `FUN_1471f4260`) all using the pattern `local=0xFE476177; (*vtable+0x608)(arg, DAT_147efa330)`, and received by 5 subscribers each writing a distinct Carrier-state flag: `[+0xcd]` (`FUN_1471f15d0`), `[+0xcf]` (`FUN_146074880`), `[+0xda]` (`FUN_146b621c0`), `[+0xfd]` (`FUN_140fb3560` \u2014 the wake-8 destroy flag, one subscriber response among many), and `[+0x179]` (`FUN_1402a6310`). The Carrier state structure has at least 7 lifecycle-related flags (including `[+0xd9]` and `[+0xfc]` written by adjacent events) in the byte range `[+0xcd]` \u2192 `[+0x179]`. **The event family** dispatched alongside `0xFE476177` totals ~50 related `AZ::Crc32` hashes \u2014 `0xF2D0BB74`, `0x53E4E683`, `0xDECE4567`, `0xAD273586`, `0x8E281F3D`, plus shared sub-action hashes and namespace IDs. **Implication for the destroy-loop framing**: the destroy chain is one subscriber's response to a broader broadcast \u2014 not the event's primary purpose. The event is likely `OnDisconnect` / `OnConnectionLost` / similar Carrier lifecycle broadcast. Resolving the family name now has 50\u00d7 the surface area of the wake-9 attempt: a single hash match (via O3DE-corpus brute-force using `analysis/crc32_FE476177_brute_force.py`, OR runtime Frida hook on any emitter or subscriber) identifies the EBus and constrains the other 49 hashes to the same event class."
+    },
+    {
       "title": "Server\u2194client counter pairs",
       "category": "Wire-level finding",
       "wake": 78,
@@ -28929,6 +28935,12 @@
       "test_count": 457,
       "commit": "e0d87a4",
       "subject": "re(static): wake-279 \u2014 3 more dispatchers found, Carrier-state flag map surfaces"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "88e9c78",
+      "subject": "re(static): wake-280 \u2014 emitter/subscriber split for event 0xFE476177 (4 more sites)"
     }
   ],
   "live_decoder_history": [
@@ -29533,6 +29545,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 281,
+      "title": "surface destroy-event-family findings (README + Findings card)",
+      "line": 3309,
+      "category": "docs"
+    },
+    {
       "wake": 280,
       "title": "emitter / subscriber split surfaces (4 more dispatchers examined)",
       "line": 3135,
@@ -29560,12 +29578,6 @@
       "wake": 276,
       "title": "V3 send-scheduler hunt (external-review-driven pivot)",
       "line": 2486,
-      "category": "other"
-    },
-    {
-      "wake": 275,
-      "title": "archive audit pass (catches state-13\u219214 drift in state_machine_summary)",
-      "line": 2329,
       "category": "other"
     }
   ],
