@@ -28440,6 +28440,12 @@
       "test_count": 457,
       "commit": "9fc6d67",
       "subject": "docs(analysis): queued_work.md targeted refresh (wake 83 -> 235)"
+    },
+    {
+      "wake": 109,
+      "test_count": 457,
+      "commit": "9e9664c",
+      "subject": "docs(analysis): ghidra_hunt_list.md targeted refresh (wake 109 -> 236)"
     }
   ],
   "live_decoder_history": [
@@ -28962,7 +28968,7 @@
       "filename": "state_machine_summary.md",
       "title": "GameConnection State Machine \u2014 Synthesis (2026-05-07)",
       "summary": "After the V3 RegistrationResponse is accepted (already working \u2014 prior project notes confirmed `rep.ready` flips 0\u21921), the client sits in",
-      "bytes": 18971,
+      "bytes": 19902,
       "category": "Overview"
     },
     {
@@ -29030,6 +29036,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 237,
+      "title": "state_machine_summary cross-references",
+      "line": 17872,
+      "category": "other"
+    },
+    {
       "wake": 236,
       "title": "ghidra_hunt_list.md targeted refresh (wake-109 \u2192 wake-236)",
       "line": 17788,
@@ -29058,12 +29070,6 @@
       "title": "surface buried state-11 \u2192 12 finding in state_machine_summary",
       "line": 17419,
       "category": "other"
-    },
-    {
-      "wake": 231,
-      "title": "19th cross-check: every decision doc has a README link",
-      "line": 17330,
-      "category": "test"
     }
   ],
   "live_decoder_coverage": {

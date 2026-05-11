@@ -17868,3 +17868,99 @@ it. Concrete future task.
 refreshed.
 
 **Blockers:** None.
+
+## Wake 237 — state_machine_summary cross-references
+
+**Goal**: § 4 catalog row "Role" column described
+each ClientMessagesTrait class abstractly without
+pointing to where its state-machine role is
+discussed. § 4½ talked about candidates for the
+"soft 12→13 path" but didn't say which catalog
+entries are candidates. § 1 predicate table listed
+predicates but didn't say what triggers each. Add
+forward/backward pointers so a reader landing in
+any of the three sections can navigate to the
+others.
+
+**Built**:
+
+- **§ 1 predicate table** — added a **Trigger /
+  writer** column to the table:
+  - 10 → 11: "`PlayerManagerSelfIdentificationMsg`
+    (§ 3)"
+  - 11 → 12: "auto-fires once 10 → 11 lands"
+    (clarifies the inverted-check observation;
+    same field as 10 → 11 gate writer)
+  - 12 → 13: "**primary**: `LevelInfoChangedMsg`
+    direct force (§ 4); **secondary**:
+    `FUN_14645c660` soft writer (§ 4½)" — both
+    paths visible in the predicate table itself.
+  - 13 → 14: "**writer not yet identified** — see
+    [`ghidra_hunt_list.md`](ghidra_hunt_list.md)
+    carry-over"
+  - any → 0: "teardown helper"
+
+- **§ 4 catalog** — extended the "Role" column with
+  more specific roles:
+  - `SelfIdent`: "Success ladder — advances state
+    10→11 (and 11→12 auto-fires via inverted
+    `wrapper[+0xa0]` check)"
+  - `LevelInfoChanged`: "**directly forces state to
+    13** (primary 12→13 path)"
+  - `RemoteConfigChanged` + `DebugCommandResponse`:
+    each annotated "**candidate for the soft 12→13
+    path**" with handler-name + gate-field cite.
+
+  Plus new explanatory paragraph after the table
+  that narrows the § 4½ "TBD" question to those 3
+  rows (Rejected / RemoteConfigChanged /
+  DebugCommandResponse) and points at the Frida
+  trace as the resolver.
+
+**Why this matters**: a contributor reading § 1
+predicates can now follow the trigger column
+straight to the handler context. A reader of § 4
+catalog now sees which row is the open question.
+A reader of § 4½ already had the cross-refs to § 1
+and § 4. The state-machine doc reads as a connected
+graph instead of three loosely-related sections.
+
+**Carry-over surfaced**: the § 1 table now
+explicitly points at `ghidra_hunt_list.md` for the
+state 13 → 14 writer carry-over. The future-wake
+state-13→14 investigation has an obvious entry
+point from the canonical state-machine doc.
+
+**Verification**:
+- wake-225 (analysis-path existence in card prose):
+  unaffected.
+- wake-209 (paired card): unaffected.
+- The new column header / row content stay within
+  the existing markdown table format — no rendering
+  changes.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: this is now the **3rd
+consecutive** doc-freshness wake (235 queued_work,
+236 ghidra_hunt_list, 237 state_machine_summary
+cross-refs). The wake-235 retrospective callout
+collapse pattern + the wake-235/236 strike-through
+pattern + this wake's "extend existing columns"
+pattern all preserve historical state while making
+current context navigable. After this wake, the
+project's primary RE-summary docs are mutually
+linked and each reflects current findings.
+
+**Next-step candidate** for a substantive wake:
+the carry-over state 13 → 14 writer investigation
+(`wrapper[+0x252]`). Concrete static-RE step that
+would close the last open gate in the state-spawn
+ladder. Wake-13's `FindOffsetWrites 0x252 0x1`
+came up empty (3 hits, all unrelated); needs
+a different scan pattern (register-based, memcpy,
+OR-store).
+
+**No new tests, no new code**. State-machine
+summary now self-navigating.
+
+**Blockers:** None.

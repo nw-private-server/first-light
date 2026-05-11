@@ -86,13 +86,13 @@ States 10→11→12→13→14 form the player-spawn ladder. Each transition is
 gated by a different read on the **`GameConnectionWrapper`** sub-object
 at `gc + 0x130`:
 
-| Transition | Predicate (Ghidra) | What it actually checks |
-|---|---|---|
-| 10 → 11 (`WaitingForREPConnection` → `WaitingForActorGameConnection`) | `FUN_145a92370(wrapper)` | `*(int *)(wrapper + 0xa0) == 2` |
-| 11 → 12 (`WaitingForActorGameConnection` → `WaitingForSpawnPoint`) | `FUN_145a92380(wrapper)` (inverted) | `*(int *)(wrapper + 0xa0) != 0` |
-| 12 → 13 (`WaitingForSpawnPoint` → `WaitingForPlayerSpawn`) | `FUN_145a905c0(wrapper)` | `*(u8 *)(wrapper + 0xbc8) != 0` — **also forced by `LevelInfoChangedMsg`** |
-| 13 → 14 (`WaitingForPlayerSpawn` → `InGame`) | `FUN_145a923c0(wrapper)` | `*(u8 *)(wrapper + 0x252) != 0` |
-| any → 0 (`Disconnected`) | direct call from `FUN_14642d2d0` | helper that resets state to 0 |
+| Transition | Predicate (Ghidra) | What it actually checks | Trigger / writer |
+|---|---|---|---|
+| 10 → 11 (`WaitingForREPConnection` → `WaitingForActorGameConnection`) | `FUN_145a92370(wrapper)` | `*(int *)(wrapper + 0xa0) == 2` | `PlayerManagerSelfIdentificationMsg` (§ 3) |
+| 11 → 12 (`WaitingForActorGameConnection` → `WaitingForSpawnPoint`) | `FUN_145a92380(wrapper)` (inverted) | `*(int *)(wrapper + 0xa0) != 0` | auto-fires once 10 → 11 lands |
+| 12 → 13 (`WaitingForSpawnPoint` → `WaitingForPlayerSpawn`) | `FUN_145a905c0(wrapper)` | `*(u8 *)(wrapper + 0xbc8) != 0` | **primary**: `LevelInfoChangedMsg` direct force (§ 4); **secondary**: `FUN_14645c660` soft writer (§ 4½) |
+| 13 → 14 (`WaitingForPlayerSpawn` → `InGame`) | `FUN_145a923c0(wrapper)` | `*(u8 *)(wrapper + 0x252) != 0` | **writer not yet identified** — see [`ghidra_hunt_list.md`](ghidra_hunt_list.md) carry-over |
+| any → 0 (`Disconnected`) | direct call from `FUN_14642d2d0` | helper that resets state to 0 | teardown helper |
 
 The `+0xa0` int on the wrapper is a substate field with three known
 values:
@@ -198,15 +198,23 @@ The trait registers exactly five `Msg` classes via
 
 | Class | Address | Role |
 |---|---|---|
-| `PlayerManagerSelfIdentificationMsg` | `0x14a153fd0` | Success ladder — advances state 10→11 |
+| `PlayerManagerSelfIdentificationMsg` | `0x14a153fd0` | Success ladder — advances state 10→11 (and 11→12 auto-fires via inverted `wrapper[+0xa0]` check) |
 | `PlayerManagerRejectedMsg`           | `0x14a153db0` | Failure path (handler not yet found) |
-| `LevelInfoChangedMsg`                | `0x14a153b20` | Handler = `FUN_146446800` — **also forces state to 13** |
-| `RemoteConfigChangedMsg`             | `0x14a153890` | Post-registration |
-| `DebugCommandResponseMsg`            | `0x14a153610` | Post-registration |
+| `LevelInfoChangedMsg`                | `0x14a153b20` | Handler = `FUN_146446800` — **directly forces state to 13** (primary 12→13 path) |
+| `RemoteConfigChangedMsg`             | `0x14a153890` | Post-registration; **candidate for the soft 12→13 path** (handler is `FUN_14645c660`, sets `wrapper[+0xbc8] = 1` — see § 4½) |
+| `DebugCommandResponseMsg`            | `0x14a153610` | Post-registration; also a candidate for § 4½ |
 
 The project's existing `analysis/javelin_chunks.txt` only knew about
 `Javelin::BehaviorTreeComponentClientMessages` — `ClientMessagesTrait`
 is the broader client message catalog and was previously uncataloged.
+
+The "candidate for soft 12→13 path" note on the last two rows
+narrows the **§ 4½** open question: that handler (`FUN_14645c660`)
+must be one of the catalogued classes, and `SelfIdent` (10→11) +
+`LevelInfoChanged` (12→13 force) are already accounted for. So the
+"TBD" message is one of `PlayerManagerRejectedMsg`,
+`RemoteConfigChangedMsg`, or `DebugCommandResponseMsg`. A runtime
+Frida trace on `FUN_14645c660` resolves it definitively.
 
 For MVP "enter a static world", only `PlayerManagerSelfIdentificationMsg`
 is required. `LevelInfoChanged` is required for richer post-spawn
