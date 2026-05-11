@@ -16363,3 +16363,63 @@ Research closure cluster stays at 9 cards (no new
 card added; we updated existing wake-210 card).
 
 **Blockers:** None.
+
+## Wake 219 — refresh wake-192 milestone card after 90% crossing
+
+**Goal**: the wake-192 Findings card "Live decoder
+addresses 80% of captured wire-types" is now stale.
+After wake 217 we're at 36/40 (90.0%) — first
+crossing of 90%. Update the card in place
+(consistent with the wake-200 pattern) so dashboard
+visitors see current state.
+
+**Built**:
+
+- **`tools/build_site.py`**:
+  - **Title**: "Live decoder addresses 80%..." →
+    "**Live decoder addresses 90%...**".
+  - **Summary opening**: "32 of 40 captured wire-
+    types" → "**36 of 40 captured wire-types
+    (90.0%)**".
+  - **Body extended** with wake 213/217 narrative:
+    - 0x0635 ActionHistory introduced the variable-
+      length-record decoder pattern (15-byte
+      history records).
+    - 0x12f6 KeybindingConfig extended it with
+      u8-prefixed UTF-8 string walks.
+  - **Cross-check graph reference updated**:
+    "wake-172/178/185 cross-check graph" →
+    "wake-172/178/185 cross-check graph (now 14
+    tests after wakes 207/209/210/214/218)".
+  - **Tail**: "Updated wake 219 after wake-217's
+    90.0% crossing; the original wake-192 snapshot
+    was 80% (32/40)." — preserves historical record
+    while making the duality transparent.
+
+**Choice: update vs new card?** Same pattern as
+wake-200: update in place. Both cards are time-
+evolving snapshots where the underlying finding
+("most wire-types are live-decodable") remains
+valid but the specific count ticks. Keeping the
+wake-192 key preserves chronological credit for
+when this milestone was first surfaced (at 80%);
+the title + content tick to current.
+
+**Cross-card consistency** (all wake-N references
+align after this wake):
+- Wake-192 card: cites wakes 213, 217 (the
+  contributing ships).
+- Wake-200 card: cites wakes 216 (its first
+  refresh), 217 (its second), 213.
+- Wake-210 card: cites manifest wakes (162, 166,
+  172, 178, 184, 185, 196, 201, 202, 207, 209,
+  210, 214, 218) — pinned by wake-218 test.
+
+All three coverage / cross-check cards now narrate
+the same underlying timeline (wake 213 + wake 217
+crossings) from their respective angles.
+
+**No code changes, no test changes**. Tests still
+**451 passing (+1 skipped)**.
+
+**Blockers:** None.

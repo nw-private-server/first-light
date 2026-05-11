@@ -1119,23 +1119,32 @@ def load_findings():
                        "snapshot of 6.",
         },
         {
-            "title": "Live decoder addresses 80% of captured wire-types",
+            "title": "Live decoder addresses 90% of captured wire-types",
             "category": "Research closure",
             "wake": 192,
-            "summary": "32 of 40 captured wire-types are now decodable "
-                       "directly from the dashboard's Explore tab — no "
-                       "clone, no CLI, no Python required. The visitor "
-                       "pastes a hex body, picks the type, and sees "
-                       "field-aligned output. Two recent additions "
-                       "render actual captured strings inline: 0x1067 "
-                       "VivoxConfig surfaces the production Vivox API "
-                       "URL + realm + issuer; 0x663 LevelDescriptor "
-                       "shows the level name and path (e.g. "
-                       "\"NewWorld_VitaeEterna\"). The wake-172/178/185 "
-                       "cross-check graph means a typo in any preset "
-                       "hex or a drift between the JS and Python "
-                       "type-id maps fails loudly at pytest with a "
-                       "precise pointer at the broken row.",
+            "summary": "36 of 40 captured wire-types (90.0%) are now "
+                       "decodable directly from the dashboard's "
+                       "Explore tab — no clone, no CLI, no Python "
+                       "required. The visitor pastes a hex body, "
+                       "picks the type, and sees field-aligned output. "
+                       "Wake-192-era additions render captured strings "
+                       "inline: 0x1067 VivoxConfig surfaces the "
+                       "production Vivox API URL + realm + issuer; "
+                       "0x663 LevelDescriptor shows the level name "
+                       "and path (e.g. \"NewWorld_VitaeEterna\"). "
+                       "Wake 213's 0x0635 ActionHistory introduced "
+                       "the variable-length-record decoder pattern "
+                       "(15-byte history records); wake 217's 0x12f6 "
+                       "KeybindingConfig extended it with u8-prefixed "
+                       "UTF-8 string walks. The wake-172/178/185 "
+                       "cross-check graph (now 14 tests after wakes "
+                       "207/209/210/214/218) means a typo in any "
+                       "preset hex or a drift between the JS and "
+                       "Python type-id maps fails loudly at pytest "
+                       "with a precise pointer at the broken row. "
+                       "Updated wake 219 after wake-217's 90.0% "
+                       "crossing; the original wake-192 snapshot "
+                       "was 80% (32/40).",
         },
         {
             "title": "Codec audit arcs both closed at 0 gaps",
