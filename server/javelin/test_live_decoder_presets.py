@@ -23,6 +23,9 @@ from server.javelin import (
     init_message_18a6,
     session_identity_beacon,
     subkey_beacon,
+    result_token_1097,
+    result_token_136a,
+    frame_config_1096,
 )
 
 
@@ -40,6 +43,9 @@ PYTHON_DECODERS = {
     "18a6":  init_message_18a6.decode,
     "1b88":  session_identity_beacon.decode,
     "subkey": subkey_beacon.decode,
+    "1097":  result_token_1097.decode,
+    "136a":  result_token_136a.decode,
+    "1096":  frame_config_1096.decode,
 }
 
 

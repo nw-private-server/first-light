@@ -28002,6 +28002,12 @@
       "test_count": 417,
       "commit": "7db272a",
       "subject": "test(site): pin \"live-decoder presets round-trip through Python\" invariant"
+    },
+    {
+      "wake": null,
+      "test_count": 417,
+      "commit": "1d058df",
+      "subject": "feat(site): live decoder gains subkey_beacon family (14 wire-types)"
     }
   ],
   "wire_type_families": [
@@ -28520,6 +28526,11 @@
   ],
   "recent_wakes": [
     {
+      "wake": 174,
+      "title": "live decoder coverage push: 20 \u2192 23 wire-types",
+      "line": 13366
+    },
+    {
       "wake": 173,
       "title": "live-decoder gains the subkey_beacon family (14 wire-types)",
       "line": 13287
@@ -28543,11 +28554,6 @@
       "wake": 169,
       "title": "CONTRIBUTING.md sync with the wake-167 dashboard cards",
       "line": 13055
-    },
-    {
-      "wake": 168,
-      "title": "\"Recent activity\" strip on Overview",
-      "line": 13004
     }
   ]
 }

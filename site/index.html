@@ -1650,6 +1650,9 @@ a:hover { text-decoration: underline; }
         <option value="651">0x651 — empty marker (4 bytes)</option>
         <option value="18a6">0x18a6 — InitMessage18A6 (40 bytes)</option>
         <option value="1b88">0x1b88 — SessionIdentityBeacon (42 bytes)</option>
+        <option value="1097">0x1097 — ResultToken1097 (24 bytes)</option>
+        <option value="136a">0x136a — ResultToken136A (28 bytes)</option>
+        <option value="1096">0x1096 — FrameConfig (80 bytes)</option>
         <option value="subkey">subkey_beacon family — 14 wire-types (44+T bytes)</option>
       </select>
       <button id="ld-decode" class="preset-btn ld-decode">Decode</button>
@@ -1666,6 +1669,9 @@ a:hover { text-decoration: underline; }
       <button class="preset-btn" data-ldtype="1b88" data-ldhex="0001886e f8cbed57c68b18f4bf85314bbc4a951a 00000000000000000000000000000000000000000000">0x1b88 identity beacon</button>
       <button class="preset-btn" data-ldtype="subkey" data-ldhex="aabbccdd 00000025 f8cbed57c68b18f4bf85314bbc4a951a 00019969 00112233445566778899aabbccddeeff 42">subkey 0x1a59 (trailer-1)</button>
       <button class="preset-btn" data-ldtype="subkey" data-ldhex="11223344 00000024 f8cbed57c68b18f4bf85314bbc4a951a 0001ab19 ffeeddccbbaa99887766554433221100">subkey 0x066b (trailer-0)</button>
+      <button class="preset-btn" data-ldtype="1097" data-ldhex="00019742 f8cbed57c68b18f4bf85314bbc4a951a 00000002">0x1097 result token</button>
+      <button class="preset-btn" data-ldtype="136a" data-ldhex="0001aa4d f8cbed57c68b18f4bf85314bbc4a951a 0000000000000001">0x136a result token</button>
+      <button class="preset-btn" data-ldtype="1096" data-ldhex="00019642 93a3e477cb5fd51e bf85314bbc4a951a 40c00000 bf800000 39f5e41d 00005334 00000000 0000fe4c 00000000 00000e10 00000708 0b879fb3 3482a0b7 3e2aaaab 3e2aaaab 3f555555 3f555555">0x1096 frame config</button>
     </div>
     <pre id="ld-result" class="ld-empty">(pick a preset or paste hex and press Decode)</pre>
   </div>
@@ -2245,6 +2251,80 @@ function setupLiveDecoder() {
           ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x1b88)"],
           ["session_uuid  (16 bytes)", hexBytes(buf, 4, 16)],
           ["padding       (22 bytes)", "all zero  (✓)"],
+        ];
+      },
+    },
+    "1097": {
+      label: "ResultToken1097 (type 0x1097) — spawn-confirmation result",
+      header: [0x00, 0x01, 0x97, 0x42],
+      size: 24,
+      decode(buf) {
+        return [
+          ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x1097)"],
+          ["identity_uuid (16 bytes)", hexBytes(buf, 4, 16)],
+          ["result        (u32 BE)", hex0x(u32be(buf, 20)) + "  (= " + u32be(buf, 20) + ")"],
+        ];
+      },
+    },
+    "136a": {
+      label: "ResultToken136A (type 0x136a) — generic result token",
+      header: [0x00, 0x01, 0xaa, 0x4d],
+      size: 28,
+      decode(buf) {
+        // u64 BE — read as two u32 halves then combine via BigInt for display.
+        const hi = u32be(buf, 20);
+        const lo = u32be(buf, 24);
+        const u64 = (BigInt(hi) << 32n) | BigInt(lo);
+        return [
+          ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x136a)"],
+          ["identity_uuid (16 bytes)", hexBytes(buf, 4, 16)],
+          ["result        (u64 BE)", "0x" + u64.toString(16) + "  (= " + u64.toString() + ")"],
+        ];
+      },
+    },
+    "1096": {
+      label: "FrameConfig1096 (type 0x1096) — structural 80-byte config",
+      header: [0x00, 0x01, 0x96, 0x42],
+      size: 80,
+      decode(buf) {
+        // Validate the zero-pads at +0x24 and +0x2c.
+        if (u32be(buf, 36) !== 0) {
+          throw new Error(`expected zero at +0x24; got ${hex0x(u32be(buf, 36))}`);
+        }
+        if (u32be(buf, 44) !== 0) {
+          throw new Error(`expected zero at +0x2c; got ${hex0x(u32be(buf, 44))}`);
+        }
+        // Validate doubled ratios.
+        const rLoA = u32be(buf, 64), rLoB = u32be(buf, 68);
+        const rHiA = u32be(buf, 72), rHiB = u32be(buf, 76);
+        if (rLoA !== rLoB) {
+          throw new Error(`ratio_lo doubled mismatch at +0x40/+0x44: ${hex0x(rLoA)} vs ${hex0x(rLoB)}`);
+        }
+        if (rHiA !== rHiB) {
+          throw new Error(`ratio_hi doubled mismatch at +0x48/+0x4c: ${hex0x(rHiA)} vs ${hex0x(rHiB)}`);
+        }
+        // f32 BE decode helper.
+        const f32be = (off) => {
+          const dv = new DataView(buf.buffer, buf.byteOffset + off, 4);
+          return dv.getFloat32(0, false);
+        };
+        return [
+          ["TYPE_HEADER", "0x" + hexBytes(buf, 0, 4) + "  (type 0x1096)"],
+          ["sub_system_id      (8 bytes)", hexBytes(buf, 4, 8)],
+          ["session_uuid_lower (8 bytes)", hexBytes(buf, 12, 8)],
+          ["f0                 (f32 BE)", f32be(20).toString()],
+          ["f1                 (f32 BE)", f32be(24).toString()],
+          ["f2                 (f32 BE)", f32be(28).toString()],
+          ["word0_value        (u32 BE)", hex0x(u32be(buf, 32)) + "  (= " + u32be(buf, 32) + ")"],
+          ["zero_pad_0x24      (u32 BE)", "0  (✓)"],
+          ["word1_value        (u32 BE)", hex0x(u32be(buf, 40)) + "  (= " + u32be(buf, 40) + ")"],
+          ["zero_pad_0x2c      (u32 BE)", "0  (✓)"],
+          ["secs_a             (u32 BE)", hex0x(u32be(buf, 48)) + "  (= " + u32be(buf, 48) + ")"],
+          ["secs_b             (u32 BE)", hex0x(u32be(buf, 52)) + "  (= " + u32be(buf, 52) + ")"],
+          ["hash_a             (u32 BE)", hex0x(u32be(buf, 56))],
+          ["hash_b             (u32 BE)", hex0x(u32be(buf, 60))],
+          ["ratio_lo           (f32 BE doubled)", f32be(64).toString() + "  (✓ matches at +0x44)"],
+          ["ratio_hi           (f32 BE doubled)", f32be(72).toString() + "  (✓ matches at +0x4c)"],
         ];
       },
     },
