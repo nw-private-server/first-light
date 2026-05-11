@@ -28662,6 +28662,12 @@
       "test_count": 457,
       "commit": "061a306",
       "subject": "feat(site): Findings card #21 \u2014 candidate-triage pattern proven"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "efa5cd1",
+      "subject": "re(static): NewProxy upstream hits indirect-vtable wall (boundary doc'd)"
     }
   ],
   "live_decoder_history": [
@@ -29259,6 +29265,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 253,
+      "title": "README Gate-2 row: surface wake-252 static-RE-exhausted state",
+      "line": 19380,
+      "category": "docs"
+    },
+    {
       "wake": 252,
       "title": "NewProxy upstream hits indirect-vtable limit (boundary documented)",
       "line": 19265,
@@ -29287,12 +29299,6 @@
       "title": "drift correction: wake-247 finding propagates to README + synthesis card",
       "line": 18840,
       "category": "docs"
-    },
-    {
-      "wake": 247,
-      "title": "Ghidra session: state-13 \u2192 14 WRITER IDENTIFIED",
-      "line": 18720,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {

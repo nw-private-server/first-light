@@ -19376,3 +19376,101 @@ as the phase-2D real-GPU validation.
 update across 2 analysis docs.
 
 **Blockers:** None.
+
+## Wake 253 — README Gate-2 row: surface wake-252 static-RE-exhausted state
+
+**Goal**: wake 252 found the upstream-trace wall —
+identifying the specific replica-creation wire-type
+is now genuinely runtime-dependent. The README
+Gate-2 row was last updated at wake 249 ("3 server
+messages minimum"). It mentioned "TBD" for the
+specific replica-creation message without noting
+that static-RE has been exhausted on the question.
+Visitor first-touch should reflect the wake-252
+finding: same gating blocker for both phase-2D
+validation AND NewProxy identification (real-GPU
+Windows host + Frida).
+
+**Built**:
+
+- **`README.md`** Gate-2 row state-machine
+  paragraph:
+  - "wake 249 update" → "**wake 252 update**".
+  - "specific replica-creation wire-type TBD" →
+    "**Static-RE is now exhausted on this question
+    (wake 252)**: tracing the upstream of the
+    collection-copy handler hits an indirect-vtable
+    wall at `0x14816cec0`".
+  - Added: "**The gating blocker is the same for
+    both the phase-2D experiment and the NewProxy
+    identification: a real-GPU Windows host running
+    a Frida trace.**" — convergence claim
+    surfaced.
+  - Citation extended: "the full wake-241 → 247 →
+    249 → 252 arc".
+
+**Why surface the convergence?** Pre-wake-252, the
+README mentioned phase-2D as one experimental
+direction and NewProxy as a separate "TBD"
+follow-up — visitor might have thought these were
+independent threads. Post-wake-252, both are
+**blocked on the same runtime path**: a Frida
+trace on a real-GPU Windows host produces both
+the phase-2D validation observable AND the
+NewProxy stack-frame catch. Surfacing this is
+load-bearing for the "what would unblock progress"
+question.
+
+**Surfaces consistent now**:
+1. **README Gate-2 row** — wake-252 update,
+   "static-RE exhausted, runtime is the
+   convergence point".
+2. **Findings tab wake-240 synthesis card** —
+   complete trigger chain.
+3. **Findings tab wake-251 methodology card** —
+   how the static-RE arc was closed.
+4. **`state_machine_summary.md` § 1** — predicate
+   table.
+5. **`state_13_14_writer_investigation.md`** —
+   full wake-241 → 252 search log including the
+   wake-252 wall section.
+6. **`ghidra_hunt_list.md`** state-13 → 14 bullet
+   — updated wake 252.
+
+6 surfaces all consistent on the wake-252 state-RE-
+closure-and-wall claim.
+
+**Verification**:
+- wake-225 (analysis-path existence): card prose
+  unaffected; README isn't a Findings card and
+  wasn't covered by wake-225 directly anyway.
+- wake-207 (retrospective ↔ README): unaffected.
+- wake-231 (decision doc ↔ README): unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Pattern note**: this is the **6th update** to
+the Gate-2 row since the wake-226 date refresh
+(wake 226 date + phase-2D infrastructure, wake
+243 alt hypothesis, wake 248 writer-found, wake
+249 trigger-chain, this wake wall). The pattern
+matches the wake-240 synthesis card's high
+edit-frequency during active RE — both the README
+and the synthesis card have been the "current
+state of the state-machine question" surface, and
+the answer kept refining as RE progressed.
+
+After wake 252, both should be stable for an
+extended period — the static-RE arc is closed.
+Further updates require runtime data, which is
+gated on real-GPU host.
+
+**Carry-over** (now genuinely the only one):
+real-GPU Windows host with Frida → runs phase-2D
+validation + traces FUN_142ffbc50 callers + logs
+ReplicaManager dispatch → both blockers resolved
+simultaneously.
+
+**No new tests, no new code**. Single targeted
+README drift fix.
+
+**Blockers:** None.
