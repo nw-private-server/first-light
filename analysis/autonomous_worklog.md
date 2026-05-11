@@ -5087,3 +5087,15 @@ state_machine_summary or a Findings card
 update.
 
 **Blockers:** None.
+
+
+## Wake 298 — signaling heartbeat (Codex still pending)
+
+State unchanged. Codex review still
+running in background; cannot poll its
+status (codex tasks use their own status
+system separate from TaskList/TaskOutput).
+Will incorporate findings on automatic
+notification.
+
+**Blockers:** None.

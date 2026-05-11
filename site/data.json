@@ -29052,6 +29052,12 @@
       "test_count": 457,
       "commit": "c131051",
       "subject": "docs(worklog): wake-296 \u2014 signaling heartbeat (state unchanged)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "93ee1d0",
+      "subject": "docs(worklog): wake-297 \u2014 signaling heartbeat (Codex review pending)"
     }
   ],
   "live_decoder_history": [
@@ -29656,6 +29662,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 298,
+      "title": "signaling heartbeat (Codex still pending)",
+      "line": 5092,
+      "category": "code"
+    },
+    {
       "wake": 297,
       "title": "signaling heartbeat (Codex review pending)",
       "line": 5077,
@@ -29684,12 +29696,6 @@
       "title": "cross-check graph audit (second clean negative in a row)",
       "line": 4793,
       "category": "test"
-    },
-    {
-      "wake": 292,
-      "title": "systematic Findings-card title scan: wake-291 drift was isolated",
-      "line": 4679,
-      "category": "other"
     }
   ],
   "live_decoder_coverage": {
