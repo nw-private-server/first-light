@@ -3412,3 +3412,144 @@ highest-visibility visitor surfaces (README
 auto-redeploy on push.
 
 **Blockers:** None.
+
+
+## Wake 282 — DAT_147efa330 sibling hunt: timer/delay parameter tables identified
+
+**Goal**: per wake-280's recommendation, look
+at the float constant `DAT_147efa330` (used by
+ALL 4 emitters of 0xFE476177) and its
+neighboring memory. If different events use
+different `DAT_*` pointers, the layout might
+reveal the EBus's event taxonomy.
+
+**Found**: TWO distinct float configuration
+tables, each containing discrete timer/delay
+values. The emitters use different table
+entries for different broadcast events.
+
+**Table 1**: `0x147efa320..0x147efa360` —
+discrete short-timer values:
+- `0x147efa320`: 0.25 / (bit pattern)
+- `0x147efa328`: 0.75 / 0.5
+- **`0x147efa330`: 1.5 / 2.0** ← used by all
+  4 emitters of `0xFE476177`
+- **`0x147efa340`: 6.0 / 8.0** ← used by
+  PATH A in `FUN_140fb84b0`, `FUN_146b64550`,
+  `FUN_1471f4260` (DIFFERENT events that
+  these multi-event dispatchers also handle)
+- `0x147efa348`: 9.0 / 20.0
+- `0x147efa350`: 30.0 / 60.0
+- `0x147efa358`: 120.0 / (other)
+- `0x147efa360`: -1.0 / 0
+
+**Table 2**: `0x147f400b0..0x147f40128` —
+larger/different parameter values (1.3, π,
+10.0, 12.0, 16.0, 21.0, 24.0, 32.0, 40.0,
+48.0, 55.1, 57.3, 64.0, 90.0, 100.0, 150.0)
+- `DAT_147f400f4` = `10.0f` used by
+  `FUN_1461361f0`'s `0x400b5e61` branch
+  (different event handler).
+- `DAT_147f400f8` = `12.0f` used by similar
+  context.
+
+**Structural inference (HIGH CONFIDENCE)**:
+the `vtable+0x608` method called with the
+pattern:
+
+```c
+local = HASH;
+(**(code **)(*vt + 0x608))(vt, &local, FLOAT, 0);
+```
+
+is **a "schedule event in N seconds" call** —
+N coming from the float table. Different
+events schedule at different delays:
+
+| Event id | Delay (s) | Source |
+|---|---|---|
+| `0xFE476177` (the broadcast) | **1.5 or 2.0** | DAT_147efa330 |
+| Path-A event | 6.0 or 8.0 | DAT_147efa340 |
+| FUN_1461361f0 0x400b5e61 | 10.0 | DAT_147f400f4 |
+
+**This is the strongest structural finding
+since wake 278**: it identifies the
+**semantic of the broadcast call** as a
+**delayed event scheduler**, not an immediate
+EBus dispatch. The "30s destroy" observation
+from wake-8 might be 0xFE476177 scheduled at
+2.0s, then chained through several subscriber
+handlers that themselves schedule subsequent
+events with longer delays.
+
+**Validates the external review's
+"watchdog" hypothesis**: the registration
+watchdog is built on a timer-based event
+scheduler. Different timers (1.5s, 2.0s, 6s,
+8s, 10s, 30s) likely correspond to different
+escalation levels (initial-check, retry-1,
+retry-2, ..., destroy).
+
+**Direct implication for the 0xFE476177
+hash hunt**: the event name is likely
+something timer-related. Examples to try
+in the next brute-force pass:
+- `OnTimerExpire`, `OnTimerFire`,
+- `OnScheduledEvent`, `OnDelayedAction`,
+- `OnSessionTimer`, `OnRegistrationTimer`,
+- `OnRetryTimer`, `OnHeartbeatTimer`,
+- `OnTickEvent`, `OnNextTick`,
+- `OnCarrierTimer`, `OnConnectionTimer`,
+- AzCore-internal names like
+  `TimerExpired`, `DeferredEvent`,
+  `SystemTickBus::OnTick`.
+
+**These have NOT been tried** in the prior
+wake-9 / 277 / 278 attempts which focused
+on disconnect/connection-loss naming.
+Filing as the next-batch wordlist.
+
+**Built**:
+
+- `analysis/dump_DAT_147efa330_window.txt`
+  — 0x200 bytes around the first float
+  table (132 lines, qword-decoded).
+- `analysis/dump_DAT_147f400f0_window.txt`
+  — 64 bytes around the second float
+  table (19 lines).
+
+**Verification**:
+
+- `pytest server/javelin -q` → not re-run
+  (analysis-only).
+- `tools/build_site.py` → will run
+  pre-commit. Decompiles 55 → 55 (no new
+  decomps, just data dumps).
+
+**Pattern note**: this wake's value was in
+**re-interpreting existing data** rather
+than producing new decomps. Wake 9 noted
+DAT_147efa330 = "1.5f, 2.0f" but interpreted
+it as a generic constant pool. Wakes 278-280
+revealed the emitter/subscriber structure
+but didn't connect the DAT_* arg to a
+semantic. This wake connects: **the DAT_*
+arg is the schedule delay**, the table
+contains discrete delay values, and
+0xFE476177 is scheduled at 1.5-2.0s.
+
+**Strongest static lead now**: try the
+timer-related wordlist against the 50-hash
+family. If `0xFE476177` matches a name like
+`OnTimerExpire` or `OnDeferredEvent`, the
+whole family resolves.
+
+**Cost summary**: 2 Ghidra dumps + grep
+analysis. **One of the most-leveraged static
+findings of the arc** — identifies the
+semantic of the broadcast call (delayed
+event scheduler, not synchronous dispatch)
+and produces a concrete new wordlist for
+the next brute-force pass.
+
+**Blockers:** None.

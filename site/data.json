@@ -28941,6 +28941,12 @@
       "test_count": 457,
       "commit": "88e9c78",
       "subject": "re(static): wake-280 \u2014 emitter/subscriber split for event 0xFE476177 (4 more sites)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "db28219",
+      "subject": "docs(site): wake-281 \u2014 surface destroy-event-family findings to README + Findings card"
     }
   ],
   "live_decoder_history": [
@@ -29545,6 +29551,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 282,
+      "title": "DAT_147efa330 sibling hunt: timer/delay parameter tables identified",
+      "line": 3417,
+      "category": "other"
+    },
+    {
       "wake": 281,
       "title": "surface destroy-event-family findings (README + Findings card)",
       "line": 3309,
@@ -29572,12 +29584,6 @@
       "wake": 277,
       "title": "O3DE corpus brute-force attempt for AZ::Crc32(0xFE476177)",
       "line": 2649,
-      "category": "other"
-    },
-    {
-      "wake": 276,
-      "title": "V3 send-scheduler hunt (external-review-driven pivot)",
-      "line": 2486,
       "category": "other"
     }
   ],
