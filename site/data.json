@@ -28482,6 +28482,12 @@
       "test_count": 457,
       "commit": "8f931b4",
       "subject": "docs(analysis): state-13 -> 14 writer investigation log (candidate triage)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "cdda3ec",
+      "subject": "docs(site): wake-240 synthesis card \u2014 surface wake-241 alt hypothesis"
     }
   ],
   "live_decoder_history": [
@@ -29079,6 +29085,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 243,
+      "title": "README Gate-2 row: surface state-machine + wake-241 alt hypothesis",
+      "line": 18399,
+      "category": "docs"
+    },
+    {
       "wake": 242,
       "title": "wake-240 synthesis card: surface wake-241 alt hypothesis + investigation log",
       "line": 18331,
@@ -29106,12 +29118,6 @@
       "wake": 238,
       "title": "MORNING_BRIEF.md historical-snapshot header",
       "line": 17968,
-      "category": "other"
-    },
-    {
-      "wake": 237,
-      "title": "state_machine_summary cross-references",
-      "line": 17872,
       "category": "other"
     }
   ],

@@ -18395,3 +18395,83 @@ freely updateable.
 card prose update.
 
 **Blockers:** None.
+
+## Wake 243 — README Gate-2 row: surface state-machine + wake-241 alt hypothesis
+
+**Goal**: the wake-226 README update added a "phase-2D
+infrastructure landed" sentence to Gate-2. The
+wake-241/242 work added the state-machine picture
++ the substantive alt hypothesis ("MVP server-side
+needs only SelfIdent + LevelInfoChanged"). The
+README is the visitor's first-touch surface; it
+should reflect both.
+
+**Built**:
+
+- **`README.md`** Gate-2 row extended with a
+  **post-V3 state-machine picture** paragraph:
+  - States 10→14 form the player-spawn ladder.
+  - State-10→11 + state-12→13 gates RE'd at wakes
+    112 + 232/234.
+  - State-11→12 auto-fires (no message needed —
+    inverted check on the same field as 10→11).
+  - State-13→14 writer is the lone remaining
+    open question, with a substantive alt
+    hypothesis: gate may be set by client-side
+    actor-spawn-complete callback rather than a
+    server message.
+  - **MVP implication**: if the alt hypothesis
+    holds, server-side needs only SelfIdent +
+    LevelInfoChanged.
+  - Link to `analysis/state_13_14_writer_investigation.md`
+    for the wake-241 candidate triage.
+
+**Why surface on the README**: a visitor scanning
+the repo root needs to know how close MVP is. The
+wake-226 README mentioned "infrastructure landed"
+but not the protocol picture — visitors would have
+had to drill into `analysis/` to see the gate-by-
+gate breakdown. Surfacing the message-count
+estimate ("only 2 messages needed") at the README
+level is load-bearing for scope perception.
+
+**Verification**:
+- wake-225 (analysis-path existence in card prose):
+  README isn't a Findings card; not covered by
+  wake-225. The new path
+  `analysis/state_13_14_writer_investigation.md`
+  exists ✓.
+- wake-207 (retrospective ↔ README): both
+  retrospectives + the decision doc still linked
+  ✓.
+- wake-231 (decision doc ↔ README): the 0x065c
+  decision doc still linked ✓.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Cross-surface state-machine narrative now**:
+1. **README Gate-2 row** — high-level claim
+   ("MVP may only need 2 messages").
+2. **Findings tab wake-240 synthesis card** —
+   complete 4-transition picture + alt hypothesis.
+3. **`state_machine_summary.md` § 1** — predicate
+   table with trigger/writer column.
+4. **`state_13_14_writer_investigation.md`** —
+   candidate triage + next-step Ghidra plan.
+5. **Wake-227 retrospective** — chronological
+   narrative.
+
+5 surfaces all consistent. A visitor lands on the
+README, sees the high-level claim, can drill down
+through any of the deeper surfaces and get the
+same picture in increasing detail.
+
+**Pattern note**: this completes the wake-241
+investigation's discoverability cascade. The
+substantive RE finding (alt hypothesis) is now
+visible from the project's primary first-touch
+surface, not just buried in `analysis/`.
+
+**No new tests, no new code**. Pure README
+freshness pass.
+
+**Blockers:** None.
