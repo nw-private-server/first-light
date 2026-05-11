@@ -5,7 +5,7 @@
     "codec_module_count": 36,
     "captured_type_count": 40,
     "registry_entry_count": 3487,
-    "decompile_count": 41,
+    "decompile_count": 46,
     "named_captured_types": 5
   },
   "captured_types": [
@@ -807,6 +807,66 @@
   ],
   "decompiles": [
     {
+      "name": "FUN_142ff8940",
+      "addr": "142ff8940",
+      "stem": "decomp_FUN_142ff8940",
+      "lines": 58,
+      "size_bytes": 1715,
+      "signature": "void FUN_142ff8940(longlong param_1,longlong param_2)",
+      "related": [
+        {
+          "filename": "state_13_14_writer_investigation.md",
+          "label": "state 13 14 writer investigation"
+        },
+        {
+          "filename": "state_machine_summary.md",
+          "label": "state machine summary"
+        }
+      ]
+    },
+    {
+      "name": "FUN_142ffb2f0",
+      "addr": "142ffb2f0",
+      "stem": "decomp_FUN_142ffb2f0",
+      "lines": 17,
+      "size_bytes": 360,
+      "signature": "void FUN_142ffb2f0(longlong param_1,longlong param_2)",
+      "related": [
+        {
+          "filename": "state_13_14_writer_investigation.md",
+          "label": "state 13 14 writer investigation"
+        }
+      ]
+    },
+    {
+      "name": "FUN_142ffb340",
+      "addr": "142ffb340",
+      "stem": "decomp_FUN_142ffb340",
+      "lines": 27,
+      "size_bytes": 527,
+      "signature": "void FUN_142ffb340(longlong param_1)",
+      "related": [
+        {
+          "filename": "state_13_14_writer_investigation.md",
+          "label": "state 13 14 writer investigation"
+        }
+      ]
+    },
+    {
+      "name": "FUN_142ffb880",
+      "addr": "142ffb880",
+      "stem": "decomp_FUN_142ffb880",
+      "lines": 23,
+      "size_bytes": 582,
+      "signature": "void FUN_142ffb880(longlong param_1,longlong param_2)",
+      "related": [
+        {
+          "filename": "state_13_14_writer_investigation.md",
+          "label": "state 13 14 writer investigation"
+        }
+      ]
+    },
+    {
       "name": "FUN_142ffbc50",
       "addr": "142ffbc50",
       "stem": "decomp_FUN_142ffbc50",
@@ -821,6 +881,20 @@
         {
           "filename": "state_machine_summary.md",
           "label": "state machine summary"
+        }
+      ]
+    },
+    {
+      "name": "FUN_142ffc0b0",
+      "addr": "142ffc0b0",
+      "stem": "decomp_FUN_142ffc0b0",
+      "lines": 53,
+      "size_bytes": 1423,
+      "signature": "void FUN_142ffc0b0(longlong param_1)",
+      "related": [
+        {
+          "filename": "state_13_14_writer_investigation.md",
+          "label": "state 13 14 writer investigation"
         }
       ]
     },
@@ -28554,6 +28628,12 @@
       "test_count": 457,
       "commit": "218254f",
       "subject": "re(static): state 13 -> 14 gate WRITER IDENTIFIED via Ghidra (wake 241 -> 247)"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "cf314aa",
+      "subject": "docs: wake-247 finding propagates to README + synthesis card"
     }
   ],
   "live_decoder_history": [
@@ -29076,14 +29156,14 @@
       "filename": "state_13_14_writer_investigation.md",
       "title": "State 13 \u2192 14 writer \u2014 investigation log",
       "summary": "&nbsp;|&nbsp; **Type**: investigation \u2192 partial finding",
-      "bytes": 13135,
+      "bytes": 16972,
       "category": "RE Finding"
     },
     {
       "filename": "state_machine_summary.md",
       "title": "GameConnection State Machine \u2014 Synthesis (2026-05-07)",
       "summary": "After the V3 RegistrationResponse is accepted (already working \u2014 prior project notes confirmed `rep.ready` flips 0\u21921), the client sits in",
-      "bytes": 20229,
+      "bytes": 20454,
       "category": "Overview"
     },
     {
@@ -29151,6 +29231,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 249,
+      "title": "state-13 \u2192 14 TRIGGER CHAIN identified (5 callers decomp'd)",
+      "line": 18937,
+      "category": "other"
+    },
+    {
       "wake": 248,
       "title": "drift correction: wake-247 finding propagates to README + synthesis card",
       "line": 18840,
@@ -29179,12 +29265,6 @@
       "title": "wake-228 skeleton card prose drift correction",
       "line": 18479,
       "category": "other"
-    },
-    {
-      "wake": 243,
-      "title": "README Gate-2 row: surface state-machine + wake-241 alt hypothesis",
-      "line": 18399,
-      "category": "docs"
     }
   ],
   "live_decoder_coverage": {

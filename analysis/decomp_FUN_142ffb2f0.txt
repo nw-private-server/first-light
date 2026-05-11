@@ -1,0 +1,17 @@
+// FUN_142ffb2f0 @ 142ffb2f0
+
+void FUN_142ffb2f0(longlong param_1,longlong param_2)
+
+{
+  undefined8 uVar1;
+  undefined **local_58;
+  undefined8 local_50;
+  undefined1 local_48 [64];
+  
+  local_58 = &PTR_LAB_148089ff0;
+  local_50 = *(undefined8 *)(param_2 + 8);
+  uVar1 = FUN_143495bb0(local_48,&local_58);
+  FUN_142ffbc50(param_1 + -0x118,uVar1);
+  return;
+}
+

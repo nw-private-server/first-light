@@ -18933,3 +18933,133 @@ is largely stable.
 on the dashboard's primary surfaces.
 
 **Blockers:** None.
+
+## Wake 249 — state-13 → 14 TRIGGER CHAIN identified (5 callers decomp'd)
+
+**Goal**: wake-247 found the writer (`FUN_142ffbc50`)
+but left the trigger context open. The wake-247
+worklog called out "decompile the 5 callers" as
+the next concrete static-RE step. Did exactly that
+this wake.
+
+**Built / found**:
+
+- **5 caller decomps**:
+  - `analysis/decomp_FUN_142ff8940.txt` (58 lines)
+  - `analysis/decomp_FUN_142ffb2f0.txt` (17 lines)
+  - `analysis/decomp_FUN_142ffb340.txt` (27 lines)
+  - `analysis/decomp_FUN_142ffb880.txt` (23 lines)
+  - `analysis/decomp_FUN_142ffc0b0.txt` (53 lines)
+
+- **Analysis**: all 5 callers are **local state-
+  update functions**, NOT message handlers. Each
+  builds (or receives) a vtable-wrapped predicate
+  object and calls `FUN_142ffbc50(target, predicate)`.
+  3 distinct vtables observed
+  (`PTR_LAB_148089ff0`, `PTR_LAB_14808a050`,
+  `PTR_LAB_1480b77c8`) — classic visitor/observer
+  pattern.
+
+- **The smoking gun**: `FUN_142ff8940` (largest
+  caller, 58 lines) explicitly **copies a
+  0x70-stride collection from `param_2[+0x7d0]`
+  INTO `wrapper[+0x1b8..+0x1c0]`** then fires the
+  gate-eval. So the trigger chain is:
+  1. Some upstream system (likely **GridMate
+     replica system reacting to server `NewProxy`
+     messages**) populates a container at
+     `param_2[+0x7d0]`.
+  2. FUN_142ff8940 (or peer caller) fires when
+     the container changes — copies its contents
+     into the wrapper's local list.
+  3. Calls `FUN_142ffbc50(wrapper, predicate)`.
+  4. The writer walks the wrapper's list, tests
+     each entry against the predicate, sets the
+     state-13 gate to 1 if any matches.
+
+- **Refined MVP claim**: the wake-241 alt
+  hypothesis ("MVP may only need 2 server
+  messages") was **directionally right but
+  quantitatively off**. Direction: state 13→14 IS
+  local-system-driven, not direct-message-driven.
+  Quantity: but the local system is driven by a
+  server replica-creation message (likely
+  `NewProxy`). So MVP server-side needs
+  **SelfIdent + LevelInfoChanged + a replica-
+  creation message** = **3 server messages
+  minimum**.
+
+**Canonical doc updates**:
+- `state_machine_summary.md` § 1: 13 → 14 row
+  trigger column updated to "writer + trigger
+  chain identified (wakes 247, 249)" with the
+  replica-system explanation.
+- `state_13_14_writer_investigation.md`: new
+  "Wake-249 update" section narrating the 5-caller
+  analysis + the refined trigger chain + the
+  3-message MVP claim. The wake-241 + wake-247
+  sections preserved below as history.
+- `README.md` Gate-2 row: "wake 247 update" →
+  "wake 249 update"; "trigger context for 13→14
+  remains" → "**all 4 transition writers + trigger
+  chains are now RE'd**". MVP estimate revised
+  to **3 server messages minimum** (was tentatively
+  2 per wake-241).
+
+**Verification**:
+- wake-225 (analysis-path existence): all cited
+  paths exist ✓.
+- wake-209 (paired card consistency): unaffected.
+- wake-218 / wake-222 / wake-224 / wake-225 /
+  wake-227 (self-referential pins on the wake-210
+  meta-card): all unaffected.
+- Tests **456 (+1 skipped)** — unchanged.
+
+**Why this matters**: the wake-247 finding closed
+the writer question; the wake-249 finding closes
+the trigger-chain question. Together they make
+**all 4 state-spawn transitions fully RE'd**.
+What remains is **identifying the specific
+server message** that triggers the replica-system
+update — likely a GridMate `NewProxy` command,
+but the exact wire format is still TBD without
+either a captured session that includes the
+replica-creation phase OR a runtime trace on a
+real-GPU host.
+
+The post-V3 state-machine picture is **as closed
+as static-RE can make it**. Runtime confirmation
+is the next leg.
+
+**Pattern note**: this is the **3rd substantive
+RE finding** in this stretch (wake-232/234 surfaced
+12→13; wake-247 found the 13→14 writer; wake-249
+identified the trigger chain). Three Ghidra-driven
+investigations chained together — the candidate-
+triage doc pattern (wake-241) + the writer-found
+update (wake-247) + the caller analysis (wake-249)
+forms a complete static-RE arc on a single
+question.
+
+**Cost summary**:
+- 5 decomp commands via the `ghidra` CLI wrapper
+  (~3 min each).
+- ~15 min reading + synthesizing the 5 decomps.
+- Doc updates across 4 surfaces (worklog +
+  investigation log + state_machine summary +
+  README).
+
+**Carry-over for future work**:
+- **Identify the specific `NewProxy`-like message**
+  that drives the wrapper[+0x7d0] container. Could
+  be done via a runtime Frida trace on
+  `FUN_142ff8940` (catches the message in
+  param_2's history).
+- Surface the wake-247/249 RE arc as a Findings
+  card (potential 21st-card candidate).
+
+**No new tests, no new code**. Substantive RE
+finding shipped as 5 new decomp files + doc
+updates.
+
+**Blockers:** None.

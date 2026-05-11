@@ -89,6 +89,101 @@ To definitively distinguish: decompile the **5 callers** and
 see what kind of events trigger them. This is the next
 concrete static-RE step.
 
+## Wake-249 update — 5 callers decomp'd, trigger context resolved
+
+Wake 249 ran Ghidra decomps on all 5 unconditional-call xrefs:
+`FUN_142ff8940`, `FUN_142ffb2f0`, `FUN_142ffb340`, `FUN_142ffb880`,
+`FUN_142ffc0b0`. Decomps stored at
+`analysis/decomp_FUN_142ff*.txt`. Summary:
+
+**The 5 callers are NOT message handlers** — they're local
+state-update functions. Each builds (or receives) a
+vtable-wrapped predicate object and passes it to
+`FUN_142ffbc50` as `param_2`. The vtables observed:
+
+- `PTR_LAB_148089ff0` (callers: FUN_142ffb2f0,
+  FUN_142ffc0b0-true-branch)
+- `PTR_LAB_14808a050` (callers: FUN_142ffb880,
+  FUN_142ff8940, FUN_142ffc0b0-false-branch)
+- `PTR_LAB_1480b77c8` (caller: FUN_142ffb340)
+
+These look like **visitor/predicate** implementations
+(classic Observer pattern). The writer's predicate-match loop
+is type-polymorphic on `param_2`'s vtable.
+
+**The smoking gun: FUN_142ff8940** is the most informative
+caller (58 lines). Its body:
+
+```c
+void FUN_142ff8940(longlong param_1, longlong param_2) {
+    cVar1 = (**(code **)(*(longlong *)(param_2 + 0x7c0) + 0x60))();
+    if (cVar1 != '\0') {
+        // copy collection from param_2 INTO wrapper[+0x1b8..+0x1c0]
+        *(undefined8 *)(param_1 + 0x1c0) = *(undefined8 *)(param_1 + 0x1b8);
+        FUN_14300eb70(param_1 + 0x1b8,
+                      (*(longlong *)(param_2 + 0x7d8) - *(longlong *)(param_2 + 2000)) / 0x70);
+        FUN_142fe5870(param_1 + 0x1b8, param_2 + 2000);
+        // ... build predicate ...
+        FUN_142ffbc50(param_1, uVar3);  // re-evaluate gate
+    }
+}
+```
+
+The function **explicitly populates `wrapper[+0x1b8..+0x1c0]`
+from `param_2[+0x7d0..+0x7d8]`** (param_2 + 2000 == param_2 +
+0x7d0). So:
+
+- `param_2` is some upstream container that holds the
+  0x70-stride entries (replicas? player entries?).
+- The collection at `param_2[+0x7d0]` is the source.
+- This function copies it into the wrapper, then re-evaluates
+  the state-13 gate.
+
+**Trigger chain confirmed (validates the wake-241 alt
+hypothesis)**:
+
+1. Some upstream system adds 0x70-stride entries to the
+   container at `param_2[+0x7d0]`. The most likely source is
+   the **replica system** (GridMate replica creation reacts
+   to server-side `NewProxy` messages).
+2. Each caller of FUN_142ffbc50 fires when this container
+   changes. The callers all wrap the call in
+   `FUN_142ffbc50(wrapper-or-subobject, predicate_object)`.
+3. FUN_142ffbc50 walks the wrapper's local copy of the
+   collection (which the upstream copy populated), tests each
+   entry against the predicate, and sets the gate byte if
+   any match.
+
+**So state 13 → 14 is set by the local replica system reacting
+to server-side `NewProxy` (or equivalent) messages**, not by
+a dedicated ClientMessagesTrait handler. The MVP server-side
+implication:
+
+- `SelfIdent` (10→11 + 11→12) ✓
+- `LevelInfoChanged` (12→13 force) ✓
+- **Plus a `NewProxy` / replica-creation message** carrying
+  the player's actor replica. Once the replica lands, the
+  client's replica system copies it into `wrapper[+0x7d0]`,
+  the writer fires, the predicate matches (the player's own
+  actor), and the gate opens.
+
+This is **3 server messages minimum** for MVP, not 2 as the
+wake-241 alt hypothesis tentatively claimed. The wake-241
+hypothesis was directionally right (local-system-driven, not
+direct-message-driven) but quantitatively off (the actor-
+spawn-complete IS triggered by a server message, just not
+a `ClientMessagesTrait` one).
+
+**Caveats**:
+- The above is a static-RE interpretation; the exact wire-
+  format of the actor-spawn / replica-creation message hasn't
+  been characterized. It may be the GridMate `NewProxy`
+  command (`cmdhdr` switch case 2 per
+  `ghidra_hunt_list.md` § 2C).
+- A runtime trace would confirm both the trigger chain and
+  whether all 5 callers fire or only specific ones during
+  the post-V3 sequence.
+
 ## Wake-241 original investigation (preserved below)
 
 ## Question

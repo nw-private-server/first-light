@@ -1,0 +1,23 @@
+// FUN_142ffb880 @ 142ffb880
+
+void FUN_142ffb880(longlong param_1,longlong param_2)
+
+{
+  undefined8 uVar1;
+  undefined **local_68 [2];
+  undefined4 local_58;
+  undefined4 uStack_54;
+  undefined4 uStack_50;
+  undefined4 uStack_4c;
+  undefined1 local_48 [64];
+  
+  local_58 = *(undefined4 *)(param_2 + 0x10);
+  uStack_54 = *(undefined4 *)(param_2 + 0x14);
+  uStack_50 = *(undefined4 *)(param_2 + 0x18);
+  uStack_4c = *(undefined4 *)(param_2 + 0x1c);
+  local_68[0] = &PTR_LAB_14808a050;
+  uVar1 = FUN_143495b70(local_48,local_68);
+  FUN_142ffbc50(param_1 + -0x118,uVar1);
+  return;
+}
+
