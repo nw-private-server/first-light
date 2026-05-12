@@ -5192,3 +5192,40 @@ State unchanged. Codex still pending.
 State unchanged. Codex still pending.
 
 **Blockers:** None.
+
+
+## Wake 312 — signaling heartbeat (Codex status reframed)
+
+State unchanged. The Codex review task
+fired at wake 286 never returned a
+completion notification across ~15 wakes
+of polling. Most likely cause: OpenAI's
+content filters caught the binary-RE
+context despite the open-source/preservation
+framing, and the agent runtime dropped the
+task without surfacing a refusal. Worth
+noting for future cross-model review
+attempts:
+
+- Anthropic and OpenAI have substantively
+  different policy stacks on RE work; a
+  prompt that runs cleanly on Claude can
+  silently fail on Codex.
+- The codex-rescue agent contract returns
+  the result via a single inbound message,
+  not via TaskList/TaskOutput. No
+  completion notification = no review.
+- For future external-review attempts, the
+  more reliable path is hand-pasting into
+  a fresh chat session (where refusals
+  surface directly and framing can be
+  iterated) rather than firing autonomous
+  Codex agents.
+
+This doesn't change the project state —
+the static-RE arc closed at wake 288 + 293
+with two clean negatives, and the wake-282
+scheduler hypothesis remains the best
+inference without external validation.
+
+**Blockers:** None.
