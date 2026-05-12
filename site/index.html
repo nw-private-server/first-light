@@ -32,6 +32,10 @@ body {
   -webkit-font-smoothing: antialiased;
   font-size: 15px;
   line-height: 1.55;
+  /* Prevent any wide child (tables, code blocks, hex dumps) from pushing
+     the whole page wider than the viewport on mobile. Individual wide
+     elements opt back into horizontal scroll via their own wrappers. */
+  overflow-x: hidden;
 }
 header {
   position: sticky;
@@ -861,6 +865,16 @@ main { padding: 16px; max-width: 1100px; margin: 0 auto; }
 }
 
 /* Existing styles */
+.table-scroll {
+  /* Lets wide tables scroll horizontally inside the page instead of
+     widening the viewport. Negative side-margin lets the scroll area
+     bleed to the screen edges on narrow widths so the table has more
+     room before it has to scroll. */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -16px;
+  padding: 0 16px;
+}
 table {
   width: 100%;
   border-collapse: collapse;
@@ -1026,6 +1040,16 @@ a:hover { text-decoration: underline; }
   main { padding: 12px; }
   .hero { padding: 16px; }
   .hero h2 { font-size: 18px; }
+  /* Match the table-scroll negative margin to the narrower main padding
+     so the table can still bleed to the screen edges. */
+  .table-scroll { margin: 0 -12px; padding: 0 12px; }
+  /* UUID is already shown truncated as "8 chars + ..." — drop it on
+     narrow screens to leave room for the Type, Name, and Codec columns
+     (which are the actually-useful ones for orientation). */
+  .col-uuid { display: none; }
+  /* Tighten badges in the Name column so long type names wrap instead
+     of forcing the row wider than the screen. */
+  #types-table .badge { white-space: normal; word-break: break-word; }
 }
 .codec-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
 .codec-card {
@@ -1401,15 +1425,17 @@ a:hover { text-decoration: underline; }
     </div>
   </details>
   <input type="text" class="search" placeholder="Filter by type-id, name, codec, UUID…" id="type-search">
-  <table id="types-table">
-    <thead>
-      <tr>
-        <th>Type</th><th>N</th><th>Dir</th><th>Bytes</th>
-        <th>Name</th><th>UUID</th><th>Codec</th><th></th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div class="table-scroll">
+    <table id="types-table">
+      <thead>
+        <tr>
+          <th>Type</th><th>N</th><th>Dir</th><th>Bytes</th>
+          <th>Name</th><th class="col-uuid">UUID</th><th>Codec</th><th></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 </section>
 
 <section class="tab" data-tab="codecs">
@@ -2200,7 +2226,7 @@ async function load() {
       <td class="mono">${t.directions}</td>
       <td class="mono">${t.sizes.slice(0, 3).join(",")}${t.sizes.length > 3 ? "..." : ""}</td>
       <td><span class="badge ${badgeClass}">${escapeHtml(t.name)}</span></td>
-      <td class="mono">${t.uuid ? t.uuid.slice(0, 8) + "..." : "—"}</td>
+      <td class="mono col-uuid">${t.uuid ? t.uuid.slice(0, 8) + "..." : "—"}</td>
       <td class="mono">${t.codec || "—"}</td>
       <td><button class="copy-btn" data-cmd="${escapeHtml(cmd)}" title="Copy a tools/decode_message.py invocation for this type">📋</button></td>
     `;
