@@ -1040,16 +1040,60 @@ a:hover { text-decoration: underline; }
   main { padding: 12px; }
   .hero { padding: 16px; }
   .hero h2 { font-size: 18px; }
-  /* Match the table-scroll negative margin to the narrower main padding
-     so the table can still bleed to the screen edges. */
-  .table-scroll { margin: 0 -12px; padding: 0 12px; }
-  /* UUID is already shown truncated as "8 chars + ..." — drop it on
-     narrow screens to leave room for the Type, Name, and Codec columns
-     (which are the actually-useful ones for orientation). */
+
+  /* Wire Types table → vertical card list at narrow widths. The 8-column
+     layout is wider than a phone even when packed; rather than scroll
+     horizontally inside a wrapper, restack each row as a card with the
+     name badge on its own row and the small metadata (N · Dir · Bytes
+     · Codec) on a dim strip below. */
+  .table-scroll { overflow: visible; margin: 0; padding: 0; }
+  #types-table thead { display: none; }
+  #types-table, #types-table tbody { display: block; }
+  #types-table tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 10px;
+    row-gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  #types-table tr:hover { background: var(--surface); }
+  #types-table td {
+    display: block;
+    border: none;
+    padding: 0;
+    font-size: 12px;
+  }
+  /* Source order is Type · N · Dir · Bytes · Name · UUID · Codec · Copy.
+     Reorder via flex `order:` so each card reads:
+       row 1   →  Type ............................ Copy
+       row 2   →  Name (badge, full width)
+       row 3   →  N · Dir · Bytes ............... Codec */
+  #types-table td[data-label="Type"]  { order: 1; font-weight: 600; }
+  #types-table td[data-label="Copy"]  { order: 2; margin-left: auto; }
+  #types-table td[data-label="Name"]  { order: 3; flex-basis: 100%; }
+  #types-table td[data-label="N"]     { order: 4; color: var(--text-dim); }
+  #types-table td[data-label="Dir"]   { order: 5; color: var(--text-dim); }
+  #types-table td[data-label="Bytes"] { order: 6; color: var(--text-dim); }
+  #types-table td[data-label="Codec"] { order: 7; color: var(--text-dim); margin-left: auto; }
+  #types-table td[data-label="N"]::before     { content: "N "; opacity: 0.55; }
+  #types-table td[data-label="Dir"]::before   { content: "· Dir "; opacity: 0.55; }
+  #types-table td[data-label="Bytes"]::before { content: "· "; opacity: 0.55; }
   .col-uuid { display: none; }
-  /* Tighten badges in the Name column so long type names wrap instead
-     of forcing the row wider than the screen. */
-  #types-table .badge { white-space: normal; word-break: break-word; }
+  /* Badge wraps within the Name row. `<wbr>` after each `::` (inserted
+     in the JS render) gives the browser a logical break point so long
+     names split at the namespace separator rather than mid-word. */
+  #types-table .badge {
+    display: inline-block;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: break-word;
+    line-height: 1.35;
+  }
 }
 .codec-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
 .codec-card {
@@ -2220,15 +2264,19 @@ async function load() {
       ? `<a href="#" class="finding-typelink" data-ldtype="${tidLdtype}" ` +
         `title="Open ${tidNorm} in live decoder">${escapeHtml(t.type_id_hex)}</a>`
       : escapeHtml(t.type_id_hex);
+    // Insert a soft break opportunity after each `::` so long type names
+    // ("ClientActorRoutingAuthorizationTrait::ClientAddEntryMsg") wrap at
+    // a logical boundary instead of mid-token on narrow viewports.
+    const nameHtml = escapeHtml(t.name).replace(/::/g, "::<wbr>");
     tr.innerHTML = `
-      <td class="mono">${tidCell}</td>
-      <td>${t.count}</td>
-      <td class="mono">${t.directions}</td>
-      <td class="mono">${t.sizes.slice(0, 3).join(",")}${t.sizes.length > 3 ? "..." : ""}</td>
-      <td><span class="badge ${badgeClass}">${escapeHtml(t.name)}</span></td>
-      <td class="mono col-uuid">${t.uuid ? t.uuid.slice(0, 8) + "..." : "—"}</td>
-      <td class="mono">${t.codec || "—"}</td>
-      <td><button class="copy-btn" data-cmd="${escapeHtml(cmd)}" title="Copy a tools/decode_message.py invocation for this type">📋</button></td>
+      <td class="mono" data-label="Type">${tidCell}</td>
+      <td data-label="N">${t.count}</td>
+      <td class="mono" data-label="Dir">${t.directions}</td>
+      <td class="mono" data-label="Bytes">${t.sizes.slice(0, 3).join(",")}${t.sizes.length > 3 ? "..." : ""}</td>
+      <td data-label="Name"><span class="badge ${badgeClass}">${nameHtml}</span></td>
+      <td class="mono col-uuid" data-label="UUID">${t.uuid ? t.uuid.slice(0, 8) + "..." : "—"}</td>
+      <td class="mono" data-label="Codec">${t.codec || "—"}</td>
+      <td data-label="Copy"><button class="copy-btn" data-cmd="${escapeHtml(cmd)}" title="Copy a tools/decode_message.py invocation for this type">📋</button></td>
     `;
     typesBody.appendChild(tr);
   }
