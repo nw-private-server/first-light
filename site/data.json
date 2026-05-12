@@ -29088,6 +29088,12 @@
       "test_count": 457,
       "commit": "ce16863",
       "subject": "docs(worklog): wake-302 \u2014 signaling heartbeat"
+    },
+    {
+      "wake": null,
+      "test_count": 457,
+      "commit": "6fcfa0b",
+      "subject": "docs(worklog): wake-303 \u2014 signaling heartbeat"
     }
   ],
   "live_decoder_history": [
@@ -29692,6 +29698,12 @@
   ],
   "recent_wakes": [
     {
+      "wake": 304,
+      "title": "signaling heartbeat",
+      "line": 5141,
+      "category": "code"
+    },
+    {
       "wake": 303,
       "title": "signaling heartbeat",
       "line": 5134,
@@ -29719,12 +29731,6 @@
       "wake": 299,
       "title": "signaling heartbeat",
       "line": 5104,
-      "category": "code"
-    },
-    {
-      "wake": 298,
-      "title": "signaling heartbeat (Codex still pending)",
-      "line": 5092,
       "category": "code"
     }
   ],
