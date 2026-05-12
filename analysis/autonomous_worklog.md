@@ -5369,3 +5369,98 @@ State unchanged.
 State unchanged.
 
 **Blockers:** None.
+
+
+## Wake 333 — vacation ended, loop terminates
+
+**Goal**: the maintainer is back. End-of-
+vacation cleanup: write the handoff state
+into `docs/next-session.md` (which they read
+first when starting a session) +
+`docs/progress.md` (the running session
+log). Terminate the loop properly.
+
+**Built**:
+
+- **`docs/next-session.md`** — full rewrite.
+  Replaces the 2026-05-06 pre-vacation
+  version (now preserved at the bottom under
+  "Previous handoff" for context). New
+  content:
+  - TL;DR of the 80-wake autonomous session
+    arc and the one-unblocker convergence
+    (real-GPU Frida).
+  - "What got resolved" section covering
+    state-10→11 closure, full state-spawn
+    ladder mapping, destroy-event family
+    reframe, hash brute-force exhaustion,
+    indirect-vtable wall pattern.
+  - Updated "What works" and "What doesn't"
+    relative to the previous handoff.
+  - Restated "exact open question" as the
+    V3 retry root cause (no longer
+    state-10→11 since that's resolved).
+  - Three concrete next experiments — all
+    pointing at runtime trace as the
+    convergent path.
+  - Files-to-read-first list updated for
+    the worklog split.
+  - Session stats summary (456 tests, 56
+    decompiles, 24 Findings cards, etc.).
+  - Open work-stream summary table.
+
+- **`docs/progress.md`** — appended a new
+  dated entry "2026-05-06 → 2026-05-12 —
+  autonomous /loop session (wakes 254-333)"
+  with headline outcomes, infrastructure
+  outcomes, methodological filings, forward
+  implications, and branch status.
+
+**Final state**:
+
+- HEAD will be the wake-333 commit (after
+  this entry ships).
+- Tests: 456 passing (+1 skipped). Unchanged
+  throughout the autonomous session's
+  doc-arc + plateau wakes.
+- Decompiles: 56.
+- Findings cards: 24 across 4 categories.
+- Cross-check tests: 19 manifest entries
+  (55 cross-check test functions).
+- Visitor surfaces (README, live dashboard,
+  all 4 retros, state_machine_summary,
+  next-session.md, progress.md): all
+  current.
+- Branch: `claude/vacation-2026-05-06`,
+  ~80 commits ahead of main, ready for
+  maintainer review.
+
+**Loop terminates here.** No further
+ScheduleWakeup. If the maintainer wants to
+resume autonomous work, fire `/loop` with
+a fresh prompt — the wake-numbered chain
+ends at wake 333.
+
+**Heartbeat phase summary** (wakes 295-332):
+38 minimal signaling wakes after the wake-294
+explicit stop. The user kept firing /loop
+without changing mode, so the loop continued
+in minimum-friction signaling mode. State
+unchanged across all heartbeats — no real
+work was possible after the 5-wake
+drift-sweep arc (274-292) and final O3DE
+brute-force exhaustion (288) closed every
+accessible static thread. Filing this as a
+pattern: when the substantive arc has
+closed but the loop continues to fire,
+shipping minimal "state unchanged" heartbeats
+is preferable to manufacturing fake work or
+silently stopping (which would leave the
+maintainer confused about loop state on
+return).
+
+**Welcome back** — the project is in a clean
+handoff state. Read `docs/next-session.md`
+first.
+
+**Blockers:** None.

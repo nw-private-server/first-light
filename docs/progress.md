@@ -2945,3 +2945,124 @@ The next live test (run with `--replay-after-v3 --replay-include-redacted --repl
 - 8-byte AzCore hash zero-fills cause rejection -> need to port AZ_CRC32 from Open 3D Engine.
 - Render-thread crash shifts to a new offset -> Ghidra decomp of the new offset needed.
 
+## 2026-05-06 → 2026-05-12 — autonomous /loop session (wakes 254-333)
+
+7-day autonomous static-RE session on `claude/vacation-2026-05-06`. The
+arc closed the post-V3 state-machine RE picture at static-RE level
+and surfaced a substantially deeper model of the destroy-event family
+than the wake-8 "single writer / single hash" framing carried forward
+from this progress.md entry trail.
+
+### Headline outcomes
+
+- **Post-V3 state-spawn ladder fully RE'd at static level**. All 4
+  transitions (10→11, 11→12, 12→13, 13→14) have writers + predicates
+  + trigger chains identified. State-10→11 (the "exact open question"
+  at the start of the session) is gated by
+  `*(int*)(wrapper + 0xa0) == 2`, set on
+  `PlayerManagerSelfIdentificationMsg` (`0x5d1`) delivery. Codec wire-
+  bound in `server/javelin/self_ident.py`. MVP server-side message
+  set: 3 messages (SelfIdent + LevelInfoChanged + replica-creation).
+- **State-13→14 closure** (wakes 247/249/252): writer is
+  `FUN_142ffbc50`; wake-249 decomped its 5 callers; wake-252 traced
+  the upstream and hit an indirect-vtable wall at `0x14816cec0` —
+  the static-RE limit on the NewProxy / replica-creation wire-type
+  question.
+- **Destroy-event family reframed** (wakes 278-282): the wake-8
+  finding (`[R13+0xfd]` written by `FUN_140fb3560:452` on
+  `AZ::Crc32(0xFE476177)`) is one subscriber response among many.
+  Event `0xFE476177` is fired from **4 emitter sites** using a
+  shared `local=HASH; vt+0x608(&local, DAT_*)` pattern, and received
+  by **5 subscribers** each writing a distinct Carrier-state flag
+  (`[+0xcd]`, `[+0xcf]`, `[+0xda]`, `[+0xfd]`, `[+0x179]`). ~50-hash
+  event family constrained to the same EBus. The wake-282 inference:
+  `vtable+0x608` is a "schedule event in N seconds" call, with the
+  delay coming from a discrete float-pool table containing
+  1.5/2.0/6.0/8.0/30.0/60.0/120.0. The 30.0 entry maps to the
+  observed ~30s session destroy. `0xFE476177` is likely a Carrier
+  broadcast lifecycle event (OnDisconnect / OnConnectionLost / etc).
+- **CRC brute-force exhausted**: ~1300 CRC computations across
+  ~340 candidate names × 7 algorithm variants. AzCore CRC32 verified
+  to match zlib polynomial 0xEDB88320. Hand-curated lists are
+  exhausted. The brute-force script
+  `analysis/crc32_FE476177_brute_force.py` is self-contained for
+  future O3DE-corpus extension.
+- **3 indirect-vtable walls** documented (wakes 252 / 276 / 283),
+  all the same shape: function chain → 3-line shim → vtable → ?.
+  For this codebase's GridMate RPC subsystem, static-RE above any
+  vtable boundary is not productive without RTTI/typeinfo recovery
+  or runtime tracing.
+
+### Infrastructure outcomes
+
+- **Tests**: 84 → 456 passing (+1 skipped). Growth split: codec
+  library tests, cross-check graph (19 invariants), lockdown tests
+  for the rep_responder ↔ dispatcher integration arc.
+- **Decompiles**: ~12 → 56.
+- **Codec library**: 40/40 captured wire-types covered, central
+  dispatcher byte-equivalent round-trip pinned by tests.
+- **Live dashboard** at https://nw-private-server.github.io/first-light/
+  : 24 Findings cards across 4 categories, 36/40 live-decoder coverage
+  on the Explore tab, captured-traffic charts, connection-state
+  diagram, codec/decompile catalog.
+- **rep_responder ↔ central-dispatcher integration**: 6-step arc
+  closed behind feature flags (`heartbeat_use_dispatcher` +
+  `heartbeat_advance_counter`, both default off, byte-equivalent to
+  captured replay). Awaiting real-GPU validation.
+- **Worklog split** at wake 261 — wakes 1-253 archived
+  (19476 lines), wakes 254+ active.
+
+### Methodological filings (worth preserving for future autonomous
+sessions)
+
+5 generalizable principles surfaced + filed during the arc:
+
+1. **Deprecate-don't-refresh** — for manually-maintained docs
+   superseded by auto-generated equivalents (wake 267: DASHBOARD.md
+   got a deprecation preamble pointing to the live dashboard rather
+   than ongoing manual refresh).
+2. **Cross-doc grep before declaring drift-fix done** — drift fixes
+   need greps on ALL syntactic shapes of the stale pattern, not just
+   the dominant one. Caught real drift across multiple sweep wakes
+   (267/271/272/274/289/290/291).
+3. **Archive-audit cited "remaining" work** — when citing a NEW
+   "remaining" task, grep the archive for the identifier to verify
+   it hasn't been previously resolved. Wake 274 caught the wake-8
+   destroy-trigger work being re-cited as "remaining" across
+   multiple post-wake-261 docs.
+4. **Re-run tool-bug-affected scans** — when a tool bug prevented
+   context capture, re-running with a fixed approach is high-value
+   if the question has remained open. Wake-278 produced the most
+   substantive RE arc in months by re-examining hit sites that
+   wake-9 had marked "dead end" due to a Ghidra `getBytes()` bug.
+5. **Indirect-vtable walls compound** — for the GridMate RPC
+   subsystem, any `(*vtable+offset)(...)` call is a likely wall.
+   Three data points (wakes 252/276/283) confirm.
+
+### Forward implications
+
+**Runtime trace on a real-GPU Windows host with Frida is the single
+highest-leverage unblocker.** Three open questions all share that
+one experiment as their resolution path:
+
+1. V3 retry root cause — hook the V3-send vtable dispatcher and
+   observe what predicate cancels the next scheduled send.
+2. NewProxy / replica-creation wire-type ID — hook any of the 5
+   `FUN_142ffbc50` callers and catch the stack frame at call-time.
+3. `0xFE476177` event name (+ the family's other 49 hashes) — hook
+   `FUN_140fb3560` entry and log the event-id argument's struct
+   layout.
+
+AWS `g4dn.xlarge` (real Tesla T4, ~$0.75/hr) is the recommended path;
+SSH-driven infrastructure (cert install, hosts redirects, portproxy,
+SCP push, Frida hooks) all transfers from the UTM/Parallels work.
+
+### Branch status
+
+`claude/vacation-2026-05-06` is ~80 commits ahead of main, all
+documentation and static-RE artifacts (no runtime-side changes). The
+maintainer can review and choose to merge, rebase, or cherry-pick.
+See `docs/next-session.md` for the detailed handoff. Per-wake trail
+is in `analysis/autonomous_worklog.md` (wakes 254-333) +
+`analysis/autonomous_worklog_through_253.md` (sealed archive, wakes
+1-253).
