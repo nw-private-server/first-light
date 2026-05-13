@@ -2,7 +2,55 @@
 
 Thanks for wanting to help. This project succeeds only if more people contribute — the work is too large for any one person and the window before server shutdown is finite.
 
-This document covers: work areas, how to contribute captures, code style, and how to coordinate so people don't duplicate effort.
+This document covers: quick start, work areas, how to contribute captures, code style, and how to coordinate so people don't duplicate effort.
+
+**Public dashboard:** [nw-private-server.github.io/first-light](https://nw-private-server.github.io/first-light/) — the friendly project overview, captured-traffic charts, connection-state diagram, and codec/decompile catalog. Read this first to get the lay of the land.
+
+---
+
+## Quick start (code contributors)
+
+```sh
+# 1. Clone
+git clone https://github.com/nw-private-server/first-light.git
+cd first-light
+
+# 2. Set up the venv
+python3 -m venv .venv
+source .venv/bin/activate
+pip install pytest typer
+
+# 3. Run the test suite
+pytest server/javelin/
+# expect 450+ passing (+1 skipped); the suite is the single source of
+# truth for codec correctness. Scans the whole server/javelin/ dir, so
+# it picks up the codec tests, the wake-157 shadow-decode tests, and
+# the wake-162 build-tools tests at once. Use `server/javelin/` rather
+# than bare `pytest`; root-level discovery picks up `server/test_client.py`,
+# a CLI script that calls sys.exit on import without args.
+
+# 4. Eyeball a captured message hands-on
+python3 tools/decode_message.py --type 0x15d --replay-index 0 --direction R
+# prints the decoded HeartbeatPing15D dataclass
+
+# 5. (Optional) Browse the dashboard locally
+python3 tools/build_site.py     # regenerate site/data.json
+cd site && python3 -m http.server 8000
+# then open http://localhost:8000
+```
+
+**Reference docs to read before opening a PR**:
+- [analysis/public_api.md](analysis/public_api.md) — single-page API reference for `server.javelin` (auto-generated from `__init__.py`'s `__all__` + dispatcher; re-generate with `tools/build_api_reference.py`).
+- [analysis/codec_library_overview.md](analysis/codec_library_overview.md) — layered architecture of `server/javelin/`, per-type module table, and a "how to add a new codec" walkthrough.
+- [analysis/session_retrospective_253.md](analysis/session_retrospective_253.md) — most recent session retrospective (wakes 228-253: state-machine RE closure arc; all 4 post-V3 state-spawn transitions now have writers + trigger chains at static-RE level). Earlier retros in the README's "Recent milestones" section.
+- [docs/post-v3-sequence.md](docs/post-v3-sequence.md) — the post-V3 message phases the captured replay covers.
+- [analysis/state_machine_summary.md](analysis/state_machine_summary.md) — current state of the GameConnection state-machine RE: predicate table, trigger writers, and the wake-252 indirect-vtable wall that marks the static-RE limit. The state-10 unblock work (wakes 111-112) is now closed; the active blocker is runtime-side (real-GPU host with Frida).
+- [analysis/autonomous_worklog.md](analysis/autonomous_worklog.md) — the active wake-by-wake working journal (wake 254 onwards). Earlier wakes (1-253) in [analysis/autonomous_worklog_through_253.md](analysis/autonomous_worklog_through_253.md). Long but searchable; tells you what's been tried.
+
+**Quick on-ramp paths** (see also the "Want to contribute? Pick a path." section on the [dashboard's "How it works" tab](https://nw-private-server.github.io/first-light/)):
+- **Add a new codec** — copy `server/javelin/session_clock_beacon.py` (fixed-shape) or `asset_blob_16a0.py` (variable-length). Register it in `server/javelin/dispatch.py`'s `DECODERS`/`ENCODERS`. Add a structural-rejection test + populated round-trip test to `test_codecs.py`. The dispatcher full-replay test auto-catches missed type-ids.
+- **Add a test** — codec-level: round-trip + structural-rejection pattern in `test_codecs.py`. Wider coverage: `test_shadow_decode.py` (mock-self pattern with recording log handler) or `test_build_tools.py` (pure-helper unit tests). Run `.venv/bin/pytest server/javelin/ -q`.
+- **Refresh the dashboard** — `.venv/bin/python3 tools/build_site.py` rebuilds `site/data.json` + shields.io badges. Pages auto-deploys on every push to the working branch. The public-API reference regenerates via `tools/build_api_reference.py` — re-run after touching `__init__.py` or a class docstring.
 
 ---
 
@@ -25,14 +73,20 @@ Priority captures right now:
 - **Edge cases.** Login failures, queue arrivals, mid-session disconnects, character creation flow.
 - **Additional happy-path logins** are still useful as cross-validation against the existing baseline, especially if from a different account.
 
-### 2. Reverse engineering (current blocker)
+### 2. Reverse engineering (static-RE largely complete; runtime is the next leg)
 
-The current blocker is understanding why the client keeps retrying the V3 registration after our server responds with an accepted reply. The answer is inside two functions:
+The Gate-2 retry loop — the client re-sending V3 every ~500ms after our server accepts the response — is still the active gate. The post-V3 state-machine RE has progressed substantially though:
 
-- **`FUN_14644a070`** (`gameconn_state`, RVA `0x0644a070`) — drives state-10→11 transition. Decompile this in Ghidra. Find what condition it checks to decide whether to advance state past 10.
-- **`FUN_146b3c250 + 0x58f`** — the destroy trigger. Find what writes to `[R13+0xfd]` (the byte that fires the session-destroy loop).
+- **State-10→11**: wake 111-112 closed it. Trigger is `PlayerManagerSelfIdentificationMsg` (wire type `0x5d1`); predicate is `*(int*)(wrapper + 0xa0) == 2`. Codec wire-bound in `server/javelin/self_ident.py`; awaiting runtime test.
+- **State-11→12**: auto-fires once 10→11 lands (no separate trigger).
+- **State-12→13**: wake 232/234 — `LevelInfoChangedMsg` primary path identified.
+- **State-13→14**: wake 247/249 — writer `FUN_142ffbc50` fires from 5 local handlers; one copies a 0x70-stride collection into `wrapper[+0x1b8]`. Wake 252's upstream trace hit an **indirect-vtable wall at `0x14816cec0`** — the static-RE limit on this question.
 
-If you do RE work, drop findings in `analysis/` as a new `.md` or `.txt` file. Use a descriptive name (`analysis/state10_dispatcher.md`, `analysis/v3_request/BODY_DECODE.md` — see existing entries for the pattern). Include the function RVA, what you found, and what it implies for the server behavior.
+Remaining open RE questions (both gated on real-GPU host + Frida, not on more static analysis):
+- **Destroy-trigger event name (`0xFE476177`)** — `FUN_140fb3560:452` writes `[R13+0xfd]` when an `AZ::Crc32(0xFE476177)` event fires, but the release-build has the source string stripped (wake 8/9). A Frida hook on `FUN_140fb3560` logging the event-id argument structure would identify it.
+- **NewProxy / GridMate replica wire-type identification** — the wake-252 analysis estimates the MVP server-side message set as SelfIdent + LevelInfoChanged + a replica-creation message. The third is currently hypothesized as GridMate `NewProxy`; runtime trace is the natural confirmation.
+
+If you do RE work, drop findings in `analysis/` as a new `.md` file. See [`state_13_14_writer_investigation.md`](analysis/state_13_14_writer_investigation.md) for the candidate-triage methodology used to identify FUN_142ffbc50.
 
 Tools already set up:
 - Ghidra scripts: `tools/ghidra_scripts/JavelinHunt.py`, `tools/ghidra_scripts/FindChunkRegistrations.py`
@@ -40,12 +94,12 @@ Tools already set up:
 
 ### 3. Python / server implementation
 
-Once RE identifies the post-V3 message sequence, someone needs to implement it in `server/rep_responder.py`. The file already handles the V3 registration exchange and replay of early captured messages — the next step is implementing whatever the client waits for after that.
+The post-V3 message sequence is substantially identified — the wake-252 analysis estimates the MVP server-side set as SelfIdent (`0x5d1`, codec wired at wake 112) + LevelInfoChanged + a replica-creation message (likely GridMate `NewProxy`). The third is the runtime-dependent open question (see [`state_machine_summary.md`](analysis/state_machine_summary.md)). `server/rep_responder.py` already handles V3 registration + captured-replay pumping; the next implementation step is sending whatever the runtime trace reveals.
 
 Other server work that doesn't require RE breakthroughs:
+- **rep_responder ↔ dispatcher integration phase-2.** The wake-157 shadow-decode scaffold routes every inbound record through `server/javelin/dispatch.py` at debug-log level; wake 204 promoted 0x15d (heartbeat) to authoritative dispatcher emission behind the `heartbeat_use_dispatcher` flag (default off, proven byte-equivalent to the captured replay path). Wake 208 added counter-advance under `heartbeat_advance_counter` so dispatched heartbeats progress like a real server. Both flags are awaiting real-GPU runtime validation to observe whether they affect the gate-2 retry loop. Next wire-type promotion candidate: any inbound type that lockdown tests already pin against the shadow-decode log (search `_shadow_decode_record` callers in `test_shadow_decode.py`).
 - **Carrier-level reliable ACK on the V3 request** — currently we don't send one in the same envelope as the V3 response. Mixed Nuts' working impl does (`flag=0x18` piggyback). May or may not be the entire fix for the V3 retry loop; ~5 lines of code to test.
 - **Multi-peer support** in `rep_responder.py` (currently single-peer only).
-- **More codec coverage.** `test_codecs.py` covers the V3 round-trip; `frame.py`'s parse/marshal paths for the chunked / multi-record cases have less coverage.
 - **Capture replay validation.** Make `_pump_replay` more configurable from the CLI (timing jitter, drop simulations) so we can stress-test the replay path.
 
 ### 4. Documentation

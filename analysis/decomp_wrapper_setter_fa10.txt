@@ -1,0 +1,17 @@
+// FUN_145a9fa10 @ 145a9fa10
+
+void FUN_145a9fa10(longlong param_1,undefined8 *param_2)
+
+{
+  undefined8 uVar1;
+  
+  uVar1 = param_2[1];
+  *(undefined8 *)(param_1 + 0xaf8) = *param_2;
+  *(undefined8 *)(param_1 + 0xb00) = uVar1;
+  uVar1 = param_2[3];
+  *(undefined8 *)(param_1 + 0xb08) = param_2[2];
+  *(undefined8 *)(param_1 + 0xb10) = uVar1;
+  *(undefined4 *)(param_1 + 0xb18) = *(undefined4 *)(param_2 + 4);
+  return;
+}
+

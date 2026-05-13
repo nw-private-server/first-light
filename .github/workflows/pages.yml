@@ -1,0 +1,60 @@
+name: Deploy site to GitHub Pages
+
+on:
+  push:
+    branches: ["claude/vacation-2026-05-06"]
+    paths:
+      - "site/**"
+      - "tools/build_site.py"
+      - "analysis/decomp_*.txt"
+      - "analysis/typename_mapping.csv"
+      - "info/typeregistry.json"
+      - "server/javelin/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need full history so build_site.py's load_test_count_history()
+          # can walk `git log -- site/data.json` for all wakes. Default
+          # depth=1 gave us a 1-point chart.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pytest (build_site.py uses it for test count)
+        run: pip install pytest
+
+      - name: Regenerate site/data.json
+        run: python tools/build_site.py
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

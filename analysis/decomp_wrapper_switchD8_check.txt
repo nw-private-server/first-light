@@ -1,0 +1,8 @@
+// FUN_1402a1750 @ 1402a1750
+
+longlong FUN_1402a1750(longlong param_1)
+
+{
+  return param_1 + 0xa0;
+}
+

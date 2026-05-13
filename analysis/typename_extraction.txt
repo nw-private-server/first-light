@@ -1,0 +1,189 @@
+# type-name extraction via fingerprint search
+
+# 35 (type_id, fingerprint) pairs to process
+
+## type 0x8  fingerprint=b990090000e96659
+  stub at: 146420ca0
+  xref sources: 1
+  xref source: 148502a58
+
+## type 0x1be  fingerprint=b950000000e9965d
+  stub at: 1407d0870
+  xref sources: 237
+  xref source: 147f47c78
+
+## type 0x40a  fingerprint=b950000000e9965d
+  stub at: 1407d0870
+  xref sources: 237
+  xref source: 147f47c78
+
+## type 0x5b2  fingerprint=b9a8000000e94675
+  stub at: 1414df0c0
+  xref sources: 9
+  xref source: 14800b460
+
+## type 0x635  fingerprint=b9d02f0000e9b6e9
+  stub at: 144867c50
+  xref sources: 1
+  xref source: 14838a8c0
+  candidate [uuid @ 0x14838a928]: '{F9A8C1FB-DABE-4FCC-B663'
+
+## type 0x651  fingerprint=b908000000e94634
+  stub at: 1407c31c0
+  xref sources: 89
+  xref source: 147f42b80
+
+## type 0x65c  fingerprint=b940010000e916b6
+  stub at: 1414faff0
+  xref sources: 7
+  xref source: 148013d80
+
+## type 0x663  fingerprint=b9b8000000e91636
+  stub at: 1414d2ff0
+  xref sources: 14
+  xref source: 1480081e8
+  candidate [uuid @ 0x148008188]: '{EE4EB8B3-F13D-46B3-8299-EB30C324EDAA}'
+  candidate [uuid @ 0x1480081b0]: '{65B9FBAC-EF50-416B-B783-7F1A9F33B29D}'
+
+## type 0x66b  fingerprint=b928000000e976e2
+  stub at: 1407c8390
+  xref sources: 1019
+  xref source: 147f44a18
+
+## type 0x8e6  fingerprint=b9a0000000e92646
+  stub at: 1407c1fe0
+  xref sources: 22
+  xref source: 147f42520
+
+## type 0x9d3  fingerprint=b928000000e976e2
+  stub at: 1407c8390
+  xref sources: 1019
+  xref source: 147f44a18
+
+## type 0x9fc  fingerprint=b910020000e9964f
+  stub at: 1407c1670
+  xref sources: 3
+  xref source: 147f42350
+
+## type 0xa95  fingerprint=b950000000e9965d
+  stub at: 1407d0870
+  xref sources: 237
+  xref source: 147f47c78
+
+## type 0xca4  fingerprint=b9b8000000e91636
+  stub at: 1414d2ff0
+  xref sources: 14
+  xref source: 1480081e8
+  candidate [uuid @ 0x148008188]: '{EE4EB8B3-F13D-46B3-8299-EB30C324EDAA}'
+  candidate [uuid @ 0x1480081b0]: '{65B9FBAC-EF50-416B-B783-7F1A9F33B29D}'
+
+## type 0xf7f  fingerprint=b928000000e976e2
+  stub at: 1407c8390
+  xref sources: 1019
+  xref source: 147f44a18
+
+## type 0x101a  fingerprint=b928000000e976e2
+  stub at: 1407c8390
+  xref sources: 1019
+  xref source: 147f44a18
+
+## type 0x101d  fingerprint=b928000000e976e2
+  stub at: 1407c8390
+  xref sources: 1019
+  xref source: 147f44a18
+
+## type 0x102e  fingerprint=b928000000e976e2
+  stub at: 1407c8390
+  xref sources: 1019
+  xref source: 147f44a18
+
+## type 0x102f  fingerprint=b928000000e976e2
+  stub at: 1407c8390
+  xref sources: 1019
+  xref source: 147f44a18
+
+## type 0x1033  fingerprint=b960000000e976a7
+  stub at: 1407cbe90
+  xref sources: 88
+  xref source: 147f463d0
+  candidate [string @ 0x147f463b0]: 'FilterChatMsg'
+
+## type 0x1067  fingerprint=b9a0000000e92646
+  stub at: 1407c1fe0
+  xref sources: 22
+  xref source: 147f42520
+
+## type 0x1096  fingerprint=b968000000e9b677
+  stub at: 1414bee50
+  xref sources: 44
+  xref source: 148001f18
+  candidate [string @ 0x148001f38]: 'EditorManagerTrait'
+
+## type 0x1097  fingerprint=b928000000e976e2
+  stub at: 1407c8390
+  xref sources: 1019
+  xref source: 147f44a18
+
+## type 0x1098  fingerprint=b928000000e976e2
+  stub at: 1407c8390
+  xref sources: 1019
+  xref source: 147f44a18
+
+## type 0x10b0  fingerprint=b928000000e976e2
+  stub at: 1407c8390
+  xref sources: 1019
+  xref source: 147f44a18
+
+## type 0x12f6  fingerprint=b938050000e956b5
+  stub at: 14659b0b0
+  xref sources: 1
+  xref source: 1485264d0
+
+## type 0x136a  fingerprint=b928000000e976e2
+  stub at: 1407c8390
+  xref sources: 1019
+  xref source: 147f44a18
+
+## type 0x143d  fingerprint=b928000000e976e2
+  stub at: 1407c8390
+  xref sources: 1019
+  xref source: 147f44a18
+
+## type 0x16a0  fingerprint=b9b0000000e9b6f8
+  stub at: 1407c6d50
+  xref sources: 36
+  xref source: 147f443d8
+  candidate [string @ 0x147f443f8]: 'NotifyClientMessageMetadataMsg'
+
+## type 0x187c  fingerprint=b928000000e976e2
+  stub at: 1407c8390
+  xref sources: 1019
+  xref source: 147f44a18
+
+## type 0x187f  fingerprint=b928000000e976e2
+  stub at: 1407c8390
+  xref sources: 1019
+  xref source: 147f44a18
+
+## type 0x18a6  fingerprint=b960000000e976a7
+  stub at: 1407cbe90
+  xref sources: 88
+  xref source: 147f463d0
+  candidate [string @ 0x147f463b0]: 'FilterChatMsg'
+
+## type 0x192c  fingerprint=b930000000e9b65e
+  stub at: 1407c0750
+  xref sources: 156
+  xref source: 147f41db0
+
+## type 0x1a59  fingerprint=b928000000e976e2
+  stub at: 1407c8390
+  xref sources: 1019
+  xref source: 147f44a18
+
+## type 0x1b88  fingerprint=b970000000e9467a
+  stub at: 1414cebc0
+  xref sources: 64
+  xref source: 148006b80
+
+# end

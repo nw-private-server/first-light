@@ -1,0 +1,13 @@
+# searching for 0x1be in DATA sections at 4-byte alignment
+
+found 7 aligned hits
+
+  14912bbe4  block=.rdata  ctx=(ctx fail)
+  1491334f4  block=.rdata  ctx=(ctx fail)
+  149558310  block=.rdata  ctx=(ctx fail)
+  14955fcb0  block=.rdata  ctx=(ctx fail)
+  149560de8  block=.rdata  ctx=(ctx fail)
+  149562ba4  block=.rdata  ctx=(ctx fail)
+  149f42218  block=.data  ctx=(ctx fail)
+
+# end

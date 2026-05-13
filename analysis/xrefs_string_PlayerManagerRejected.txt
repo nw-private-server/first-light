@@ -1,0 +1,8 @@
+# string xref hunt: u'PlayerManagerRejected'
+
+found 1 defined-string hits
+
+## string at 14a153db0: '.?AV<lambda_1>@?1???$InstallRegistrationHook@VPlayerManagerRejectedMsg@ClientMessagesTrait@Javelin@@@Hub@Amazon@@YA_NXZ@'
+  0 references
+
+# end

@@ -1,0 +1,93 @@
+// FUN_1462426b0 @ 1462426b0
+
+uint FUN_1462426b0(uint param_1)
+
+{
+  ulonglong uVar1;
+  ulonglong uVar2;
+  uint *puVar3;
+  undefined **ppuVar4;
+  undefined *puVar5;
+  
+  ppuVar4 = (undefined **)&DAT_1484df2e0;
+  uVar1 = 0x230;
+  do {
+    uVar2 = uVar1 >> 1;
+    if (*(ushort *)((longlong)ppuVar4 + uVar2 * 3) < param_1) {
+      ppuVar4 = (undefined **)((longlong)ppuVar4 + uVar2 * 3 + 3);
+      uVar2 = uVar1 + (-1 - uVar2);
+    }
+    uVar1 = uVar2;
+  } while (0 < (longlong)uVar2);
+  if ((ppuVar4 < &PTR_FUN_1484df970) && (*(ushort *)ppuVar4 == param_1)) {
+    param_1 = (uint)*(byte *)((longlong)ppuVar4 + 2);
+  }
+  puVar3 = (uint *)&DAT_149f63f90;
+  uVar1 = 0x1a;
+  do {
+    uVar2 = uVar1 >> 1;
+    if (puVar3[uVar2] < param_1) {
+      puVar3 = puVar3 + uVar2 + 1;
+      uVar2 = uVar1 + (-1 - uVar2);
+    }
+    uVar1 = uVar2;
+  } while (0 < (longlong)uVar2);
+  if ((puVar3 == (uint *)&DAT_149f63ff8) || (param_1 < *puVar3)) {
+    puVar5 = &DAT_149f41880;
+    puVar3 = (uint *)&DAT_149f41880;
+    uVar1 = 0x4240;
+    do {
+      uVar2 = uVar1 >> 1;
+      if (puVar3[uVar2 * 2] < param_1) {
+        puVar3 = puVar3 + uVar2 * 2 + 2;
+        uVar2 = uVar1 + (-1 - uVar2);
+      }
+      uVar1 = uVar2;
+    } while (0 < (longlong)uVar2);
+    if ((puVar3 != (uint *)&DAT_149f62a80) && (uVar1 = 0x4240, *puVar3 <= param_1)) {
+      do {
+        uVar2 = uVar1 >> 1;
+        if (*(uint *)(puVar5 + uVar2 * 8) < param_1) {
+          puVar5 = puVar5 + uVar2 * 8 + 8;
+          uVar2 = uVar1 + (-1 - uVar2);
+        }
+        uVar1 = uVar2;
+      } while (0 < (longlong)uVar2);
+      if (puVar5 < (undefined *)0x149f62a80) {
+        if (*(uint *)(puVar5 + 4) != 0xffffffff) {
+          return *(uint *)(puVar5 + 4);
+        }
+        return param_1;
+      }
+      return param_1;
+    }
+    puVar3 = (uint *)&DAT_149f62a80;
+    uVar1 = 0x542;
+    do {
+      uVar2 = uVar1 >> 1;
+      if (puVar3[uVar2] < param_1) {
+        puVar3 = puVar3 + uVar2 + 1;
+        uVar2 = uVar1 + (-1 - uVar2);
+      }
+      uVar1 = uVar2;
+    } while (0 < (longlong)uVar2);
+    if ((puVar3 != (uint *)&DAT_149f63f88) && (*puVar3 <= param_1)) {
+      return param_1;
+    }
+    ppuVar4 = (undefined **)&DAT_149f64000;
+    uVar1 = 0x2b0;
+    do {
+      uVar2 = uVar1 >> 1;
+      if (*(uint *)((longlong)ppuVar4 + uVar2 * 4) < param_1) {
+        ppuVar4 = (undefined **)((longlong)ppuVar4 + (uVar2 + 1) * 4);
+        uVar2 = uVar1 + (-1 - uVar2);
+      }
+      uVar1 = uVar2;
+    } while (0 < (longlong)uVar2);
+    if (((ppuVar4 != &PTR_PTR_149f64ac0) && (*(uint *)ppuVar4 <= param_1)) && (param_1 == 0x27)) {
+      return 0x27;
+    }
+  }
+  return 0x20;
+}
+

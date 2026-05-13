@@ -1,0 +1,138 @@
+// FUN_14103b1a0 @ 14103b1a0
+
+void FUN_14103b1a0(longlong param_1,int param_2,undefined4 *param_3,int param_4)
+
+{
+  int iVar1;
+  longlong lVar2;
+  longlong lVar3;
+  undefined8 *puVar4;
+  char cVar5;
+  undefined8 uVar6;
+  longlong *plVar7;
+  undefined8 *puVar8;
+  undefined8 *puVar9;
+  undefined1 uVar10;
+  longlong local_res8;
+  int local_res10 [2];
+  int local_res20 [2];
+  undefined8 local_118;
+  undefined8 uStack_110;
+  undefined8 local_108;
+  undefined4 local_100 [2];
+  undefined4 local_f8;
+  undefined4 uStack_f4;
+  undefined4 uStack_f0;
+  undefined4 uStack_ec;
+  undefined8 local_e8;
+  undefined8 local_e0;
+  ulonglong local_d8;
+  undefined8 local_d0;
+  undefined1 local_c8;
+  int local_c4;
+  undefined **local_c0;
+  undefined1 local_b8 [8];
+  longlong local_b0;
+  undefined1 local_a8 [16];
+  undefined4 local_98 [2];
+  undefined1 local_90 [16];
+  undefined1 local_80 [40];
+  undefined1 local_58;
+  int local_54;
+  undefined1 local_50 [24];
+  
+  local_118 = 0x147ef8a98;
+  uStack_110 = &DAT_147ef8a9c;
+  local_res10[0] = param_2;
+  local_res20[0] = param_4;
+  uVar6 = FUN_14615e0c0();
+  lVar2 = *(longlong *)((longlong)ThreadLocalStoragePointer + (ulonglong)_tls_index * 8);
+  plVar7 = *(longlong **)(lVar2 + 0x68);
+  if (plVar7 == (longlong *)0x0) {
+    plVar7 = (longlong *)FUN_1407eb290();
+    *(longlong **)(lVar2 + 0x68) = plVar7;
+  }
+  lVar3 = *plVar7;
+  if (lVar3 == 0) {
+    local_c0 = &PTR_FUN_147f496c8;
+    *plVar7 = (longlong)local_b8;
+    local_b0 = lVar3;
+    puVar8 = (undefined8 *)FUN_146161960(uVar6,&local_118);
+    cVar5 = FUN_146165ff0(puVar8,1);
+    if (cVar5 != '\0') {
+      local_108 = _Xtime_get_ticks();
+      local_100[0] = 1;
+      local_f8 = (undefined4)local_118;
+      uStack_f4 = local_118._4_4_;
+      uStack_f0 = (undefined4)uStack_110;
+      uStack_ec = uStack_110._4_4_;
+      uVar6 = FUN_1461aab40(puVar8);
+      local_e8 = uVar6;
+      FUN_1402b6e60(uVar6,"JavelinGame::OnConnectionFail");
+      FUN_1402b6e60(uVar6,": Reason: ");
+      FUN_141003620(uVar6,*param_3);
+      iVar1 = *(int *)((longlong)puVar8 + 0x1c);
+      puVar4 = (undefined8 *)puVar8[0xd];
+      for (puVar9 = (undefined8 *)puVar8[0xc]; puVar9 != puVar4; puVar9 = puVar9 + 1) {
+        FUN_1461ae980(*puVar8,*puVar9,&local_108,iVar1 != 0);
+      }
+      FUN_146163db0(local_e8,local_50);
+      param_2 = local_res10[0];
+      param_4 = local_res20[0];
+    }
+    lVar3 = local_b0;
+    local_c0 = &PTR_FUN_147f496c8;
+    if (*(char *)(lVar2 + 0x3688) == '\0') {
+      __dyn_tls_on_demand_init();
+    }
+    **(longlong **)(lVar2 + 0x68) = lVar3;
+  }
+  if (param_2 == 0) {
+    if (*(char *)(param_1 + 0x3d8) != '\0') {
+      (**(code **)(**(longlong **)(DAT_14a7ba0e0 + 0x98) + 0x20))
+                (*(longlong **)(DAT_14a7ba0e0 + 0x98),"Lost connection to REP. Exiting...");
+      (**(code **)(**(longlong **)(DAT_14a7ba0e0 + 0x78) + 0x120))
+                (*(longlong **)(DAT_14a7ba0e0 + 0x78),&DAT_147fc88d8,0,0);
+    }
+    local_res8 = *(longlong *)(param_3 + 2) * 1000000;
+    FUN_141636100(local_a8,&local_res8);
+    FUN_146420610(param_1 + -0x20);
+    if (((*(char *)(DAT_14a7ba0e0 + 0x244) == '\0') && (*(char *)(param_1 + 0x3b4) == '\0')) &&
+       (*(char *)(param_3 + 0xe) == '\0')) {
+      uVar10 = 0;
+    }
+    else {
+      uVar10 = 1;
+    }
+    local_res10[0] = CONCAT31(local_res10[0]._1_3_,uVar10);
+    local_118 = 0x147ef8a98;
+    uStack_110 = &DAT_147ef8a9c;
+    FUN_140fdec40(2,&local_118,FUN_1407fe020,"shouldRetryConnect=",local_res10,", isErrorRetryable="
+                  ,param_3 + 0xe,", currentRetryCount=",local_res20,", error=",param_3);
+    if (param_4 == 0) {
+      uVar6 = FUN_141413810();
+      *(undefined8 *)(param_1 + 0x3d0) = uVar6;
+    }
+    local_108 = CONCAT44(local_108._4_4_,*param_3);
+    FUN_1416360e0(local_100,local_a8);
+    local_e0 = 0;
+    local_d8 = 0xf;
+    local_d0 = *(undefined8 *)(param_3 + 0xc);
+    FUN_1402b0580(&uStack_f0,param_3 + 4,0,0xffffffffffffffff);
+    local_98[0] = (undefined4)local_108;
+    local_c8 = uVar10;
+    local_c4 = param_4;
+    FUN_1416360e0(local_90,local_100);
+    FUN_140298e00(local_80,&uStack_f0);
+    local_58 = local_c8;
+    local_54 = local_c4;
+    FUN_146459250(param_1 + -0x20,local_98);
+    if (0xf < local_d8) {
+      FUN_14149ca40(&local_d0,CONCAT44(uStack_ec,uStack_f0),local_d8 + 1,1);
+    }
+    FUN_146464260(*(undefined8 *)(param_1 + 0x200));
+    FUN_14646da00(param_1 + -0x20,0);
+  }
+  return;
+}
+

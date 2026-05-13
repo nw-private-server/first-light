@@ -1,0 +1,365 @@
+#!/usr/bin/env python3
+"""
+ghidra — thin CLI wrapper around analyzeHeadless for the New World project.
+
+All commands operate on the project at <repo>/analysis/ghidra_project/NewWorld.
+
+  ghidra analyze <exe> [--detach] [--overwrite]
+      Import the binary and run auto-analysis. With --detach, runs in the
+      background and writes to analysis/ghidra_project/logs/analyze.log.
+
+  ghidra decompile <addr> [--out FILE]
+      Print the decompiled C for the function containing <addr> (hex).
+      Operates against the already-imported binary.
+
+  ghidra script <name.py> [args...]
+      Run a Ghidra Jython script from tools/ghidra_scripts/ against the
+      already-imported binary.
+
+  ghidra status
+      Show whether a detached analyze run is in progress and tail recent log.
+
+  ghidra logs [--follow]
+      Cat (or tail -f) the latest analyze log.
+
+Environment:
+  GHIDRA_HOME      Override Ghidra install dir (default: brew --prefix ghidra/libexec).
+  NW_GHIDRA_BIN    Override imported binary name inside the project (default: NewWorld.exe).
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import shutil
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+PROJECT_NAME = "NewWorld"
+
+
+def repo_root() -> Path:
+    here = Path(__file__).resolve().parent
+    for candidate in (here, *here.parents):
+        if (candidate / ".git").exists() or (candidate / "pyproject.toml").exists():
+            return candidate
+    return here.parent
+
+
+REPO = repo_root()
+GHIDRA_PROJECT_DIR = REPO / "analysis" / "ghidra_project"
+GHIDRA_LOG_DIR = GHIDRA_PROJECT_DIR / "logs"
+GHIDRA_PID_FILE = GHIDRA_PROJECT_DIR / "analyze.pid"
+GHIDRA_SCRIPTS_DIR = REPO / "tools" / "ghidra_scripts"
+
+
+def find_ghidra_home() -> Path:
+    env = os.environ.get("GHIDRA_HOME")
+    if env:
+        p = Path(env)
+        if (p / "support" / "analyzeHeadless").exists():
+            return p
+        die(f"GHIDRA_HOME={env} does not contain support/analyzeHeadless")
+    try:
+        prefix = subprocess.check_output(
+            ["brew", "--prefix", "ghidra"], text=True
+        ).strip()
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        die("ghidra not found. brew install --cask ghidra, or set GHIDRA_HOME.")
+    candidates = [
+        Path(prefix) / "libexec",
+        Path(prefix),
+    ]
+    for c in candidates:
+        if (c / "support" / "analyzeHeadless").exists():
+            return c
+    die(f"Could not find analyzeHeadless under {prefix}.")
+
+
+def analyze_headless() -> Path:
+    return find_ghidra_home() / "support" / "analyzeHeadless"
+
+
+def die(msg: str, code: int = 1):
+    print(f"ghidra: {msg}", file=sys.stderr)
+    sys.exit(code)
+
+
+def ensure_dirs():
+    GHIDRA_PROJECT_DIR.mkdir(parents=True, exist_ok=True)
+    GHIDRA_LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def imported_name() -> str:
+    return os.environ.get("NW_GHIDRA_BIN", "NewWorld.exe")
+
+
+def detached_pid() -> int | None:
+    if not GHIDRA_PID_FILE.exists():
+        return None
+    try:
+        pid = int(GHIDRA_PID_FILE.read_text().strip())
+    except ValueError:
+        return None
+    try:
+        os.kill(pid, 0)
+        return pid
+    except ProcessLookupError:
+        return None
+
+
+# --- analyze ---------------------------------------------------------------
+
+
+def cmd_analyze(args: argparse.Namespace):
+    exe = Path(args.exe).expanduser().resolve()
+    if not exe.exists():
+        die(f"binary not found: {exe}")
+    ensure_dirs()
+
+    cmd = [
+        str(analyze_headless()),
+        str(GHIDRA_PROJECT_DIR),
+        PROJECT_NAME,
+        "-import",
+        str(exe),
+        "-scriptPath",
+        str(GHIDRA_SCRIPTS_DIR),
+    ]
+    if args.overwrite:
+        cmd.append("-overwrite")
+
+    if args.detach:
+        existing = detached_pid()
+        if existing:
+            die(f"detached analyze already running (pid {existing}). See `ghidra status`.")
+        log_path = GHIDRA_LOG_DIR / f"analyze_{time.strftime('%Y%m%d_%H%M%S')}.log"
+        latest = GHIDRA_LOG_DIR / "analyze.log"
+        log_fh = open(log_path, "w")
+        proc = subprocess.Popen(
+            cmd,
+            stdout=log_fh,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        GHIDRA_PID_FILE.write_text(str(proc.pid))
+        if latest.exists() or latest.is_symlink():
+            latest.unlink()
+        latest.symlink_to(log_path.name)
+        print(f"analyze running detached, pid={proc.pid}")
+        print(f"log: {log_path}")
+        print("tail with: ghidra logs --follow")
+        return
+
+    print("running analyzeHeadless (this can take hours for large binaries)...")
+    print(" ".join(cmd))
+    rc = subprocess.call(cmd)
+    sys.exit(rc)
+
+
+# --- decompile -------------------------------------------------------------
+
+
+HEADLESS_DECOMPILE_SCRIPT = """\
+# HeadlessDecompile.py
+# Auto-generated helper used by `ghidra decompile <addr>`.
+# Decompiles the function containing the address in args[0] and writes C to
+# args[1] (or stdout if args[1] absent).
+#
+# @category Analysis.New_World
+# @runtime Jython
+
+import sys
+from ghidra.app.decompiler import DecompInterface  # type: ignore
+from ghidra.util.task import ConsoleTaskMonitor  # type: ignore
+
+args = list(getScriptArgs())  # noqa: F821
+if not args:
+    print("HeadlessDecompile: missing address arg")
+    sys.exit(1)
+
+addr_str = args[0]
+out_path = args[1] if len(args) > 1 else None
+
+addr = currentProgram.getAddressFactory().getAddress(addr_str)  # noqa: F821
+if addr is None:
+    print("HeadlessDecompile: could not parse address %s" % addr_str)
+    sys.exit(1)
+
+func = currentProgram.getFunctionManager().getFunctionContaining(addr)  # noqa: F821
+if func is None:
+    print("HeadlessDecompile: no function contains %s" % addr_str)
+    sys.exit(1)
+
+dec = DecompInterface()
+dec.openProgram(currentProgram)  # noqa: F821
+res = dec.decompileFunction(func, 120, ConsoleTaskMonitor())
+if not res.decompileCompleted():
+    print("HeadlessDecompile: decompile failed: %s" % res.getErrorMessage())
+    sys.exit(1)
+
+text = "// %s @ %s\\n%s" % (func.getName(), func.getEntryPoint(), res.getDecompiledFunction().getC())
+
+if out_path:
+    with open(out_path, "w") as f:
+        f.write(text)
+    print("HeadlessDecompile: wrote %s" % out_path)
+else:
+    print(text)
+"""
+
+
+def ensure_headless_decompile_script() -> Path:
+    GHIDRA_SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+    target = GHIDRA_SCRIPTS_DIR / "HeadlessDecompile.py"
+    if not target.exists() or target.read_text() != HEADLESS_DECOMPILE_SCRIPT:
+        target.write_text(HEADLESS_DECOMPILE_SCRIPT)
+    return target
+
+
+def cmd_decompile(args: argparse.Namespace):
+    ensure_dirs()
+    ensure_headless_decompile_script()
+    addr = args.addr
+    if not addr.startswith("0x"):
+        addr = "0x" + addr
+
+    script_args = [addr]
+    if args.out:
+        out = Path(args.out).expanduser().resolve()
+        out.parent.mkdir(parents=True, exist_ok=True)
+        script_args.append(str(out))
+
+    cmd = [
+        str(analyze_headless()),
+        str(GHIDRA_PROJECT_DIR),
+        PROJECT_NAME,
+        "-process",
+        imported_name(),
+        "-noanalysis",
+        "-scriptPath",
+        str(GHIDRA_SCRIPTS_DIR),
+        "-postScript",
+        "HeadlessDecompile.py",
+        *script_args,
+    ]
+    rc = subprocess.call(cmd)
+    sys.exit(rc)
+
+
+# --- script ----------------------------------------------------------------
+
+
+def cmd_script(args: argparse.Namespace):
+    name = args.name
+    if not name.endswith(".py"):
+        name += ".py"
+    script_path = GHIDRA_SCRIPTS_DIR / name
+    if not script_path.exists():
+        die(f"script not found: {script_path}")
+
+    cmd = [
+        str(analyze_headless()),
+        str(GHIDRA_PROJECT_DIR),
+        PROJECT_NAME,
+        "-process",
+        imported_name(),
+        "-noanalysis",
+        "-scriptPath",
+        str(GHIDRA_SCRIPTS_DIR),
+        "-postScript",
+        name,
+        *args.script_args,
+    ]
+    rc = subprocess.call(cmd)
+    sys.exit(rc)
+
+
+# --- status / logs ---------------------------------------------------------
+
+
+def cmd_status(args: argparse.Namespace):
+    pid = detached_pid()
+    if pid:
+        print(f"detached analyze running, pid={pid}")
+    else:
+        print("no detached analyze in progress")
+        if GHIDRA_PID_FILE.exists():
+            GHIDRA_PID_FILE.unlink()
+    latest = GHIDRA_LOG_DIR / "analyze.log"
+    if latest.exists():
+        print(f"latest log: {latest.resolve()}")
+        print("--- last 20 lines ---")
+        subprocess.call(["tail", "-n", "20", str(latest)])
+    proj = GHIDRA_PROJECT_DIR / f"{PROJECT_NAME}.gpr"
+    if proj.exists():
+        size_mb = proj.stat().st_size / 1024 / 1024
+        print(f"project file: {proj} ({size_mb:.1f} MB)")
+    else:
+        print(f"project not yet created at {GHIDRA_PROJECT_DIR}/{PROJECT_NAME}")
+
+
+def cmd_logs(args: argparse.Namespace):
+    latest = GHIDRA_LOG_DIR / "analyze.log"
+    if not latest.exists():
+        die("no analyze log yet")
+    if args.follow:
+        os.execvp("tail", ["tail", "-f", str(latest)])
+    else:
+        subprocess.call(["cat", str(latest)])
+
+
+def cmd_kill(args: argparse.Namespace):
+    pid = detached_pid()
+    if not pid:
+        die("no detached analyze running")
+    print(f"sending SIGTERM to {pid}")
+    os.kill(pid, signal.SIGTERM)
+    GHIDRA_PID_FILE.unlink(missing_ok=True)
+
+
+# --- main ------------------------------------------------------------------
+
+
+def main():
+    p = argparse.ArgumentParser(prog="ghidra", description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    a = sub.add_parser("analyze", help="import + auto-analyze a binary")
+    a.add_argument("exe", help="path to binary (e.g. NewWorld.exe)")
+    a.add_argument("--detach", action="store_true",
+                   help="run in background; logs go to analysis/ghidra_project/logs/")
+    a.add_argument("--overwrite", action="store_true",
+                   help="overwrite existing imported program in project")
+    a.set_defaults(func=cmd_analyze)
+
+    d = sub.add_parser("decompile", help="decompile function at address")
+    d.add_argument("addr", help="hex address, e.g. 0x14644a070")
+    d.add_argument("--out", help="write to file instead of stdout")
+    d.set_defaults(func=cmd_decompile)
+
+    s = sub.add_parser("script", help="run a Ghidra script against the project")
+    s.add_argument("name", help="script name in tools/ghidra_scripts/ (.py optional)")
+    s.add_argument("script_args", nargs=argparse.REMAINDER,
+                   help="args passed to the script via getScriptArgs()")
+    s.set_defaults(func=cmd_script)
+
+    sub.add_parser("status", help="show project / detached-run status").set_defaults(func=cmd_status)
+
+    lg = sub.add_parser("logs", help="show latest analyze log")
+    lg.add_argument("--follow", "-f", action="store_true")
+    lg.set_defaults(func=cmd_logs)
+
+    sub.add_parser("kill", help="terminate detached analyze").set_defaults(func=cmd_kill)
+
+    args = p.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

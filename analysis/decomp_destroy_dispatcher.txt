@@ -1,0 +1,14 @@
+// FUN_140fadbc0 @ 140fadbc0
+
+void FUN_140fadbc0(undefined8 param_1,longlong *param_2,undefined8 param_3,undefined8 param_4)
+
+{
+  undefined8 uVar1;
+  undefined8 uVar2;
+  
+  uVar1 = (**(code **)(*param_2 + 0x60))(param_2);
+  uVar2 = (**(code **)(*param_2 + 0x70))(param_2);
+  FUN_140fb3560(uVar1,param_2,param_3,uVar2,param_4);
+  return;
+}
+

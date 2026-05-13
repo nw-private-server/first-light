@@ -105,6 +105,14 @@ class MessageRecord:
 
 @dataclass
 class ParseResult:
+    """Outcome of parsing a Javelin datagram body.
+
+    `messages` is the list of decoded records (empty if parsing
+    aborted). `error` is a short string describing the failure
+    when parsing fails partway through; `None` on success.
+    `trailing_bits` is the count of bits left over in the bitstream
+    after the last record — a healthy datagram has 0 trailing bits.
+    """
     messages: List[MessageRecord] = field(default_factory=list)
     error: Optional[str] = None
     trailing_bits: int = 0

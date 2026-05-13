@@ -1,0 +1,77 @@
+// FUN_1473ed090 @ 1473ed090
+
+undefined8 FUN_1473ed090(longlong param_1)
+
+{
+  int iVar1;
+  float fVar2;
+  float fVar3;
+  float _X;
+  float fVar4;
+  float fVar5;
+  void *pvVar6;
+  ulonglong uVar7;
+  uint uVar8;
+  longlong lVar9;
+  float fVar10;
+  float fVar11;
+  
+  iVar1 = *(int *)(*(longlong *)(param_1 + 0x20) + 0xcc);
+  *(int *)(param_1 + 0x220) = iVar1;
+  if (iVar1 == 0) {
+LAB_1473ed28a:
+    *(uint *)(param_1 + 0x22c) = *(uint *)(param_1 + 0x22c) & 0xfffffffc;
+    return 1;
+  }
+  pvVar6 = (void *)(**(code **)(**(longlong **)(param_1 + 0x28) + 8))
+                             (*(longlong **)(param_1 + 0x28),iVar1 * 0x1c,
+                              "C:\\Jenkins\\ws\\wwise_v2023.1\\Wwise\\SDK\\source\\SoundEngine\\Plugins\\Sources\\AkSoundSeedWoosh\\AkSoundSeedWoosh.cpp"
+                              ,0x6f);
+  *(void **)(param_1 + 0x38) = pvVar6;
+  if (pvVar6 != (void *)0x0) {
+    memset(pvVar6,0,(ulonglong)(uint)(iVar1 * 0x1c));
+    uVar8 = (iVar1 + 3U >> 2) * 0x70;
+    pvVar6 = (void *)(**(code **)(**(longlong **)(param_1 + 0x28) + 8))
+                               (*(longlong **)(param_1 + 0x28),uVar8,
+                                "C:\\Jenkins\\ws\\wwise_v2023.1\\Wwise\\SDK\\source\\SoundEngine\\Plugins\\Sources\\AkSoundSeedWoosh\\AkSoundSeedWoosh.cpp"
+                                ,0x74);
+    *(void **)(param_1 + 0x40) = pvVar6;
+    if (pvVar6 != (void *)0x0) {
+      memset(pvVar6,0,(ulonglong)uVar8);
+      *(undefined1 *)(param_1 + 0x252) = 1;
+      fVar5 = DAT_148630f30;
+      fVar4 = DAT_147fbcff0;
+      _X = DAT_147f400f4;
+      fVar3 = DAT_147f40064;
+      fVar2 = DAT_147efe900;
+      if (*(uint *)(param_1 + 0x220) != 0) {
+        lVar9 = 0;
+        uVar7 = (ulonglong)*(uint *)(param_1 + 0x220);
+        do {
+          fVar11 = *(float *)(*(longlong *)(param_1 + 0x20) + 0xac);
+          uVar8 = *(int *)(param_1 + 0x108) * 0x343fd + 0x269ec3;
+          *(uint *)(param_1 + 0x108) = uVar8;
+          fVar10 = (float)uVar8 * fVar4;
+          *(float *)(lVar9 + 0x10 + *(longlong *)(param_1 + 0x38)) =
+               ((fVar10 + fVar10) - fVar2) * fVar11;
+          fVar11 = *(float *)(*(longlong *)(param_1 + 0x20) + 0xb0);
+          uVar8 = *(int *)(param_1 + 0x108) * 0x343fd + 0x269ec3;
+          *(uint *)(param_1 + 0x108) = uVar8;
+          fVar10 = (float)uVar8 * fVar4;
+          *(float *)(lVar9 + 0x14 + *(longlong *)(param_1 + 0x38)) =
+               ((fVar10 + fVar10) - fVar2) * fVar11;
+          fVar11 = *(float *)(*(longlong *)(param_1 + 0x20) + 0xb4);
+          uVar8 = *(int *)(param_1 + 0x108) * 0x343fd + 0x269ec3;
+          *(uint *)(param_1 + 0x108) = uVar8;
+          fVar11 = powf(_X,((float)uVar8 * fVar5 - fVar3) * fVar11);
+          *(float *)(lVar9 + 0x18 + *(longlong *)(param_1 + 0x38)) = fVar11;
+          lVar9 = lVar9 + 0x1c;
+          uVar7 = uVar7 - 1;
+        } while (uVar7 != 0);
+      }
+      goto LAB_1473ed28a;
+    }
+  }
+  return 0x34;
+}
+

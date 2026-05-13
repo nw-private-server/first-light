@@ -1,0 +1,116 @@
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+undefined * FUN_1407ec310(void)
+
+{
+  char cVar1;
+  undefined4 uVar2;
+  undefined4 uVar3;
+  undefined4 uVar4;
+  longlong lVar5;
+  undefined8 *puVar6;
+  undefined8 *puVar7;
+  char cVar8;
+  char *_Memory;
+  byte bVar9;
+  ushort uVar10;
+  ushort uVar11;
+  longlong local_48;
+  undefined8 uStack_40;
+  byte local_38 [16];
+  char *local_28;
+  undefined8 uStack_20;
+  undefined8 local_18;
+  ulonglong local_10;
+  
+  puVar7 = (undefined8 *)0x0;
+  if ((*(int *)(*(longlong *)((longlong)ThreadLocalStoragePointer + (ulonglong)_tls_index * 8) +
+               0x3684) < DAT_14a2e7c78) && (FUN_147aa6598(&DAT_14a2e7c78), DAT_14a2e7c78 == -1)) {
+    local_28 = (char *)0x0;
+    uStack_20 = 0;
+    local_18 = 0;
+    local_10 = 0;
+    local_28 = (char *)operator_new(0x20);
+    uVar4 = s_ClientConnectionMsg_147f45080._12_4_;
+    uVar3 = s_ClientConnectionMsg_147f45080._8_4_;
+    uVar2 = s_ClientConnectionMsg_147f45080._4_4_;
+    local_18 = 0x13;
+    local_10 = 0x1f;
+    *(undefined4 *)local_28 = s_ClientConnectionMsg_147f45080._0_4_;
+    *(undefined4 *)(local_28 + 4) = uVar2;
+    *(undefined4 *)(local_28 + 8) = uVar3;
+    *(undefined4 *)(local_28 + 0xc) = uVar4;
+    *(undefined2 *)(local_28 + 0x10) = s_ClientConnectionMsg_147f45080._16_2_;
+    local_28[0x12] = s_ClientConnectionMsg_147f45080[0x12];
+    local_28[0x13] = '\0';
+    uVar10 = 0;
+    uVar11 = uVar10;
+    do {
+      cVar1 = (&DAT_147f45098)[uVar10];
+      if ((cVar1 == '-') || (cVar1 == '{')) {
+LAB_1407ec49d:
+        uVar10 = uVar10 + 1;
+      }
+      else {
+        cVar8 = cVar1 + -0x30;
+        if (9 < (byte)(cVar1 - 0x30U)) {
+          if ((byte)(cVar1 + 0xbfU) < 6) {
+            cVar8 = cVar1 + -0x37;
+          }
+          else {
+            cVar8 = '\0';
+            if ((byte)(cVar1 + 0x9fU) < 6) {
+              cVar8 = cVar1 + -0x57;
+            }
+          }
+        }
+        cVar1 = (&DAT_147f45099)[uVar10];
+        bVar9 = cVar1 - 0x30;
+        if (9 < bVar9) {
+          if ((byte)(cVar1 + 0xbfU) < 6) {
+            bVar9 = cVar1 - 0x37;
+          }
+          else {
+            bVar9 = 0;
+            if ((byte)(cVar1 + 0x9fU) < 6) {
+              bVar9 = cVar1 + 0xa9;
+            }
+          }
+        }
+        local_38[uVar11] = cVar8 << 4 | bVar9;
+        uVar10 = uVar10 + 2;
+        uVar11 = uVar11 + 1;
+        if ((&DAT_147f45098)[uVar10] == '}') goto LAB_1407ec49d;
+      }
+    } while (uVar11 < 0x10);
+    FUN_1407de270(&local_48,local_38,&local_28);
+    lVar5 = local_48;
+    puVar6 = (undefined8 *)operator_new(0x10);
+    if (puVar6 != (undefined8 *)0x0) {
+      *puVar6 = &PTR_LAB_147f483d8;
+      puVar7 = puVar6;
+    }
+    puVar6 = *(undefined8 **)(lVar5 + 0x48);
+    *(undefined8 **)(lVar5 + 0x48) = puVar7;
+    if (puVar6 != (undefined8 *)0x0) {
+      (**(code **)*puVar6)(puVar6,1);
+    }
+    if (0xf < local_10) {
+      _Memory = local_28;
+      if ((0xfff < local_10 + 1) &&
+         (_Memory = *(char **)(local_28 + -8), (char *)0x1f < local_28 + (-8 - (longlong)_Memory)))
+      {
+                    /* WARNING: Subroutine does not return */
+        _invalid_parameter_noinfo_noreturn();
+      }
+      free(_Memory);
+    }
+    _DAT_14a2e7c58 = local_48;
+    DAT_14a2e7c60 = uStack_40;
+    atexit(FUN_147e1d990);
+    _Init_thread_footer(&DAT_14a2e7c78);
+  }
+  return &DAT_14a2e7c58;
+}
+

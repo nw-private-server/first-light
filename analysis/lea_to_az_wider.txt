@@ -1,0 +1,5 @@
+# scanning for LEA/MOV instructions targeting [0x14abc0000, 0x14abf0000]
+
+# 0 hits across 0 unique functions
+
+# end

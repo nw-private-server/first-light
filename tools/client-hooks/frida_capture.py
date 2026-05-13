@@ -51,6 +51,8 @@ CAPTURE_DIR = PROJECT_DIR / "capture"
 TOOLS_DIR = PROJECT_DIR / "tools" / "client-hooks"
 HOOK_SCRIPT = TOOLS_DIR / "frida_dtls_hook.js"
 TRUST_PATCH_SCRIPT = TOOLS_DIR / "frida_dtls_trust_patch.js"
+GPU_SPOOF_SCRIPT = TOOLS_DIR / "frida_gpu_spoof.js"
+EXIT_TRAP_SCRIPT = TOOLS_DIR / "frida_exit_trap.js"
 GAME_EXE = Path(os.environ.get(
     "NW_GAME_EXE",
     r"C:\Program Files (x86)\Steam\steamapps\common\New World\Bin64\NewWorld.exe",
@@ -236,6 +238,8 @@ def _load_script(session, script_path: Path, writer: SessionWriter, label: str):
 
 
 def spawn_and_attach(writer: SessionWriter, patch_trust: bool = True,
+                     gpu_spoof: bool = False,
+                     exit_trap: bool = False,
                      extra_args: list[str] | None = None) -> tuple:
     """Spawn NewWorld.exe suspended, attach Frida, then resume.
 
@@ -271,6 +275,12 @@ def spawn_and_attach(writer: SessionWriter, patch_trust: bool = True,
     if patch_trust:
         scripts.append(_load_script(session, TRUST_PATCH_SCRIPT, writer, "Trust patch"))
         time.sleep(0.2)  # let the patch's status message flush
+    if exit_trap:
+        scripts.append(_load_script(session, EXIT_TRAP_SCRIPT, writer, "Exit trap"))
+        time.sleep(0.1)
+    if gpu_spoof:
+        scripts.append(_load_script(session, GPU_SPOOF_SCRIPT, writer, "GPU spoof"))
+        time.sleep(0.1)
     scripts.append(_load_script(session, HOOK_SCRIPT, writer, "Hook script"))
 
     writer.log("[*] Resuming process...")
@@ -282,7 +292,9 @@ def spawn_and_attach(writer: SessionWriter, patch_trust: bool = True,
 
 def attach_to_running(writer: SessionWriter, pid: int | None = None,
                       process_name: str = "NewWorld.exe",
-                      patch_trust: bool = True) -> tuple:
+                      patch_trust: bool = True,
+                      gpu_spoof: bool = False,
+                      exit_trap: bool = False) -> tuple:
     """Attach to an already-running NewWorld.exe.
 
     Returns (session, [scripts], pid).
@@ -302,6 +314,12 @@ def attach_to_running(writer: SessionWriter, pid: int | None = None,
     if patch_trust:
         scripts.append(_load_script(session, TRUST_PATCH_SCRIPT, writer, "Trust patch"))
         time.sleep(0.2)
+    if exit_trap:
+        scripts.append(_load_script(session, EXIT_TRAP_SCRIPT, writer, "Exit trap"))
+        time.sleep(0.1)
+    if gpu_spoof:
+        scripts.append(_load_script(session, GPU_SPOOF_SCRIPT, writer, "GPU spoof"))
+        time.sleep(0.1)
     scripts.append(_load_script(session, HOOK_SCRIPT, writer, "Hook script"))
 
     return session, scripts, pid
@@ -341,6 +359,19 @@ def main():
     )
     parser.set_defaults(patch_trust=True)
     parser.add_argument(
+        "--gpu-spoof", action="store_true", default=False,
+        help="Bypass NewWorld's 'Unsupported video card detected' abort path "
+             "by hooking MessageBoxW to force IDOK on AZoth-captioned dialogs. "
+             "Needed when running in a VM where DXGI returns VendorId=DeviceId=0 "
+             "(e.g. UTM virtio-gpu). See frida_gpu_spoof.js."
+    )
+    parser.add_argument(
+        "--exit-trap", action="store_true", default=False,
+        help="Hook every plausible exit/abort entry point and dump a stack "
+             "trace when fired. Used to identify silent-abort paths that "
+             "bypass kernel32!TerminateProcess. See frida_exit_trap.js."
+    )
+    parser.add_argument(
         "--exe-arg", action="append", default=[],
         help="Extra argument to pass to NewWorld.exe (repeatable). "
              "E.g. --exe-arg=--GatewayMode=stubbed --exe-arg=--AuthMode=stubbed"
@@ -366,6 +397,8 @@ def main():
     print(f"  Output:    {session_dir}")
     print(f"  Mode:      {'attach' if args.attach else 'spawn'}")
     print(f"  Trust patch: {'on' if args.patch_trust else 'off'}")
+    print(f"  GPU spoof:   {'on' if args.gpu_spoof else 'off'}")
+    print(f"  Exit trap:   {'on' if args.exit_trap else 'off'}")
     print("=" * 64)
     print()
 
@@ -373,11 +406,15 @@ def main():
     try:
         if args.attach:
             session, scripts, pid = attach_to_running(
-                writer, args.pid, args.process_name, patch_trust=args.patch_trust
+                writer, args.pid, args.process_name,
+                patch_trust=args.patch_trust, gpu_spoof=args.gpu_spoof,
+                exit_trap=args.exit_trap,
             )
         else:
             session, scripts, pid = spawn_and_attach(
-                writer, patch_trust=args.patch_trust, extra_args=args.exe_arg
+                writer, patch_trust=args.patch_trust, gpu_spoof=args.gpu_spoof,
+                exit_trap=args.exit_trap,
+                extra_args=args.exe_arg
             )
     except frida.ProcessNotFoundError:
         writer.log("[!] Process not found. Is the game running?")

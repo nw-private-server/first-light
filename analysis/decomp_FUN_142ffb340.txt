@@ -1,0 +1,27 @@
+// FUN_142ffb340 @ 142ffb340
+
+void FUN_142ffb340(longlong param_1)
+
+{
+  undefined **local_48;
+  undefined8 local_40;
+  undefined **local_38;
+  undefined8 local_30;
+  undefined **local_28;
+  undefined8 local_20;
+  undefined8 local_18;
+  undefined8 uStack_10;
+  
+  local_40 = 0;
+  local_20 = 0;
+  local_18 = 0;
+  uStack_10 = 0;
+  local_48 = &PTR_LAB_1480b77c8;
+  local_38 = &PTR_LAB_148089ff0;
+  local_30 = 0;
+  local_28 = &PTR_LAB_14808a050;
+  FUN_14053eb60(&local_18);
+  FUN_142ffbc50(param_1 + -0x118,&local_48);
+  return;
+}
+

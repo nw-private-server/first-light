@@ -1,0 +1,9 @@
+// FUN_145a9fa00 @ 145a9fa00
+
+void FUN_145a9fa00(longlong param_1)
+
+{
+  *(undefined1 *)(param_1 + 0xbc8) = 1;
+  return;
+}
+

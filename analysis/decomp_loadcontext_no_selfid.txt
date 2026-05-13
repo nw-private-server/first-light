@@ -1,0 +1,157 @@
+// FUN_146448cd0 @ 146448cd0
+
+void FUN_146448cd0(longlong param_1)
+
+{
+  longlong *plVar1;
+  undefined1 uVar2;
+  longlong *plVar3;
+  void *_Memory;
+  undefined1 uVar4;
+  char cVar5;
+  longlong lVar6;
+  longlong lVar7;
+  undefined8 uVar8;
+  undefined8 uVar9;
+  undefined8 uVar10;
+  longlong *plVar11;
+  undefined8 ****ppppuVar12;
+  longlong *plVar13;
+  longlong *local_res8;
+  ulonglong local_res10;
+  longlong *local_res18;
+  longlong local_res20;
+  code *local_168;
+  undefined4 uStack_160;
+  undefined8 ***local_158 [3];
+  ulonglong local_140;
+  undefined1 local_138 [8];
+  undefined1 local_130 [48];
+  undefined1 local_100 [176];
+  char local_50;
+  
+  if (*(char *)(param_1 + 0x1a1) == '\0') {
+    if (*(char *)(param_1 + 0x1a0) == '\0') {
+      FUN_1416ad580("GameMessagePort","LoadContextAndLevel failed - no self identification");
+    }
+    else if (*(char *)(param_1 + 400) == '\0') {
+      FUN_1416ad580("GameMessagePort","LoadContextAndLevel failed - missing LevelInfo");
+    }
+    else {
+      plVar3 = *(longlong **)(DAT_14a7ba0e0 + 0x60);
+      local_res8 = plVar3;
+      if (plVar3 == (longlong *)0x0) {
+        FUN_1416ad580("GameMessagePort","LoadContextAndLevel failed - pGame is nullptr");
+      }
+      else {
+        lVar6 = FUN_1406d97d0();
+        local_res10 = *(ulonglong *)(lVar6 + 8);
+        local_res20 = lVar6;
+        if (local_res10 == 0) {
+          FUN_1416ad580("GameMessagePort","LoadContextAndLevel failed - clientSdk is nullptr");
+        }
+        else {
+          local_res18 = operator_new(0xb0);
+          lVar7 = 0;
+          if (local_res18 != (longlong *)0x0) {
+            lVar7 = FUN_1464027b0(local_res18,param_1 + 0xe0);
+          }
+          _Memory = (void *)plVar3[0x38];
+          plVar3[0x38] = lVar7;
+          if (_Memory != (void *)0x0) {
+            FUN_141650c10(_Memory);
+            free(_Memory);
+          }
+          if ((*(int *)(*(longlong *)
+                         ((longlong)ThreadLocalStoragePointer + (ulonglong)_tls_index * 8) + 0x3684)
+               < DAT_14a2fb988) && (FUN_147aa6598(&DAT_14a2fb988), DAT_14a2fb988 == -1)) {
+            uVar8 = __std_type_info_name(0x14a13c4a0,&DAT_14a829d20);
+            DAT_14a2fb980 = (longlong *)FUN_141676530(uVar8);
+            _Init_thread_footer(&DAT_14a2fb988);
+          }
+          lVar7 = *DAT_14a2fb980;
+          if (lVar7 == 0) {
+            uVar8 = __std_type_info_name(0x14a13c4a0,&DAT_14a829d20);
+            FUN_1416ad7e0(uVar8);
+          }
+          plVar1 = (longlong *)(lVar7 + 8);
+          (**(code **)(*plVar1 + 0x18))(plVar1,param_1 + 0x130);
+          FUN_14143e010("GameMessagePort","Calling clientContext->Initialize");
+          lVar6 = *(longlong *)(plVar3[0x3c] + (longlong)*(int *)(lVar6 + 0x10) * 8);
+          uVar9 = FUN_141025ee0();
+          local_res18 = plVar3 + 5;
+          uVar4 = (**(code **)(*local_res18 + 0x88))(local_res18);
+          uVar2 = *(undefined1 *)(param_1 + 0x180);
+          uVar8 = *(undefined8 *)(param_1 + 0x140);
+          uVar10 = FUN_145a8eae0(lVar6 + 0x130,local_158);
+          uVar10 = FUN_1417221f0(local_130,uVar10);
+          FUN_14171b850(uVar9,uVar10,local_res10,uVar8,param_1 + 0x148,uVar2,uVar4);
+          FUN_14163a120(local_130);
+          plVar13 = local_res18;
+          cVar5 = (**(code **)(*local_res18 + 0x88))(local_res18);
+          plVar1 = local_res8;
+          plVar3 = (longlong *)(param_1 + 0xe0);
+          if (((cVar5 == '\0') && (*(longlong *)(param_1 + 0x118) != 0)) &&
+             (*(int *)(local_res20 + 0x10) == 0)) {
+            plVar11 = (longlong *)(param_1 + 0x108);
+            if (0xf < *(ulonglong *)(param_1 + 0x120)) {
+              plVar11 = (longlong *)*plVar11;
+            }
+            (**(code **)(*local_res8 + 0x168))(local_res8,plVar11);
+          }
+          (**(code **)(*plVar1 + 0x1b8))(plVar1,plVar3,param_1 + 0x1a8);
+          cVar5 = (**(code **)(*plVar13 + 0x88))(plVar13);
+          if (cVar5 == '\0') {
+            FUN_140766500(param_1,1);
+            *(undefined1 *)(plVar1 + 0x13d) = 0;
+            *(undefined1 *)(param_1 + 0x1a1) = 1;
+            plVar13 = plVar3;
+            if (0xf < *(ulonglong *)(param_1 + 0xf8)) {
+              plVar13 = (longlong *)*plVar3;
+            }
+            local_res8 = (longlong *)((ulonglong)local_res8 & 0xffffffffffffff00);
+            local_168 = FUN_14057145c;
+            uStack_160 = 0;
+            FUN_14033d2b0(&local_res8,&local_168);
+            if ((char)local_res8 == '\0') {
+              local_res8 = (longlong *)CONCAT71(local_res8._1_7_,1);
+              local_res10 = local_res10 & 0xffffffffffffff00;
+              local_res18 = (longlong *)CONCAT44(local_res18._4_4_,0x42700000);
+              local_res20 = CONCAT44(local_res20._4_4_,3);
+              local_168 = FUN_14057167c;
+              uStack_160 = 0;
+              FUN_140fbeb30(&local_168,&local_res20,"AnimationSpinner",&local_res18,&local_res10,
+                            &local_res8);
+            }
+            FUN_1402b0e70(local_158,"map %s",plVar13);
+            ppppuVar12 = local_158;
+            if (0xf < local_140) {
+              ppppuVar12 = (undefined8 ****)local_158[0];
+            }
+            (**(code **)(**(longlong **)(DAT_14a7ba0e0 + 0x78) + 0x120))
+                      (*(longlong **)(DAT_14a7ba0e0 + 0x78),ppppuVar12,0,0);
+            if (((int)plVar1[300] != 1) && ((longlong *)plVar1[0x3c] != (longlong *)plVar1[0x3d])) {
+              FUN_145a95160(*(longlong *)plVar1[0x3c] + 0x130);
+            }
+            if (0xf < local_140) {
+              FUN_14149ca40(local_138,local_158[0],local_140 + 1,1);
+            }
+          }
+          else {
+            *(undefined1 *)(param_1 + 0x1a2) = 1;
+            FUN_140766500(param_1);
+            FUN_146455e90(param_1);
+          }
+          local_50 = '\0';
+          memset(local_100,0,0xb0);
+          FUN_146410750(plVar3,local_100);
+          if (local_50 != '\0') {
+            FUN_141650c10(local_100);
+          }
+        }
+      }
+    }
+  }
+  return;
+}
+

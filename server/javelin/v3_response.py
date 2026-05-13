@@ -38,10 +38,59 @@ RESPONSE_TYPE_BYTE = 0x03
 # real successful-login dump. Caller can override via constructor.
 DEFAULT_SERVER_VERSION = "[RETAIL].Javelin.1.365.6031.6006993"
 
-# 8-byte mystery field at offset 0x07 in Mixed Nuts' capture. We don't yet
-# know what it encodes. Default to the captured bytes verbatim; caller can
-# override if we learn what these mean (probably tied to session/clock).
-DEFAULT_MYSTERY8 = bytes.fromhex("0b888d68706c415b")  # 0b 88 8d 68 70 6c 41 5b
+# 8-byte mystery field at offset 0x07. Per worklog wake 66's analysis of
+# the existing replay (`analysis/replay_message_inventory.md`), this field
+# decomposes into:
+#
+#   bytes 0..3 (u32 BE) : session_clock — slow-incrementing counter the
+#                          server sets at registration. Type 0x14f's
+#                          payload bytes 0..3 carry the SAME value;
+#                          across the 4 captured 0x14f messages it
+#                          transitions 0x0b888d68 → 0x0b888d69, confirming
+#                          this is a per-session timer.
+#   bytes 4..7 (u32 BE) : nonce — per-session nonce/hash. Different in
+#                          every 0x14f capture; here we just preserve
+#                          the captured bytes verbatim.
+#
+# Use `make_mystery8(session_clock, nonce)` to build the 8-byte blob from
+# the decomposed values. `parse_mystery8(blob)` returns (clock, nonce).
+DEFAULT_MYSTERY8_SESSION_CLOCK = 0x0b888d68     # u32 BE — captured
+DEFAULT_MYSTERY8_NONCE = 0x706c415b              # u32 BE — captured
+
+
+def make_mystery8(session_clock: int, nonce: int) -> bytes:
+    """Build the 8-byte mystery field from its decomposed parts.
+
+    Both values are u32 big-endian (matches the on-wire byte order).
+    Raises `ValueError` if either is out of u32 range.
+    """
+    if not 0 <= session_clock <= 0xFFFFFFFF:
+        raise ValueError(f"session_clock must fit in u32; got {session_clock}")
+    if not 0 <= nonce <= 0xFFFFFFFF:
+        raise ValueError(f"nonce must fit in u32; got {nonce}")
+    return session_clock.to_bytes(4, "big") + nonce.to_bytes(4, "big")
+
+
+def parse_mystery8(blob: bytes) -> tuple[int, int]:
+    """Decompose an 8-byte mystery field into (session_clock, nonce).
+
+    Inverse of `make_mystery8`. Raises `ValueError` on length mismatch.
+    """
+    if len(blob) != 8:
+        raise ValueError(f"mystery8 must be exactly 8 bytes; got {len(blob)}")
+    return (
+        int.from_bytes(blob[:4], "big"),
+        int.from_bytes(blob[4:], "big"),
+    )
+
+
+DEFAULT_MYSTERY8 = make_mystery8(
+    DEFAULT_MYSTERY8_SESSION_CLOCK,
+    DEFAULT_MYSTERY8_NONCE,
+)
+assert DEFAULT_MYSTERY8.hex() == "0b888d68706c415b", (
+    "DEFAULT_MYSTERY8 must equal the captured bytes for backward compat"
+)
 
 # 4-byte trailer at offset 0x54 in Mixed Nuts' capture. Likely status flags
 # or a fixed checksum. Captured verbatim.
@@ -50,6 +99,14 @@ DEFAULT_TRAILER = bytes.fromhex("01000001")  # 01 00 00 01
 
 @dataclass
 class V3RegistrationResponse:
+    """Server's V3 RegistrationResponse — the reply to the client's
+    `parse_v3_request` body. 88 bytes total on the wire: a 32-byte
+    session_token, a 35-char server_version string, an error_code,
+    an 8-byte mystery8 (first 4 bytes are the session_clock that
+    0x14f also carries), and a 4-byte trailer. Encoded by
+    `v3_response.encode()` and consumed by the client to flip the
+    rep.ready bit 0 → 1.
+    """
     # The 32-byte session token at offset 0x10. Mixed Nuts redacted his —
     # default to a deterministic stub. Caller can supply real bytes once
     # we wire up a session-allocator.

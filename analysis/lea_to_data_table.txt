@@ -1,0 +1,78 @@
+# scanning for LEA/MOV instructions targeting [0x149f41000, 0x149f4b000]
+
+# 260 hits across 6 unique functions
+
+## FUN_140238070 @ 140238070 (139 hits)
+  140238096  MOV  -> 0x149f41378   MOV byte ptr [0x149f41378],AL
+  1402380b3  MOV  -> 0x149f413a8   MOV byte ptr [0x149f413a8],AL
+  1402380d0  MOV  -> 0x149f413d8   MOV byte ptr [0x149f413d8],AL
+  1402380ed  MOV  -> 0x149f41408   MOV byte ptr [0x149f41408],AL
+  14023810a  MOV  -> 0x149f41438   MOV byte ptr [0x149f41438],AL
+  140238127  MOV  -> 0x149f41468   MOV byte ptr [0x149f41468],AL
+  140238144  MOV  -> 0x149f41498   MOV byte ptr [0x149f41498],AL
+  140238150  MOV  -> 0x149f414c0   MOV dword ptr [0x149f414c0],EAX
+  14023815d  MOV  -> 0x149f414c4   MOV word ptr [0x149f414c4],AX
+  14023816a  MOV  -> 0x149f414f0   MOV dword ptr [0x149f414f0],EAX
+  140238177  MOV  -> 0x149f414f4   MOV word ptr [0x149f414f4],AX
+  140238184  MOV  -> 0x149f41520   MOV dword ptr [0x149f41520],EAX
+  140238191  MOV  -> 0x149f41524   MOV word ptr [0x149f41524],AX
+  14023819f  MOV  -> 0x149f41550   MOV dword ptr [0x149f41550],EAX
+  1402381ac  MOV  -> 0x149f41554   MOV word ptr [0x149f41554],AX
+  1402381ba  MOV  -> 0x149f41556   MOV byte ptr [0x149f41556],AL
+  1402381c7  MOV  -> 0x149f41580   MOV dword ptr [0x149f41580],EAX
+  1402381d4  MOV  -> 0x149f41584   MOV word ptr [0x149f41584],AX
+  1402381e2  MOV  -> 0x149f41586   MOV byte ptr [0x149f41586],AL
+  1402381ef  MOV  -> 0x149f415b0   MOV dword ptr [0x149f415b0],EAX
+  ... (119 more)
+
+## FUN_1402386f0 @ 1402386f0 (102 hits)
+  14023871a  MOV  -> 0x149f41008   MOV dword ptr [0x149f41008],EAX
+  140238727  MOV  -> 0x149f4100c   MOV word ptr [0x149f4100c],AX
+  140238735  MOV  -> 0x149f4100e   MOV byte ptr [0x149f4100e],AL
+  140238742  MOV  -> 0x149f41028   MOV dword ptr [0x149f41028],ECX
+  140238750  MOV  -> 0x149f4102c   MOV word ptr [0x149f4102c],R8W
+  14023875f  MOV  -> 0x149f4102e   MOV byte ptr [0x149f4102e],DL
+  14023876c  MOV  -> 0x149f41050   MOV dword ptr [0x149f41050],EAX
+  140238779  MOV  -> 0x149f41054   MOV word ptr [0x149f41054],AX
+  140238787  MOV  -> 0x149f41056   MOV byte ptr [0x149f41056],AL
+  14023878d  MOV  -> 0x149f41078   MOV dword ptr [0x149f41078],ECX
+  140238793  MOV  -> 0x149f4107c   MOV word ptr [0x149f4107c],R8W
+  14023879b  MOV  -> 0x149f4107e   MOV byte ptr [0x149f4107e],DL
+  1402387a7  MOV  -> 0x149f410f0   MOV dword ptr [0x149f410f0],EAX
+  1402387b4  MOV  -> 0x149f410f4   MOV byte ptr [0x149f410f4],AL
+  1402387c0  MOV  -> 0x149f41118   MOV dword ptr [0x149f41118],EAX
+  1402387cd  MOV  -> 0x149f4111c   MOV byte ptr [0x149f4111c],AL
+  1402387d9  MOV  -> 0x149f41140   MOV dword ptr [0x149f41140],EAX
+  1402387e6  MOV  -> 0x149f41144   MOV word ptr [0x149f41144],AX
+  1402387f3  MOV  -> 0x149f41168   MOV dword ptr [0x149f41168],EAX
+  140238800  MOV  -> 0x149f4116c   MOV word ptr [0x149f4116c],AX
+  ... (82 more)
+
+## FUN_146240d70 @ 146240d70 (7 hits)
+  146241199  LEA  -> 0x149f41880   LEA R10,[0x149f41880]
+  1462411b6  CMP  -> 0x149f49d00   CMP dword ptr [R8 + RCX*0x8],R9D
+  1462411c0  LEA  -> 0x149f49d08   LEA R8,[RAX + 0x8]
+  1462411e0  CMP  -> 0x149f49d08   CMP R9D,dword ptr [R8]
+  1462411f6  CMP  -> 0x149f49d00   CMP dword ptr [R8 + RCX*0x8],R9D
+  146241200  LEA  -> 0x149f49d08   LEA R8,[RAX + 0x8]
+  146241220  MOV  -> 0x149f49d0c   MOV EAX,dword ptr [R8 + 0x4]
+
+## FUN_1462426b0 @ 1462426b0 (7 hits)
+  146242760  LEA  -> 0x149f41880   LEA R10,[0x149f41880]
+  146242786  CMP  -> 0x149f49d00   CMP dword ptr [R11 + RDX*0x8],ECX
+  146242790  LEA  -> 0x149f49d08   LEA R11,[RAX + 0x8]
+  1462427b7  CMP  -> 0x149f49d08   CMP ECX,dword ptr [R11]
+  1462427c6  CMP  -> 0x149f49d00   CMP dword ptr [R10 + RDX*0x8],ECX
+  1462427d0  LEA  -> 0x149f49d08   LEA R10,[RAX + 0x8]
+  1462427f0  MOV  -> 0x149f49d0c   MOV EAX,dword ptr [R10 + 0x4]
+
+## FUN_147eaad40 @ 147eaad40 (3 hits)
+  147eaad44  MOV  -> 0x149f41868   MOV R8,qword ptr [0x149f41868]
+  147eaad5a  MOV  -> 0x149f41850   MOV RDX,qword ptr [0x149f41850]
+  147eaad61  LEA  -> 0x149f41870   LEA RCX,[0x149f41870]
+
+## ? @ None (2 hits)
+  147eaad12  LEA  -> 0x149f41370   LEA RCX,[0x149f41370]
+  147eaad32  LEA  -> 0x149f41000   LEA RCX,[0x149f41000]
+
+# end

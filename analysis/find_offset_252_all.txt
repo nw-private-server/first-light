@@ -1,0 +1,118 @@
+# offset-reference scan: any instruction with operand displacement 0x252
+
+scanned 32079663 instructions, 45 hits
+
+## hits grouped by enclosing function (33 unique)
+
+### FUN_140708ef0 @ 140708ef0  (1 hit)
+  140708f40  CMP byte ptr [RBX + 0x252],0x0
+
+### FUN_140f4c5a0 @ 140f4c5a0  (1 hit)
+  140f4c702  MOV byte ptr [R14 + 0x252],AL
+
+### FUN_140f8ab70 @ 140f8ab70  (1 hit)
+  140f8af28  CMP byte ptr [R12 + 0x252],0x0
+
+### FUN_141965560 @ 141965560  (2 hits)
+  141965f6e  MOV EDX,0x252
+  141966078  MOV dword ptr [RBX + 0x18],0x252
+
+### FUN_142fdec20 @ 142fdec20  (2 hits)
+  142fdf023  MOVZX EAX,byte ptr [RDI + 0x252]
+  142fdf02a  MOV byte ptr [RBX + 0x252],AL
+
+### FUN_142fdf050 @ 142fdf050  (2 hits)
+  142fdf41e  MOVZX EAX,byte ptr [RDI + 0x252]
+  142fdf425  MOV byte ptr [RBX + 0x252],AL
+
+### FUN_142fdf450 @ 142fdf450  (1 hit)
+  142fdf680  MOV byte ptr [RBX + 0x252],CL
+
+### FUN_142ffbc50 @ 142ffbc50  (3 hits)
+  142ffbe4d  CMP R15B,byte ptr [RSI + 0x252]
+  142ffbe5d  MOV byte ptr [RSI + 0x252],R15B
+  142ffbe84  LEA R8,[RSI + 0x252]
+
+### FUN_143dd6b20 @ 143dd6b20  (1 hit)
+  143dd6ffe  MOV byte ptr [RBP + 0x252],0x1
+
+### FUN_143fe1300 @ 143fe1300  (2 hits)
+  143fe1621  MOVZX EAX,byte ptr [RBP + 0x252]
+  143fe1628  MOV byte ptr [R15 + 0x252],AL
+
+### FUN_143fe1690 @ 143fe1690  (2 hits)
+  143fe19a0  MOVZX EAX,byte ptr [RSI + 0x252]
+  143fe19a7  MOV byte ptr [RDI + 0x252],AL
+
+### FUN_143fe1a30 @ 143fe1a30  (1 hit)
+  143fe1c92  MOV byte ptr [RBX + 0x252],0x0
+
+### FUN_143fe6500 @ 143fe6500  (1 hit)
+  143fe65e6  MOVZX R8D,byte ptr [RSI + 0x252]
+
+### FUN_1442a98c0 @ 1442a98c0  (1 hit)
+  1442a98c6  CMP byte ptr [RCX + 0x252],0x0
+
+### FUN_145a923c0 @ 145a923c0  (1 hit)
+  145a923c0  MOVZX EAX,byte ptr [RCX + 0x252]
+
+### FUN_145dbae90 @ 145dbae90  (1 hit)
+  145dbaff2  MOV byte ptr [R14 + 0x252],AL
+
+### FUN_145ddeee0 @ 145ddeee0  (1 hit)
+  145ddf298  CMP byte ptr [R12 + 0x252],0x0
+
+### FUN_146c60830 @ 146c60830  (1 hit)
+  146c60ad8  MOV byte ptr [RBX + 0x252],DIL
+
+### FUN_147142310 @ 147142310  (2 hits)
+  1471423fe  CMP byte ptr [RCX + 0x252],0x0
+  147142407  MOV byte ptr [RCX + 0x252],0x0
+
+### FUN_1471c4200 @ 1471c4200  (2 hits)
+  1471c42c2  MOV EDX,0x252
+  1471c4381  MOV dword ptr [RBX + 0x18],0x252
+
+### FUN_1473ed090 @ 1473ed090  (1 hit)
+  1473ed132  MOV byte ptr [RBX + 0x252],0x1
+
+### FUN_147525900 @ 147525900  (2 hits)
+  147525e47  MOVZX EAX,byte ptr [RDI + 0x252]
+  147525e4e  MOV byte ptr [RSI + 0x252],AL
+
+### FUN_147525ee0 @ 147525ee0  (2 hits)
+  14752620a  MOVZX EAX,byte ptr [RSI + 0x252]
+  147526211  MOV byte ptr [RBP + 0x252],AL
+
+### FUN_147526270 @ 147526270  (1 hit)
+  1475264d2  MOV byte ptr [RSI + 0x252],BPL
+
+### FUN_14752dcd0 @ 14752dcd0  (1 hit)
+  14752f293  MOV byte ptr [R14 + 0x252],0x1
+
+### FUN_1477f6ea0 @ 1477f6ea0  (1 hit)
+  1477f7052  MOV dword ptr [RSP + 0x20],0x252
+
+### FUN_1478eaaa0 @ 1478eaaa0  (1 hit)
+  1478eb455  MOVUPS xmmword ptr [RBP + 0x252],XMM0
+
+### FUN_147914e10 @ 147914e10  (1 hit)
+  147915402  MOV R8D,0x252
+
+### FUN_147928d90 @ 147928d90  (1 hit)
+  147928ed6  MOV dword ptr [RSP + 0x28],0x252
+
+### FUN_1479b6d00 @ 1479b6d00  (1 hit)
+  1479b7310  MOV byte ptr [RBP + 0x252],0x0
+
+### FUN_147b30840 @ 147b30840  (1 hit)
+  147b30a05  MOV EDX,0x252
+
+### FUN_147b30ae0 @ 147b30ae0  (1 hit)
+  147b30d0c  MOV EDX,0x252
+
+### ? @ ?  (2 hits)
+  140f802ac  MOV byte ptr [RAX + 0x252],DL
+  140f802cc  MOVZX EAX,byte ptr [RAX + 0x252]
+
+# end

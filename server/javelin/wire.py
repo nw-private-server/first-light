@@ -6,9 +6,15 @@ without pulling in the pyOpenSSL DTLS dependency.
   - `encode_vlq32(n)`  -> 1..5 byte canonical-shortest-form VLQ32
   - `chunk_replay_payload(body, chunk_size)` -> [(remaining, slice), ...]
     for MF_CHUNKS reassembly, with a chunks-countdown convention
+  - `compute_cs_crc32(correlation_uuid, envelope)` -> u32
+  - `serialize_cs_envelope(correlation_uuid, envelope)` -> bytes
+    Build the full C→S framed message including CRC32 prefix.
 """
 
 from __future__ import annotations
+
+import struct
+import zlib
 
 
 def encode_vlq32(value: int) -> bytes:
@@ -53,3 +59,112 @@ def chunk_replay_payload(
         (n - i, body[i * chunk_size:(i + 1) * chunk_size])
         for i in range(n)
     ]
+
+
+# ---------------------------------------------------------------------------
+# C→S framing layer (Mixed Nuts spec)
+#
+# Per `docs/post-v3-sequence.md` and confirmed empirically (wake 90):
+# every captured W-direction message has the layout
+#
+#   [crc32:4 BE][payload_size:4 BE][correlation_uuid:16][typed_envelope...]
+#
+# where crc32 = standard zlib CRC32 (IEEE 802.3 polynomial 0xEDB88320,
+# reflected) computed over (correlation_uuid + typed_envelope), written
+# in big-endian byte order. The payload_size field equals
+# 16 + len(typed_envelope).
+#
+# Validated against 37 of 39 captured W-direction messages. The 2
+# exceptions are: (a) the V3 RegistrationRequest at seq 0 (pre-session
+# framing differs), and (b) the 0x12f6 keybinding-config message which
+# has 36-byte redacted spans in the public capture that break the CRC.
+
+
+def compute_cs_crc32(correlation_uuid: bytes, envelope: bytes) -> int:
+    """Compute the CRC32 used in the C→S framing layer.
+
+    Standard zlib CRC32 (IEEE 802.3 polynomial, reflected) over
+    `correlation_uuid + envelope`. Result is a u32 the caller can
+    serialize as 4 big-endian bytes.
+
+    Validated against captured replay W-direction messages — see
+    `test_codecs.py::test_cs_crc32_matches_captured_w_messages`.
+    """
+    if len(correlation_uuid) != 16:
+        raise ValueError(
+            f"correlation_uuid must be exactly 16 bytes; "
+            f"got {len(correlation_uuid)}"
+        )
+    return zlib.crc32(correlation_uuid + envelope) & 0xFFFFFFFF
+
+
+def serialize_cs_envelope(correlation_uuid: bytes, envelope: bytes) -> bytes:
+    """Build the full C→S framed message:
+        [crc32:4 BE][payload_size:4 BE][correlation_uuid:16][envelope...]
+
+    The CRC is computed automatically from `correlation_uuid + envelope`.
+    `payload_size` = 16 + len(envelope).
+    """
+    crc = compute_cs_crc32(correlation_uuid, envelope)
+    payload_size = 16 + len(envelope)
+    return (
+        struct.pack(">I", crc)
+        + struct.pack(">I", payload_size)
+        + correlation_uuid
+        + envelope
+    )
+
+
+def parse_cs_envelope(buf: bytes) -> tuple[int, int, bytes, bytes]:
+    """Inverse of `serialize_cs_envelope`. Returns
+    `(crc32, payload_size, correlation_uuid, envelope)`.
+
+    Does NOT validate the CRC — caller decides how to handle CRC
+    mismatches (some test scenarios use captured-byte fields with
+    redactions that break the CRC; see wake 90 notes)."""
+    if len(buf) < 24:
+        raise ValueError(
+            f"buffer too short for C→S envelope: need at least 24 bytes; "
+            f"got {len(buf)}"
+        )
+    (crc32,) = struct.unpack_from(">I", buf, 0)
+    (payload_size,) = struct.unpack_from(">I", buf, 4)
+    correlation_uuid = buf[8:24]
+    envelope = buf[24:]
+    return crc32, payload_size, correlation_uuid, envelope
+
+
+def fixup_cs_crc32(message_bytes: bytes) -> bytes:
+    """Replace the 4-byte CRC32 field at the start of a C→S message
+    with the correct CRC computed from the message's correlation_uuid
+    and envelope.
+
+    Useful for codecs that allow callers to leave the `crc32` /
+    `client_hash` field as a placeholder (zeros, sentinel) and want
+    to fix it up before transmission. The codec call sequence is:
+        raw = some_w_codec_encode(msg)        # crc32 may be zero
+        wire = fixup_cs_crc32(raw)            # crc32 now correct
+
+    Safe to call repeatedly; re-fixing already-correct bytes is a
+    no-op.
+    """
+    if len(message_bytes) < 24:
+        raise ValueError(
+            f"message too short for C→S envelope: need at least 24 bytes; "
+            f"got {len(message_bytes)}"
+        )
+    correlation_uuid = message_bytes[8:24]
+    envelope = message_bytes[24:]
+    crc = compute_cs_crc32(correlation_uuid, envelope)
+    return struct.pack(">I", crc) + message_bytes[4:]
+
+
+def verify_cs_crc32(message_bytes: bytes) -> bool:
+    """Check whether a C→S message's leading 4-byte CRC32 matches the
+    value computed from its correlation_uuid + envelope."""
+    if len(message_bytes) < 24:
+        return False
+    (claimed,) = struct.unpack_from(">I", message_bytes, 0)
+    correlation_uuid = message_bytes[8:24]
+    envelope = message_bytes[24:]
+    return claimed == compute_cs_crc32(correlation_uuid, envelope)

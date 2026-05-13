@@ -1,0 +1,13 @@
+# bulk-bytes-search
+
+# 1 patterns to search
+
+HIT FE476177_le pattern=776147fe found=5
+    1402a6d54  block=.text  fn=FUN_1402a6310
+    1402af907  block=.text  fn=FUN_1402af830
+    1402deae0  block=.text  fn=FUN_1402de660
+    1402e3c4e  block=.text  fn=FUN_1402e3b70
+    1407beee1  block=.text  fn=FUN_1407bed90
+
+# 1 patterns matched (out of 1), 5 total hits
+# end

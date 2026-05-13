@@ -1,0 +1,477 @@
+// FUN_146454c00 @ 146454c00
+
+/* WARNING: Type propagation algorithm not settling */
+
+void FUN_146454c00(longlong param_1,longlong param_2,undefined8 param_3,undefined8 param_4,
+                  longlong param_5,undefined4 *param_6,undefined8 param_7)
+
+{
+  char *pcVar1;
+  code *pcVar2;
+  char cVar3;
+  char cVar4;
+  longlong lVar5;
+  undefined8 uVar6;
+  longlong *plVar7;
+  void *_Src;
+  longlong *plVar8;
+  undefined1 *puVar9;
+  ulonglong uVar10;
+  char *pcVar11;
+  undefined1 *puVar12;
+  undefined1 *puVar13;
+  longlong lVar14;
+  undefined8 *******_Dst;
+  ulonglong uVar15;
+  size_t _Size;
+  ulonglong _Size_00;
+  longlong lVar16;
+  char cVar17;
+  float fVar18;
+  double dVar19;
+  float fVar20;
+  float fVar21;
+  float fVar22;
+  float fVar23;
+  float fVar24;
+  float fVar25;
+  float fVar26;
+  char local_1a8 [16];
+  char *local_198;
+  char *pcStack_190;
+  undefined1 local_188;
+  undefined7 uStack_187;
+  ulonglong local_178;
+  ulonglong local_170;
+  char *local_168;
+  char *local_160;
+  undefined2 local_158;
+  undefined6 uStack_156;
+  undefined8 local_148;
+  ulonglong local_140;
+  char *local_138;
+  char *local_130;
+  char *pcStack_128;
+  longlong local_120;
+  char *local_118;
+  char *local_110;
+  char *pcStack_108;
+  longlong local_100;
+  char *local_f8;
+  undefined8 *******local_f0 [2];
+  size_t local_e0;
+  ulonglong local_d8;
+  char *local_d0;
+  longlong *local_c8;
+  longlong local_c0;
+  char *local_b8;
+  undefined8 uStack_b0;
+  undefined8 local_a8 [3];
+  ulonglong local_90;
+  undefined1 local_88 [80];
+  
+  FUN_141721c20("GameMessagePort","PlayerManagerSelfIdentification");
+  lVar14 = *(longlong *)(DAT_14a7ba0e0 + 0x60);
+  if (lVar14 == 0) {
+    FUN_1416ad580("GameMessagePort","PlayerManagerSelfIdentification failed - pGame is nullptr");
+    return;
+  }
+  lVar5 = FUN_1406d97d0(param_1 + -0x990);
+  plVar8 = *(longlong **)(lVar5 + 8);
+  local_c8 = plVar8;
+  if (plVar8 == (longlong *)0x0) {
+    FUN_1416ad580("GameMessagePort","PlayerManagerSelfIdentification failed - clientSdk is nullptr")
+    ;
+    return;
+  }
+  *(undefined4 *)(param_1 + -0x7e8) = *param_6;
+  FUN_1402d13a0(param_1 + -0x7e0,param_6 + 2);
+  *(undefined1 *)(param_1 + -0x7c0) = *(undefined1 *)(param_6 + 10);
+  *(undefined8 *)(param_1 + -0x7bc) = *(undefined8 *)(param_6 + 0xb);
+  *(undefined4 *)(param_1 + -0x7b4) = param_6[0xd];
+  if (*(int *)(lVar5 + 0x10) == 0) {
+    FUN_14646ecc0(lVar14);
+  }
+  lVar14 = *(longlong *)(*(longlong *)(lVar14 + 0x1e0) + (longlong)*(int *)(lVar5 + 0x10) * 8) +
+           0x130;
+  local_c0 = lVar14;
+  FUN_145a9fa10(lVar14,param_3);
+  FUN_145a9fa30(lVar14,param_7);
+  FUN_145a9fa80(lVar14,param_4);
+  if (*(char *)(param_6 + 10) != '\0') {
+    local_198 = &DAT_1405714a4;
+    pcStack_190 = (char *)((ulonglong)pcStack_190 & 0xffffffff00000000);
+    FUN_14033d610(local_1a8,&local_198,"javelin.NWLDebug-virtual-slice-mode");
+    if (local_1a8[0] != '\0') {
+      uVar6 = FUN_141026000();
+      FUN_141721640(uVar6);
+    }
+    cVar4 = '\0';
+    fVar24 = 0.0;
+    fVar25 = 0.0;
+    fVar26 = 0.0;
+    cVar17 = '\0';
+    fVar20 = 0.0;
+    fVar21 = 0.0;
+    fVar22 = 0.0;
+    local_110 = (char *)0x0;
+    pcStack_108 = (char *)0x0;
+    local_100 = 0;
+    local_f8 = "AZStd::allocator";
+    local_160 = "AZStd::allocator";
+    plVar7 = (longlong *)
+             (**(code **)(**(longlong **)(DAT_14a7ba0e0 + 0x78) + 0xc0))
+                       (*(longlong **)(DAT_14a7ba0e0 + 0x78),"g_debugPlayerPosition");
+    uVar6 = (**(code **)(*plVar7 + 0x28))(plVar7);
+    FUN_140298e80(local_a8,uVar6,&local_160);
+    local_140 = 0xf;
+    local_138 = "AZStd::allocator";
+    local_158 = 0x20;
+    local_148 = 1;
+    FUN_14052e170(local_a8,&local_158,&local_110);
+    if (0xf < local_140) {
+      FUN_14149ca40(&local_138,CONCAT62(uStack_156,local_158),local_140 + 1,1);
+    }
+    if (pcStack_108 + (-0x78 - (longlong)local_110) < (char *)0x28) {
+      pcVar11 = local_110;
+      if (0xf < *(ulonglong *)(local_110 + 0x18)) {
+        pcVar11 = *(char **)local_110;
+      }
+      if (pcVar11 == (char *)0x0) {
+        fVar24 = 0.0;
+      }
+      else {
+        dVar19 = atof(pcVar11);
+        fVar24 = (float)dVar19;
+      }
+      pcVar11 = local_110 + 0x28;
+      if (0xf < *(ulonglong *)(local_110 + 0x40)) {
+        pcVar11 = *(char **)pcVar11;
+      }
+      if (pcVar11 == (char *)0x0) {
+        fVar25 = 0.0;
+      }
+      else {
+        dVar19 = atof(pcVar11);
+        fVar25 = (float)dVar19;
+      }
+      pcVar11 = local_110 + 0x50;
+      if (0xf < *(ulonglong *)(local_110 + 0x68)) {
+        pcVar11 = *(char **)pcVar11;
+      }
+      if (pcVar11 == (char *)0x0) {
+        fVar26 = 0.0;
+      }
+      else {
+        dVar19 = atof(pcVar11);
+        fVar26 = (float)dVar19;
+      }
+      cVar4 = '\x01';
+    }
+    local_130 = (char *)0x0;
+    pcStack_128 = (char *)0x0;
+    local_120 = 0;
+    local_118 = "AZStd::allocator";
+    plVar7 = (longlong *)
+             (**(code **)(**(longlong **)(DAT_14a7ba0e0 + 0x78) + 0xc0))
+                       (*(longlong **)(DAT_14a7ba0e0 + 0x78),"g_debugPlayerRotation");
+    _Src = (void *)(**(code **)(*plVar7 + 0x28))(plVar7);
+    local_e0 = 0;
+    local_d8 = 0xf;
+    local_d0 = "AZStd::allocator";
+    _Size = 0xffffffffffffffff;
+    do {
+      _Size = _Size + 1;
+    } while (*(char *)((longlong)_Src + _Size) != '\0');
+    cVar3 = FUN_1402b1040(local_f0,_Size);
+    if (cVar3 != '\0') {
+      _Dst = local_f0;
+      if (0xf < local_d8) {
+        _Dst = local_f0[0];
+      }
+      memcpy(_Dst,_Src,_Size);
+      local_e0 = _Size;
+      *(undefined1 *)((longlong)_Dst + _Size) = 0;
+    }
+    local_140 = 0xf;
+    local_138 = "AZStd::allocator";
+    local_158 = 0x20;
+    local_148 = 1;
+    fVar18 = (float)FUN_14052e170(local_f0,&local_158,&local_130);
+    if (0xf < local_140) {
+      fVar18 = (float)FUN_14149ca40(&local_138,CONCAT62(uStack_156,local_158),local_140 + 1,1);
+    }
+    fVar23 = 0.0;
+    if (pcStack_128 + (-0xa0 - (longlong)local_130) < (char *)0x28) {
+      pcVar11 = local_130;
+      if (0xf < *(ulonglong *)(local_130 + 0x18)) {
+        pcVar11 = *(char **)local_130;
+      }
+      if (pcVar11 == (char *)0x0) {
+        fVar20 = 0.0;
+      }
+      else {
+        dVar19 = atof(pcVar11);
+        fVar20 = (float)dVar19;
+      }
+      pcVar11 = local_130 + 0x28;
+      if (0xf < *(ulonglong *)(local_130 + 0x40)) {
+        pcVar11 = *(char **)pcVar11;
+      }
+      if (pcVar11 == (char *)0x0) {
+        fVar21 = 0.0;
+      }
+      else {
+        dVar19 = atof(pcVar11);
+        fVar21 = (float)dVar19;
+      }
+      pcVar11 = local_130 + 0x50;
+      if (0xf < *(ulonglong *)(local_130 + 0x68)) {
+        pcVar11 = *(char **)pcVar11;
+      }
+      if (pcVar11 == (char *)0x0) {
+        fVar22 = 0.0;
+      }
+      else {
+        dVar19 = atof(pcVar11);
+        fVar22 = (float)dVar19;
+      }
+      pcVar11 = local_130 + 0x78;
+      if (0xf < *(ulonglong *)(local_130 + 0x90)) {
+        pcVar11 = *(char **)pcVar11;
+      }
+      fVar18 = 0.0;
+      if (pcVar11 != (char *)0x0) {
+        dVar19 = atof(pcVar11);
+        fVar18 = (float)dVar19;
+      }
+      cVar17 = '\x01';
+      fVar23 = fVar18;
+    }
+    if (cVar4 == '\0') {
+      FUN_141721c20(fVar18,
+                    "PlayerManagerSelfIdentification spawning player, but g_debugPlayerPosition not set!"
+                   );
+    }
+    else {
+      FUN_141721c20("GameMessagePort",
+                    "PlayerManagerSelfIdentification spawning player at location by editor [%.3f, %.3f, %.3f]"
+                    ,(double)fVar24,(double)fVar25,(double)fVar26);
+    }
+    if (cVar17 == '\0') {
+      FUN_141721c20("GameMessagePort",
+                    "PlayerManagerSelfIdentification spawning player, but g_debugPlayerRotation not set!"
+                   );
+    }
+    else {
+      FUN_141721c20("GameMessagePort",
+                    "PlayerManagerSelfIdentification using spawn rotation [%.3f, %.3f, %.3f, %.3f]",
+                    (double)fVar20,(double)fVar21,(double)fVar22,(double)fVar23);
+    }
+    pcVar2 = *(code **)(*plVar8 + 0xf0);
+    pcVar11 = operator_new(0xa0);
+    local_160 = pcVar11;
+    if (pcVar11 == (char *)0x0) {
+      pcStack_190 = (char *)0x0;
+    }
+    else {
+      pcVar11[0] = '\0';
+      pcVar11[1] = '\0';
+      pcVar11[2] = '\0';
+      pcVar11[3] = '\0';
+      pcVar11[4] = '\0';
+      pcVar11[5] = '\0';
+      pcVar11[6] = '\0';
+      pcVar11[7] = '\0';
+      pcVar11[8] = '\0';
+      pcVar11[9] = '\0';
+      pcVar11[10] = '\0';
+      pcVar11[0xb] = '\0';
+      pcVar11[0xc] = '\0';
+      pcVar11[0xd] = '\0';
+      pcVar11[0xe] = '\0';
+      pcVar11[0xf] = '\0';
+      pcVar11[8] = '\x01';
+      pcVar11[9] = '\0';
+      pcVar11[10] = '\0';
+      pcVar11[0xb] = '\0';
+      pcVar11[0xc] = '\x01';
+      pcVar11[0xd] = '\0';
+      pcVar11[0xe] = '\0';
+      pcVar11[0xf] = '\0';
+      *(undefined ***)pcVar11 = &PTR_FUN_148048498;
+      pcVar1 = pcVar11 + 0x10;
+      local_b8 = pcVar1;
+      FUN_146152b00(pcVar1);
+      *(undefined ***)pcVar1 = &PTR_LAB_14802c150;
+      FUN_1402b9910(pcVar11 + 0x20,param_2);
+      uVar6 = *(undefined8 *)(param_2 + 0x28);
+      *(undefined8 *)(pcVar11 + 0x40) = *(undefined8 *)(param_2 + 0x20);
+      *(undefined8 *)(pcVar11 + 0x48) = uVar6;
+      pcVar11[0x50] = *(char *)(param_2 + 0x30);
+      pcVar11[0x60] = '\0';
+      pcVar11[0x61] = '\0';
+      pcVar11[0x62] = '\0';
+      pcVar11[99] = '\0';
+      pcVar11[100] = '\0';
+      pcVar11[0x65] = '\0';
+      pcVar11[0x66] = '\0';
+      pcVar11[0x67] = '\0';
+      pcVar11[0x68] = '\0';
+      pcVar11[0x69] = '\0';
+      pcVar11[0x6a] = '\0';
+      pcVar11[0x6b] = '\0';
+      pcVar11[0x6c] = '\0';
+      pcVar11[0x6d] = '\0';
+      pcVar11[0x6e] = '\0';
+      pcVar11[0x6f] = '\0';
+      if (cVar4 != '\0') {
+        *(float *)(pcVar11 + 0x60) = fVar24;
+        *(float *)(pcVar11 + 100) = fVar25;
+        *(float *)(pcVar11 + 0x68) = fVar26;
+        *(float *)(pcVar11 + 0x6c) = fVar26;
+      }
+      pcVar11[0x70] = cVar4;
+      pcVar11[0x80] = '\0';
+      pcVar11[0x81] = '\0';
+      pcVar11[0x82] = '\0';
+      pcVar11[0x83] = '\0';
+      pcVar11[0x84] = '\0';
+      pcVar11[0x85] = '\0';
+      pcVar11[0x86] = '\0';
+      pcVar11[0x87] = '\0';
+      pcVar11[0x88] = '\0';
+      pcVar11[0x89] = '\0';
+      pcVar11[0x8a] = '\0';
+      pcVar11[0x8b] = '\0';
+      pcVar11[0x8c] = '\0';
+      pcVar11[0x8d] = '\0';
+      pcVar11[0x8e] = '\0';
+      pcVar11[0x8f] = '\0';
+      if (cVar17 != '\0') {
+        *(float *)(pcVar11 + 0x80) = fVar20;
+        *(float *)(pcVar11 + 0x84) = fVar21;
+        *(float *)(pcVar11 + 0x88) = fVar22;
+        *(float *)(pcVar11 + 0x8c) = fVar23;
+      }
+      pcVar11[0x90] = cVar17;
+      pcStack_190 = pcVar11;
+    }
+    local_198 = pcStack_190 + 0x10;
+    local_b8 = (char *)0x0;
+    uStack_b0 = 0;
+    (*pcVar2)(local_c8,param_3,&local_198,1,1);
+    if (0xf < local_d8) {
+      FUN_14149ca40(&local_d0,local_f0[0],local_d8 + 1,1);
+    }
+    pcVar1 = pcStack_128;
+    pcVar11 = local_130;
+    if (local_130 != (char *)0x0) {
+      for (; pcVar11 != pcVar1; pcVar11 = pcVar11 + 0x28) {
+        if (0xf < *(ulonglong *)(pcVar11 + 0x18)) {
+          FUN_14149ca40(pcVar11 + 0x20,*(undefined8 *)pcVar11,*(ulonglong *)(pcVar11 + 0x18) + 1,1);
+        }
+      }
+      FUN_14149ca40(&local_118,local_130,((local_120 - (longlong)local_130) / 0x28) * 0x28,8);
+    }
+    if (0xf < local_90) {
+      FUN_14149ca40(local_88,local_a8[0],local_90 + 1,1);
+    }
+    pcVar1 = pcStack_108;
+    pcVar11 = local_110;
+    if (local_110 != (char *)0x0) {
+      for (; pcVar11 != pcVar1; pcVar11 = pcVar11 + 0x28) {
+        if (0xf < *(ulonglong *)(pcVar11 + 0x18)) {
+          FUN_14149ca40(pcVar11 + 0x20,*(undefined8 *)pcVar11,*(ulonglong *)(pcVar11 + 0x18) + 1,1);
+        }
+      }
+      FUN_14149ca40(&local_f8,local_110,((local_100 - (longlong)local_110) / 0x28) * 0x28,8);
+    }
+  }
+  *(undefined1 *)(param_1 + -0x7f0) = 1;
+  plVar8 = (longlong *)FUN_1407f7d80();
+  if ((((*(longlong *)(param_5 + 4) == *plVar8) && (*(longlong *)(param_5 + 0xc) == plVar8[1])) ||
+      (plVar8 = (longlong *)FUN_14100a050(), *plVar8 == 0)) || (*(char *)(param_6 + 10) != '\0'))
+  goto LAB_14645563b;
+  plVar8 = (longlong *)FUN_14100a050();
+  lVar14 = *plVar8;
+  if (lVar14 == 0) {
+    uVar6 = __std_type_info_name(0x14a13c6e8,&DAT_14a829d20);
+    FUN_1416ad7e0(uVar6);
+  }
+  plVar8 = (longlong *)(**(code **)(**(longlong **)(DAT_14a7ba0e0 + 0x88) + 0x198))();
+  plVar8 = (longlong *)(**(code **)(*plVar8 + 0x18))(plVar8,1,PTR_s_initBotScript_149f67e28,0);
+  local_170 = 0xf;
+  local_168 = "AZStd::allocator";
+  local_178 = 0;
+  local_188 = 0;
+  if (plVar8 != (longlong *)0x0) {
+    puVar9 = (undefined1 *)(**(code **)(*plVar8 + 0x10))(plVar8);
+    _Size_00 = 0xffffffffffffffff;
+    do {
+      _Size_00 = _Size_00 + 1;
+    } while (puVar9[_Size_00] != '\0');
+    puVar13 = (undefined1 *)CONCAT71(uStack_187,local_188);
+    puVar12 = &local_188;
+    if (0xf < local_170) {
+      puVar12 = puVar13;
+    }
+    if (((puVar9 == (undefined1 *)0x0) || (puVar9 < puVar12)) || (puVar12 + local_178 <= puVar9)) {
+      cVar4 = FUN_1402b1040(&local_188,_Size_00);
+      if (cVar4 != '\0') {
+        puVar13 = &local_188;
+        if (0xf < local_170) {
+          puVar13 = (undefined1 *)CONCAT71(uStack_187,local_188);
+        }
+        memcpy(puVar13,puVar9,_Size_00);
+        local_178 = _Size_00;
+        puVar13[_Size_00] = 0;
+      }
+    }
+    else {
+      uVar15 = (longlong)puVar9 - (longlong)puVar12;
+      uVar10 = local_178 - uVar15;
+      if (_Size_00 < local_178 - uVar15) {
+        uVar10 = _Size_00;
+      }
+      lVar5 = local_178 - (uVar10 + uVar15);
+      if (lVar5 == -1) {
+        lVar16 = -1;
+LAB_146455527:
+        puVar9 = &local_188;
+        if (0xf < local_170) {
+          puVar9 = puVar13;
+        }
+        memmove(puVar9 + uVar10 + uVar15,puVar9 + uVar10 + uVar15 + lVar16,lVar5 - lVar16);
+        local_178 = local_178 - lVar16;
+        puVar9[local_178] = 0;
+        puVar13 = (undefined1 *)CONCAT71(uStack_187,local_188);
+      }
+      else {
+        lVar16 = lVar5;
+        if (lVar5 != 0) goto LAB_146455527;
+      }
+      if (local_178 < uVar15) {
+        uVar15 = local_178;
+      }
+      if (uVar15 != 0) {
+        puVar9 = &local_188;
+        if (0xf < local_170) {
+          puVar9 = puVar13;
+        }
+        memmove(puVar9,puVar9 + uVar15,local_178 - uVar15);
+        local_178 = local_178 - uVar15;
+        puVar9[local_178] = 0;
+      }
+    }
+  }
+  lVar5 = FUN_1406d97d0(param_1 + -0x990);
+  FUN_14167c060(lVar14,&local_188,*(undefined8 *)(lVar5 + 8),param_6,param_2,param_3,param_5);
+  if (0xf < local_170) {
+    FUN_14149ca40(&local_168,CONCAT71(uStack_187,local_188),local_170 + 1,1);
+  }
+LAB_14645563b:
+  FUN_145a87010(local_c0);
+  return;
+}
+

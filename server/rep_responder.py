@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import secrets
 import socket
 import struct
 import sys
@@ -46,6 +47,7 @@ from server.javelin.frame import (  # noqa: E402
     parse_datagram,
     marshal_datagram,
 )
+from server.javelin import dispatch as _dispatch  # noqa: E402
 from server.javelin.replay_store import ReplayStore, ReplayMessage  # noqa: E402
 from server.javelin.v3_request import V3RegistrationRequest  # noqa: E402
 from server.javelin.wire import (  # noqa: E402
@@ -248,6 +250,28 @@ class PeerSession:
         self.post_replay_heartbeat_ms = 500
         self._heartbeat_msg: ReplayMessage | None = None
         self._next_heartbeat_at: float = 0.0
+        # Wake 204 phase-2D: when True, the heartbeat emission path
+        # generates fresh bytes via `dispatch.encode_replay_message`
+        # instead of replaying `_heartbeat_msg.body`. Defaults to
+        # False (current behavior unchanged). The wake-187/188 startup
+        # probe + lockdown tests proved the dispatcher path produces
+        # byte-identical output for the cached heartbeat, so flipping
+        # this flag should be observable only via the [phase-2D] log
+        # line announcing the source. Future wakes can extend the
+        # dispatched path to advance the counter/nonce per-emission.
+        self.heartbeat_use_dispatcher = False
+        self._heartbeat_decoded: object | None = None
+        self._heartbeat_dispatched_count: int = 0
+        # Wake 207: when True (and heartbeat_use_dispatcher is also True),
+        # each dispatched heartbeat increments `_heartbeat_decoded.counter`
+        # by 1 (mod u32) and refreshes `.nonce` via `_heartbeat_nonce_fn`.
+        # Default off — preserves wake-204 byte-equality to CAPTURED_PING.
+        # Real server behavior is to advance the counter; this flag lets
+        # a future real-GPU run flip it for genuine progress without
+        # changing the safe default. Nonce function is pluggable so tests
+        # can inject a deterministic sequence.
+        self.heartbeat_advance_counter = False
+        self._heartbeat_nonce_fn = lambda: secrets.randbits(32)
         self.handshake_done = False
         self.out_seq = 0  # outbound Carrier-envelope sequence number
         # Per-channel outbound sequence + reliable-sequence counters. GridMate
@@ -456,6 +480,109 @@ class PeerSession:
                 self._handle_v3_data_record(m)
                 break
 
+        # Wake 157: parallel shadow-decode through the central dispatcher.
+        # No behavior change — for each inbound record, try to sniff a
+        # typed-envelope header and call `dispatch.decode_replay_message`,
+        # logging success/failure. This validates the dispatcher against
+        # live traffic before any later wake routes the responder through
+        # it for real.
+        for m in result.messages:
+            self._shadow_decode_record(m)
+
+    def _shadow_decode_record(self, m: MessageRecord) -> None:
+        """Try to decode an inbound record through the central dispatcher.
+
+        Sniffs the typed-envelope header (`[0x00, 0x01, (id & 0x3f) | 0x80,
+        id >> 6]`) at the start of `m.payload`. If present, calls
+        `dispatch.decode_replay_message(type_id, "R", payload)` and logs
+        the outcome at debug level. Never raises; never affects runtime
+        behavior. Records without a typed-envelope prefix (system msgs,
+        V3 request, etc.) are silently skipped.
+        """
+        payload = m.payload
+        if len(payload) < 4 or payload[0] != 0x00 or payload[1] != 0x01:
+            return
+        # Decode the type_id from bytes [2,3]: low 6 bits | high bits << 6
+        b2, b3 = payload[2], payload[3]
+        if not (b2 & 0x80):
+            return
+        type_id = (b2 & 0x3f) | (b3 << 6)
+        if type_id not in _dispatch.DECODERS:
+            self.log.debug(
+                f"[shadow] type_id=0x{type_id:x} not in dispatcher "
+                f"(len={len(payload)})"
+            )
+            return
+        try:
+            decoded = _dispatch.decode_replay_message(type_id, "R", payload)
+        except Exception as e:  # noqa: BLE001 — log-only, no rethrow
+            self.log.debug(
+                f"[shadow] type_id=0x{type_id:x} decode failed: "
+                f"{type(e).__name__}: {e}"
+            )
+            return
+        self.log.debug(
+            f"[shadow] type_id=0x{type_id:x} -> "
+            f"{type(decoded).__name__ if decoded is not None else 'None'}"
+        )
+
+    def _validate_dispatcher_heartbeat_encode_matches(self) -> None:
+        """Wake 187 phase-2B foundation: confirm the central dispatcher's
+        encoder produces byte-identical output to the captured heartbeat
+        message we're about to replay. Logging-only; never raises.
+
+        The path that would replace `_send_replay_message(msg)` for the
+        heartbeat case is:
+            decoded = _dispatch.decode_replay_message(0x15d, "R", body)
+            new_body = _dispatch.encode_replay_message(0x15d, decoded)
+            ... wrap new_body in the Carrier envelope and send ...
+
+        This validation runs that decode → encode round-trip against the
+        cached `_heartbeat_msg.body` and asserts byte-equality. If
+        equality holds, a future wake can swap the emission path with
+        confidence. If it fails, the failure surfaces here at startup
+        with the diff bytes, not later as a wire-level surprise.
+        """
+        msg = self._heartbeat_msg
+        if msg is None or msg.type_id != 0x15d:
+            return
+        try:
+            decoded = _dispatch.decode_replay_message(0x15d, "R", msg.body)
+            if decoded is None:
+                self.log.debug(
+                    "[phase-2B] dispatcher returned None for heartbeat 0x15d; "
+                    "expected HeartbeatPing15D"
+                )
+                return
+            roundtripped = _dispatch.encode_replay_message(0x15d, decoded)
+        except Exception as e:  # noqa: BLE001 — log-only, never raise
+            self.log.warning(
+                f"[phase-2B] dispatcher heartbeat round-trip failed: "
+                f"{type(e).__name__}: {e}"
+            )
+            return
+        if roundtripped == msg.body:
+            self.log.info(
+                "[phase-2B] dispatcher encoder produces byte-identical "
+                f"heartbeat ({len(roundtripped)} bytes) — emission-path swap "
+                f"would be safe."
+            )
+            # Wake 204: cache the decoded heartbeat so the phase-2D
+            # path can re-encode without re-running decode each tick.
+            self._heartbeat_decoded = decoded
+        else:
+            # Diff the first differing offset for diagnosis.
+            diff_at = next(
+                (i for i, (a, b) in enumerate(zip(msg.body, roundtripped))
+                 if a != b),
+                min(len(msg.body), len(roundtripped)),
+            )
+            self.log.warning(
+                f"[phase-2B] dispatcher heartbeat encode differs from "
+                f"captured: lens {len(msg.body)} vs {len(roundtripped)}, "
+                f"first diff at offset 0x{diff_at:x}. NOT safe to swap."
+            )
+
     def _handle_v3_data_record(self, m) -> None:
         """Log + reply to an inbound V3 RegistrationRequest record."""
         try:
@@ -536,7 +663,8 @@ class PeerSession:
             # The strict parser fails when body length diverges from 832 B
             # (live first-attempt is 835 B, retries are 829-838 B), but the
             # identity fields are still recoverable by regex.
-            req = self._lenient_v3_extract(m.payload)
+            from server.javelin.v3_request import parse_v3_request_lenient
+            req = parse_v3_request_lenient(m.payload)
             if req and req.session_uuid:
                 sess_uuid_no_dashes = req.session_uuid.replace("-", "")
                 if len(sess_uuid_no_dashes) == 32:
@@ -645,47 +773,6 @@ class PeerSession:
         self.drain_outbound()
         self._start_replay()
 
-    def _lenient_v3_extract(self, payload: bytes) -> "V3RegistrationRequest | None":
-        """Extract session_uuid + persona_id from a V3 payload by regex.
-
-        Used when `parse_v3_request` rejects the body (live first-attempt is
-        835 B, not the strict 832 B). Returns a minimal V3RegistrationRequest
-        with only the identity fields populated, or None if neither could be
-        recovered.
-        """
-        import re
-        uuids = list(re.finditer(
-            rb'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',
-            payload,
-        ))
-        session_uuid = ""
-        for u in uuids:
-            pre = payload[max(0, u.start() - 8):u.start()].decode(
-                "latin-1", errors="replace"
-            )
-            if "sig:" in pre or "naId." in pre:
-                continue
-            if u.start() > 0 and payload[u.start() - 1] == 0x24:
-                session_uuid = u.group(0).decode("ascii")
-                break
-
-        # persona_id is "amzn1.developerPersonaId.<uuid>" (61 chars), preceded
-        # by a length byte 0x3d (61).
-        persona_id = ""
-        m = re.search(
-            rb'amzn1\.developerPersonaId\.[0-9a-f-]{36}',
-            payload,
-        )
-        if m:
-            persona_id = m.group(0).decode("ascii")
-
-        if not session_uuid and not persona_id:
-            return None
-        out = V3RegistrationRequest()
-        out.session_uuid = session_uuid
-        out.persona_id = persona_id
-        return out
-
     def _start_replay(self) -> None:
         """Queue post-V3 captured messages for paced replay."""
         if self.replay_started or self.replay_store is None:
@@ -716,6 +803,16 @@ class PeerSession:
                     "found in dump; disabling heartbeat"
                 )
                 self.post_replay_heartbeat_ms = 0
+            else:
+                # Wake 187 phase-2B foundation: validate that the central
+                # dispatcher's encoder produces byte-identical output to
+                # the captured heartbeat. Future wakes can swap the
+                # emission path from `_send_replay_message(msg)` (raw
+                # captured bytes) to a dispatcher-encoded fresh body —
+                # this assertion proves the swap is safe BEFORE actually
+                # performing it, in the spirit of the wake-157 shadow
+                # pattern. Currently logs only; no behavior change.
+                self._validate_dispatcher_heartbeat_encode_matches()
         # The V3 response sent on ch=0 with seq=0/rel_seq=0 doesn't go through
         # _next_seq, so the per-channel counters are still at 0. Bump them so
         # replay records get seq=1/rel_seq=1 onward instead of colliding with
@@ -757,8 +854,79 @@ class PeerSession:
             return
         if now < self._next_heartbeat_at:
             return
-        self._send_replay_message(self._heartbeat_msg, is_heartbeat=True)
+        # Wake 204 phase-2D: choose the heartbeat source.
+        # `heartbeat_use_dispatcher=False` (default) preserves the
+        # existing behavior; True uses the dispatcher path.
+        if (self.heartbeat_use_dispatcher
+                and self._heartbeat_decoded is not None
+                and self._heartbeat_msg.type_id == 0x15d):
+            self._send_dispatched_heartbeat()
+        else:
+            self._send_replay_message(self._heartbeat_msg, is_heartbeat=True)
         self._next_heartbeat_at = now + (self.post_replay_heartbeat_ms / 1000.0)
+
+    def _send_dispatched_heartbeat(self) -> None:
+        """Wake 204 phase-2D: emit a 0x15d heartbeat via the central
+        dispatcher's encoder instead of the captured replay bytes.
+
+        Re-encodes the cached `_heartbeat_decoded` object on each
+        call via `dispatch.encode_replay_message(0x15d, ...)`. Since
+        the cached object's counter/nonce don't change between calls,
+        the encoded bytes are identical across heartbeats and
+        byte-identical to `_heartbeat_msg.body` — proven safe by the
+        wake-187/188 lockdown. A future wake can mutate the
+        decoded object's counter/nonce per-call to make the
+        heartbeats actually advance (closer to real server behavior).
+
+        The first invocation logs at INFO so an operator can see the
+        path switched; subsequent invocations log at debug level only.
+
+        Wake 207: when `heartbeat_advance_counter` is True, the cached
+        decoded object is mutated before encoding — counter increments
+        by 1 (mod u32) and nonce is refreshed via `_heartbeat_nonce_fn`.
+        The mutation is persisted to `_heartbeat_decoded` so each call
+        builds on the previous, matching the real server's
+        slow-incrementing counter pattern.
+        """
+        if (self.heartbeat_advance_counter
+                and self._heartbeat_decoded is not None):
+            from dataclasses import replace as _dc_replace
+            self._heartbeat_decoded = _dc_replace(
+                self._heartbeat_decoded,
+                counter=(self._heartbeat_decoded.counter + 1) & 0xFFFFFFFF,
+                nonce=self._heartbeat_nonce_fn() & 0xFFFFFFFF,
+            )
+        try:
+            fresh_body = _dispatch.encode_replay_message(
+                0x15d, self._heartbeat_decoded
+            )
+        except Exception as e:  # noqa: BLE001
+            # Defensive: if the dispatcher path fails at runtime,
+            # fall back to the captured-replay path and log.
+            self.log.warning(
+                f"[phase-2D] dispatcher heartbeat encode failed at runtime: "
+                f"{type(e).__name__}: {e}; falling back to replay bytes"
+            )
+            self._send_replay_message(self._heartbeat_msg, is_heartbeat=True)
+            return
+        # Substitute the fresh body into the cached ReplayMessage for
+        # this emission. The captured ReplayMessage carries the right
+        # seq/channel/direction/etc. metadata; only the body bytes are
+        # being regenerated.
+        from dataclasses import replace as _dc_replace
+        fresh_msg = _dc_replace(self._heartbeat_msg, body=fresh_body)
+        self._heartbeat_dispatched_count += 1
+        if self._heartbeat_dispatched_count == 1:
+            self.log.info(
+                f"[phase-2D] first dispatcher-encoded heartbeat sent "
+                f"({len(fresh_body)} bytes); subsequent heartbeats will "
+                f"use the same path at DEBUG level"
+            )
+        else:
+            self.log.debug(
+                f"[phase-2D] dispatcher heartbeat #{self._heartbeat_dispatched_count}"
+            )
+        self._send_replay_message(fresh_msg, is_heartbeat=True)
 
     def _send_replay_message(self, msg: ReplayMessage, is_heartbeat: bool = False) -> None:
         """Wrap a captured typed-stream body in a Carrier record + envelope.
