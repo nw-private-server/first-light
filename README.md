@@ -75,25 +75,49 @@ info/            Community-shared captures and reference data
 
 ### Prerequisites
 
-- Python 3.11 or 3.12 (python3-dtls is broken on 3.13)
-- pyOpenSSL: `pip install pyopenssl`
-- A non-EAC build of New World (archived/offline build)
-- Frida 16+: `pip install frida-tools` (for trust bypass on the client)
+- **Windows, x64.** The full capture flow targets the Windows build (the server stack itself runs anywhere Python does).
+- **Python 3.11 or 3.12** (python3-dtls is broken on 3.13).
+- **A non-EAC build of New World** — the live Steam build refuses runtime instrumentation. Any copy of `NewWorld.exe` that you launch directly via `frida.spawn(NewWorld.exe)` works (skipping the launcher chain skips EAC). Steam still needs to be running and logged in.
+- **OpenSSL on PATH** (one-time, for cert generation).
+- **Admin PowerShell** for the `certutil` and hosts-file steps.
 
-### Run the mock stack
+### Set up once
 
 ```powershell
-# Terminal 1 — HTTPS auth mock (port 443, needs admin on Windows)
-python -m server.auth_mock --port 443
+# Project root, Administrator PowerShell:
+python3.12 -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install frida-tools pyOpenSSL pytest pytest-timeout
 
-# Terminal 2 — Javelin REP server
-python -m server.rep_responder
+# Generate the self-signed CA + auth/server certs the local stack uses:
+python tools\generate_auth_certs.py
+python tools\generate_cert.py
 
-# Terminal 3 — game client with Frida trust bypass
-python tools\client-hooks\frida_capture.py --exe "path\to\NewWorld.exe" --name session1
+# Trust the CA so the game's HTTPS client accepts the auth_mock:
+certutil -addstore -f "ROOT" server\certs\newworld_ca.crt
+
+# Redirect Amazon's auth hostnames to 127.0.0.1 (i.e. the local auth_mock):
+python tools\setup_hosts.py --apply
 ```
 
-Before starting the client, redirect auth hostnames to your loopback. Run `python tools\setup_hosts.py` (admin) — it appends every required host to `C:\Windows\System32\drivers\etc\hosts` and adds matching IPv6 entries.
+### Run the mock stack and capture packets
+
+```powershell
+# Terminal 1 — HTTPS auth mock on port 443 (admin)
+python -m server.auth_mock --port 443
+
+# Terminal 2 — Javelin REP server on UDP 24083
+python -m server.rep_responder
+
+# Terminal 3 — the game, spawned under Frida with the trust bypass
+python tools\client-hooks\frida_capture.py `
+    --exe "C:\path\to\NewWorld\Bin64\NewWorld.exe" `
+    --name session1
+```
+
+Captured packets land in `capture/<timestamp>_session1/` — `packets/` (one binary file per packet), `packets.jsonl` (metadata), and `session.log` (event timeline).
+
+For the **full step-by-step capture walkthrough** including the gotchas (Steam launch-context, Frida 17 API, expected hook output), see [tools/client-hooks/README.md](tools/client-hooks/README.md). For what to capture, what to redact before sharing, and how to submit captures back, see [docs/capture-guide.md](docs/capture-guide.md).
 
 ### Run the tests
 
