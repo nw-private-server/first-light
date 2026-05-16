@@ -1,3 +1,5 @@
+**Beware Aeternum Legacy** [Why Aeternum Legacy is likely a scam](https://www.reddit.com/r/newworldgame/comments/1teenm8/beware_aeternum_legacy/)
+
 # New World: First Light
 
 [![Tests](https://github.com/nw-private-server/first-light/actions/workflows/tests.yml/badge.svg)](https://github.com/nw-private-server/first-light/actions/workflows/tests.yml) [![Pages](https://github.com/nw-private-server/first-light/actions/workflows/pages.yml/badge.svg)](https://nw-private-server.github.io/first-light/) [![Test count](https://img.shields.io/endpoint?url=https%3A%2F%2Fnw-private-server.github.io%2Ffirst-light%2Fbadge-tests-count.json)](https://nw-private-server.github.io/first-light/#overview) [![Codecs](https://img.shields.io/endpoint?url=https%3A%2F%2Fnw-private-server.github.io%2Ffirst-light%2Fbadge-codecs.json)](https://nw-private-server.github.io/first-light/#overview) [![Live decoder](https://img.shields.io/endpoint?url=https%3A%2F%2Fnw-private-server.github.io%2Ffirst-light%2Fbadge-live-decoder.json)](https://nw-private-server.github.io/first-light/#explore)
