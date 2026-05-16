@@ -1,8 +1,16 @@
+> # ⚠️ THIS REPOSITORY IS DEFUNCT
+>
+> **All active development has moved to the OpenWorld Discord server: https://discord.gg/5XzwZHFv**
+>
+> This repo is kept online as a historical reference only. It is no longer monitored, PRs and issues will not be reviewed here, and the information below may be out of date. If you want to contribute, capture traffic, or follow progress, **please join the Discord** linked above — that's where the project lives now.
+
+---
+
 **[OpenWorld Discord: Active New World Private Server Development](https://discord.gg/5XzwZHFv)**
 
-[Beware Aeternum Legacy](https://www.reddit.com/r/newworldgame/comments/1teenm8/beware_aeternum_legacy/)
-
 # New World: First Light
+
+[Beware Aeternum Legacy](https://www.reddit.com/r/newworldgame/comments/1teenm8/beware_aeternum_legacy/)
 
 [![Tests](https://github.com/nw-private-server/first-light/actions/workflows/tests.yml/badge.svg)](https://github.com/nw-private-server/first-light/actions/workflows/tests.yml) [![Pages](https://github.com/nw-private-server/first-light/actions/workflows/pages.yml/badge.svg)](https://nw-private-server.github.io/first-light/) [![Test count](https://img.shields.io/endpoint?url=https%3A%2F%2Fnw-private-server.github.io%2Ffirst-light%2Fbadge-tests-count.json)](https://nw-private-server.github.io/first-light/#overview) [![Codecs](https://img.shields.io/endpoint?url=https%3A%2F%2Fnw-private-server.github.io%2Ffirst-light%2Fbadge-codecs.json)](https://nw-private-server.github.io/first-light/#overview) [![Live decoder](https://img.shields.io/endpoint?url=https%3A%2F%2Fnw-private-server.github.io%2Ffirst-light%2Fbadge-live-decoder.json)](https://nw-private-server.github.io/first-light/#explore)
 
