@@ -1,4 +1,6 @@
-**Beware Aeternum Legacy** [Why Aeternum Legacy is likely a scam](https://www.reddit.com/r/newworldgame/comments/1teenm8/beware_aeternum_legacy/)
+[**OpenWorld Discord: Active New World Private Server Development**](https://discord.gg/5XzwZHFv}
+
+[Beware Aeternum Legacy](https://www.reddit.com/r/newworldgame/comments/1teenm8/beware_aeternum_legacy/)
 
 # New World: First Light
 
